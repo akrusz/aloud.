@@ -236,7 +236,7 @@ llm:
   ollama_model: $OLLAMA_MODEL
 
   context:
-    strategy: rolling  # rolling, full
+    strategy: full  # full, rolling
     window_size: 10    # exchanges to keep (if rolling)
     max_tokens: 300    # max response tokens
 

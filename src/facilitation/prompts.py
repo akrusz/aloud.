@@ -472,6 +472,53 @@ class PromptBuilder:
 
         return random.choice(pool)
 
+    def build_opener_prompt(self, intention: str = "") -> str:
+        """Build a prompt for the LLM to generate a session opening.
+
+        Args:
+            intention: The meditator's stated intention, if any.
+
+        Returns:
+            A prompt string to send as a user message.
+        """
+        parts = [
+            "Generate a brief, natural opening for this meditation session. "
+            "Just a sentence or two to welcome the meditator and invite them to begin."
+        ]
+
+        # Describe session configuration so the LLM can tailor the greeting
+        details = []
+        if self.config.focuses:
+            focus_names = ", ".join(f.replace("_", " ") for f in self.config.focuses)
+            details.append(f"focus areas: {focus_names}")
+        if self.config.qualities:
+            quality_names = ", ".join(self.config.qualities)
+            details.append(f"tone: {quality_names}")
+        if self.config.orient_pleasant:
+            details.append("oriented toward pleasant experience")
+        if intention:
+            details.append(f'intention: "{intention}"')
+
+        if details:
+            parts.append(f"The meditator has chosen: {'; '.join(details)}.")
+
+        if self.config.directiveness <= 1:
+            parts.append(
+                "Keep it very minimal — just a few words. "
+                "Something like 'I'm here' or 'Whenever you're ready.'"
+            )
+        elif self.config.directiveness <= 3:
+            parts.append("Keep it warm and concise. Don't direct their attention too specifically.")
+        elif self.config.directiveness >= 7:
+            parts.append("You can suggest where to begin or what to notice.")
+
+        parts.append(
+            "Do not mention the session settings directly. "
+            "Speak naturally, as you would to begin a conversation."
+        )
+
+        return " ".join(parts)
+
     def get_check_in_prompt(self) -> str:
         """Get a gentle check-in phrase for long silences."""
         import random

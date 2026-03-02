@@ -53,8 +53,8 @@ class LLMConfig:
     ollama_model: str = "llama3"
     api_key: str | None = None
     openai_base_url: str | None = None
-    context_strategy: str = "rolling"
-    window_size: int = 10
+    context_strategy: str = "full"
+    window_size: int = 100
     max_tokens: int = 300
 
 
@@ -133,11 +133,16 @@ def load_config(path: str | Path | None = None) -> Config:
             config.tts = _update_dataclass(TTSConfig(), data["tts"])
         if "llm" in data:
             llm_data = data["llm"]
-            # Handle nested context config
+            # Flatten nested context config — only override dataclass
+            # defaults for keys explicitly present in the YAML.
             if "context" in llm_data:
-                llm_data["context_strategy"] = llm_data["context"].get("strategy", "rolling")
-                llm_data["window_size"] = llm_data["context"].get("window_size", 10)
-                llm_data["max_tokens"] = llm_data["context"].get("max_tokens", 300)
+                ctx = llm_data.pop("context")
+                if "strategy" in ctx:
+                    llm_data["context_strategy"] = ctx["strategy"]
+                if "window_size" in ctx:
+                    llm_data["window_size"] = ctx["window_size"]
+                if "max_tokens" in ctx:
+                    llm_data["max_tokens"] = ctx["max_tokens"]
             config.llm = _update_dataclass(LLMConfig(), llm_data)
         if "pacing" in data:
             config.pacing = _update_dataclass(PacingConfig(), data["pacing"])

@@ -188,7 +188,7 @@
               ollama_model: llama3
 
               context:
-                strategy: rolling
+                strategy: full
                 window_size: 10
                 max_tokens: 300
 

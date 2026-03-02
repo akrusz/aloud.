@@ -156,14 +156,13 @@ class MeditationFacilitator:
         self.audio_input.start()
         print("Listening... (Ctrl+C to end session)\n")
 
-        # Opening
-        opener = self.prompts.get_session_opener()
+        # Opening — LLM-generated, with static fallback
+        opener = await self._generate_opener()
         print(f"\nFacilitator: {opener}")
         await self.tts.speak(opener)
         self.audio_input.clear_buffer()
         self.vad.reset()
         self._audio_buffer = []
-        self.session.add_assistant_message(opener)
         self.pacing.on_response_end()
 
         try:
@@ -239,6 +238,38 @@ class MeditationFacilitator:
     def _state_is_idle(vad_result: VADResult) -> bool:
         """Check if VAD is in an idle/silence state (safe to buffer)."""
         return vad_result.state in (SpeechState.SILENCE, SpeechState.SPEECH_ENDED)
+
+    async def _generate_opener(self) -> str:
+        """Generate an LLM-powered session opening, with static fallback."""
+        try:
+            opener_prompt = self.prompts.build_opener_prompt()
+            self.session.add_user_message(opener_prompt)
+
+            messages = self.session.get_context_messages()
+            llm_messages = [Message(role=m["role"], content=m["content"]) for m in messages]
+
+            result = await self.llm.complete(
+                messages=llm_messages,
+                system=self.prompts.build_system_prompt(),
+            )
+            response = result.text.strip()
+
+            # Clean up: remove the fake user prompt, keep the response
+            if self.session.state and self.session.state.exchanges:
+                self.session.state.exchanges.pop(-1)  # remove opener_prompt
+
+            self.session.add_assistant_message(response)
+            return response
+        except Exception as e:
+            print(f"\n(LLM opener failed: {e}, using static fallback)")
+            # Clean up any partial state from the failed attempt
+            if (self.session.state and self.session.state.exchanges
+                    and self.session.state.exchanges[-1].role == "user"):
+                self.session.state.exchanges.pop()
+
+            opener = self.prompts.get_session_opener()
+            self.session.add_assistant_message(opener)
+            return opener
 
     async def _generate_response(self) -> None:
         """Generate and speak a facilitator response."""

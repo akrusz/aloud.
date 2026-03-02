@@ -57,7 +57,7 @@ class SessionManager:
 
     def __init__(
         self,
-        context_strategy: Literal["rolling", "full"] = "rolling",
+        context_strategy: Literal["rolling", "full"] = "full",
         window_size: int = 10,
     ):
         """Initialize session manager.

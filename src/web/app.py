@@ -130,10 +130,32 @@ class WebMeditationSession:
         return clean_response, hold_signal
 
     def get_opener(self) -> str:
-        """Get a session opening message."""
+        """Get a static session opening message (fallback)."""
         opener = self.prompts.get_session_opener()
         self.session.add_assistant_message(opener)
         return opener
+
+    async def generate_opener(self) -> str:
+        """Generate an LLM-powered session opening.
+
+        Uses the LLM to create a contextual welcome based on session settings,
+        falling back to the static opener pool on error.
+        """
+        try:
+            opener_prompt = self.prompts.build_opener_prompt(intention=self.intention)
+            response, _ = await self.generate_response(opener_prompt)
+
+            # Clean up: remove the fake user message (the opener prompt)
+            # from conversation history. generate_response added both the
+            # prompt as user and the response as assistant — keep only the
+            # assistant response.
+            if self.session.state and len(self.session.state.exchanges) >= 2:
+                self.session.state.exchanges.pop(-2)
+
+            return response
+        except Exception as e:
+            print(f"  [Opener] LLM opener failed ({e}), using static fallback", flush=True)
+            return self.get_opener()
 
     def end(self) -> dict | None:
         """End the session and return serialized data."""
@@ -469,7 +491,7 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
                 emit("facilitator_message", {"text": response, "type": "opener", "audio": audio})
                 return
 
-        opener = web_session.get_opener()
+        opener = asyncio.run(web_session.generate_opener())
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
             audio = app.server_tts.speak_to_bytes(opener)
