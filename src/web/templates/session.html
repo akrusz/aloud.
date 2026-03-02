@@ -13,14 +13,19 @@
 </div>
 {% endblock %}
 
+{% block nav_extra %}
+<button id="end-btn" class="btn btn-end">End Session</button>
+{% endblock %}
+
 {% block content %}
 <div class="session-container">
     <div class="conversation" id="conversation">
         <!-- Messages appear here -->
-    </div>
-
-    <div class="typing-indicator" id="typing-indicator">
-        <span></span><span></span><span></span>
+        <div class="message facilitator typing-bubble" id="typing-indicator">
+            <div class="message-content">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
     </div>
 
     <div class="input-area">
@@ -64,7 +69,6 @@
             <div class="voice-control">
                 <button type="button" id="voice-picker-btn" class="voice-picker-btn">Voice</button>
             </div>
-            <button id="end-btn" class="btn btn-end">End Session</button>
         </div>
     </div>
 </div>

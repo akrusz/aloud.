@@ -47,6 +47,7 @@
         <div class="nav-links">
             {% if request.path != '/' %}<a href="/">New Session</a>{% endif %}
             <a href="/history">History</a>
+            {% block nav_extra %}{% endblock %}
             <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"></button>
         </div>
     </nav>

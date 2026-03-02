@@ -736,21 +736,25 @@ body:has(.session-container) {
     color: var(--text-primary);
 }
 
-/* Typing indicator */
+/* Typing indicator (inside a facilitator chat bubble) */
 
-.typing-indicator {
+.typing-bubble {
     display: none;
-    padding: 0.75rem 0;
+}
+
+.typing-bubble.visible {
+    display: block;
+    animation: messageIn 0.4s ease;
+}
+
+.typing-bubble .message-content {
+    display: flex;
     gap: 4px;
     align-items: center;
-    flex-shrink: 0;
+    padding: 0.65rem 1rem;
 }
 
-.typing-indicator.visible {
-    display: flex;
-}
-
-.typing-indicator span {
+.typing-bubble .message-content span {
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -759,11 +763,11 @@ body:has(.session-container) {
     animation: typing 1.4s infinite;
 }
 
-.typing-indicator span:nth-child(2) {
+.typing-bubble .message-content span:nth-child(2) {
     animation-delay: 0.2s;
 }
 
-.typing-indicator span:nth-child(3) {
+.typing-bubble .message-content span:nth-child(3) {
     animation-delay: 0.4s;
 }
 

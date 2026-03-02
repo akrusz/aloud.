@@ -440,6 +440,14 @@
         voiceBtn.addEventListener('click', toggleVoice);
         listenBtn.addEventListener('click', toggleListenMode);
         endBtn.addEventListener('click', endSession);
+        var newSessionLink = document.querySelector('.nav-links a[href="/"]');
+        if (newSessionLink) {
+            newSessionLink.addEventListener('click', function (e) {
+                if (sessionActive && !confirm('Start a new session? This will end your current session.')) {
+                    e.preventDefault();
+                }
+            });
+        }
         // Restore saved speed
         var savedSpeed = localStorage.getItem('glooow-speed');
         if (savedSpeed) {
@@ -806,6 +814,7 @@
     socket.on('facilitator_typing', function (data) {
         if (data.typing) {
             typingEl.classList.add('visible');
+            scrollToBottom();
         } else {
             typingEl.classList.remove('visible');
         }
