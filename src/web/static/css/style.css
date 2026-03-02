@@ -809,6 +809,7 @@ body:has(.session-container) {
     border-radius: 50%;
     padding: 0;
     flex-shrink: 0;
+    margin-right: 0.35rem;
     border: 1px solid var(--border);
 }
 
