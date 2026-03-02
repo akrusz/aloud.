@@ -485,8 +485,6 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
                 except Exception:
                     response = "Welcome back. Let's continue from where we left off."
                     web_session.session.add_assistant_message(response)
-                finally:
-                    emit("facilitator_typing", {"typing": False})
 
                 audio = None
                 if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
@@ -496,7 +494,6 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
 
         emit("facilitator_typing", {"typing": True})
         opener = asyncio.run(web_session.generate_opener())
-        emit("facilitator_typing", {"typing": False})
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
             audio = app.server_tts.speak_to_bytes(opener)

@@ -761,7 +761,7 @@
         content.textContent = text;
         msg.appendChild(content);
 
-        conversationEl.appendChild(msg);
+        conversationEl.insertBefore(msg, typingEl);
         if (wasAtBottom) {
             scrollToBottom();
         }
@@ -793,11 +793,12 @@
         var sep = document.createElement('div');
         sep.className = 'continuation-separator';
         sep.innerHTML = '<span>continuing...</span>';
-        conversationEl.appendChild(sep);
+        conversationEl.insertBefore(sep, typingEl);
         scrollToBottom();
     });
 
     socket.on('facilitator_message', function (data) {
+        typingEl.classList.remove('visible');
         addMessage('facilitator', data.text);
         if (ttsToggle.checked) {
             // If voice isn't active yet (e.g. opener arrives before mic
