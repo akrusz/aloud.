@@ -682,6 +682,60 @@ body:has(.session-container) {
     }
 }
 
+/* Historical messages (from continued sessions) */
+
+.message.historical {
+    opacity: 0.45;
+    animation: none;
+}
+
+.continuation-separator {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.continuation-separator::before,
+.continuation-separator::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* Continue-from banner on setup page */
+
+.continue-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: var(--radius);
+    background: var(--facilitator-bg);
+    border: 1px solid rgba(212, 135, 58, 0.2);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.continue-banner-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    line-height: 1;
+}
+
+.continue-banner-close:hover {
+    color: var(--text-primary);
+}
+
 /* Typing indicator */
 
 .typing-indicator {

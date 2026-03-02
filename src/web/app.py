@@ -432,6 +432,43 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         app.session_to_sid[session_id] = sid
         print(f"  [Session] New session {session_id[:12]}… for sid={sid[:8]}…", flush=True)
 
+        # Handle continuation from a previous session
+        continue_from = data.get("continue_from")
+        if continue_from:
+            old_session = app.transcript_logger.load_session(continue_from)
+            if old_session and old_session.get("exchanges"):
+                # Hydrate the new session with old exchanges for LLM context
+                web_session.session.load_exchanges(old_session["exchanges"])
+                # Store provenance
+                web_session.continued_from = continue_from
+                # Send old exchanges to the frontend for display
+                emit("session_history", {"exchanges": old_session["exchanges"]})
+                print(f"  [Session] Continuing from {continue_from[:12]}… ({len(old_session['exchanges'])} exchanges)", flush=True)
+
+                # Generate a continuation opener via the LLM
+                try:
+                    continuation_note = (
+                        "The meditator is returning to continue from a previous session. "
+                        "Offer a brief, warm welcome back and gently acknowledge they're "
+                        "picking up where they left off."
+                    )
+                    response, _ = asyncio.run(web_session.generate_response(continuation_note))
+                    # Remove the internal note from history — replace with just the response
+                    # The generate_response added both the note as user and response as assistant.
+                    # We want to keep only the assistant response (remove the fake user message).
+                    if web_session.session.state and len(web_session.session.state.exchanges) >= 2:
+                        # Remove the continuation prompt (second-to-last) but keep the response (last)
+                        web_session.session.state.exchanges.pop(-2)
+                except Exception:
+                    response = "Welcome back. Let's continue from where we left off."
+                    web_session.session.add_assistant_message(response)
+
+                audio = None
+                if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
+                    audio = app.server_tts.speak_to_bytes(response)
+                emit("facilitator_message", {"text": response, "type": "opener", "audio": audio})
+                return
+
         opener = web_session.get_opener()
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
@@ -491,6 +528,8 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         session_data = web_session.end()
         saved_id = None
         if session_data and app.meditation_config.session.auto_save:
+            if hasattr(web_session, 'continued_from'):
+                session_data["continued_from"] = web_session.continued_from
             app.transcript_logger.save_session(session_data)
             app.transcript_logger.save_session_text(session_data)
             saved_id = session_data.get("session_id")

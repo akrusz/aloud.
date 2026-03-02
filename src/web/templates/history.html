@@ -30,6 +30,9 @@
                     <p class="loading-text">Loading...</p>
                 </div>
                 <div class="session-actions">
+                    <button class="btn btn-secondary btn-small" onclick="continueSession('{{ s.session_id }}')">
+                        Continue from here
+                    </button>
                     <button class="btn btn-danger btn-small" onclick="deleteSession('{{ s.session_id }}')">
                         Delete
                     </button>

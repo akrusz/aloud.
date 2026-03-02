@@ -63,6 +63,11 @@
             });
     }
 
+    window.continueSession = function (sessionId) {
+        sessionStorage.setItem('continueFrom', sessionId);
+        window.location.href = '/';
+    };
+
     window.deleteSession = function (sessionId) {
         if (!confirm('Delete this session permanently?')) return;
 

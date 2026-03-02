@@ -694,6 +694,9 @@
         sessionStart = Date.now();
         startTimer();
 
+        // Clear continuation flag so it doesn't persist
+        sessionStorage.removeItem('continueFrom');
+
         // Auto-activate voice — the mic permission prompt acts as a user
         // gesture, which unlocks speechSynthesis for TTS.
         activateVoice();
@@ -739,11 +742,11 @@
         socket.emit('user_message', { text: text });
     }
 
-    function addMessage(role, text) {
+    function addMessage(role, text, historical) {
         var wasAtBottom = isNearBottom();
 
         const msg = document.createElement('div');
-        msg.className = 'message ' + role;
+        msg.className = 'message ' + role + (historical ? ' historical' : '');
 
         const content = document.createElement('div');
         content.className = 'message-content';
@@ -771,6 +774,20 @@
     }
 
     // ---- Socket events ----
+
+    socket.on('session_history', function (data) {
+        var exchanges = data.exchanges || [];
+        exchanges.forEach(function (ex) {
+            var role = ex.role === 'assistant' ? 'facilitator' : 'user';
+            addMessage(role, ex.content, true);
+        });
+        // Add visual separator between old and new conversation
+        var sep = document.createElement('div');
+        sep.className = 'continuation-separator';
+        sep.innerHTML = '<span>continuing...</span>';
+        conversationEl.appendChild(sep);
+        scrollToBottom();
+    });
 
     socket.on('facilitator_message', function (data) {
         addMessage('facilitator', data.text);

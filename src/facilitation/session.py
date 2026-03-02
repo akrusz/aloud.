@@ -143,6 +143,22 @@ class SessionManager:
             content=content,
         ))
 
+    def load_exchanges(self, exchanges: list[dict]) -> None:
+        """Load saved exchanges into the current session (for continuation).
+
+        Args:
+            exchanges: List of dicts with 'role', 'content', and optional 'timestamp'
+        """
+        if self._state is None:
+            raise RuntimeError("No active session")
+
+        for ex in exchanges:
+            self._state.exchanges.append(Exchange(
+                role=ex["role"],
+                content=ex["content"],
+                timestamp=ex.get("timestamp", 0),
+            ))
+
     def get_context_messages(self) -> list[dict]:
         """Get conversation history for LLM context.
 

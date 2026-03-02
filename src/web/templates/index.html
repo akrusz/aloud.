@@ -14,6 +14,11 @@
         <p class="setup-subtitle">Set an intention, choose how you'd like to be guided, then sit or lie down.</p>
     </div>
 
+    <div id="continue-banner" class="continue-banner" style="display:none">
+        <span id="continue-banner-text">Continuing from a previous session</span>
+        <button type="button" class="continue-banner-close" id="continue-cancel">&times;</button>
+    </div>
+
     <form id="setup-form" class="setup-form">
         <div class="form-group">
             <label for="intention">Intention <span class="optional">(optional)</span></label>
@@ -424,6 +429,23 @@
         });
     }
 
+    // ---- Continue-from banner ----
+    const continueFrom = sessionStorage.getItem('continueFrom');
+    if (continueFrom) {
+        const banner = document.getElementById('continue-banner');
+        const bannerText = document.getElementById('continue-banner-text');
+        // Show a date if the session ID starts with a date pattern
+        const dateMatch = continueFrom.match(/^(\d{4}-\d{2}-\d{2})/);
+        bannerText.textContent = dateMatch
+            ? 'Continuing from session on ' + dateMatch[1]
+            : 'Continuing from a previous session';
+        banner.style.display = '';
+        document.getElementById('continue-cancel').addEventListener('click', () => {
+            sessionStorage.removeItem('continueFrom');
+            banner.style.display = 'none';
+        });
+    }
+
     // ---- Form submit ----
     document.getElementById('setup-form').addEventListener('submit', (e) => {
         e.preventDefault();
@@ -447,6 +469,11 @@
             provider: providerSelect.value,
             model: modelSelect.value,
         };
+
+        const cf = sessionStorage.getItem('continueFrom');
+        if (cf) {
+            params.continue_from = cf;
+        }
 
         sessionStorage.setItem('sessionParams', JSON.stringify(params));
         window.location.href = '/session';
