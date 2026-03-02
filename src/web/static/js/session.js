@@ -343,6 +343,7 @@
     let noiseFloor = 0.005;        // adaptive noise floor (EMA)
     let noiseSamples = 0;          // count for EMA alpha selection
     let bargeInCount = 0;          // consecutive high-energy chunks during TTS
+    let smoothedLevel = 0;         // smoothed RMS for mic button glow
 
     // Speculative transcription: pre-send audio at base silence so the
     // result is ready when the adaptive threshold is reached.
@@ -988,6 +989,11 @@
                 }
                 var energy = Math.sqrt(sum / chunk.length);
 
+                // Update mic button glow based on audio level
+                var rawLevel = Math.min(energy / 0.08, 1);
+                smoothedLevel = smoothedLevel * 0.7 + rawLevel * 0.3;
+                voiceBtn.style.setProperty('--mic-level', smoothedLevel);
+
                 // ---- Barge-in detection during TTS ----
                 // Instead of ignoring all audio while TTS plays, monitor for
                 // the user speaking over it.  If energy stays above a higher
@@ -1111,6 +1117,7 @@
                                 } else if (speculativeSent) {
                                     // Sent but not back yet — wait for it
                                     awaitingSpeculative = true;
+                                    if (!inSilenceMode) setStatus('Transcribing...');
                                     vadState = 'silence';
                                     audioChunks = [];
                                     speechStartTime = 0;
@@ -1338,6 +1345,8 @@
             sample_rate: 16000,
         });
 
+        if (!inSilenceMode) setStatus('Transcribing...');
+
         // Listening continues uninterrupted — VAD was reset above,
         // noise floor will re-calibrate from the next silent chunks.
     }
@@ -1345,6 +1354,8 @@
     function deactivateVoice() {
         voiceActive = false;
         listening = false;
+        smoothedLevel = 0;
+        voiceBtn.style.removeProperty('--mic-level');
         voiceBtn.classList.remove('active');
         // Don't reset inSilenceMode — silence mode persists through mic mute/unmute
         setStatus('Microphone off. Click mic to resume.');
@@ -1424,6 +1435,16 @@
                 return;
             }
             sendText(text);
+        }
+
+        // Restore idle status when all transcriptions are done and
+        // the user isn't currently speaking (VAD would set its own status).
+        if (vadState === 'silence' && pendingTranscriptions === 0 && voiceActive) {
+            if (inSilenceMode) {
+                setStatus("Holding space\u2026 say \u2018come back\u2019 to resume");
+            } else {
+                setStatus("Speak naturally, or say 'mute' to turn off mic");
+            }
         }
     });
 

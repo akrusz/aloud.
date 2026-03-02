@@ -816,7 +816,8 @@ body:has(.session-container) {
     background: var(--warm-dim);
     border-color: var(--warm);
     color: var(--warm);
-    animation: voicePulse 2s ease-in-out infinite;
+    box-shadow: 0 0 0 calc(var(--mic-level, 0) * 12px) rgba(201, 160, 80, 0.25);
+    transition: box-shadow 0.1s ease-out;
 }
 
 .btn-listen {
@@ -843,10 +844,6 @@ body:has(.session-container) {
     color: var(--warm);
 }
 
-@keyframes voicePulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(201, 160, 80, 0.3); }
-    50% { box-shadow: 0 0 0 6px rgba(201, 160, 80, 0); }
-}
 
 .input-controls {
     display: flex;
