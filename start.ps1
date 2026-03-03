@@ -7,6 +7,11 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ScriptDir
 
+$AutoOpen = $false
+foreach ($a in $args) {
+    if ($a -eq "--open") { $AutoOpen = $true }
+}
+
 $ConfigFile = "config/default.yaml"
 $ProxyProcess = $null
 
@@ -128,6 +133,7 @@ try {
     Info "Starting Glooow web server..."
     Write-Host ""
 
+    if ($AutoOpen) { $env:GLOOOW_AUTO_OPEN = "1" }
     uv run python -m src.web
 
 } finally {

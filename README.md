@@ -16,6 +16,38 @@ instead of fixed styles, you mix and match **attention focuses** (body, emotions
 
 ## getting started
 
+### easy install (macOS)
+
+one line in Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/install-easy.sh | bash
+```
+
+this clones the repo to `~/glooow`, installs everything, and puts a Glooow app on your Desktop. double-click to launch
+
+### easy install (windows)
+
+one line in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/akrusz/glooow/main/install-easy.ps1 | iex
+```
+
+this clones the repo to `~\glooow`, installs dependencies, and puts a shortcut on your Desktop
+
+### double-click launchers
+
+if you already cloned the repo, you can skip the terminal entirely:
+
+| file | what it does |
+|------|--------------|
+| **Install.command** (mac) / **Install.bat** (windows) | runs the installer |
+| **Start.command** (mac) / **Start.bat** (windows) | starts the server and opens your browser |
+| **Glooow.app** (mac only) | same as Start.command but works from anywhere |
+
+### manual install
+
 you need:
 - python 3.10+
 - [uv](https://docs.astral.sh/uv/) for package management (the install script will offer to install it if missing)
@@ -177,16 +209,24 @@ uses your mic directly via sounddevice and speaks responses through the system T
 
 ```
 src/
-  web/          flask + socketio app, templates, JS
-  tts/          text-to-speech engines (macos, piper, parakeet, elevenlabs)
-  stt/          whisper speech-to-text
-  llm/          LLM provider abstraction
-  facilitation/ prompt building, session management
-  audio/        CLI audio capture + VAD
-config/         default.yaml
-sessions/       saved transcripts
-install.sh      first-time setup
-start.sh        full launcher (macOS/linux) — auto-starts proxy, shows config
-start-server.sh lightweight launcher — just the web server
-start.ps1       full launcher (windows)
+  web/              flask + socketio app, templates, JS
+  tts/              text-to-speech engines (macos, piper, parakeet, elevenlabs)
+  stt/              whisper speech-to-text
+  llm/              LLM provider abstraction
+  facilitation/     prompt building, session management
+  audio/            CLI audio capture + VAD
+config/             default.yaml
+sessions/           saved transcripts
+scripts/            icon generation and other build scripts
+install.sh          first-time setup (interactive)
+install-easy.sh     one-line installer (macOS/linux)
+install-easy.ps1    one-line installer (windows)
+start.sh            full launcher (macOS/linux) — auto-starts proxy, shows config
+start-server.sh     lightweight launcher — just the web server
+start.ps1           full launcher (windows)
+Install.command     double-click installer (macOS)
+Start.command       double-click launcher (macOS)
+Install.bat         double-click installer (windows)
+Start.bat           double-click launcher (windows)
+Glooow.app/         macOS app bundle
 ```

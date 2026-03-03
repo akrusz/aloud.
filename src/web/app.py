@@ -730,6 +730,18 @@ def run_web(
     print(f"\n  Ready: {url}")
     print(f"  B = open browser · Q = quit\n")
 
+    if os.environ.get("GLOOOW_AUTO_OPEN") == "1":
+        def _auto_open_browser():
+            for _ in range(30):
+                try:
+                    httpx.get(url, timeout=1)
+                    print(f"  Opening {url} ...", flush=True)
+                    webbrowser.open(url)
+                    return
+                except Exception:
+                    time.sleep(0.5)
+        threading.Thread(target=_auto_open_browser, daemon=True).start()
+
     # Background thread: keyboard shortcuts while server runs
     _saved_termios = [None]
 

@@ -8,6 +8,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+AUTO_OPEN=""
+for arg in "$@"; do
+    case "$arg" in
+        --open) AUTO_OPEN=1 ;;
+    esac
+done
+
 CONFIG_FILE="config/default.yaml"
 PROXY_PID=""
 
@@ -111,4 +118,4 @@ fi
 info "Starting Glooow web server..."
 echo ""
 
-uv run python -m src.web
+GLOOOW_AUTO_OPEN="${AUTO_OPEN}" uv run python -m src.web

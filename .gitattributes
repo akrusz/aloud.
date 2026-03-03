@@ -1,3 +1,10 @@
 
 # Use bd merge for beads JSONL files
 .beads/issues.jsonl merge=beads
+
+# Shell scripts: force LF line endings
+*.sh text eol=lf
+*.command text eol=lf
+
+# Binary assets
+*.icns binary

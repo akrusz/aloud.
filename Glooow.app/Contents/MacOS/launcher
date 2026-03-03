@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────
+# Glooow.app launcher — finds the project and opens Terminal
+# ─────────────────────────────────────────────────
+
+PROJECT_DIR=""
+
+# Strategy 1: .app lives inside the repo (go up 3 dirs from this script)
+RELATIVE_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+if [ -f "$RELATIVE_DIR/start.sh" ]; then
+    PROJECT_DIR="$RELATIVE_DIR"
+fi
+
+# Strategy 2: breadcrumb file written by install-easy.sh
+if [ -z "$PROJECT_DIR" ]; then
+    BREADCRUMB="$(dirname "$0")/../Resources/.glooow-project-path"
+    if [ -f "$BREADCRUMB" ]; then
+        CANDIDATE="$(cat "$BREADCRUMB")"
+        if [ -f "$CANDIDATE/start.sh" ]; then
+            PROJECT_DIR="$CANDIDATE"
+        fi
+    fi
+fi
+
+# Strategy 3: default location
+if [ -z "$PROJECT_DIR" ] && [ -f "$HOME/glooow/start.sh" ]; then
+    PROJECT_DIR="$HOME/glooow"
+fi
+
+# All strategies failed — show error dialog
+if [ -z "$PROJECT_DIR" ]; then
+    osascript -e 'display dialog "Could not find the glooow project.\n\nExpected start.sh in one of:\n• Next to Glooow.app\n• ~/glooow\n\nRe-run the installer or move the app into the project folder." with title "Glooow" buttons {"OK"} default button "OK" with icon stop'
+    exit 1
+fi
+
+# Open Terminal and run start.sh --open
+osascript -e "
+tell application \"Terminal\"
+    activate
+    do script \"cd $(printf '%q' "$PROJECT_DIR") && ./start.sh --open\"
+end tell
+"
