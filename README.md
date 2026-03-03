@@ -4,7 +4,7 @@ your voice is an overpowered and underrated tool for meditation and inner work.
 
 this is a meditation facilitator that listens and responds to your voice. it runs in your browser and uses an LLM to guide you, whisper for speech recognition, and your mic for voice input
 
-works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openrouter for cheap non-claude models (deepseek, kimi), or local ollama
+works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or local ollama
 
 ![glooow screenshot](glooow-screen.png)
 
@@ -70,7 +70,7 @@ the flake automatically sets up all dependencies including portaudio, ffmpeg, an
 
 - **audio capture** -- Web Audio API in the browser, shipped as raw PCM to the server
 - **speech recognition** -- openai whisper running locally (the `small` model, ~500mb)
-- **LLM** -- claude via CLIProxyAPI or anthropic API, openrouter (deepseek, kimi, etc.), openai, or local ollama
+- **LLM** -- claude via CLIProxyAPI or anthropic API, openrouter (deepseek, kimi, etc.), venice.ai, or local ollama. also supports any OpenAI-compatible endpoint via config
 - **TTS** -- macos `say` command on mac, browser speechSynthesis on linux/windows. piper-tts is an option if you want better quality server-side audio on linux
 
 ## presets
@@ -107,7 +107,7 @@ tts:
   rate: 120
 
 llm:
-  provider: claude_proxy   # claude_proxy, anthropic, openrouter, openai, ollama
+  provider: claude_proxy   # claude_proxy, anthropic, openrouter, venice, ollama
   model: claude-sonnet-4-5-20250929
 
 facilitation:
@@ -139,7 +139,13 @@ export OPENROUTER_API_KEY=sk-or-...
 ```
 then select "OpenRouter" in the web UI, or set `llm.provider: openrouter` in config. default model is DeepSeek V3.2
 
-**openai** -- set `OPENAI_API_KEY` and `llm.provider: openai`. supports custom base URLs via `llm.openai_base_url` for any OpenAI-compatible endpoint
+**venice.ai** -- privacy-focused, no prompt storage. good for meditation where you may not want conversations logged by the provider
+```bash
+export VENICE_API_KEY=...
+```
+then select "Venice.ai (Private)" in the web UI, or set `llm.provider: venice` in config
+
+**openai-compatible** -- any OpenAI-compatible endpoint. set `OPENAI_API_KEY` and `llm.provider: openai` in config, with optional `llm.openai_base_url` for custom endpoints. not shown in the web UI dropdown but works via config
 
 **ollama** -- fully local, no API key needed. install from [ollama.ai](https://ollama.ai), then pull a model:
 ```bash
@@ -162,7 +168,8 @@ uses your mic directly via sounddevice and speaks responses through the system T
 - the theme toggle in the top right follows your system preference by default, or just click it
 - if speech recognition feels slow, try `stt.model: base` (faster, less accurate)
 - on linux without piper, TTS falls back to browser speechSynthesis automatically
-- sessions auto-save to `sessions/` as JSON and plain text
+- sessions auto-save to `sessions/` as JSON and plain text, with a short LLM-generated summary
+- from the history page you can continue any past session — the facilitator picks up where you left off with full context
 - say something like "hold on a bit" during a session to enter silence mode. say anything to come back - it understands intent
 - say "mute" to immediately turn off the microphone. click the mic button to resume
 - set an intention loosely or not at all. the facilitator holds it lightly
