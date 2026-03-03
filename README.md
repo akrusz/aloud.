@@ -12,7 +12,7 @@ works on macos, linux, and windows. bring your own LLM - claude subscription via
 
 you start a session, optionally set an intention, pick a preset or build your own combo, and start talking. the facilitator listens, transcribes what you say with whisper, sends it to an LLM, and speaks the response back. it can hold silence when appropriate and gently check in if you've been quiet for a while
 
-instead of fixed styles, you mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless) and an optional pleasant orientation. presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want
+instead of fixed styles, you mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want
 
 ## getting started
 
@@ -92,9 +92,7 @@ quick-start presets pre-fill the focus/quality checkboxes, then you can adjust a
 - body & sensations, emotions & feeling tone, parts & inner world
 
 **vibes** — tone overlays (0 or more):
-- playful & light, compassionate, loving & kind, spacious, effortless
-
-**orient toward pleasant** — gently steer toward pleasant experience and enjoyment
+- playful & light, compassionate, loving & kind, spacious, effortless, feel-good
 
 ## configuration
 
