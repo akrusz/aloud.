@@ -50,10 +50,11 @@ Ok "uv $uvVersion"
 
 Info "Configuring LLM provider..."
 Write-Host ""
-Write-Host "  Which LLM provider will you use?"
-Write-Host "    1) CLIProxyAPI - uses your Claude subscription (default)"
-Write-Host "    2) Ollama      - local LLM server"
-Write-Host "    3) Venice.ai   - privacy-focused cloud inference"
+Write-Host "  How would you like to power the AI?"
+Write-Host ""
+Write-Host "    1) Claude       - best quality, needs a Claude subscription + CLIProxyAPI"
+Write-Host "    2) Local (Ollama) - runs on your computer, no account needed (~2.5GB download)"
+Write-Host "    3) Venice.ai    - cloud-based, privacy-focused"
 Write-Host ""
 $LlmChoice = Ask "Choice" "1"
 
@@ -62,13 +63,85 @@ $LlmModel = "claude-sonnet-4-5-20250929"
 $ProxyUrl = "http://127.0.0.1:8317"
 $ApiKey = "glooow"
 $OllamaUrl = "http://localhost:11434"
-$OllamaModel = "llama3"
+$OllamaModel = "qwen3.5:4b"
 
 if ($LlmChoice -eq "2") {
     $LlmProvider = "ollama"
-    $OllamaUrl = Ask "Ollama URL" $OllamaUrl
-    $OllamaModel = Ask "Ollama model" $OllamaModel
-    Ok "Using Ollama at $OllamaUrl with model $OllamaModel"
+
+    # ── Install Ollama if needed ──────────────────
+    if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
+        Write-Host ""
+        Write-Host "  Ollama is a small app (~200MB) that runs AI models on your computer."
+        Write-Host "  It's free, open source, and your data never leaves your machine."
+        Write-Host ""
+
+        $installOllama = Read-Host "  Install Ollama now? [Y/n]"
+        if (-not $installOllama -or $installOllama -eq "Y" -or $installOllama -eq "y") {
+            if (Get-Command winget -ErrorAction SilentlyContinue) {
+                Info "Installing Ollama via winget (this may take a minute)..."
+                winget install Ollama.Ollama --accept-package-agreements --accept-source-agreements
+                # Refresh PATH so ollama is available
+                $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+                Ok "Ollama installed"
+            } else {
+                Write-Host ""
+                Write-Host "  Please download and install Ollama from https://ollama.ai"
+                Write-Host "  then re-run this script."
+                exit 1
+            }
+        } else {
+            Write-Host "  X Ollama is needed for local mode. Install from https://ollama.ai and re-run." -ForegroundColor Red
+            exit 1
+        }
+    } else {
+        Ok "Ollama already installed"
+    }
+
+    # ── Start Ollama if not running ───────────────
+    $OllamaRunning = $false
+    try {
+        $null = Invoke-RestMethod -Uri "$OllamaUrl/api/tags" -TimeoutSec 2
+        $OllamaRunning = $true
+    } catch {}
+
+    if (-not $OllamaRunning) {
+        Info "Starting Ollama..."
+        Start-Process ollama -ArgumentList "serve" -WindowStyle Hidden
+        for ($i = 1; $i -le 20; $i++) {
+            try {
+                $null = Invoke-RestMethod -Uri "$OllamaUrl/api/tags" -TimeoutSec 1
+                Ok "Ollama running"
+                break
+            } catch {}
+            if ($i -eq 20) {
+                Warn "Ollama is taking a while to start - it may still be loading."
+            }
+            Start-Sleep -Milliseconds 500
+        }
+    } else {
+        Ok "Ollama already running"
+    }
+
+    # ── Download a model ──────────────────────────
+    Write-Host ""
+    Write-Host "  Now let's download an AI model to run locally."
+    Write-Host "  The default is $OllamaModel (~2.5GB) - it works well on most"
+    Write-Host "  computers with 8GB of RAM or more."
+    Write-Host ""
+    $OllamaModel = Ask "Model" $OllamaModel
+
+    $existingModels = ollama list 2>$null
+    $modelBase = ($OllamaModel -split ":")[0]
+    if ($existingModels -match [regex]::Escape($modelBase)) {
+        Ok "$OllamaModel already downloaded"
+    } else {
+        Info "Downloading $OllamaModel - this may take a few minutes on the first run..."
+        ollama pull $OllamaModel
+        Ok "$OllamaModel ready"
+    }
+
+    Ok "All set! Using local AI with $OllamaModel"
+
 } elseif ($LlmChoice -eq "3") {
     $LlmProvider = "venice"
     $LlmModel = "llama-3.3-70b"

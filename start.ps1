@@ -39,6 +39,7 @@ $ConfigContent = Get-Content $ConfigFile -Raw
 $LlmProvider = if ($ConfigContent -match '(?m)^\s*provider:\s*(.+?)(\s*#.*)?$') { $Matches[1].Trim() } else { "" }
 $LlmModel    = if ($ConfigContent -match '(?m)^\s*model:\s*(.+?)(\s*#.*)?$')    { $Matches[1].Trim() } else { "" }
 $ProxyUrl    = if ($ConfigContent -match '(?m)^\s*proxy_url:\s*(.+?)(\s*#.*)?$') { $Matches[1].Trim() } else { "" }
+$OllamaUrl   = if ($ConfigContent -match '(?m)^\s*ollama_url:\s*(.+?)(\s*#.*)?$') { $Matches[1].Trim() } else { "http://localhost:11434" }
 
 # For TTS engine, skip the first 'engine:' (which is under stt) and get the second
 $TtsEngine = "browser"
@@ -124,6 +125,41 @@ try {
             } else {
                 Write-Host ""
                 Err "CLIProxyAPI not found. Install it or switch to Ollama in $ConfigFile."
+            }
+        }
+    }
+
+    # ── Auto-start Ollama if needed ──────────────────
+
+    if ($LlmProvider -eq "ollama") {
+        $OllamaRunning = $false
+        try {
+            $null = Invoke-RestMethod -Uri "$OllamaUrl/api/tags" -TimeoutSec 2
+            $OllamaRunning = $true
+        } catch {}
+
+        if ($OllamaRunning) {
+            Ok "Ollama running"
+        } else {
+            if (Get-Command ollama -ErrorAction SilentlyContinue) {
+                Info "Starting Ollama..."
+                Start-Process ollama -ArgumentList "serve" -WindowStyle Hidden
+                $Ready = $false
+                for ($i = 1; $i -le 20; $i++) {
+                    try {
+                        $null = Invoke-RestMethod -Uri "$OllamaUrl/api/tags" -TimeoutSec 1
+                        Ok "Ollama ready"
+                        $Ready = $true
+                        break
+                    } catch {}
+                    Start-Sleep -Milliseconds 500
+                }
+                if (-not $Ready) {
+                    Warn "Ollama didn't respond in 10s - it may still be loading"
+                }
+            } else {
+                Write-Host ""
+                Err "Ollama not found. Install from https://ollama.ai or run install script."
             }
         }
     }

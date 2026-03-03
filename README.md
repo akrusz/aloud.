@@ -176,9 +176,9 @@ then select "Venice.ai (Private)" in the web UI, or set `llm.provider: venice` i
 
 **openai-compatible** -- any OpenAI-compatible endpoint. set `OPENAI_API_KEY` and `llm.provider: openai` in config, with optional `llm.openai_base_url` for custom endpoints. not shown in the web UI dropdown but works via config
 
-**ollama** -- fully local, no API key needed. install from [ollama.ai](https://ollama.ai), then pull a model:
+**ollama** -- fully local, no API key needed. the install script can set this up for you automatically (option 2), including installing ollama and downloading a default model (~2.5GB). or do it manually:
 ```bash
-ollama pull llama3
+ollama pull qwen3.5:4b
 ```
 select "Ollama (Local)" in the web UI — the model dropdown auto-populates with your pulled models. or set `llm.provider: ollama` in config
 

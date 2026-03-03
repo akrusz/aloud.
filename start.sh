@@ -42,6 +42,8 @@ LLM_PROVIDER=$(grep '^\s*provider:' "$CONFIG_FILE" | head -1 | sed 's/.*provider
 LLM_MODEL=$(grep '^\s*model:' "$CONFIG_FILE" | head -1 | sed 's/.*model:\s*//' | sed 's/\s*#.*//')
 TTS_ENGINE=$(grep '^\s*engine:' "$CONFIG_FILE" | head -2 | tail -1 | sed 's/.*engine:\s*//' | sed 's/\s*#.*//')
 PROXY_URL=$(grep '^\s*proxy_url:' "$CONFIG_FILE" | head -1 | sed 's/.*proxy_url:\s*//' | sed 's/\s*#.*//')
+OLLAMA_URL=$(grep '^\s*ollama_url:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_url:\s*//' | sed 's/\s*#.*//')
+OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
 
 # ── Cleanup on exit ─────────────────────────────
 
@@ -109,6 +111,37 @@ if [ "$LLM_PROVIDER" = "claude_proxy" ]; then
         else
             echo ""
             err "CLIProxyAPI not found. Install it or switch to Ollama in $CONFIG_FILE."
+        fi
+    fi
+fi
+
+# ── Auto-start Ollama if needed ──────────────────
+
+if [ "$LLM_PROVIDER" = "ollama" ]; then
+    if curl -sf "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
+        ok "Ollama running"
+    else
+        if command -v ollama &>/dev/null; then
+            info "Starting Ollama..."
+            OS="$(uname -s)"
+            if [ "$OS" = "Darwin" ]; then
+                open -a Ollama 2>/dev/null || ollama serve &>/dev/null &
+            else
+                ollama serve &>/dev/null &
+            fi
+            for i in $(seq 1 20); do
+                if curl -sf "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
+                    ok "Ollama ready"
+                    break
+                fi
+                if [ "$i" -eq 20 ]; then
+                    warn "Ollama didn't respond in 10s — it may still be loading"
+                fi
+                sleep 0.5
+            done
+        else
+            echo ""
+            err "Ollama not found. Install from https://ollama.ai or run ./install.sh"
         fi
     fi
 fi

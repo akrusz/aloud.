@@ -43,37 +43,10 @@ if (Test-Path $GlooowDir) {
 
 Set-Location $GlooowDir
 
-# ── Check uv ─────────────────────────────────────
+# ── Run installer ─────────────────────────────────
 
-if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    Info "uv not found. Installing uv..."
-    irm https://astral.sh/uv/install.ps1 | iex
-    # Refresh PATH
-    $env:PATH = "$HOME\.local\bin;$HOME\.cargo\bin;$env:PATH"
-    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-        Write-Host "  X uv installation failed. Install manually: https://docs.astral.sh/uv/" -ForegroundColor Red
-        exit 1
-    }
-    Ok "uv installed"
-}
-
-# ── Install dependencies ─────────────────────────
-
-Info "Installing Python dependencies..."
-uv venv --quiet --python ">=3.10" .venv 2>$null
-uv pip install --quiet -r requirements.txt
-Ok "Python dependencies installed"
-
-Info "Pre-downloading Whisper model (small, ~500MB on first download)..."
-uv run python -c "import whisper; whisper.load_model('small')"
-Ok "Whisper model ready"
-
-# ── Create config if missing ─────────────────────
-
-if (-not (Test-Path "config\default.yaml")) {
-    Info "No config found — run install.sh interactively for full setup,"
-    Info "or start the server and configure via the web UI."
-}
+Info "Running installer..."
+powershell -ExecutionPolicy Bypass -File install.ps1
 
 # ── Create Desktop shortcut ──────────────────────
 

@@ -96,10 +96,11 @@ fi
 
 info "Configuring LLM provider..."
 echo ""
-echo "  Which LLM provider will you use?"
-echo "    1) CLIProxyAPI — uses your Claude subscription (default)"
-echo "    2) Ollama      — local LLM server"
-echo "    3) Venice.ai   — privacy-focused cloud inference"
+echo "  How would you like to power the AI?"
+echo ""
+echo "    1) Claude       — best quality, needs a Claude subscription + CLIProxyAPI"
+echo "    2) Local (Ollama) — runs on your computer, no account needed (~2.5GB download)"
+echo "    3) Venice.ai    — cloud-based, privacy-focused"
 echo ""
 LLM_CHOICE=$(ask "Choice" "1")
 
@@ -108,13 +109,94 @@ LLM_MODEL="claude-sonnet-4-5-20250929"
 PROXY_URL="http://127.0.0.1:8317"
 API_KEY="glooow"
 OLLAMA_URL="http://localhost:11434"
-OLLAMA_MODEL="llama3"
+OLLAMA_MODEL="qwen3.5:4b"
 
 if [ "$LLM_CHOICE" = "2" ]; then
     LLM_PROVIDER="ollama"
-    OLLAMA_URL=$(ask "Ollama URL" "$OLLAMA_URL")
-    OLLAMA_MODEL=$(ask "Ollama model" "$OLLAMA_MODEL")
-    ok "Using Ollama at $OLLAMA_URL with model $OLLAMA_MODEL"
+
+    # ── Install Ollama if needed ──────────────────
+    if ! command -v ollama &>/dev/null; then
+        echo ""
+        echo "  Ollama is a small app (~200MB) that runs AI models on your computer."
+        echo "  It's free, open source, and your data never leaves your machine."
+        echo ""
+
+        if [ "$OS" = "Darwin" ]; then
+            if command -v brew &>/dev/null; then
+                printf "  Install Ollama via Homebrew? [Y/n]: " >&2
+                read -r INSTALL_OLLAMA
+                INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
+                if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
+                    info "Installing Ollama (this may take a minute)..."
+                    brew install ollama
+                    ok "Ollama installed"
+                else
+                    echo ""
+                    err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
+                fi
+            else
+                echo "  To use local mode, install Ollama from https://ollama.ai"
+                echo "  then re-run this script."
+                exit 1
+            fi
+        else
+            # Linux — use the official install script
+            printf "  Install Ollama now? [Y/n]: " >&2
+            read -r INSTALL_OLLAMA
+            INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
+            if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
+                info "Installing Ollama..."
+                curl -fsSL https://ollama.com/install.sh | sh
+                ok "Ollama installed"
+            else
+                echo ""
+                err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
+            fi
+        fi
+    else
+        ok "Ollama already installed"
+    fi
+
+    # ── Start Ollama if not running ───────────────
+    if ! curl -sf "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
+        info "Starting Ollama..."
+        if [ "$OS" = "Darwin" ]; then
+            open -a Ollama 2>/dev/null || ollama serve &>/dev/null &
+        else
+            ollama serve &>/dev/null &
+        fi
+        for i in $(seq 1 20); do
+            if curl -sf "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
+                break
+            fi
+            if [ "$i" -eq 20 ]; then
+                warn "Ollama is taking a while to start — it may still be loading."
+            fi
+            sleep 0.5
+        done
+        ok "Ollama running"
+    else
+        ok "Ollama already running"
+    fi
+
+    # ── Download a model ──────────────────────────
+    echo ""
+    echo "  Now let's download an AI model to run locally."
+    echo "  The default is $OLLAMA_MODEL (~2.5GB) — it works well on most"
+    echo "  computers with 8GB of RAM or more."
+    echo ""
+    OLLAMA_MODEL=$(ask "Model" "$OLLAMA_MODEL")
+
+    if ollama list 2>/dev/null | grep -q "$(echo "$OLLAMA_MODEL" | cut -d: -f1)"; then
+        ok "$OLLAMA_MODEL already downloaded"
+    else
+        info "Downloading $OLLAMA_MODEL — this may take a few minutes on the first run..."
+        ollama pull "$OLLAMA_MODEL"
+        ok "$OLLAMA_MODEL ready"
+    fi
+
+    ok "All set! Using local AI with $OLLAMA_MODEL"
+
 elif [ "$LLM_CHOICE" = "3" ]; then
     LLM_PROVIDER="venice"
     LLM_MODEL="llama-3.3-70b"
