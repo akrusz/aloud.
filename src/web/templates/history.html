@@ -9,7 +9,7 @@
     {% if sessions %}
     <div class="session-list" id="session-list">
         {% for s in sessions %}
-        <div class="session-item" data-session-id="{{ s.session_id }}">
+        <div class="session-item" data-session-id="{{ s.session_id }}" data-summary="{{ s.summary or '' }}">
             <div class="session-item-header" onclick="toggleSession('{{ s.session_id }}')">
                 <div class="session-item-info">
                     <span class="session-date">{{ s.date[:10] if s.date else 'Unknown' }}</span>
@@ -22,6 +22,9 @@
                         &middot;
                         {{ s.exchange_count or 0 }} exchanges
                     </span>
+                    {% if s.summary %}
+                    <span class="session-summary">{{ s.summary }}</span>
+                    {% endif %}
                 </div>
                 <span class="session-expand">&#9662;</span>
             </div>
@@ -30,7 +33,7 @@
                     <p class="loading-text">Loading...</p>
                 </div>
                 <div class="session-actions">
-                    <button class="btn btn-secondary btn-small" onclick="continueSession('{{ s.session_id }}')">
+                    <button class="btn btn-secondary btn-small" onclick="continueSession('{{ s.session_id }}', this)">
                         Continue from here
                     </button>
                     <button class="btn btn-danger btn-small" onclick="deleteSession('{{ s.session_id }}')">

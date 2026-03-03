@@ -63,8 +63,16 @@
             });
     }
 
-    window.continueSession = function (sessionId) {
+    window.continueSession = function (sessionId, btnEl) {
         sessionStorage.setItem('continueFrom', sessionId);
+        // Grab summary from the parent session-item's data attribute
+        var item = btnEl && btnEl.closest('[data-summary]');
+        var summary = item ? item.getAttribute('data-summary') : '';
+        if (summary) {
+            sessionStorage.setItem('continueFromSummary', summary);
+        } else {
+            sessionStorage.removeItem('continueFromSummary');
+        }
         window.location.href = '/';
     };
 

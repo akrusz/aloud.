@@ -1407,6 +1407,12 @@ body::before {
     color: var(--text-muted);
 }
 
+.session-summary {
+    font-size: 0.85rem;
+    color: var(--text-secondary, var(--text-muted));
+    font-style: italic;
+}
+
 .session-expand {
     color: var(--text-muted);
     transition: transform var(--transition);

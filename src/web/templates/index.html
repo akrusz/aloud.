@@ -434,14 +434,20 @@
     if (continueFrom) {
         const banner = document.getElementById('continue-banner');
         const bannerText = document.getElementById('continue-banner-text');
-        // Show a date if the session ID starts with a date pattern
-        const dateMatch = continueFrom.match(/^(\d{4}-\d{2}-\d{2})/);
-        bannerText.textContent = dateMatch
-            ? 'Continuing from session on ' + dateMatch[1]
-            : 'Continuing from a previous session';
+        const summary = sessionStorage.getItem('continueFromSummary');
+        if (summary) {
+            bannerText.textContent = 'Continuing: ' + summary;
+        } else {
+            // Fallback: show a date if the session ID starts with a date pattern
+            const dateMatch = continueFrom.match(/^(\d{4}-\d{2}-\d{2})/);
+            bannerText.textContent = dateMatch
+                ? 'Continuing from session on ' + dateMatch[1]
+                : 'Continuing from a previous session';
+        }
         banner.style.display = '';
         document.getElementById('continue-cancel').addEventListener('click', () => {
             sessionStorage.removeItem('continueFrom');
+            sessionStorage.removeItem('continueFromSummary');
             banner.style.display = 'none';
         });
     }

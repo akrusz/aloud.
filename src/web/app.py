@@ -549,7 +549,24 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         closer = web_session.prompts.get_session_closer()
         web_session.session.add_assistant_message(closer)
 
+        # Generate a short summary for history
+        summary = ""
+        try:
+            summary_prompt = (
+                "Summarize this meditation session in at most 10 words. "
+                "Just the summary, nothing else."
+            )
+            summary, _ = asyncio.run(web_session.generate_response(summary_prompt))
+            # Remove the summary prompt/response from conversation history
+            if web_session.session.state and len(web_session.session.state.exchanges) >= 2:
+                web_session.session.state.exchanges.pop()   # remove summary response
+                web_session.session.state.exchanges.pop()   # remove summary prompt
+        except Exception:
+            summary = ""
+
         session_data = web_session.end()
+        if summary:
+            session_data["summary"] = summary
         saved_id = None
         if session_data and app.meditation_config.session.auto_save:
             if hasattr(web_session, 'continued_from'):
@@ -564,6 +581,7 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         emit("session_ended", {
             "closer": closer,
             "session_id": saved_id,
+            "summary": summary,
             "audio": audio,
         })
 

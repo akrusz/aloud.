@@ -707,8 +707,9 @@
         sessionStart = Date.now();
         startTimer();
 
-        // Clear continuation flag so it doesn't persist
+        // Clear continuation flags so they don't persist
         sessionStorage.removeItem('continueFrom');
+        sessionStorage.removeItem('continueFromSummary');
 
         // Auto-activate voice — the mic permission prompt acts as a user
         // gesture, which unlocks speechSynthesis for TTS.
@@ -1561,6 +1562,7 @@
 
     function endSession() {
         if (!sessionActive) return;
+        if (!confirm('End this session?')) return;
 
         if (voiceActive) {
             deactivateVoice();

@@ -146,6 +146,7 @@ class TranscriptLogger:
                     "duration": data.get("duration"),
                     "exchange_count": data.get("exchange_count"),
                     "tags": data.get("tags", []),
+                    "summary": data.get("summary", ""),
                     "filepath": str(filepath),
                 })
             except (json.JSONDecodeError, IOError):
