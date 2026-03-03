@@ -22,6 +22,7 @@
     const typingEl = document.getElementById('typing-indicator');
     const timerEl = document.getElementById('timer');
     const orbEl = document.getElementById('orb');
+    const savingOverlay = document.getElementById('session-saving');
     const endedOverlay = document.getElementById('session-ended');
     const closerText = document.getElementById('closer-text');
     const kasinaToggle = document.getElementById('kasina-toggle');
@@ -449,6 +450,7 @@
             socket.emit('prefetch_summary');
             if (confirm('Start a new session? This will end your current session.')) {
                 pendingNavigation = '/';
+                savingOverlay.style.display = 'flex';
                 doEndSession();
             }
         });
@@ -457,6 +459,7 @@
             socket.emit('prefetch_summary');
             if (confirm('Leave session to view history? This will end your current session.')) {
                 pendingNavigation = '/history';
+                savingOverlay.style.display = 'flex';
                 doEndSession();
             }
         });

@@ -157,6 +157,23 @@ class WebMeditationSession:
             print(f"  [Opener] LLM opener failed ({e}), using static fallback", flush=True)
             return self.get_opener()
 
+    async def generate_summary(self) -> str:
+        """Generate a short summary of the session without modifying exchanges."""
+        messages = self.session.get_context_messages()
+        llm_messages = [Message(role=m["role"], content=m["content"]) for m in messages]
+        llm_messages.append(Message(
+            role="user",
+            content=(
+                "Summarize this meditation session in at most 10 words. "
+                "Just the summary, nothing else."
+            ),
+        ))
+        result = await self.llm.complete(
+            messages=llm_messages,
+            system=self.build_system_prompt(),
+        )
+        return result.text.strip()
+
     def end(self) -> dict | None:
         """End the session and return serialized data."""
         self.session.end_session()
@@ -549,16 +566,7 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             return
 
         try:
-            summary_prompt = (
-                "Summarize this meditation session in at most 10 words. "
-                "Just the summary, nothing else."
-            )
-            summary, _ = asyncio.run(web_session.generate_response(summary_prompt))
-            # Remove the summary prompt/response from conversation history
-            if web_session.session.state and len(web_session.session.state.exchanges) >= 2:
-                web_session.session.state.exchanges.pop()   # remove summary response
-                web_session.session.state.exchanges.pop()   # remove summary prompt
-            web_session._cached_summary = summary
+            web_session._cached_summary = asyncio.run(web_session.generate_summary())
         except Exception:
             web_session._cached_summary = ""
 
@@ -581,15 +589,7 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         else:
             summary = ""
             try:
-                summary_prompt = (
-                    "Summarize this meditation session in at most 10 words. "
-                    "Just the summary, nothing else."
-                )
-                summary, _ = asyncio.run(web_session.generate_response(summary_prompt))
-                # Remove the summary prompt/response from conversation history
-                if web_session.session.state and len(web_session.session.state.exchanges) >= 2:
-                    web_session.session.state.exchanges.pop()   # remove summary response
-                    web_session.session.state.exchanges.pop()   # remove summary prompt
+                summary = asyncio.run(web_session.generate_summary())
             except Exception:
                 summary = ""
 
