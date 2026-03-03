@@ -1119,14 +1119,20 @@ body:has(.session-container) {
     margin: 0;
 }
 
-.btn-end {
-    font-size: 0.85rem;
-    padding: 0.4rem 0.8rem;
-    color: var(--text-muted);
-    border-color: transparent;
+.btn-nav {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.7rem;
+    color: var(--text-secondary);
+    border-color: var(--border);
+    background: transparent;
 }
 
-.btn-end:hover {
+.btn-nav:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.btn-nav.btn-end:hover {
     color: var(--danger);
     border-color: var(--danger);
 }

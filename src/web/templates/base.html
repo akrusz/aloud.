@@ -45,9 +45,10 @@
         <a href="/" class="nav-brand">Glooow</a>
         {% block nav_center %}{% endblock %}
         <div class="nav-links">
+            {% block nav_items %}
             {% if request.path != '/' %}<a href="/">New Session</a>{% endif %}
             <a href="/history">History</a>
-            {% block nav_extra %}{% endblock %}
+            {% endblock %}
             <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"></button>
         </div>
     </nav>

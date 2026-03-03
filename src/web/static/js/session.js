@@ -11,6 +11,8 @@
     const voiceStatus = document.getElementById('voice-status');
     const ttsToggle = document.getElementById('tts-toggle');
     const endBtn = document.getElementById('end-btn');
+    const newSessionBtn = document.getElementById('new-session-btn');
+    const historyBtn = document.getElementById('history-btn');
     const speedSlider = document.getElementById('speed-slider');
     const voicePickerBtn = document.getElementById('voice-picker-btn');
     const voiceModal = document.getElementById('voice-modal');
@@ -441,14 +443,16 @@
         voiceBtn.addEventListener('click', toggleVoice);
         listenBtn.addEventListener('click', toggleListenMode);
         endBtn.addEventListener('click', endSession);
-        var newSessionLink = document.querySelector('.nav-links a[href="/"]');
-        if (newSessionLink) {
-            newSessionLink.addEventListener('click', function (e) {
-                if (sessionActive && !confirm('Start a new session? This will end your current session.')) {
-                    e.preventDefault();
-                }
-            });
-        }
+        newSessionBtn.addEventListener('click', function () {
+            if (!sessionActive || confirm('Start a new session? This will end your current session.')) {
+                window.location.href = '/';
+            }
+        });
+        historyBtn.addEventListener('click', function () {
+            if (!sessionActive || confirm('Leave session to view history? This will end your current session.')) {
+                window.location.href = '/history';
+            }
+        });
         // Restore saved speed
         var savedSpeed = localStorage.getItem('glooow-speed');
         if (savedSpeed) {
