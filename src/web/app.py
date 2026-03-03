@@ -34,7 +34,6 @@ class WebMeditationSession:
         intention: str = "",
         focuses: list[str] | None = None,
         qualities: list[str] | None = None,
-        orient_pleasant: bool = False,
         directiveness: int = 3,
         verbosity: str = "low",
         custom_instructions: str = "",
@@ -50,7 +49,6 @@ class WebMeditationSession:
         prompt_config = PromptConfig(
             focuses=focuses or [],
             qualities=qualities or [],
-            orient_pleasant=orient_pleasant,
             directiveness=directiveness,
             verbosity=verbosity,
             custom_instructions=custom_instructions,
@@ -181,42 +179,41 @@ class WebMeditationSession:
 
 
 def _migrate_style(style: str, directiveness: int = 3) -> dict:
-    """Map a legacy style string to the new focuses/qualities/orient_pleasant params."""
+    """Map a legacy style string to the new focuses/qualities params."""
     presets = {
         "pleasant_play": {
             "focuses": ["body_sensations", "emotions"],
-            "qualities": ["playful"],
-            "orient_pleasant": True,
+            "qualities": ["playful", "feeling_good"],
             "directiveness": 3,
         },
         "compassion": {
             "focuses": ["emotions", "inner_parts"],
             "qualities": ["compassionate"],
-            "orient_pleasant": False,
+
             "directiveness": 3,
         },
         "somatic": {
             "focuses": ["body_sensations"],
             "qualities": [],
-            "orient_pleasant": False,
+
             "directiveness": 5,
         },
         "adaptive": {
             "focuses": [],
             "qualities": ["spacious", "effortless"],
-            "orient_pleasant": False,
+
             "directiveness": directiveness,
         },
         "non_directive": {
             "focuses": [],
             "qualities": [],
-            "orient_pleasant": False,
+
             "directiveness": 0,
         },
         "open": {
             "focuses": [],
             "qualities": ["spacious"],
-            "orient_pleasant": False,
+
             "directiveness": 0,
         },
     }
@@ -455,7 +452,6 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             intention=data.get("intention", ""),
             focuses=data.get("focuses", []),
             qualities=data.get("qualities", []),
-            orient_pleasant=data.get("orient_pleasant", False),
             directiveness=data.get("directiveness", 3),
             verbosity=data.get("verbosity", "low"),
             custom_instructions=data.get("custom_instructions", ""),

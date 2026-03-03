@@ -104,15 +104,9 @@ class MeditationFacilitator:
         )
         self.pacing = PacingController(pacing_config)
 
-        # Resolve orient_pleasant: new field takes precedence, fall back to legacy
-        orient_pleasant = self.config.facilitation.orient_pleasant
-        if orient_pleasant is None:
-            orient_pleasant = self.config.facilitation.pleasant_emphasis
-
         prompt_config = PromptConfig(
             focuses=self.config.facilitation.focuses,
             qualities=self.config.facilitation.qualities,
-            orient_pleasant=orient_pleasant,
             directiveness=self.config.facilitation.directiveness,
             verbosity=self.config.facilitation.verbosity,
             custom_instructions=self.config.facilitation.custom_instructions,

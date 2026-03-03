@@ -113,8 +113,7 @@ llm:
 facilitation:
   directiveness: 3       # 0-10 scale
   focuses: []            # body_sensations, emotions, inner_parts
-  qualities: []          # playful, compassionate, loving, spacious, effortless
-  orient_pleasant: false
+  qualities: []          # playful, compassionate, loving, spacious, effortless, feeling_good
   verbosity: medium      # low, medium, high
 
 stt:

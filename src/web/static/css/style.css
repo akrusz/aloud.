@@ -431,12 +431,6 @@ input[type="range"]::-moz-range-thumb {
     gap: 0.4rem;
 }
 
-.modifier-toggles.single-col {
-    grid-template-columns: 1fr;
-    max-width: 60%;
-    margin: 0 auto;
-}
-
 .modifier-toggle {
     display: flex;
     align-items: flex-start;

@@ -70,11 +70,8 @@ class FacilitationConfig:
     directiveness: int = 3
     focuses: list[str] = field(default_factory=list)
     qualities: list[str] = field(default_factory=list)
-    orient_pleasant: bool | None = None  # None = not set, fall back to pleasant_emphasis
     verbosity: str = "medium"
     custom_instructions: str = ""
-    # Legacy — used as fallback when orient_pleasant is not set
-    pleasant_emphasis: bool = True
 
 
 @dataclass

@@ -1,7 +1,7 @@
 """Facilitation prompt templates and builders.
 
 The system prompt shapes the entire meditation experience.
-Composable dimensions: focus + quality + guidance + pleasant orientation.
+Composable dimensions: focus + quality + guidance.
 """
 
 from dataclasses import dataclass, field
@@ -15,11 +15,8 @@ class PromptConfig:
     # Where to direct attention (0+ selections; defaults to open_awareness if empty)
     focuses: list[str] = field(default_factory=list)
 
-    # Facilitator tone / quality overlays (0+ selections)
+    # Facilitator tone / vibe overlays (0+ selections)
     qualities: list[str] = field(default_factory=list)
-
-    # Merge of old orient_pleasant + permission_to_enjoy
-    orient_pleasant: bool = False
 
     # How much to guide attention (0 = pure following, 10 = strong direction)
     directiveness: int = 3
@@ -167,12 +164,12 @@ No preferred direction. Simply meet whatever is present:
 }
 
 # ---------------------------------------------------------------------------
-# Quality prompts — facilitator tone / style overlays
+# Vibe prompts — facilitator tone / style overlays
 # ---------------------------------------------------------------------------
 
 QUALITY_PROMPTS = {
     "playful": """\
-Facilitator quality — Playful & light:
+Facilitator vibe — Playful & light:
 Bring play, spontaneity, and delight to the facilitation. Meditation doesn't have to be serious.
 - Light touch, gentle humor when natural
 - "Oh, that's interesting..." / "Huh, what happens if you..."
@@ -182,7 +179,7 @@ Bring play, spontaneity, and delight to the facilitation. Meditation doesn't hav
 - If something is funny or strange, acknowledge it with warmth
 """,
     "compassionate": """\
-Facilitator quality — Compassionate:
+Facilitator vibe — Compassionate:
 Meet whatever arises with care, tenderness, and gentleness:
 - Relate to difficulty with kindness, not fixing
 - "That sounds like a lot to carry"
@@ -192,7 +189,7 @@ Meet whatever arises with care, tenderness, and gentleness:
 - Sometimes just naming that something is hard is enough
 """,
     "loving": """\
-Facilitator quality — Loving & kind:
+Facilitator vibe — Loving & kind:
 Bring active lovingkindness (metta) — generating and radiating warmth:
 - Invite the meditator to generate warmth toward themselves: "Can you send some kindness \
 to that part of you?"
@@ -204,7 +201,7 @@ is available as an option, not a script
 - Radiating warmth outward from whatever is genuinely felt
 """,
     "spacious": """\
-Facilitator quality — Spacious:
+Facilitator vibe — Spacious:
 Gently notice the space that's already here. This isn't something to create — just \
 something to let in or merely recognize.
 - "Is there a sense of openness anywhere — around the breath, between thoughts, behind the eyes?"
@@ -217,7 +214,7 @@ If they seem contracted or tight, you might softly wonder aloud: \
 A light touch matters here. One small invitation is enough. Let it land.
 """,
     "effortless": """\
-Facilitator quality — Effortless:
+Facilitator vibe — Effortless:
 Encourage a hands-off, receptive quality. Less doing, more allowing.
 - "What if you took your hands off the wheel completely?"
 - "Can you let things unfold without helping?"
@@ -226,14 +223,8 @@ Not needing to "do" anything, even for a few minutes, can be a great gift to one
 If they seem like they're trying to direct their experience or becoming immersed in cognition,
 gently invite them to see what happens if they invite that part of themself to rest.
 """,
-}
-
-# ---------------------------------------------------------------------------
-# Orient toward pleasant — merged orient_pleasant + permission_to_enjoy
-# ---------------------------------------------------------------------------
-
-ORIENT_PLEASANT_PROMPT = """\
-Orient toward pleasant:
+    "feeling_good": """\
+Facilitator vibe — Feeling good:
 When appropriate, gently orient toward pleasant or neutral experience:
 - "Is there anywhere that feels comfortable or at ease?"
 - "What's it like to let that grow, if it wants to?"
@@ -248,7 +239,8 @@ If the meditator finds something pleasant, encourage them to fully receive it:
 - "What if pleasure is exactly what's supposed to happen?"
 - "You're allowed to feel good. What happens when you let that in?"
 Don't apologize for pleasure or treat it as a stepping stone to something 'deeper.'
-"""
+""",
+}
 
 # ---------------------------------------------------------------------------
 # Directiveness additions — always active
@@ -369,13 +361,12 @@ _QUALITY_OPENERS = {
     "effortless": [
         "Nothing to do. What's already here?",
     ],
+    "feeling_good": [
+        "Is there anything that feels nice right now?",
+        "Take a moment to arrive. What feels good, even a little?",
+        "Settling in... is there something that feels okay?",
+    ],
 }
-
-_PLEASANT_OPENERS = [
-    "Is there anything that feels nice right now?",
-    "Take a moment to arrive. What feels good, even a little?",
-    "Settling in... is there something that feels okay?",
-]
 
 
 # ---------------------------------------------------------------------------
@@ -423,14 +414,10 @@ class PromptBuilder:
             if focus in FOCUS_PROMPTS:
                 parts.append(FOCUS_PROMPTS[focus])
 
-        # Quality prompts — 0 or more
+        # Quality / vibe prompts — 0 or more
         for quality in self.config.qualities:
             if quality in QUALITY_PROMPTS:
                 parts.append(QUALITY_PROMPTS[quality])
-
-        # Orient pleasant
-        if self.config.orient_pleasant:
-            parts.append(ORIENT_PLEASANT_PROMPT)
 
         # Directiveness — always active
         directiveness_key = min(
@@ -467,9 +454,6 @@ class PromptBuilder:
             if quality in _QUALITY_OPENERS:
                 pool.extend(_QUALITY_OPENERS[quality])
 
-        if self.config.orient_pleasant:
-            pool.extend(_PLEASANT_OPENERS)
-
         return random.choice(pool)
 
     def build_opener_prompt(self, intention: str = "") -> str:
@@ -492,10 +476,8 @@ class PromptBuilder:
             focus_names = ", ".join(f.replace("_", " ") for f in self.config.focuses)
             details.append(f"focus areas: {focus_names}")
         if self.config.qualities:
-            quality_names = ", ".join(self.config.qualities)
-            details.append(f"tone: {quality_names}")
-        if self.config.orient_pleasant:
-            details.append("oriented toward pleasant experience")
+            quality_names = ", ".join(q.replace("_", " ") for q in self.config.qualities)
+            details.append(f"vibe: {quality_names}")
         if intention:
             details.append(f'intention: "{intention}"')
 

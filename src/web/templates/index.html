@@ -106,7 +106,7 @@
         </div>
 
         <div class="form-group">
-            <label>Facilitator Quality</label>
+            <label>Vibe</label>
             <div class="modifier-toggles">
                 <label class="modifier-toggle">
                     <input type="checkbox" name="quality" value="playful">
@@ -143,16 +143,11 @@
                         <span class="modifier-desc">Hands off the wheel, let things unfold</span>
                     </div>
                 </label>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <div class="modifier-toggles single-col">
                 <label class="modifier-toggle">
-                    <input type="checkbox" name="orient_pleasant" id="orient_pleasant">
+                    <input type="checkbox" name="quality" value="feeling_good">
                     <div class="modifier-info">
-                        <span class="modifier-name">Orient toward pleasant</span>
-                        <span class="modifier-desc">Gently steer toward pleasant experience. It's good to feel good.</span>
+                        <span class="modifier-name">Feeling good</span>
+                        <span class="modifier-desc">Noticing and cultivating pleasant sensations</span>
                     </div>
                 </label>
             </div>
@@ -230,44 +225,37 @@
     const presets = {
         pleasant_play: {
             focuses: ['body_sensations', 'emotions'],
-            qualities: ['playful'],
-            orient_pleasant: true,
+            qualities: ['playful', 'feeling_good'],
             dirStep: 1,  // Light
         },
         parts_work: {
             focuses: ['inner_parts', 'emotions'],
             qualities: ['compassionate'],
-            orient_pleasant: false,
             dirStep: 1,  // Light
         },
         warmth_goodwill: {
             focuses: ['emotions'],
-            qualities: ['loving'],
-            orient_pleasant: true,
+            qualities: ['loving', 'feeling_good'],
             dirStep: 2,  // Balanced
         },
         somatic: {
             focuses: ['body_sensations'],
             qualities: [],
-            orient_pleasant: false,
             dirStep: 2,  // Balanced
         },
         freeform: {
             focuses: [],
             qualities: ['spacious', 'effortless'],
-            orient_pleasant: false,
             dirStep: 1,  // Light
         },
         stillness: {
             focuses: [],
             qualities: ['spacious'],
-            orient_pleasant: false,
             dirStep: 0,  // Following
         },
     };
 
     const dirSlider = document.getElementById('directiveness');
-    const orientPleasant = document.getElementById('orient_pleasant');
 
     // Slider step → backend directiveness value
     const dirValues = [0, 3, 5, 7, 10];
@@ -289,10 +277,6 @@
             cb.closest('.modifier-toggle').classList.toggle('selected', cb.checked);
         });
 
-        // Orient pleasant
-        orientPleasant.checked = p.orient_pleasant;
-        orientPleasant.closest('.modifier-toggle').classList.toggle('selected', p.orient_pleasant);
-
         // Directiveness
         dirSlider.value = p.dirStep;
     }
@@ -313,7 +297,7 @@
         document.querySelectorAll('input[name="preset"]').forEach(r => r.checked = false);
     }
 
-    document.querySelectorAll('input[name="focus"], input[name="quality"], #orient_pleasant').forEach(cb => {
+    document.querySelectorAll('input[name="focus"], input[name="quality"]').forEach(cb => {
         cb.addEventListener('change', () => {
             cb.closest('.modifier-toggle').classList.toggle('selected', cb.checked);
             deselectPresets();
@@ -468,7 +452,6 @@
             intention: document.getElementById('intention').value,
             focuses: focuses,
             qualities: qualities,
-            orient_pleasant: orientPleasant.checked,
             directiveness: dirBackendValue(),
             verbosity: document.getElementById('verbosity').value,
             custom_instructions: document.getElementById('custom_instructions').value,

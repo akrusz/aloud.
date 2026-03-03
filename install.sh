@@ -248,8 +248,7 @@ pacing:
 facilitation:
   directiveness: 3          # 0-10 scale
   focuses: []               # body_sensations, emotions, inner_parts
-  qualities: []             # playful, compassionate, loving, spacious, effortless
-  orient_pleasant: false    # gently orient toward pleasant experience
+  qualities: []             # playful, compassionate, loving, spacious, effortless, feeling_good
   verbosity: low            # low, medium, high
   custom_instructions: |
     Feel free to suggest releasing the need to pay attention to anything specific.

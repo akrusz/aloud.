@@ -201,7 +201,6 @@
               directiveness: 3
               focuses: []
               qualities: []
-              orient_pleasant: false
               verbosity: low
               custom_instructions: |
                 Feel free to suggest releasing the need to pay attention to anything specific.
