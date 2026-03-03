@@ -55,7 +55,7 @@ class LLMConfig:
     openai_base_url: str | None = None
     context_strategy: str = "full"
     window_size: int = 100
-    max_tokens: int = 300
+    max_tokens: int = 400
 
 
 @dataclass
