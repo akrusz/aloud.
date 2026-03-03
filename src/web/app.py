@@ -536,6 +536,32 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         finally:
             emit("facilitator_typing", {"typing": False})
 
+    @socketio.on("prefetch_summary")
+    def handle_prefetch_summary():
+        """Pre-generate a session summary while the user is in a confirm dialog.
+
+        Caches the result on the web_session so handle_end_session can skip
+        the LLM call.
+        """
+        sid = request.sid
+        web_session = _get_session(sid)
+        if not web_session or hasattr(web_session, '_cached_summary'):
+            return
+
+        try:
+            summary_prompt = (
+                "Summarize this meditation session in at most 10 words. "
+                "Just the summary, nothing else."
+            )
+            summary, _ = asyncio.run(web_session.generate_response(summary_prompt))
+            # Remove the summary prompt/response from conversation history
+            if web_session.session.state and len(web_session.session.state.exchanges) >= 2:
+                web_session.session.state.exchanges.pop()   # remove summary response
+                web_session.session.state.exchanges.pop()   # remove summary prompt
+            web_session._cached_summary = summary
+        except Exception:
+            web_session._cached_summary = ""
+
     @socketio.on("end_session")
     def handle_end_session():
         sid = request.sid
@@ -549,20 +575,23 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         closer = web_session.prompts.get_session_closer()
         web_session.session.add_assistant_message(closer)
 
-        # Generate a short summary for history
-        summary = ""
-        try:
-            summary_prompt = (
-                "Summarize this meditation session in at most 10 words. "
-                "Just the summary, nothing else."
-            )
-            summary, _ = asyncio.run(web_session.generate_response(summary_prompt))
-            # Remove the summary prompt/response from conversation history
-            if web_session.session.state and len(web_session.session.state.exchanges) >= 2:
-                web_session.session.state.exchanges.pop()   # remove summary response
-                web_session.session.state.exchanges.pop()   # remove summary prompt
-        except Exception:
+        # Use pre-fetched summary if available, otherwise generate now
+        if hasattr(web_session, '_cached_summary'):
+            summary = web_session._cached_summary
+        else:
             summary = ""
+            try:
+                summary_prompt = (
+                    "Summarize this meditation session in at most 10 words. "
+                    "Just the summary, nothing else."
+                )
+                summary, _ = asyncio.run(web_session.generate_response(summary_prompt))
+                # Remove the summary prompt/response from conversation history
+                if web_session.session.state and len(web_session.session.state.exchanges) >= 2:
+                    web_session.session.state.exchanges.pop()   # remove summary response
+                    web_session.session.state.exchanges.pop()   # remove summary prompt
+            except Exception:
+                summary = ""
 
         session_data = web_session.end()
         if summary:

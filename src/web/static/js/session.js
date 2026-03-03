@@ -43,6 +43,7 @@
     let inSilenceMode = false;       // true when holding space — buffer speech, don't submit
     let silenceBuffer = [];          // transcribed texts accumulated during silence mode
     let emberLevel = 1;              // ember intensity: 0=off, 1/2/3=increasing
+    let pendingNavigation = null;    // URL to navigate to after session_ended
     let ttsRate = 160;             // speech rate in WPM — synced to server + browser TTS
     const synth = window.speechSynthesis || null;
     let preferredVoice = null;
@@ -444,13 +445,19 @@
         listenBtn.addEventListener('click', toggleListenMode);
         endBtn.addEventListener('click', endSession);
         newSessionBtn.addEventListener('click', function () {
-            if (!sessionActive || confirm('Start a new session? This will end your current session.')) {
-                window.location.href = '/';
+            if (!sessionActive) { window.location.href = '/'; return; }
+            socket.emit('prefetch_summary');
+            if (confirm('Start a new session? This will end your current session.')) {
+                pendingNavigation = '/';
+                doEndSession();
             }
         });
         historyBtn.addEventListener('click', function () {
-            if (!sessionActive || confirm('Leave session to view history? This will end your current session.')) {
-                window.location.href = '/history';
+            if (!sessionActive) { window.location.href = '/history'; return; }
+            socket.emit('prefetch_summary');
+            if (confirm('Leave session to view history? This will end your current session.')) {
+                pendingNavigation = '/history';
+                doEndSession();
             }
         });
         // Restore saved speed
@@ -830,6 +837,14 @@
     socket.on('session_ended', function (data) {
         sessionActive = false;
         stopTimer();
+
+        // If navigating away (New Session / History), go immediately
+        if (pendingNavigation) {
+            var dest = pendingNavigation;
+            pendingNavigation = null;
+            window.location.href = dest;
+            return;
+        }
 
         if (data.closer) {
             closerText.textContent = data.closer;
@@ -1560,15 +1575,17 @@
 
     // ---- End Session ----
 
-    function endSession() {
-        if (!sessionActive) return;
-        if (!confirm('End this session?')) return;
-
+    function doEndSession() {
         if (voiceActive) {
             deactivateVoice();
         }
-
         socket.emit('end_session');
+    }
+
+    function endSession() {
+        if (!sessionActive) return;
+        if (!confirm('End this session?')) return;
+        doEndSession();
     }
 
     // ---- Start ----
