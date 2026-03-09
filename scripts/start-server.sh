@@ -8,10 +8,10 @@ set -euo pipefail
 # server, no proxy auto-start or banner.
 # ─────────────────────────────────────────────────
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 if ! command -v uv &>/dev/null; then
-    echo "  uv not found. Run ./install.sh first or install uv: https://docs.astral.sh/uv/"
+    echo "  uv not found. Run ./scripts/install.sh first or install uv: https://docs.astral.sh/uv/"
     exit 1
 fi
 

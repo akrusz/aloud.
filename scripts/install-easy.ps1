@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────
 # Glooow — Easy installer (Windows)
-# Usage: irm https://raw.githubusercontent.com/akrusz/glooow/main/install-easy.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.ps1 | iex
 # ─────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
@@ -46,7 +46,7 @@ Set-Location $GlooowDir
 # ── Run installer ─────────────────────────────────
 
 Info "Running installer..."
-powershell -ExecutionPolicy Bypass -File install.ps1
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 
 # ── Create Desktop shortcut ──────────────────────
 
@@ -70,5 +70,5 @@ Write-Host "  +======================================+"
 Write-Host ""
 Write-Host "  To start:"
 Write-Host "    - Double-click Glooow on your Desktop"
-Write-Host "    - Or: cd $GlooowDir; .\start.ps1"
+Write-Host "    - Or: cd $GlooowDir; .\scripts\start.ps1"
 Write-Host ""

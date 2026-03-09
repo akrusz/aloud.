@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $ScriptDir
+Set-Location (Split-Path -Parent $ScriptDir)
 
 $VenvDir = ".venv"
 $ConfigFile = "config\default.yaml"
@@ -258,6 +258,6 @@ Write-Host "  TTS engine:    $TtsEngine"
 Write-Host "  Config file:   $ConfigFile"
 Write-Host "  Python env:    $VenvDir\ (managed by uv)"
 Write-Host ""
-Write-Host "  To start: .\start.ps1"
+Write-Host "  To start: .\scripts\start.ps1"
 Write-Host "    Or double-click Start.bat"
 Write-Host ""

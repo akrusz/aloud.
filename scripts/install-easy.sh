@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ─────────────────────────────────────────────────
 # Glooow — Easy installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/install-easy.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.sh | bash
 # ─────────────────────────────────────────────────
 
 GLOOOW_DIR="${GLOOOW_DIR:-$HOME/glooow}"
@@ -62,7 +62,7 @@ cd "$GLOOOW_DIR"
 # ── Run install.sh ───────────────────────────────
 
 info "Running installer..."
-./install.sh
+./scripts/install.sh
 
 # ── macOS extras: Desktop app + remove quarantine
 
@@ -92,8 +92,8 @@ echo ""
 echo "  To start:"
 if [ "$OS" = "Darwin" ]; then
     echo "    • Double-click Glooow on your Desktop"
-    echo "    • Or: cd $GLOOOW_DIR && ./start.sh"
+    echo "    • Or: cd $GLOOOW_DIR && ./scripts/start.sh"
 else
-    echo "    cd $GLOOOW_DIR && ./start.sh --open"
+    echo "    cd $GLOOOW_DIR && ./scripts/start.sh --open"
 fi
 echo ""

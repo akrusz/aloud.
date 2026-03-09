@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $ScriptDir
+Set-Location (Split-Path -Parent $ScriptDir)
 
 $AutoOpen = $false
 foreach ($a in $args) {

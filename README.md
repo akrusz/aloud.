@@ -6,7 +6,7 @@ this is a meditation facilitator that listens and responds to your voice. it run
 
 works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or local ollama
 
-![glooow screenshot](glooow-screen.png)
+![glooow screenshot](docs/glooow-screen.png)
 
 ## what it does
 
@@ -21,7 +21,7 @@ instead of fixed styles, you mix and match **attention focuses** (body, emotions
 one line in Terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/install-easy.sh | bash
+curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.sh | bash
 ```
 
 this clones the repo to `~/glooow`, installs everything, and puts a Glooow app on your Desktop. double-click to launch
@@ -31,7 +31,7 @@ this clones the repo to `~/glooow`, installs everything, and puts a Glooow app o
 one line in PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/akrusz/glooow/main/install-easy.ps1 | iex
+irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.ps1 | iex
 ```
 
 this clones the repo to `~\glooow`, installs dependencies, and puts a shortcut on your Desktop
@@ -59,17 +59,17 @@ then:
 ```bash
 git clone https://github.com/akrusz/glooow.git
 cd glooow
-./install.sh        # walks you through setup — deps, LLM provider, whisper model
-./start.sh          # starts the server (and CLIProxyAPI if needed)
+./scripts/install.sh        # walks you through setup — deps, LLM provider, whisper model
+./scripts/start.sh          # starts the server (and CLIProxyAPI if needed)
 ```
 
-on windows, use `.\start.ps1` instead of `./start.sh`. if you need to install uv: `irm https://astral.sh/uv/install.ps1 | iex`
+on windows, use `.\scripts\start.ps1` instead of `./scripts/start.sh`. if you need to install uv: `irm https://astral.sh/uv/install.ps1 | iex`
 
 ### running the server
 
 ```bash
-./start.sh           # full launcher: auto-starts CLIProxyAPI, shows config banner
-./start-server.sh    # lightweight: just runs the server, nothing else
+./scripts/start.sh           # full launcher: auto-starts CLIProxyAPI, shows config banner
+./scripts/start-server.sh    # lightweight: just runs the server, nothing else
 uv run python -m src.web   # direct, same as start-server.sh
 ```
 
@@ -217,13 +217,17 @@ src/
   audio/            CLI audio capture + VAD
 config/             default.yaml
 sessions/           saved transcripts
-scripts/            icon generation and other build scripts
-install.sh          first-time setup (interactive)
-install-easy.sh     one-line installer (macOS/linux)
-install-easy.ps1    one-line installer (windows)
-start.sh            full launcher (macOS/linux) — auto-starts proxy, shows config
-start-server.sh     lightweight launcher — just the web server
-start.ps1           full launcher (windows)
+scripts/
+  install.sh        first-time setup (interactive)
+  install-easy.sh   one-line installer (macOS/linux)
+  install-easy.ps1  one-line installer (windows)
+  install.ps1       first-time setup (windows)
+  start.sh          full launcher (macOS/linux) — auto-starts proxy, shows config
+  start-server.sh   lightweight launcher — just the web server
+  start.ps1         full launcher (windows)
+docs/
+  glooow-screen.png screenshot
+  README.nix.md     nix-specific notes
 Install.command     double-click installer (macOS)
 Start.command       double-click launcher (macOS)
 Install.bat         double-click installer (windows)

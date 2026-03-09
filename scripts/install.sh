@@ -6,7 +6,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR/.."
 
 VENV_DIR=".venv"
 CONFIG_FILE="config/default.yaml"
@@ -363,5 +363,5 @@ echo "  TTS engine:    $TTS_ENGINE"
 echo "  Config file:   $CONFIG_FILE"
 echo "  Python env:    $VENV_DIR/ (managed by uv)"
 echo ""
-echo "  To start: ./start.sh"
+echo "  To start: ./scripts/start.sh"
 echo ""

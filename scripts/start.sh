@@ -6,7 +6,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR/.."
 
 AUTO_OPEN=""
 for arg in "$@"; do
@@ -28,13 +28,13 @@ err()   { printf "  \033[1;31m✗\033[0m %s\n" "$*"; exit 1; }
 # ── Check uv ─────────────────────────────────────
 
 if ! command -v uv &>/dev/null; then
-    err "uv not found. Run ./install.sh first or install uv: https://docs.astral.sh/uv/"
+    err "uv not found. Run ./scripts/install.sh first or install uv: https://docs.astral.sh/uv/"
 fi
 
 # ── Read config values ───────────────────────────
 
 if [ ! -f "$CONFIG_FILE" ]; then
-    err "Config not found at $CONFIG_FILE. Run ./install.sh first."
+    err "Config not found at $CONFIG_FILE. Run ./scripts/install.sh first."
 fi
 
 # Extract key values from YAML (simple grep — avoids needing yq)
@@ -141,7 +141,7 @@ if [ "$LLM_PROVIDER" = "ollama" ]; then
             done
         else
             echo ""
-            err "Ollama not found. Install from https://ollama.ai or run ./install.sh"
+            err "Ollama not found. Install from https://ollama.ai or run ./scripts/install.sh"
         fi
     fi
 fi
