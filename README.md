@@ -16,7 +16,7 @@ instead of fixed styles, you mix and match **attention focuses** (body, emotions
 
 ## getting started
 
-### easy install (macOS)
+### easy install (macOS / Linux)
 
 one line in Terminal:
 
@@ -24,9 +24,9 @@ one line in Terminal:
 curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.sh | bash
 ```
 
-this clones the repo to `~/glooow`, installs everything, and puts a Glooow app on your Desktop. double-click to launch
+this clones the repo to `~/glooow`, installs everything, and puts a launcher on your Desktop. works on both macOS and Linux
 
-### easy install (windows)
+### easy install (Windows)
 
 one line in PowerShell:
 
@@ -42,9 +42,9 @@ if you already cloned the repo, you can skip the terminal entirely:
 
 | file | what it does |
 |------|--------------|
-| **Install.command** (mac) / **Install.bat** (windows) | runs the installer |
-| **Start.command** (mac) / **Start.bat** (windows) | starts the server and opens your browser |
-| **Glooow.app** (mac only) | same as Start.command but works from anywhere |
+| **Install-Mac.command** / **Install-Windows.bat** / **Install-Linux.desktop** | runs the installer |
+| **Start-Mac.command** / **Start-Windows.bat** / **Start-Linux.desktop** | starts the server and opens your browser |
+| **Glooow.app** (mac only) | same as Start-Mac.command but works from anywhere |
 
 ### manual install
 
@@ -228,9 +228,11 @@ scripts/
 docs/
   glooow-screen.png screenshot
   README.nix.md     nix-specific notes
-Install.command     double-click installer (macOS)
-Start.command       double-click launcher (macOS)
-Install.bat         double-click installer (windows)
-Start.bat           double-click launcher (windows)
+Install-Mac.command       double-click installer (macOS)
+Start-Mac.command         double-click launcher (macOS)
+Install-Windows.bat       double-click installer (Windows)
+Start-Windows.bat         double-click launcher (Windows)
+Install-Linux.desktop     double-click installer (Linux)
+Start-Linux.desktop       double-click launcher (Linux)
 Glooow.app/         macOS app bundle
 ```

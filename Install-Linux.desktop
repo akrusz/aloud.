@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install Glooow
+Comment=Run the Glooow installer
+Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")" && ./scripts/install.sh; echo ""; echo "  Done! Double-click Start-Linux.desktop to launch."; echo "  Press Enter to close..."; read'
+Terminal=true
+Icon=utilities-terminal
+Categories=Utility;

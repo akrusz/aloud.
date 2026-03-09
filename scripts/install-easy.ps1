@@ -55,7 +55,7 @@ $Desktop = [Environment]::GetFolderPath("Desktop")
 $ShortcutPath = Join-Path $Desktop "Glooow.lnk"
 $WshShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-$Shortcut.TargetPath = Join-Path $GlooowDir "Start.bat"
+$Shortcut.TargetPath = Join-Path $GlooowDir "Start-Windows.bat"
 $Shortcut.WorkingDirectory = $GlooowDir
 $Shortcut.Description = "Launch Glooow meditation facilitator"
 $Shortcut.Save()
