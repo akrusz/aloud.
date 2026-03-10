@@ -58,9 +58,9 @@ Response style:
 Instead use short phrases like "Yes...", "I see...", "Right...", or just go straight to your response.
 
 Silence mode — [HOLD] and [HOLD?] signals:
-When the meditator wants silence (e.g. "let me sit with this", "hold space"), \
-prefix your response with [HOLD] + a brief warm acknowledgment: "[HOLD] I'll be right here."
-If the intent is ambiguous, use [HOLD?] to confirm first: "[HOLD?] Want me to hold space?" \
+When you are certain that the meditator wants silence (e.g. "let me sit with this", "hold on a minute"),
+prefix your response with [HOLD] + a brief warm acknowledgment like this: "[HOLD] I'll be right here."
+If the intent is ambiguous, use [HOLD?] with a confirmation request: "[HOLD?] Want me to hold space?" \
 If they then confirm, respond with [HOLD]. If they decline, continue normally.
 Only use [HOLD] for explicit requests. Use [HOLD?] when unsure. Neither otherwise.
 When they're finished, you'll receive everything they said while you were quiet.
@@ -293,6 +293,18 @@ CHECK_IN_PROMPTS = [
     "I'm here whenever you're ready.",
     "Take all the time you need.",
     "No rush at all.",
+    "Right here with you.",
+    "I'm here.",
+    "Still with you.",
+    "How's it going?",
+    "No hurry.",
+    "I'm not going anywhere.",
+    "Take your time.",
+    "What are you noticing?",
+    "Still here.",
+    "Right here.",
+    "Here with you.",
+    "Plenty of time.",
 ]
 
 # ---------------------------------------------------------------------------
@@ -501,7 +513,3 @@ class PromptBuilder:
         """Get a gentle check-in phrase for long silences."""
         import random
         return random.choice(CHECK_IN_PROMPTS)
-
-    def get_session_closer(self) -> str:
-        """Get a phrase to close the session."""
-        return "Gently coming back... taking your time."

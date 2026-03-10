@@ -15,9 +15,10 @@ import numpy as np
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 
-from ..config import load_config, Config
+from ..config import load_config, Config, PacingConfig
 from ..llm.ollama import create_llm_provider
 from ..llm.base import Message
+from ..facilitation.pacing import PacingController, TurnDecision
 from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal
 from ..facilitation.session import SessionManager
 from ..logging.transcript import TranscriptLogger
@@ -56,6 +57,9 @@ class WebMeditationSession:
         self.prompts = PromptBuilder(prompt_config)
 
         self.in_silence_mode = False
+
+        self.pacing = PacingController(config.pacing)
+        self.pacing.start_session()
 
         self.session = SessionManager(
             context_strategy=config.llm.context_strategy,
@@ -272,6 +276,34 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
 
     _register_routes(app)
     _register_socketio_events(socketio, app)
+
+    def _check_in_loop():
+        """Background loop that checks for extended silence and sends check-ins."""
+        while True:
+            socketio.sleep(10)  # check every 10 seconds
+            for session_id, web_session in list(app.web_sessions.items()):
+                decision = web_session.pacing.should_respond()
+                if decision == TurnDecision.CHECK_IN:
+                    sid = app.session_to_sid.get(session_id)
+                    if not sid:
+                        continue
+                    check_in = web_session.prompts.get_check_in_prompt()
+                    web_session.session.add_assistant_message(check_in)
+                    if web_session.in_silence_mode:
+                        web_session.in_silence_mode = False
+                        web_session.pacing.exit_silence_mode()
+                        socketio.emit("silence_mode", {"active": False}, to=sid)
+                    audio = None
+                    if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
+                        audio = app.server_tts.speak_to_bytes(check_in)
+                    socketio.emit("facilitator_message", {
+                        "text": check_in,
+                        "type": "response",
+                        "audio": audio,
+                    }, to=sid)
+                    web_session.pacing.on_response_end()
+
+    socketio.start_background_task(_check_in_loop)
 
     return app, socketio
 
@@ -503,6 +535,7 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
                 if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
                     audio = app.server_tts.speak_to_bytes(response)
                 emit("facilitator_message", {"text": response, "type": "opener", "audio": audio})
+                web_session.pacing.on_response_end()
                 return
 
         emit("facilitator_typing", {"typing": True})
@@ -511,6 +544,7 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
             audio = app.server_tts.speak_to_bytes(opener)
         emit("facilitator_message", {"text": opener, "type": "opener", "audio": audio})
+        web_session.pacing.on_response_end()
 
     @socketio.on("user_message")
     def handle_user_message(data):
@@ -528,6 +562,7 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         was_silent = web_session.in_silence_mode
         if was_silent:
             web_session.in_silence_mode = False
+            web_session.pacing.exit_silence_mode()
             emit("silence_mode", {"active": False})
 
         emit("facilitator_typing", {"typing": True})
@@ -540,12 +575,15 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             emit("facilitator_message", {"text": response, "type": "response", "audio": audio})
             # Don't re-enter silence right after the user just exited it
             if hold_signal == "hold" and not was_silent:
+                web_session.pacing.enter_silence_mode()
                 emit("silence_mode", {"active": True})
+            web_session.pacing.on_response_end()
         except Exception:
             emit("facilitator_message", {
                 "text": "What do you notice now?",
                 "type": "response",
             })
+            web_session.pacing.on_response_end()
         finally:
             emit("facilitator_typing", {"typing": False})
 
@@ -576,9 +614,6 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         app.session_to_sid.pop(session_id, None)
         web_session = app.web_sessions.pop(session_id)
 
-        closer = web_session.prompts.get_session_closer()
-        web_session.session.add_assistant_message(closer)
-
         # Use pre-fetched summary if available, otherwise generate now
         if hasattr(web_session, '_cached_summary'):
             summary = web_session._cached_summary
@@ -600,14 +635,9 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             app.transcript_logger.save_session_text(session_data)
             saved_id = session_data.get("session_id")
 
-        audio = None
-        if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
-            audio = app.server_tts.speak_to_bytes(closer)
         emit("session_ended", {
-            "closer": closer,
             "session_id": saved_id,
             "summary": summary,
-            "audio": audio,
         })
 
     @socketio.on("set_tts_rate")

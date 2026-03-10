@@ -22,9 +22,12 @@
     const typingEl = document.getElementById('typing-indicator');
     const timerEl = document.getElementById('timer');
     const orbEl = document.getElementById('orb');
+    const confirmOverlay = document.getElementById('session-confirm');
+    const confirmText = document.getElementById('confirm-text');
+    const confirmYes = document.getElementById('confirm-yes');
+    const confirmNo = document.getElementById('confirm-no');
     const savingOverlay = document.getElementById('session-saving');
     const endedOverlay = document.getElementById('session-ended');
-    const closerText = document.getElementById('closer-text');
     const kasinaToggle = document.getElementById('kasina-toggle');
     const emberBlocks = document.getElementById('ember-blocks');
     const emberContainer = document.getElementById('ember-container');
@@ -45,6 +48,7 @@
     let silenceBuffer = [];          // transcribed texts accumulated during silence mode
     let emberLevel = 1;              // ember intensity: 0=off, 1/2/3=increasing
     let pendingNavigation = null;    // URL to navigate to after session_ended
+    let pendingConfirmAction = null;  // callback to run when custom confirm is accepted
     let ttsRate = 160;             // speech rate in WPM — synced to server + browser TTS
     const synth = window.speechSynthesis || null;
     let preferredVoice = null;
@@ -448,20 +452,20 @@
         newSessionBtn.addEventListener('click', function () {
             if (!sessionActive) { window.location.href = '/'; return; }
             socket.emit('prefetch_summary');
-            if (confirm('Start a new session? This will end your current session.')) {
+            showConfirm('Start a new session? This will end your current session.', function () {
                 pendingNavigation = '/';
                 savingOverlay.style.display = 'flex';
                 doEndSession();
-            }
+            });
         });
         historyBtn.addEventListener('click', function () {
             if (!sessionActive) { window.location.href = '/history'; return; }
             socket.emit('prefetch_summary');
-            if (confirm('Leave session to view history? This will end your current session.')) {
+            showConfirm('Leave session to view history? This will end your current session.', function () {
                 pendingNavigation = '/history';
                 savingOverlay.style.display = 'flex';
                 doEndSession();
-            }
+            });
         });
         // Restore saved speed
         var savedSpeed = localStorage.getItem('glooow-speed');
@@ -847,31 +851,6 @@
             pendingNavigation = null;
             window.location.href = dest;
             return;
-        }
-
-        if (data.closer) {
-            closerText.textContent = data.closer;
-        }
-
-        if (ttsToggle.checked && data.closer) {
-            // audioContext may have been closed by deactivateVoice() —
-            // create a temporary one for playing the closer audio.
-            if (data.audio && !audioContext) {
-                var tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
-                var buf = data.audio instanceof ArrayBuffer ? data.audio : data.audio.buffer || data.audio;
-                tmpCtx.decodeAudioData(buf.slice(0), function (decoded) {
-                    var src = tmpCtx.createBufferSource();
-                    src.buffer = decoded;
-                    src.connect(tmpCtx.destination);
-                    src.onended = function () { tmpCtx.close(); };
-                    src.start(0);
-                }, function () {
-                    tmpCtx.close();
-                    speakBrowser(data.closer);
-                });
-            } else {
-                speak(data.closer, data.audio);
-            }
         }
 
         endedOverlay.style.display = 'flex';
@@ -1576,7 +1555,27 @@
         }
     }
 
-    // ---- End Session ----
+    // ---- Confirm & End Session ----
+
+    function showConfirm(message, onConfirm) {
+        confirmText.textContent = message;
+        pendingConfirmAction = onConfirm;
+        confirmOverlay.style.display = 'flex';
+    }
+
+    confirmYes.addEventListener('click', function () {
+        confirmOverlay.style.display = 'none';
+        if (pendingConfirmAction) {
+            var action = pendingConfirmAction;
+            pendingConfirmAction = null;
+            action();
+        }
+    });
+
+    confirmNo.addEventListener('click', function () {
+        confirmOverlay.style.display = 'none';
+        pendingConfirmAction = null;
+    });
 
     function doEndSession() {
         if (voiceActive) {
@@ -1587,8 +1586,10 @@
 
     function endSession() {
         if (!sessionActive) return;
-        if (!confirm('End this session?')) return;
-        doEndSession();
+        showConfirm('End this session?', function () {
+            savingOverlay.style.display = 'flex';
+            doEndSession();
+        });
     }
 
     // ---- Start ----

@@ -5,12 +5,13 @@ This is the most nuanced component - distinguishing between:
 - Contemplative dropping-in (5-30 sec): Wait silently
 - Natural end of sharing (3-5 sec + falling intonation): Respond
 - LLM-detected silence intent ([HOLD] signal): Enter extended listening mode
-- Very long silence (60+ sec): Gentle check-in (optional)
+- Very long silence (120+ sec): Gentle check-in (optional)
 """
 
 import time
-from dataclasses import dataclass
 from enum import Enum, auto
+
+from ..config import PacingConfig
 
 
 class ConversationState(Enum):
@@ -31,20 +32,6 @@ class TurnDecision(Enum):
     RESPOND = auto()  # Time to respond
     CHECK_IN = auto()  # Gentle check-in after long silence
     HOLD = auto()  # In silence mode, keep holding
-
-
-@dataclass
-class PacingConfig:
-    """Configuration for pacing behavior."""
-
-    # Base delay after speech ends before considering response (ms)
-    response_delay_ms: int = 2000
-
-    # Minimum speech duration to consider valid (ms)
-    min_speech_duration_ms: int = 500
-
-    # How long before offering gentle check-in (seconds)
-    extended_silence_sec: int = 60
 
 
 class PacingController:

@@ -93,6 +93,17 @@
     </div>
 </div>
 
+<div class="session-ended-overlay" id="session-confirm" style="display: none;">
+    <div class="session-ended-content">
+        <div class="orb orb-idle"></div>
+        <p id="confirm-text"></p>
+        <div class="session-ended-actions">
+            <button id="confirm-yes" class="btn btn-primary">End Session</button>
+            <button id="confirm-no" class="btn btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <div class="session-ended-overlay" id="session-saving" style="display: none;">
     <div class="session-ended-content">
         <div class="orb orb-idle"></div>
@@ -103,7 +114,6 @@
 <div class="session-ended-overlay" id="session-ended" style="display: none;">
     <div class="session-ended-content">
         <div class="orb orb-idle"></div>
-        <p id="closer-text"></p>
         <div class="session-ended-actions">
             <a href="/" class="btn btn-primary">New Session</a>
             <a href="/history" class="btn btn-secondary">View History</a>

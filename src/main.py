@@ -16,7 +16,7 @@ from .stt.whisper import WhisperSTT
 from .tts import create_tts
 from .llm.ollama import create_llm_provider
 from .llm.base import Message
-from .facilitation.pacing import PacingController, PacingConfig as PacingCtrlConfig, TurnDecision
+from .facilitation.pacing import PacingController, TurnDecision
 from .facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal
 from .facilitation.session import SessionManager
 from .logging.transcript import TranscriptLogger
@@ -97,12 +97,7 @@ class MeditationFacilitator:
 
     def _init_facilitation(self) -> None:
         """Initialize facilitation components."""
-        pacing_config = PacingCtrlConfig(
-            response_delay_ms=self.config.pacing.response_delay_ms,
-            min_speech_duration_ms=self.config.pacing.min_speech_duration_ms,
-            extended_silence_sec=self.config.pacing.extended_silence_sec,
-        )
-        self.pacing = PacingController(pacing_config)
+        self.pacing = PacingController(self.config.pacing)
 
         prompt_config = PromptConfig(
             focuses=self.config.facilitation.focuses,
@@ -326,31 +321,6 @@ class MeditationFacilitator:
         self.audio_input.stop()
         self.tts.stop()
 
-        # Close session
-        closer = self.prompts.get_session_closer()
-        print(f"\nFacilitator: {closer}")
-
-        # Try to speak closer if TTS still works
-        try:
-            # Create new TTS instance since we stopped the old one
-            tts = create_tts(
-                engine=self.config.tts.engine,
-                voice=self.config.tts.voice,
-                rate=self.config.tts.rate,
-                model_name=self.config.tts.model_name,
-                backend=self.config.tts.backend,
-                device=self.config.tts.device,
-                api_key=self.config.tts.api_key,
-                voice_id=self.config.tts.voice_id,
-                model_id=self.config.tts.model_id,
-                stability=self.config.tts.stability,
-                similarity_boost=self.config.tts.similarity_boost,
-            )
-            await tts.speak(closer)
-        except Exception:
-            pass
-
-        self.session.add_assistant_message(closer)
         self.pacing.end_session()
 
         # Save session
