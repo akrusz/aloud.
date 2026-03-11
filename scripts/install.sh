@@ -32,7 +32,7 @@ OS="$(uname -s)"
 
 echo ""
 echo "  ╔══════════════════════════════════════╗"
-echo "  ║       Glooow — Setup                  ║"
+echo "  ║       Glooow — Setup                 ║"
 echo "  ╚══════════════════════════════════════╝"
 
 # uv

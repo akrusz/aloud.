@@ -370,6 +370,12 @@ def _register_routes(app: Flask) -> None:
             "hint": "Set the ANTHROPIC_API_KEY environment variable",
         }
 
+        # openai — needs OPENAI_API_KEY
+        results["openai"] = {
+            "available": bool(os.environ.get("OPENAI_API_KEY")),
+            "hint": "Set the OPENAI_API_KEY environment variable",
+        }
+
         # openrouter — needs OPENROUTER_API_KEY
         results["openrouter"] = {
             "available": bool(os.environ.get("OPENROUTER_API_KEY")),

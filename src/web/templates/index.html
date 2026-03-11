@@ -187,6 +187,7 @@
                 <select id="provider" name="provider">
                     <option value="claude_proxy" selected>Anthropic (Subscription)</option>
                     <option value="anthropic">Anthropic (API Key)</option>
+                    <option value="openai">OpenAI</option>
                     <option value="openrouter">OpenRouter</option>
                     <option value="venice">Venice.ai (Private)</option>
                     <option value="ollama">Ollama (Local)</option>
@@ -325,6 +326,12 @@
             { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5' },
             { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
             { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+        ],
+        openai: [
+            { value: 'gpt-4.1', label: 'GPT-4.1' },
+            { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+            { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
+            { value: 'o3-mini', label: 'o3-mini' },
         ],
         openrouter: [
             { value: 'deepseek/deepseek-v3.2-20251201', label: 'DeepSeek V3.2' },

@@ -65,7 +65,7 @@ trap cleanup EXIT INT TERM
 if [ "${QUIET:-}" != "1" ]; then
     echo ""
     echo "  ╔══════════════════════════════════════╗"
-    echo "  ║       Glooow                          ║"
+    echo "  ║       Glooow                         ║"
     echo "  ╚══════════════════════════════════════╝"
     echo ""
     info "LLM:    $LLM_PROVIDER ($LLM_MODEL)"
