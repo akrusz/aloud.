@@ -313,53 +313,76 @@
     applyPreset('pleasant_play');
 
     // ---- Provider / Model ----
-    const providerModels = {
+    // Fallback models used when the live API is unavailable
+    const fallbackModels = {
         claude_proxy: [
             { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
             { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-            { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5' },
             { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
         ],
         anthropic: [
             { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
             { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-            { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5' },
             { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
-            { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
         ],
         openai: [
             { value: 'gpt-4.1', label: 'GPT-4.1' },
             { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-            { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
-            { value: 'o3-mini', label: 'o3-mini' },
+            { value: 'o3-mini', label: 'o3 Mini' },
         ],
         openrouter: [
             { value: 'deepseek/deepseek-v3.2-20251201', label: 'DeepSeek V3.2' },
-            { value: 'moonshotai/kimi-k2.5-0127', label: 'Kimi K2.5' },
             { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B' },
-            { value: 'qwen/qwen3-235b-a22b-instruct-2507', label: 'Qwen3 235B' },
             { value: 'deepseek/deepseek-r1', label: 'DeepSeek R1' },
         ],
         venice: [
             { value: 'llama-3.3-70b', label: 'Llama 3.3 70B' },
-            { value: 'kimi-k2-5', label: 'Kimi K2.5' },
-            { value: 'qwen3-235b-a22b-instruct-2507', label: 'Qwen3 235B' },
             { value: 'deepseek-ai-DeepSeek-R1', label: 'DeepSeek R1' },
         ],
         ollama: [],  // populated from /api/providers
     };
+    // Cache for dynamically fetched models
+    const liveModels = {};
 
     const providerSelect = document.getElementById('provider');
     const modelSelect = document.getElementById('model');
     const providerHint = document.getElementById('provider-hint');
     let providerStatus = {};  // populated by /api/providers
 
-    function updateModelOptions() {
-        const models = providerModels[providerSelect.value] || [];
+    function renderModelOptions(models) {
         modelSelect.innerHTML = models.map(m =>
             `<option value="${m.value}">${m.label}</option>`
         ).join('');
+    }
+
+    function updateModelOptions() {
+        const provider = providerSelect.value;
         updateProviderHint();
+
+        // If we already fetched live models for this provider, use them
+        if (liveModels[provider]) {
+            renderModelOptions(liveModels[provider]);
+            return;
+        }
+
+        // Show fallback immediately so the dropdown isn't empty
+        const fb = fallbackModels[provider] || [];
+        renderModelOptions(fb);
+
+        // Fetch live models in the background (skip ollama — handled by /api/providers)
+        if (provider === 'ollama') return;
+        fetch('/api/models/' + provider)
+            .then(r => r.json())
+            .then(models => {
+                if (models && models.length) {
+                    liveModels[provider] = models;
+                    // Only update if the user hasn't switched providers
+                    if (providerSelect.value === provider) {
+                        renderModelOptions(models);
+                    }
+                }
+            })
+            .catch(() => {});  // keep fallback on error
     }
 
     function updateProviderHint() {
@@ -394,10 +417,11 @@
             providerStatus = data;
             // Populate ollama models from server response
             if (data.ollama && data.ollama.models && data.ollama.models.length) {
-                providerModels.ollama = data.ollama.models.map(name => ({
+                fallbackModels.ollama = data.ollama.models.map(name => ({
                     value: name,
                     label: name.replace(/:latest$/, ''),
                 }));
+                liveModels.ollama = fallbackModels.ollama;
             }
             applyProviderAvailability();
             updateModelOptions();  // refresh in case ollama is selected

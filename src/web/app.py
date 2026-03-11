@@ -479,6 +479,195 @@ def _register_routes(app: Flask) -> None:
             "needs_restart": result.needs_restart,
         })
 
+    @app.route("/api/models/<provider>")
+    def api_models(provider):
+        """Fetch available models from a provider's API."""
+        models = _fetch_provider_models(provider, app.meditation_config)
+        return jsonify(models)
+
+
+# ---- Dynamic model fetching ----
+
+_models_cache: dict[str, tuple[float, list]] = {}
+_MODELS_CACHE_TTL = 300  # 5 minutes
+
+
+def _fetch_provider_models(provider: str, config) -> list[dict]:
+    """Fetch models from a provider API, with caching. Returns [{value, label}]."""
+    now = time.time()
+    cached = _models_cache.get(provider)
+    if cached and now - cached[0] < _MODELS_CACHE_TTL:
+        return cached[1]
+
+    try:
+        models = _do_fetch_models(provider, config)
+    except Exception:
+        return []
+
+    if models:
+        _models_cache[provider] = (now, models)
+    return models
+
+
+def _do_fetch_models(provider: str, config) -> list[dict]:
+    """Provider-specific model fetching."""
+    if provider == "openai":
+        return _fetch_openai_models()
+    elif provider == "anthropic":
+        return _fetch_anthropic_models()
+    elif provider == "claude_proxy":
+        return _fetch_claude_proxy_models(config)
+    elif provider == "openrouter":
+        return _fetch_openrouter_models()
+    elif provider == "venice":
+        return _fetch_venice_models()
+    # ollama is already dynamic in /api/providers
+    return []
+
+
+def _fetch_openai_models() -> list[dict]:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return []
+    resp = httpx.get(
+        "https://api.openai.com/v1/models",
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=5,
+    )
+    resp.raise_for_status()
+    raw = resp.json().get("data", [])
+
+    # Filter to chat models only
+    chat_prefixes = ("gpt-4", "gpt-3.5", "o1", "o3", "o4", "chatgpt")
+    exclude_terms = ("realtime", "audio", "search", "transcription",
+                     "embedding", "moderation", "tts", "whisper", "dall-e",
+                     "instruct")
+    models = []
+    for m in raw:
+        mid = m["id"]
+        if not any(mid.startswith(p) for p in chat_prefixes):
+            continue
+        if any(t in mid for t in exclude_terms):
+            continue
+        models.append({"value": mid, "label": _openai_label(mid), "created": m.get("created", 0)})
+
+    # Sort newest first, deduplicate
+    models.sort(key=lambda x: x["created"], reverse=True)
+    return [{"value": m["value"], "label": m["label"]} for m in models]
+
+
+def _openai_label(model_id: str) -> str:
+    """Turn an OpenAI model ID into a readable label."""
+    # gpt-4.1-mini -> GPT-4.1 Mini, o3-mini -> o3 Mini
+    parts = model_id.split("-")
+    if parts[0].lower() == "gpt":
+        parts[0] = "GPT"
+    if parts[0].lower() == "chatgpt":
+        parts[0] = "ChatGPT"
+    return " ".join(
+        p.capitalize() if p.isalpha() and p.lower() not in ("gpt", "chatgpt") else p
+        for p in parts
+    ).replace("GPT ", "GPT-").replace("ChatGPT ", "ChatGPT-")
+
+
+def _fetch_anthropic_models() -> list[dict]:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return []
+    resp = httpx.get(
+        "https://api.anthropic.com/v1/models",
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        },
+        timeout=5,
+    )
+    resp.raise_for_status()
+    raw = resp.json().get("data", [])
+    models = []
+    for m in raw:
+        mid = m.get("id", "")
+        label = m.get("display_name", mid)
+        created = m.get("created_at", "")
+        models.append({"value": mid, "label": label, "sort": created})
+
+    models.sort(key=lambda x: x["sort"], reverse=True)
+    return [{"value": m["value"], "label": m["label"]} for m in models]
+
+
+def _fetch_claude_proxy_models(config) -> list[dict]:
+    proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
+    headers = {}
+    if config.llm.api_key:
+        headers["X-Api-Key"] = config.llm.api_key
+    resp = httpx.get(
+        f"{proxy_url.rstrip('/')}/v1/models",
+        headers=headers,
+        timeout=3,
+    )
+    resp.raise_for_status()
+    raw = resp.json().get("data", [])
+    models = []
+    for m in raw:
+        mid = m.get("id", "")
+        label = m.get("display_name", "") or mid
+        created = m.get("created_at", m.get("created", ""))
+        models.append({"value": mid, "label": label, "sort": created})
+
+    models.sort(key=lambda x: x["sort"], reverse=True)
+    return [{"value": m["value"], "label": m["label"]} for m in models]
+
+
+def _fetch_openrouter_models() -> list[dict]:
+    # OpenRouter's models endpoint is public (no auth needed)
+    resp = httpx.get("https://openrouter.ai/api/v1/models", timeout=8)
+    resp.raise_for_status()
+    raw = resp.json().get("data", [])
+
+    # Filter to text generation models from well-known providers
+    keep_orgs = {"anthropic", "openai", "google", "meta-llama",
+                 "deepseek", "mistralai", "qwen", "moonshotai"}
+    models = []
+    for m in raw:
+        mid = m.get("id", "")
+        org = mid.split("/")[0] if "/" in mid else ""
+        if org not in keep_orgs:
+            continue
+        # Skip free/extended variants
+        if mid.endswith(":free") or mid.endswith(":extended"):
+            continue
+        label = m.get("name", mid)
+        ctx = m.get("context_length", 0)
+        models.append({"value": mid, "label": label, "ctx": ctx})
+
+    # Sort by context length (proxy for recency/capability)
+    models.sort(key=lambda x: x["ctx"], reverse=True)
+    return [{"value": m["value"], "label": m["label"]} for m in models[:30]]
+
+
+def _fetch_venice_models() -> list[dict]:
+    api_key = os.environ.get("VENICE_API_KEY")
+    if not api_key:
+        return []
+    resp = httpx.get(
+        "https://api.venice.ai/api/v1/models",
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=5,
+    )
+    resp.raise_for_status()
+    raw = resp.json().get("data", [])
+    models = []
+    for m in raw:
+        mid = m.get("id", "")
+        # Venice includes image/code models — filter to text
+        mtype = m.get("type", "")
+        if mtype and mtype not in ("text", "chat", ""):
+            continue
+        label = m.get("name", "") or mid
+        models.append({"value": mid, "label": label})
+
+    return models
+
 
 def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
     """Register WebSocket event handlers."""
