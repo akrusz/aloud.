@@ -15,8 +15,10 @@ import numpy as np
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 
+from .. import __version__
 from ..config import load_config, Config, PacingConfig
 from ..llm.ollama import create_llm_provider
+from ..updater import check_for_updates, apply_update
 from ..llm.base import Message
 from ..facilitation.pacing import PacingController, TurnDecision
 from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal
@@ -235,6 +237,7 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
         static_folder=str(Path(__file__).parent / "static"),
     )
     app.config["SECRET_KEY"] = "glooow-local"
+    app.jinja_env.globals["glooow_version"] = __version__
 
     socketio = SocketIO(
         app,
@@ -304,6 +307,17 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
                     web_session.pacing.on_response_end()
 
     socketio.start_background_task(_check_in_loop)
+
+    def _startup_update_check():
+        """Background startup check — log if update available."""
+        try:
+            status = check_for_updates()
+            if status.available:
+                print(f"  [Update] New version available ({status.commits_behind} commit(s) behind)", flush=True)
+        except Exception:
+            pass
+
+    socketio.start_background_task(_startup_update_check)
 
     return app, socketio
 
@@ -434,6 +448,30 @@ def _register_routes(app: Flask) -> None:
         if not audio:
             return Response(status=500)
         return Response(audio, mimetype="audio/wav")
+
+    @app.route("/api/update/check")
+    def api_update_check():
+        force = request.args.get("force", "0") == "1"
+        status = check_for_updates(force=force)
+        return jsonify({
+            "available": status.available,
+            "commits_behind": status.commits_behind,
+            "commit_messages": status.commit_messages,
+            "current_sha": status.current_sha,
+            "remote_sha": status.remote_sha,
+            "error": status.error,
+            "is_git": status.is_git,
+            "version": __version__,
+        })
+
+    @app.route("/api/update/apply", methods=["POST"])
+    def api_update_apply():
+        result = apply_update()
+        return jsonify({
+            "success": result.success,
+            "message": result.message,
+            "needs_restart": result.needs_restart,
+        })
 
 
 def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
@@ -751,7 +789,7 @@ def run_web(
             return
 
     print(f"\n{'=' * 50}")
-    print("  Glooow — starting up...")
+    print(f"  Glooow v{__version__} — starting up...")
     print(f"{'=' * 50}")
 
     app, socketio = create_app(config)

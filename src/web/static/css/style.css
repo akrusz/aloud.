@@ -8,9 +8,9 @@
     --bg-secondary: #1a1410;
     --bg-card: #221a13;
     --bg-input: #281f16;
-    --text-primary: #f0e8dd;
-    --text-secondary: #b3a28a;
-    --text-muted: #8a7b68;
+    --text-primary: #f5efe6;
+    --text-secondary: #c4b49e;
+    --text-muted: #9e8e7a;
     --accent: #d4873a;
     --accent-dim: rgba(212, 135, 58, 0.15);
     --accent-glow: rgba(212, 135, 58, 0.3);
@@ -1477,6 +1477,227 @@ body::before {
 
 .empty-state p {
     margin-bottom: 1.5rem;
+}
+
+/* ============================================
+   Update Indicator & Modal
+   ============================================ */
+
+.update-indicator {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    transition: all var(--transition);
+    padding: 0;
+    line-height: 1;
+    position: relative;
+}
+
+.update-indicator:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.update-indicator.has-update::after,
+.update-indicator.has-update-static::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+.update-indicator.has-update::after {
+    animation: updatePulse 1.5s ease-in-out 6;
+}
+
+@keyframes updatePulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.6); opacity: 0.6; }
+}
+
+/* About modal */
+
+.about-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.15s ease;
+}
+
+.about-modal {
+    max-width: 300px;
+    width: 90%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.about-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.about-modal-title {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.about-modal-body {
+    padding: 1.5rem 1rem;
+    text-align: center;
+}
+
+.about-app-name {
+    font-family: 'Lexend Exa', sans-serif;
+    font-size: 1.3rem;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+}
+
+.about-version {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+}
+
+.about-author {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.about-author a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.about-author a:hover {
+    text-decoration: underline;
+}
+
+/* Nav about link */
+
+.nav-about-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color var(--transition);
+}
+
+.nav-about-link:hover {
+    color: var(--text-primary);
+}
+
+/* Update modal */
+
+.update-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.15s ease;
+}
+
+.update-modal {
+    max-width: 420px;
+    width: 90%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.update-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.update-modal-title {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.update-modal-body {
+    padding: 1rem;
+}
+
+.update-info {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.update-commits ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.75rem;
+}
+
+.update-commits li {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.update-commits li::before {
+    content: '- ';
+    color: var(--text-muted);
+}
+
+.update-commits li:last-child {
+    border-bottom: none;
+}
+
+.update-status {
+    font-size: 0.85rem;
+    padding: 0;
+    margin-top: 0.5rem;
+}
+
+.update-status.update-success {
+    color: #5a9e6f;
+}
+
+.update-status.update-error {
+    color: var(--danger);
+}
+
+.update-modal-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border);
 }
 
 /* ---- Responsive ---- */

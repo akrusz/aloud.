@@ -718,6 +718,16 @@
         // Start session
         socket.emit('start_session', params);
         sessionActive = true;
+        // Expose for update indicator in base.html
+        window._glooowSessionActive = true;
+        window._glooowConfirmEnd = function() {
+            showConfirm('End session to install update?', function () {
+                savingOverlay.style.display = 'flex';
+                doEndSession();
+                // After session ends, show the update modal
+                window._glooowPendingUpdate = true;
+            });
+        };
         sessionStart = Date.now();
         startTimer();
 
@@ -843,7 +853,18 @@
 
     socket.on('session_ended', function (data) {
         sessionActive = false;
+        window._glooowSessionActive = false;
         stopTimer();
+
+        // If update was pending, show update modal after session ends
+        if (window._glooowPendingUpdate) {
+            window._glooowPendingUpdate = false;
+            savingOverlay.style.display = 'none';
+            if (window._glooowShowUpdateModal) {
+                window._glooowShowUpdateModal();
+                return;
+            }
+        }
 
         // If navigating away (New Session / History), go immediately
         if (pendingNavigation) {

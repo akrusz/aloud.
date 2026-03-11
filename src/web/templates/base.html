@@ -42,13 +42,17 @@
 </head>
 <body>
     <nav class="nav">
-        <a href="/" class="nav-brand">Glooow</a>
+        <a href="/" class="nav-brand" title="v{{ glooow_version }}">Glooow</a>
         {% block nav_center %}{% endblock %}
         <div class="nav-links">
             {% block nav_items %}
             {% if request.path != '/' %}<a href="/">New Session</a>{% endif %}
             <a href="/history">History</a>
             {% endblock %}
+            <a href="#" class="nav-about-link" id="aboutLink">About</a>
+            <button class="update-indicator" id="updateIndicator" title="Update available" aria-label="Check for updates" style="display:none">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
             <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"></button>
         </div>
     </nav>
@@ -57,7 +61,154 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- About Modal -->
+    <div class="about-modal-overlay" id="aboutModal" style="display:none">
+        <div class="about-modal">
+            <div class="about-modal-header">
+                <span class="about-modal-title">About</span>
+                <button class="voice-modal-close" id="aboutClose">&times;</button>
+            </div>
+            <div class="about-modal-body">
+                <div class="about-app-name">Glooow</div>
+                <div class="about-version">v{{ glooow_version }}</div>
+                <div class="about-author">By <a href="https://krusz.net" target="_blank" rel="noopener">Alex Krusz</a></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Modal -->
+    <div class="update-modal-overlay" id="updateModal" style="display:none">
+        <div class="update-modal">
+            <div class="update-modal-header">
+                <span class="update-modal-title">Update Available</span>
+                <button class="voice-modal-close" id="updateModalClose">&times;</button>
+            </div>
+            <div class="update-modal-body">
+                <div class="update-info" id="updateInfo"></div>
+                <div class="update-commits" id="updateCommits"></div>
+                <div class="update-status" id="updateStatus"></div>
+            </div>
+            <div class="update-modal-footer">
+                <button class="btn btn-primary" id="updateNowBtn">Update Now</button>
+                <button class="btn btn-secondary" id="updateLaterBtn">Later</button>
+            </div>
+        </div>
+    </div>
+
     {% block scripts %}{% endblock %}
+    <script>
+    // Update checking
+    (function() {
+        var indicator = document.getElementById('updateIndicator');
+        var modal = document.getElementById('updateModal');
+        var aboutModal = document.getElementById('aboutModal');
+        var _updateData = null;
+
+        // About modal
+        document.getElementById('aboutLink').addEventListener('click', function(e) {
+            e.preventDefault();
+            aboutModal.style.display = '';
+        });
+        document.getElementById('aboutClose').addEventListener('click', function() {
+            aboutModal.style.display = 'none';
+        });
+        aboutModal.addEventListener('click', function(e) {
+            if (e.target === aboutModal) aboutModal.style.display = 'none';
+        });
+
+        // Check for updates on page load
+        fetch('/api/update/check')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                _updateData = data;
+                if (data.available) {
+                    indicator.style.display = '';
+                    indicator.classList.add('has-update');
+                    // Pulse for ~10 seconds then stop
+                    setTimeout(function() {
+                        indicator.classList.remove('has-update');
+                        indicator.classList.add('has-update-static');
+                    }, 10000);
+                }
+            })
+            .catch(function() {});
+
+        // Open update modal
+        indicator.addEventListener('click', function() {
+            // If on session page with active session, trigger end-session confirm first
+            if (window._glooowSessionActive && window._glooowConfirmEnd) {
+                window._glooowPendingUpdate = true;
+                window._glooowConfirmEnd();
+                return;
+            }
+            _showUpdateModal();
+        });
+
+        function _showUpdateModal() {
+            if (!_updateData) return;
+            var info = document.getElementById('updateInfo');
+            info.textContent = _updateData.commits_behind + ' new commit' +
+                (_updateData.commits_behind !== 1 ? 's' : '') + ' available';
+
+            var commits = document.getElementById('updateCommits');
+            commits.innerHTML = '';
+            if (_updateData.commit_messages && _updateData.commit_messages.length) {
+                var ul = document.createElement('ul');
+                _updateData.commit_messages.forEach(function(msg) {
+                    var li = document.createElement('li');
+                    li.textContent = msg;
+                    ul.appendChild(li);
+                });
+                commits.appendChild(ul);
+            }
+
+            document.getElementById('updateStatus').innerHTML = '';
+            document.getElementById('updateNowBtn').disabled = false;
+            modal.style.display = '';
+        }
+        window._glooowShowUpdateModal = _showUpdateModal;
+
+        // Close modal
+        function closeModal() { modal.style.display = 'none'; }
+        document.getElementById('updateModalClose').addEventListener('click', closeModal);
+        document.getElementById('updateLaterBtn').addEventListener('click', closeModal);
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
+        });
+
+        // Apply update
+        document.getElementById('updateNowBtn').addEventListener('click', function() {
+            var btn = this;
+            var status = document.getElementById('updateStatus');
+            btn.disabled = true;
+            btn.textContent = 'Updating...';
+            status.innerHTML = '';
+            status.className = 'update-status';
+
+            fetch('/api/update/apply', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        status.textContent = data.message;
+                        status.classList.add('update-success');
+                        btn.textContent = 'Done';
+                        indicator.style.display = 'none';
+                    } else {
+                        status.textContent = data.message;
+                        status.classList.add('update-error');
+                        btn.textContent = 'Update Now';
+                        btn.disabled = false;
+                    }
+                })
+                .catch(function() {
+                    status.textContent = 'Update failed. Check your connection.';
+                    status.classList.add('update-error');
+                    btn.textContent = 'Update Now';
+                    btn.disabled = false;
+                });
+        });
+    })();
+    </script>
     <script>
     (function() {
         var THEME_TTL = 4 * 60 * 60 * 1000;

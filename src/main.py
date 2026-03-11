@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
+from . import __version__
 from .config import load_config, Config
 from .audio.input import AudioInput
 from .audio.vad import VoiceActivityDetector, VADConfig, VADResult, SpeechState
@@ -415,8 +416,40 @@ def main():
         metavar="SESSION_ID",
         help="View a specific session transcript",
     )
+    parser.add_argument(
+        "--check-update",
+        action="store_true",
+        help="Check if a new version is available",
+    )
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Update Glooow to the latest version",
+    )
 
     args = parser.parse_args()
+
+    # Handle update commands (no config/audio needed)
+    if args.check_update:
+        from .updater import check_for_updates
+        print(f"Glooow v{__version__}")
+        status = check_for_updates(force=True)
+        if status.error:
+            print(f"Error: {status.error}")
+        elif status.available:
+            print(f"Update available! ({status.commits_behind} commit(s) behind)")
+            for msg in status.commit_messages:
+                print(f"  - {msg}")
+        else:
+            print("You're up to date.")
+        return
+
+    if args.update:
+        from .updater import apply_update
+        print(f"Glooow v{__version__} — updating...")
+        result = apply_update()
+        print(result.message)
+        return
 
     # Load configuration
     config = load_config(args.config)
