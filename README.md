@@ -18,7 +18,7 @@ instead of fixed styles, you mix and match **attention focuses** (body, emotions
 
 ### easy install (macOS / Linux)
 
-one line in Terminal:
+open Terminal, paste this line, and hit Return:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.sh | bash
@@ -28,7 +28,7 @@ this clones the repo to `~/glooow`, installs everything, and puts a launcher on 
 
 ### easy install (Windows)
 
-one line in PowerShell:
+open PowerShell, paste this line, and hit Enter:
 
 ```powershell
 irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.ps1 | iex
