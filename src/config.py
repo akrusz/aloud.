@@ -62,7 +62,7 @@ class LLMConfig:
 class PacingConfig:
     response_delay_ms: int = 2000
     min_speech_duration_ms: int = 500
-    extended_silence_sec: int = 120
+    extended_silence_sec: int = 240
 
 
 @dataclass

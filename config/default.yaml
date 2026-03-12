@@ -69,7 +69,7 @@ llm:
 pacing:
   response_delay_ms: 2000       # wait after speech ends before responding
   min_speech_duration_ms: 500   # ignore very short sounds
-  extended_silence_sec: 120     # when to offer gentle check-in
+  extended_silence_sec: 240     # when to offer gentle check-in
 
 facilitation:
   directiveness: 3          # 0-10 scale

@@ -108,7 +108,7 @@ class PacingController:
         """
         now = time.time()
 
-        # Exponential backoff: 120s, 240s, 480s, ...
+        # Exponential backoff: e.g. 240s, 480s, 960s, ...
         check_in_threshold = self.config.extended_silence_sec * (2 ** self._check_in_count)
 
         # If in silence mode
