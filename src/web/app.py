@@ -175,7 +175,13 @@ class WebMeditationSession:
         ))
         result = await self.llm.complete(
             messages=llm_messages,
-            system=self.build_system_prompt(),
+            system=(
+                "You are a helpful assistant. The conversation above is a "
+                "completed meditation session between a facilitator and a "
+                "meditator. Your job is to produce a brief summary of the "
+                "session for the meditator's history log. Respond with only "
+                "the summary, nothing else."
+            ),
         )
         return result.text.strip()
 
