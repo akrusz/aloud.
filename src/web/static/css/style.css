@@ -784,7 +784,7 @@ body:has(.session-container) {
 .input-row {
     display: flex;
     gap: 0.5rem;
-    align-items: flex-end;
+    align-items: center;
 }
 
 .voice-status {
@@ -808,12 +808,69 @@ body:has(.session-container) {
     border: 1px solid var(--border);
 }
 
+.btn-voice .mute-line {
+    stroke: var(--text-muted);
+    stroke-width: 2.5;
+    transition: opacity var(--transition);
+}
+
+.btn-voice.active .mute-line {
+    opacity: 0;
+}
+
+.btn-voice:not(.active) .mute-line {
+    opacity: 1;
+}
+
 .btn-voice.active {
     background: var(--warm-dim);
     border-color: var(--warm);
     color: var(--warm);
     box-shadow: 0 0 0 calc(var(--mic-level, 0) * 12px) rgba(201, 160, 80, 0.25);
     transition: box-shadow 0.1s ease-out;
+}
+
+.btn-tts {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    padding: 0;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.btn-tts.active {
+    background: var(--warm-dim);
+    border-color: var(--warm);
+    color: var(--warm);
+}
+
+.btn-tts.active .mute-line,
+.btn-tts.active .tts-waves {
+    transition: opacity var(--transition);
+}
+
+.btn-tts.active .mute-line {
+    opacity: 0;
+}
+
+.btn-tts.active .tts-waves {
+    opacity: 1;
+}
+
+.btn-tts:not(.active) .mute-line {
+    opacity: 1;
+}
+
+.btn-tts:not(.active) .tts-waves {
+    opacity: 0;
 }
 
 .btn-listen {

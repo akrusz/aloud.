@@ -443,11 +443,19 @@
         // Generate a stable session ID that survives socket reconnections
         sessionId = 'ses-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         params.session_id = sessionId;
-        params.tts = ttsToggle.checked;
+        params.tts = ttsToggle.classList.contains('active');
 
         // Event listeners
         voiceBtn.addEventListener('click', toggleVoice);
         listenBtn.addEventListener('click', toggleListenMode);
+        ttsToggle.addEventListener('click', function () {
+            ttsToggle.classList.toggle('active');
+            if (!ttsToggle.classList.contains('active')) {
+                stopServerAudio();
+                if (synth) synth.cancel();
+                ttsSpeaking = false;
+            }
+        });
         endBtn.addEventListener('click', function (e) { e.preventDefault(); endSession(); });
         newSessionBtn.addEventListener('click', function (e) {
             e.preventDefault();
@@ -832,7 +840,7 @@
     socket.on('facilitator_message', function (data) {
         typingEl.classList.remove('visible');
         addMessage('facilitator', data.text);
-        if (ttsToggle.checked) {
+        if (ttsToggle.classList.contains('active')) {
             // If voice isn't active yet (e.g. opener arrives before mic
             // permission is granted), queue the speech for later.
             if (voiceActive) {
@@ -1174,7 +1182,7 @@
             if (orb) orb.classList.remove('orb-muted');
 
             // Speak any opener that was queued before mic permission was granted
-            if (queuedSpeech && ttsToggle.checked) {
+            if (queuedSpeech && ttsToggle.classList.contains('active')) {
                 speak(queuedSpeech, queuedAudio);
                 queuedSpeech = null;
                 queuedAudio = null;
