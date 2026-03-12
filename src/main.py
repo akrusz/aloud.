@@ -309,6 +309,7 @@ class MeditationFacilitator:
         self.vad.reset()
         self._audio_buffer = []
         self.session.add_assistant_message(check_in)
+        self.pacing.on_check_in()
         self.pacing.on_response_end()
 
     def _handle_interrupt(self) -> None:
