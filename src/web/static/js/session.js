@@ -376,8 +376,9 @@
 
     // ---- Ember configuration ----
 
-    var EMBER_COUNTS = [0, 3, 6, 12];
-    var EMBER_COLORS = ['#e8a840', '#d4873a', '#c07830', '#e0a038', '#cc8030'];
+    var EMBER_COUNTS = [0, 3, 6, 12, 24];
+    var EMBER_COLORS_DARK = ['#e8a840', '#d4873a', '#c07830', '#e0a038', '#cc8030'];
+    var EMBER_COLORS_LIGHT = ['#fed025', '#f6b818', '#fcc430', '#f0a80e', '#f8c020'];
     var EMBER_SHRINK_RATE = 0.3; // px/s — constant for all embers
 
     function hexGlow(hex) {
@@ -403,12 +404,14 @@
         }
         emberContainer.classList.add('active');
         var count = EMBER_COUNTS[emberLevel];
+        var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        var palette = isLight ? EMBER_COLORS_LIGHT : EMBER_COLORS_DARK;
         for (var i = 0; i < count; i++) {
             var span = document.createElement('span');
             span.className = 'ember';
-            var sizeRange = [0, 2, 3.5, 5][emberLevel];
+            var sizeRange = [0, 2, 3.5, 5, 6.5][emberLevel];
             var size = 2 + Math.random() * sizeRange;
-            var color = EMBER_COLORS[Math.floor(Math.random() * EMBER_COLORS.length)];
+            var color = palette[Math.floor(Math.random() * palette.length)];
             var glow = Math.round(3 + size);
             span.style.left = (5 + Math.random() * 90) + '%';
             span.style.width = size + 'px';
@@ -639,7 +642,7 @@
             setEmberLevel(Math.max(0, emberLevel - 1));
         });
         document.getElementById('ember-plus').addEventListener('click', function () {
-            setEmberLevel(Math.min(3, emberLevel + 1));
+            setEmberLevel(Math.min(4, emberLevel + 1));
         });
         emberBlocks.addEventListener('click', function (e) {
             var block = e.target.closest('.ember-block');

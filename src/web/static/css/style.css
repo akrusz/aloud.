@@ -991,7 +991,7 @@ body:has(.session-container) {
 }
 
 .speed-control input[type="range"] {
-    width: 80px;
+    width: 120px;
     height: 3px;
     margin: 0;
 }
@@ -1378,7 +1378,7 @@ body::before {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 1;
+    z-index: -1;
     overflow: hidden;
     display: none;
 }
