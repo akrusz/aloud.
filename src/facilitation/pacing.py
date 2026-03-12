@@ -49,6 +49,7 @@ class PacingController:
         self._last_response_time: float = 0
         self._silence_mode_start: float | None = None
         self._check_in_count: int = 0
+        self._has_spoken: bool = False
 
     @property
     def state(self) -> ConversationState:
@@ -62,6 +63,7 @@ class PacingController:
         self._last_response_time = time.time()
         self._silence_mode_start = None
         self._check_in_count = 0
+        self._has_spoken = False
 
     def end_session(self) -> None:
         """End the current session."""
@@ -76,6 +78,7 @@ class PacingController:
         """Called when meditator stops speaking."""
         self._last_speech_end = time.time()
         self._state = ConversationState.PROCESSING
+        self._has_spoken = True
 
     def on_transcription(self, text: str) -> TurnDecision:
         """Process transcribed text and decide on turn-taking.
@@ -126,10 +129,11 @@ class PacingController:
             if silence_duration >= response_delay:
                 return TurnDecision.RESPOND
 
-        # Check for extended silence in normal mode
-        time_since_response = now - self._last_response_time
-        if time_since_response >= check_in_threshold:
-            return TurnDecision.CHECK_IN
+        # Check for extended silence in normal mode (only after conversation has started)
+        if self._has_spoken:
+            time_since_response = now - self._last_response_time
+            if time_since_response >= check_in_threshold:
+                return TurnDecision.CHECK_IN
 
         return TurnDecision.WAIT
 
