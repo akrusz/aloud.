@@ -198,13 +198,13 @@ uses your mic directly via sounddevice and speaks responses through the system T
 - if speech recognition feels slow, try `stt.model: base` (faster, less accurate)
 - on linux without piper, TTS falls back to browser speechSynthesis automatically
 - sessions auto-save to `sessions/` as JSON and plain text, with a short LLM-generated summary
-- from the history page you can continue any past session — the facilitator picks up where you left off with full context
-- say something like "hold on a bit" during a session to enter silence mode. say anything to come back - it understands intent
-- say "mute" to immediately turn off the microphone. click the mic button to resume — both buttons show a line through them when off
+- from the history page you can continue any past session. the facilitator picks up where you left off with full context
+- say something like "hold on a bit" during a session to enter silence mode. say "come back" or similar to come back - it understands intent
+- say "mute" to immediately turn off the microphone. click the mic button to resume. both buttons show a line through them when off
 - the speaker button next to the mic toggles TTS. turning it off cuts audio immediately
 - set an intention loosely or not at all. the facilitator holds it lightly
 - click the orb in the nav bar to enter kasina gazing mode. click away from it to exit
-- the ember controls add floating particles — each level doubles the count and increases the size
+- the ember controls add floating particles. each level doubles the count and increases the size
 - click the voice name in the controls bar to open a voice picker modal — voices are grouped by quality tier and you can preview them before choosing
 
 ## project layout

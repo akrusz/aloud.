@@ -367,6 +367,7 @@
     var PRE_BUFFER_CHUNKS = 20;    // ~2s of audio to keep before speech onset
     var MIN_SPEECH_DURATION = 500; // ms — reject sounds shorter than this
     var MIN_UTTERANCE_DURATION = 4000; // ms — don't submit until this long after speech onset
+    var MIN_UTTERANCE_DURATION_SILENCE = 800; // ms — lower threshold during silence mode
     var NOISE_REJECT_MS = 200;     // ms — abort speech_started if silence exceeds this
     var TTS_COOLDOWN_MS = 800;     // ignore mic for this long after TTS ends
     var TTS_WATCHDOG_MS = 1500;    // force-reset ttsSpeaking if synth stopped this long ago
@@ -774,18 +775,13 @@
 
         // During silence mode, buffer speech instead of submitting.
         // Show it in the conversation but don't send to the LLM.
-        // Only a resume phrase triggers sending everything at once.
+        // Ask the server to classify whether the utterance signals
+        // resume intent — if so, the server emits "resume_detected".
         if (inSilenceMode) {
             silenceBuffer.push(text);
             addMessage('user', text);
-            setStatus("Holding space\u2026 say \u2018come back\u2019 to resume");
-            if (isResumeCommand(text)) {
-                var combined = silenceBuffer.join(' ... ');
-                silenceBuffer = [];
-                inSilenceMode = false;
-                listenBtn.classList.remove('active');
-                socket.emit('user_message', { text: combined });
-            }
+            setStatus("Holding space\u2026 say something like \u2018I\u2019m ready\u2019 to resume");
+            socket.emit('check_resume_intent', { text: text });
             return;
         }
 
@@ -896,13 +892,24 @@
         listenBtn.classList.toggle('active', data.active);
         if (data.active) {
             silenceBuffer = [];
-            setStatus("Holding space\u2026 say \u2018come back\u2019 to resume");
+            setStatus("Holding space\u2026 say something like \u2018I\u2019m ready\u2019 to resume");
             if (orb && !kasinaToggle.checked) orb.classList.add('orb-holding');
         } else {
             silenceBuffer = [];
             setStatus("Speak naturally, or say 'mute' to turn off mic");
             if (orb) orb.classList.remove('orb-holding');
         }
+    });
+
+    socket.on('resume_detected', function () {
+        // Server classified an utterance as resume intent — flush the
+        // silence buffer and send it as a single combined message.
+        if (!inSilenceMode) return;
+        var combined = silenceBuffer.join(' ... ');
+        silenceBuffer = [];
+        inSilenceMode = false;
+        listenBtn.classList.remove('active');
+        socket.emit('user_message', { text: combined });
     });
 
     socket.on('error', function (data) {
@@ -976,7 +983,7 @@
             inSilenceMode = true;
             silenceBuffer = [];
             listenBtn.classList.add('active');
-            setStatus("Holding space\u2026 say \u2018come back\u2019 to resume");
+            setStatus("Holding space\u2026 say something like \u2018I\u2019m ready\u2019 to resume");
             var orb = document.getElementById('orb');
             if (orb && !kasinaToggle.checked) orb.classList.add('orb-holding');
         }
@@ -1136,17 +1143,23 @@
                         );
                         var silenceElapsed = now - lastSpeechTime;
 
+                        // In silence mode accept shorter utterances so
+                        // brief resume phrases get full transcription.
+                        var minUtterance = inSilenceMode
+                            ? MIN_UTTERANCE_DURATION_SILENCE
+                            : MIN_UTTERANCE_DURATION;
+
                         // At base silence, pre-send audio for transcription
                         // so the result is ready when adaptive threshold hits.
                         if (!speculativeSent &&
                             silenceNeeded > SILENCE_DURATION &&
                             silenceElapsed >= SILENCE_DURATION &&
-                            now - speechStartTime >= MIN_UTTERANCE_DURATION) {
+                            now - speechStartTime >= minUtterance) {
                             submitSpeculative();
                         }
 
                         if (silenceElapsed >= silenceNeeded) {
-                            if (now - speechStartTime >= MIN_UTTERANCE_DURATION) {
+                            if (now - speechStartTime >= minUtterance) {
                                 if (speculativeText !== null) {
                                     // Transcription already back — use it
                                     finalizeSpeculative();
@@ -1221,7 +1234,7 @@
         awaitingSpeculative = false;
 
         if (inSilenceMode) {
-            setStatus("Holding space\u2026 say \u2018come back\u2019 to resume");
+            setStatus("Holding space\u2026 say something like \u2018I\u2019m ready\u2019 to resume");
         } else {
             setStatus("Speak naturally, or say 'mute' to turn off mic");
         }
@@ -1232,14 +1245,6 @@
         // the LLM even from command-candidate transcriptions.
         var lower = text.toLowerCase();
         return /\b(hold|wait|one moment|one sec|hang on|just a)\b/.test(lower);
-    }
-
-    function isResumeCommand(text) {
-        // Recognise phrases that signal the user wants to exit silence
-        // mode and resume the conversation.
-        var lower = text.toLowerCase().replace(/[^a-z' ]/g, '').trim();
-        if (/^(okay|ok)$/.test(lower)) return true;
-        return /\b(come back|i'm back|im back|i'm here|im here|resume|back now)\b/.test(lower);
     }
 
     function submitCommandCandidate() {
@@ -1469,10 +1474,11 @@
             // Command-only transcriptions are discarded unless they
             // match a recognised command — they were too short for normal
             // speech and only sent speculatively.  Hold/wait phrases are
-            // forwarded so the LLM can trigger silence mode.  Resume
-            // phrases are forwarded during silence mode to exit it.
+            // forwarded so the LLM can trigger silence mode.  During
+            // silence mode, all utterances are forwarded for AI-based
+            // resume intent classification.
             if (commandOnly) {
-                if (inSilenceMode && isResumeCommand(text)) { sendText(text); return; }
+                if (inSilenceMode) { sendText(text); return; }
                 if (isHoldCommand(text)) sendText(text);
                 return;
             }
@@ -1483,7 +1489,7 @@
         // the user isn't currently speaking (VAD would set its own status).
         if (vadState === 'silence' && pendingTranscriptions === 0 && voiceActive) {
             if (inSilenceMode) {
-                setStatus("Holding space\u2026 say \u2018come back\u2019 to resume");
+                setStatus("Holding space\u2026 say something like \u2018I\u2019m ready\u2019 to resume");
             } else {
                 setStatus("Speak naturally, or say 'mute' to turn off mic");
             }

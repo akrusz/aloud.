@@ -21,7 +21,7 @@ from ..llm.ollama import create_llm_provider
 from ..updater import check_for_updates, apply_update
 from ..llm.base import Message
 from ..facilitation.pacing import PacingController, TurnDecision
-from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal
+from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal, RESUME_INTENT_SYSTEM_PROMPT
 from ..facilitation.session import SessionManager
 from ..logging.transcript import TranscriptLogger
 from ..stt.whisper import WhisperSTT
@@ -104,9 +104,8 @@ class WebMeditationSession:
 
         Returns:
             (response_text, hold_signal) — hold_signal is one of:
-              "hold"    → activate silence mode
-              "confirm" → AI is asking user to confirm before silence mode
-              "none"    → normal response
+              "hold" → activate silence mode
+              "none" → normal response
         """
         self.session.add_user_message(user_text)
 
@@ -133,6 +132,23 @@ class WebMeditationSession:
         # like "come back" (which otherwise reads as a meditation cue).
         self.session.add_assistant_message(response if hold_signal == "hold" else clean_response)
         return clean_response, hold_signal
+
+    async def classify_resume_intent(self, text: str) -> bool:
+        """Classify whether a silence-mode utterance signals resume intent.
+
+        Uses a lightweight LLM call with just the utterance (no conversation
+        history) to detect natural resume phrases like "alright, let's
+        continue" that a regex would miss.
+        """
+        try:
+            result = await self.llm.complete(
+                messages=[Message(role="user", content=text)],
+                system=RESUME_INTENT_SYSTEM_PROMPT,
+                max_tokens=10,
+            )
+            return result.text.strip().upper().startswith("YES")
+        except Exception:
+            return False
 
     def get_opener(self) -> str:
         """Get a static session opening message (fallback)."""
@@ -889,6 +905,23 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         if not session_id or session_id not in app.web_sessions:
             return
         app.web_sessions[session_id].client_muted = data.get("muted", False)
+
+    @socketio.on("check_resume_intent")
+    def handle_check_resume_intent(data):
+        """Classify whether a silence-mode utterance signals resume intent."""
+        sid = request.sid
+        web_session = _get_session(sid)
+        if not web_session or not web_session.in_silence_mode:
+            return
+        text = data.get("text", "").strip()
+        if not text:
+            return
+        try:
+            is_resume = asyncio.run(web_session.classify_resume_intent(text))
+        except Exception:
+            is_resume = False
+        if is_resume:
+            emit("resume_detected", {})
 
     @socketio.on("set_tts_rate")
     def handle_set_tts_rate(data):

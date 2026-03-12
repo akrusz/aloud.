@@ -280,7 +280,7 @@ class MeditationFacilitator:
             print(f"\n(LLM error: {e})")
             response = "What do you notice now?"
 
-        # Check for [HOLD]/[HOLD?] signal — LLM wants us to enter silence mode
+        # Check for [HOLD] signal — LLM wants us to enter silence mode
         hold_signal, clean_response = parse_hold_signal(response)
 
         if clean_response:
