@@ -220,7 +220,7 @@ llm:
 pacing:
   response_delay_ms: 2000
   min_speech_duration_ms: 500
-  extended_silence_sec: 240
+  extended_silence_sec: 300
 
 facilitation:
   directiveness: 3

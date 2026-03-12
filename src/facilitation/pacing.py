@@ -111,14 +111,8 @@ class PacingController:
         # Exponential backoff: e.g. 240s, 480s, 960s, ...
         check_in_threshold = self.config.extended_silence_sec * (2 ** self._check_in_count)
 
-        # If in silence mode
+        # If in silence mode, hold indefinitely (no check-ins)
         if self._silence_mode_start is not None:
-            silence_duration = now - self._silence_mode_start
-
-            # Check for very long silence
-            if silence_duration >= check_in_threshold:
-                return TurnDecision.CHECK_IN
-
             return TurnDecision.HOLD
 
         # Normal mode - check if enough time has passed since speech ended
