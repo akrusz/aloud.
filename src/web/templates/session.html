@@ -9,14 +9,13 @@
 {% block nav_center %}
 <div class="nav-session-info">
     <div class="orb orb-breathing orb-nav" id="orb"></div>
-    <span class="session-timer" id="timer">0:00</span>
 </div>
 {% endblock %}
 
 {% block nav_items %}
-<button id="end-btn" class="btn btn-nav btn-end">End Session</button>
-<button id="new-session-btn" class="btn btn-nav">New Session</button>
-<button id="history-btn" class="btn btn-nav">History</button>
+<a href="#" id="end-btn" class="nav-end-link">End<span class="nav-word-session"> Session</span></a>
+<a href="#" id="new-session-btn">New<span class="nav-word-session"> Session</span></a>
+<a href="#" id="history-btn">History</a>
 {% endblock %}
 
 {% block content %}
@@ -33,6 +32,7 @@
     <div class="input-area">
         <div class="input-row">
             <div id="voice-status" class="voice-status">Initializing...</div>
+            <span class="session-timer" id="timer">0:00</span>
             <button id="voice-btn" class="btn btn-voice" title="Toggle microphone — say &quot;mute&quot; to disable">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>

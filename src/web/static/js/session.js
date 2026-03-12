@@ -448,8 +448,9 @@
         // Event listeners
         voiceBtn.addEventListener('click', toggleVoice);
         listenBtn.addEventListener('click', toggleListenMode);
-        endBtn.addEventListener('click', endSession);
-        newSessionBtn.addEventListener('click', function () {
+        endBtn.addEventListener('click', function (e) { e.preventDefault(); endSession(); });
+        newSessionBtn.addEventListener('click', function (e) {
+            e.preventDefault();
             if (!sessionActive) { window.location.href = '/'; return; }
             socket.emit('prefetch_summary');
             showConfirm('Start a new session? This will end your current session.', function () {
@@ -458,7 +459,8 @@
                 doEndSession();
             });
         });
-        historyBtn.addEventListener('click', function () {
+        historyBtn.addEventListener('click', function (e) {
+            e.preventDefault();
             if (!sessionActive) { window.location.href = '/history'; return; }
             socket.emit('prefetch_summary');
             showConfirm('Leave session to view history? This will end your current session.', function () {
