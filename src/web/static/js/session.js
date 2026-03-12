@@ -1167,6 +1167,9 @@
 
             voiceActive = true;
             voiceBtn.classList.add('active');
+            socket.emit('voice_mute', { muted: false });
+            var orb = document.getElementById('orb');
+            if (orb) orb.classList.remove('orb-muted');
 
             // Speak any opener that was queued before mic permission was granted
             if (queuedSpeech && ttsToggle.checked) {
@@ -1383,6 +1386,9 @@
         // Don't reset inSilenceMode — silence mode persists through mic mute/unmute
         setStatus('Microphone off. Click mic to resume.');
 
+        socket.emit('voice_mute', { muted: true });
+        var orb = document.getElementById('orb');
+        if (orb) orb.classList.add('orb-muted');
         stopServerAudio();
         pendingTranscriptions = 0;
         if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }

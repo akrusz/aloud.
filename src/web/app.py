@@ -59,6 +59,7 @@ class WebMeditationSession:
         self.prompts = PromptBuilder(prompt_config)
 
         self.in_silence_mode = False
+        self.client_muted = False
 
         self.pacing = PacingController(config.pacing)
         self.pacing.start_session()
@@ -285,6 +286,8 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
         while True:
             socketio.sleep(10)  # check every 10 seconds
             for session_id, web_session in list(app.web_sessions.items()):
+                if web_session.client_muted:
+                    continue
                 decision = web_session.pacing.should_respond()
                 if decision == TurnDecision.CHECK_IN:
                     sid = app.session_to_sid.get(session_id)
@@ -872,6 +875,14 @@ def _register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             "session_id": saved_id,
             "summary": summary,
         })
+
+    @socketio.on("voice_mute")
+    def handle_voice_mute(data):
+        sid = request.sid
+        session_id = app.sid_to_session.get(sid)
+        if not session_id or session_id not in app.web_sessions:
+            return
+        app.web_sessions[session_id].client_muted = data.get("muted", False)
 
     @socketio.on("set_tts_rate")
     def handle_set_tts_rate(data):

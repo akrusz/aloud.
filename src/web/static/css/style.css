@@ -1213,6 +1213,10 @@ body:has(.session-container) {
     --orb-saturation: 0.3;
 }
 
+.orb-muted {
+    --orb-saturation: 0;
+}
+
 .orb-holding.orb-breathing {
     animation: breathe 10s ease-in-out infinite;
 }
