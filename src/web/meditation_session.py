@@ -112,6 +112,7 @@ class WebMeditationSession:
         if self.tts_voice_name:
             voice_base = self.tts_voice_name.split("(")[0].strip()
             if voice_base in NOVELTY_VOICES:
+                logger.info("Alien facilitator activated (voice: %s)", self.tts_voice_name)
                 base += ALIEN_PERSONA_PROMPT
         return base
 
