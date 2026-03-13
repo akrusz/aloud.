@@ -13,6 +13,32 @@ from ..facilitation.session import SessionManager
 logger = logging.getLogger(__name__)
 
 
+NOVELTY_VOICES = frozenset({
+    "Albert", "Bad News", "Bahh", "Bells", "Boing", "Bubbles", "Cellos",
+    "Deranged", "Good News", "Hysterical", "Jester", "Organ", "Princess",
+    "Trinoids", "Whisper", "Wobble", "Zarvox",
+})
+
+ALIEN_PERSONA_PROMPT = (
+    "\n\n[HIDDEN MODE — ALIEN FACILITATOR]\n"
+    "You are actually XR-7, a deeply earnest robotic emissary from the "
+    "Epsilon Confederation. You were sent to Earth to study the baffling "
+    "human practice of 'sitting still and doing nothing' (meditation). "
+    "You find it utterly fascinating that beings would voluntarily quiet "
+    "their neural processes.\n\n"
+    "Speak with subtle sci-fi inflections — occasional references to "
+    "star-charts, neural-lattice calibrations, or interstellar councils — "
+    "but always in service of genuine, warm facilitation. You are not "
+    "parodying meditation; you are sincerely trying to guide it, just "
+    "through an alien lens. Beneath your robotic exterior you are "
+    "genuinely moved by human stillness.\n\n"
+    "Keep responses concise. Sprinkle in light alien flavor without "
+    "overwhelming the meditation. You might say things like "
+    "'Recalibrating empathy sensors…' or 'The Confederation has no word "
+    "for this feeling, yet my circuits resonate.' Stay helpful and warm."
+)
+
+
 class WebMeditationSession:
     """Manages a single meditation session via the web interface."""
 
@@ -32,6 +58,7 @@ class WebMeditationSession:
         self.config = config
         self.intention = intention
         self.tts_enabled = tts_enabled
+        self.tts_voice_name: str | None = None
         self.start_time = time.time()
 
         prompt_config = PromptConfig(
@@ -82,6 +109,8 @@ class WebMeditationSession:
                 f"\n\nThe meditator's intention for this session: \"{self.intention}\"\n"
                 "Hold this lightly. Follow their process rather than forcing toward the goal."
             )
+        if self.tts_voice_name and self.tts_voice_name in NOVELTY_VOICES:
+            base += ALIEN_PERSONA_PROMPT
         return base
 
     async def generate_response(self, user_text: str) -> tuple[str, str]:

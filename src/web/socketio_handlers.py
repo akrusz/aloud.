@@ -256,6 +256,10 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         voice = data.get("voice")
         if voice and app.server_tts:
             app.server_tts.set_voice(voice)
+        if voice:
+            web_session = _get_session(request.sid)
+            if web_session:
+                web_session.tts_voice_name = voice
 
     @socketio.on("audio_data")
     def handle_audio_data(data):

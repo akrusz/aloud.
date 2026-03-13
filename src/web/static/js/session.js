@@ -164,7 +164,8 @@ function init() {
                 document.documentElement.setAttribute('data-theme', 'dark');
             }
         } else {
-            dom.orbEl.classList.remove('orb-kasina');
+            dom.orbEl.classList.remove('orb-kasina', 'orb-rainbow');
+            state.orbRainbow = false;
             dom.orbEl.classList.add('orb-breathing', 'orb-nav');
             // Clear any drag positioning before moving back to nav
             dom.orbEl.style.left = '';
@@ -251,6 +252,8 @@ function init() {
     // ---- Kasina drag + click-outside ----
 
     var orbDragStartX = 0, orbDragStartY = 0;
+    var shakeHistory = [];
+    state.orbRainbow = false;
 
     function startOrbDrag(clientX, clientY) {
         if (!dom.kasinaToggle.checked) return;
@@ -275,6 +278,34 @@ function init() {
         state.orbMoved = true;
         dom.orbEl.style.left = (clientX - orbDragStartX) + 'px';
         dom.orbEl.style.top = (clientY - orbDragStartY) + 'px';
+
+        // Record position for shake detection
+        var now = Date.now();
+        shakeHistory.push({ x: clientX, y: clientY, time: now });
+        // Prune entries older than 500ms
+        while (shakeHistory.length && now - shakeHistory[0].time > 500) {
+            shakeHistory.shift();
+        }
+        // Detect shake: count direction reversals with sufficient distance
+        if (shakeHistory.length >= 3) {
+            var reversals = 0;
+            for (var i = 2; i < shakeHistory.length; i++) {
+                var dx1 = shakeHistory[i - 1].x - shakeHistory[i - 2].x;
+                var dy1 = shakeHistory[i - 1].y - shakeHistory[i - 2].y;
+                var dx2 = shakeHistory[i].x - shakeHistory[i - 1].x;
+                var dy2 = shakeHistory[i].y - shakeHistory[i - 1].y;
+                var dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+                // Check for direction reversal with enough movement
+                if (dist > 15 && (dx1 * dx2 + dy1 * dy2) < 0) {
+                    reversals++;
+                }
+            }
+            if (reversals >= 3) {
+                state.orbRainbow = !state.orbRainbow;
+                dom.orbEl.classList.toggle('orb-rainbow', state.orbRainbow);
+                shakeHistory = [];
+            }
+        }
     }
 
     function endOrbDrag() {

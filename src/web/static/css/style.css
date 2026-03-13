@@ -1370,6 +1370,32 @@ body::before {
     }
 }
 
+/* Rainbow easter egg — triggered by shaking the kasina orb */
+
+@keyframes rainbowRotate {
+    from { filter: hue-rotate(0deg); }
+    to   { filter: hue-rotate(360deg); }
+}
+
+.orb-rainbow {
+    background: radial-gradient(
+        circle at 45% 45%,
+        #f7a8c4,
+        #f4b8a0,
+        #f5e6a0,
+        #a8e6cf,
+        #a0e0f0,
+        #c4b4f0,
+        #e8a0d8
+    ) !important;
+    animation: kasinaPulse 8s ease-in-out infinite, rainbowRotate 3s linear infinite !important;
+    box-shadow:
+        0 0 60px rgba(200, 160, 220, 0.35),
+        0 0 120px rgba(168, 230, 207, 0.2),
+        0 0 200px rgba(196, 180, 240, 0.12) !important;
+    filter: hue-rotate(0deg) saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
+}
+
 .kasina-active .conversation {
     opacity: 0.15;
     transition: opacity 0.6s ease;
