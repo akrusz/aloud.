@@ -1,5 +1,6 @@
 """HTTP route handlers for the Flask web application."""
 
+import math
 import os
 import time
 
@@ -23,8 +24,7 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/history")
     def history_page():
-        sessions = app.transcript_logger.list_sessions()
-        return render_template("history.html", sessions=sessions)
+        return render_template("history.html")
 
     @app.route("/api/providers")
     def api_providers():
@@ -99,7 +99,19 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/sessions")
     def api_sessions():
         sessions = app.transcript_logger.list_sessions()
-        return jsonify(sessions)
+        page = request.args.get("page", 1, type=int)
+        limit = request.args.get("limit", 20, type=int)
+        limit = max(1, min(limit, 100))
+        page = max(1, page)
+        total = len(sessions)
+        pages = math.ceil(total / limit) if total else 1
+        start = (page - 1) * limit
+        return jsonify({
+            "sessions": sessions[start:start + limit],
+            "total": total,
+            "page": page,
+            "pages": pages,
+        })
 
     @app.route("/api/sessions/<session_id>")
     def api_session_detail(session_id):

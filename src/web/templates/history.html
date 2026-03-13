@@ -6,50 +6,16 @@
 <div class="history-container">
     <h1>Past Sessions</h1>
 
-    {% if sessions %}
-    <div class="session-list" id="session-list">
-        {% for s in sessions %}
-        <div class="session-item" data-session-id="{{ s.session_id }}" data-summary="{{ s.summary or '' }}">
-            <div class="session-item-header" onclick="toggleSession('{{ s.session_id }}')">
-                <div class="session-item-info">
-                    <span class="session-date">{{ s.date[:10] if s.date else 'Unknown' }}</span>
-                    <span class="session-meta">
-                        {% if s.duration %}
-                            {{ (s.duration // 60)|int }}m {{ (s.duration % 60)|int }}s
-                        {% else %}
-                            --
-                        {% endif %}
-                        &middot;
-                        {{ s.exchange_count or 0 }} exchanges
-                    </span>
-                    {% if s.summary %}
-                    <span class="session-summary">{{ s.summary }}</span>
-                    {% endif %}
-                </div>
-                <span class="session-expand">&#9662;</span>
-            </div>
-            <div class="session-item-body" id="body-{{ s.session_id }}" style="display: none;">
-                <div class="session-transcript" id="transcript-{{ s.session_id }}">
-                    <p class="loading-text">Loading...</p>
-                </div>
-                <div class="session-actions">
-                    <button class="btn btn-secondary btn-small" onclick="continueSession('{{ s.session_id }}', this)">
-                        Continue from here
-                    </button>
-                    <button class="btn btn-danger btn-small" onclick="deleteSession('{{ s.session_id }}')">
-                        Delete
-                    </button>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state">
+    <div class="session-list" id="session-list"></div>
+
+    <div class="empty-state" id="empty-state" style="display: none;">
         <p>No sessions yet.</p>
         <a href="/" class="btn btn-primary">Start Your First Session</a>
     </div>
-    {% endif %}
+
+    <div style="text-align: center; padding: 1.5rem 0;">
+        <button class="btn btn-secondary" id="load-more" style="display: none;">Load More</button>
+    </div>
 </div>
 {% endblock %}
 

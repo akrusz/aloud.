@@ -108,49 +108,56 @@ def check_for_updates(force: bool = False) -> UpdateStatus:
     return status
 
 
+def _git_or_error(
+    status: UpdateStatus, *args: str, error_msg: str, **kwargs,
+) -> str | None:
+    """Run a git command; on failure set status.error and return None."""
+    result = _run_git(*args, **kwargs)
+    if result.returncode != 0:
+        status.error = error_msg
+        return None
+    return result.stdout.strip()
+
+
 def _check_git() -> UpdateStatus:
     """Check for updates using git."""
     status = UpdateStatus(is_git=True)
 
     try:
-        # Get current SHA
-        result = _run_git("rev-parse", "HEAD")
-        if result.returncode != 0:
-            status.error = "Could not determine current version"
+        sha = _git_or_error(status, "rev-parse", "HEAD",
+                            error_msg="Could not determine current version")
+        if sha is None:
             return status
-        status.current_sha = result.stdout.strip()[:12]
+        status.current_sha = sha[:12]
 
-        # Fetch latest from origin
-        result = _run_git("fetch", "origin", "main", "--quiet", timeout=15)
-        if result.returncode != 0:
-            status.error = "Could not reach update server"
+        if _git_or_error(status, "fetch", "origin", "main", "--quiet",
+                         error_msg="Could not reach update server",
+                         timeout=15) is None:
             return status
 
-        # Count commits behind
-        result = _run_git("rev-list", "--count", "HEAD..origin/main")
-        if result.returncode != 0:
-            status.error = "Could not compare versions"
+        count = _git_or_error(status, "rev-list", "--count", "HEAD..origin/main",
+                              error_msg="Could not compare versions")
+        if count is None:
             return status
 
-        behind = int(result.stdout.strip())
+        behind = int(count)
         status.commits_behind = behind
         status.available = behind > 0
 
-        # Get remote SHA
-        result = _run_git("rev-parse", "origin/main")
-        if result.returncode == 0:
-            status.remote_sha = result.stdout.strip()[:12]
+        remote = _git_or_error(status, "rev-parse", "origin/main",
+                               error_msg="")
+        if remote is not None:
+            status.remote_sha = remote[:12]
 
-        # Get commit messages if updates available
         if behind > 0:
-            result = _run_git(
-                "log", "--oneline", "--format=%s",
+            msgs = _git_or_error(
+                status, "log", "--oneline", "--format=%s",
                 f"HEAD..origin/main", f"-{min(behind, 20)}",
+                error_msg="",
             )
-            if result.returncode == 0:
+            if msgs:
                 status.commit_messages = [
-                    line.strip() for line in result.stdout.strip().splitlines()
-                    if line.strip()
+                    line.strip() for line in msgs.splitlines() if line.strip()
                 ]
 
     except subprocess.TimeoutExpired:

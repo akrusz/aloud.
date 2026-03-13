@@ -82,6 +82,12 @@ class SessionConfig:
 
 
 @dataclass
+class AuthConfig:
+    enabled: bool = False
+    password: str = ""
+
+
+@dataclass
 class WebConfig:
     """Web server configuration."""
 
@@ -102,6 +108,7 @@ class Config:
     facilitation: FacilitationConfig = field(default_factory=FacilitationConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
     web: WebConfig = field(default_factory=WebConfig)
+    auth: AuthConfig = field(default_factory=AuthConfig)
 
 
 def load_config(path: str | Path | None = None) -> Config:
@@ -159,6 +166,8 @@ def load_config(path: str | Path | None = None) -> Config:
             config.session = _update_dataclass(SessionConfig(), data["session"])
         if "web" in data:
             config.web = _update_dataclass(WebConfig(), data["web"])
+        if "auth" in data:
+            config.auth = _update_dataclass(AuthConfig(), data["auth"])
 
     # Handle environment variable substitution for API keys
     if config.llm.api_key and config.llm.api_key.startswith("${"):

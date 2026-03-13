@@ -1,9 +1,113 @@
-/* History page — session listing and transcript viewing */
+/* History page — paginated session listing and transcript viewing */
 
 (function () {
     'use strict';
 
     var loaded = {};
+    var currentPage = 0;
+    var totalPages = 1;
+    var LIMIT = 20;
+    var listEl = document.getElementById('session-list');
+    var emptyEl = document.getElementById('empty-state');
+    var loadMoreBtn = document.getElementById('load-more');
+
+    function loadPage() {
+        currentPage++;
+        fetch('/api/sessions?page=' + currentPage + '&limit=' + LIMIT)
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                totalPages = data.pages;
+                var sessions = data.sessions || [];
+
+                if (currentPage === 1 && sessions.length === 0) {
+                    emptyEl.style.display = '';
+                    return;
+                }
+
+                sessions.forEach(function (s) {
+                    listEl.appendChild(createSessionItem(s));
+                });
+
+                loadMoreBtn.style.display = currentPage < totalPages ? '' : 'none';
+            })
+            .catch(function () {});
+    }
+
+    function createSessionItem(s) {
+        var item = document.createElement('div');
+        item.className = 'session-item';
+        item.setAttribute('data-session-id', s.session_id);
+        item.setAttribute('data-summary', s.summary || '');
+
+        var durationText = s.duration
+            ? Math.floor(s.duration / 60) + 'm ' + Math.floor(s.duration % 60) + 's'
+            : '--';
+        var dateText = s.date ? s.date.substring(0, 10) : 'Unknown';
+
+        var header = document.createElement('div');
+        header.className = 'session-item-header';
+        header.onclick = function () { toggleSession(s.session_id); };
+
+        var info = document.createElement('div');
+        info.className = 'session-item-info';
+
+        var dateSpan = document.createElement('span');
+        dateSpan.className = 'session-date';
+        dateSpan.textContent = dateText;
+        info.appendChild(dateSpan);
+
+        var metaSpan = document.createElement('span');
+        metaSpan.className = 'session-meta';
+        metaSpan.textContent = durationText + ' \u00B7 ' + (s.exchange_count || 0) + ' exchanges';
+        info.appendChild(metaSpan);
+
+        if (s.summary) {
+            var summarySpan = document.createElement('span');
+            summarySpan.className = 'session-summary';
+            summarySpan.textContent = s.summary;
+            info.appendChild(summarySpan);
+        }
+
+        header.appendChild(info);
+
+        var expand = document.createElement('span');
+        expand.className = 'session-expand';
+        expand.innerHTML = '&#9662;';
+        header.appendChild(expand);
+
+        item.appendChild(header);
+
+        var body = document.createElement('div');
+        body.className = 'session-item-body';
+        body.id = 'body-' + s.session_id;
+        body.style.display = 'none';
+
+        var transcript = document.createElement('div');
+        transcript.className = 'session-transcript';
+        transcript.id = 'transcript-' + s.session_id;
+        transcript.innerHTML = '<p class="loading-text">Loading...</p>';
+        body.appendChild(transcript);
+
+        var actions = document.createElement('div');
+        actions.className = 'session-actions';
+
+        var continueBtn = document.createElement('button');
+        continueBtn.className = 'btn btn-secondary btn-small';
+        continueBtn.textContent = 'Continue from here';
+        continueBtn.onclick = function () { continueSession(s.session_id, continueBtn); };
+        actions.appendChild(continueBtn);
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-small';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = function () { deleteSession(s.session_id); };
+        actions.appendChild(deleteBtn);
+
+        body.appendChild(actions);
+        item.appendChild(body);
+
+        return item;
+    }
 
     window.toggleSession = function (sessionId) {
         var item = document.querySelector('[data-session-id="' + sessionId + '"]');
@@ -65,7 +169,6 @@
 
     window.continueSession = function (sessionId, btnEl) {
         sessionStorage.setItem('continueFrom', sessionId);
-        // Grab summary from the parent session-item's data attribute
         var item = btnEl && btnEl.closest('[data-summary]');
         var summary = item ? item.getAttribute('data-summary') : '';
         if (summary) {
@@ -92,4 +195,8 @@
                 }
             });
     };
+
+    // Load first page on init
+    loadPage();
+    loadMoreBtn.addEventListener('click', loadPage);
 })();

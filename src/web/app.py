@@ -24,6 +24,7 @@ from ..logging.transcript import TranscriptLogger
 from ..stt.whisper import WhisperSTT
 from ..log_config import configure_logging
 from ..tts import create_tts
+from .auth import setup_auth
 from .routes import register_routes
 from .socketio_handlers import register_socketio_events
 
@@ -80,6 +81,8 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
     app.whisper_lock = threading.Lock()
 
     register_routes(app)
+    if config.auth.enabled:
+        setup_auth(app, config.auth.password)
     register_socketio_events(socketio, app)
 
     def _check_in_loop():
