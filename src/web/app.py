@@ -14,8 +14,6 @@ import httpx
 from flask import Flask
 from flask_socketio import SocketIO
 
-logger = logging.getLogger(__name__)
-
 from .. import __version__
 from ..config import load_config, Config
 from ..updater import check_for_updates
@@ -27,6 +25,8 @@ from ..tts import create_tts
 from .auth import setup_auth
 from .routes import register_routes
 from .socketio_handlers import register_socketio_events
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
@@ -166,13 +166,13 @@ def run_web(
             )
             if resp.status_code == 401:
                 print(f"\n  *** CLIProxyAPI at {proxy_url} rejected our API key ***")
-                print(f"  Check api-keys in ~/.cli-proxy-api/config.yaml")
-                print(f"  and llm.api_key in config/default.yaml\n")
+                print("  Check api-keys in ~/.cli-proxy-api/config.yaml")
+                print("  and llm.api_key in config/default.yaml\n")
                 return
         except (httpx.ConnectError, httpx.TimeoutException):
             print(f"\n  *** CLIProxyAPI is not running at {proxy_url} ***")
-            print(f"  Start it with: CLIProxyAPI")
-            print(f"  Then restart this server.\n")
+            print("  Start it with: CLIProxyAPI")
+            print("  Then restart this server.\n")
             return
 
     print(f"\n{'=' * 50}")
@@ -183,7 +183,7 @@ def run_web(
 
     url = f"http://localhost:{port}"
     print(f"\n  Ready: {url}")
-    print(f"  B = open browser · Q = quit\n")
+    print("  B = open browser · Q = quit\n")
 
     if os.environ.get("GLOOOW_AUTO_OPEN") == "1":
         def _auto_open_browser():
@@ -229,7 +229,8 @@ def run_web(
                         elif ch in (b"q", b"Q"):
                             _shutdown()
                 else:
-                    import tty, termios
+                    import tty
+                    import termios
                     fd = sys.stdin.fileno()
                     old = termios.tcgetattr(fd)
                     _saved_termios[0] = (fd, old)

@@ -152,7 +152,7 @@ def _check_git() -> UpdateStatus:
         if behind > 0:
             msgs = _git_or_error(
                 status, "log", "--oneline", "--format=%s",
-                f"HEAD..origin/main", f"-{min(behind, 20)}",
+                "HEAD..origin/main", f"-{min(behind, 20)}",
                 error_msg="",
             )
             if msgs:

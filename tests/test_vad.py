@@ -9,7 +9,6 @@ import pytest
 from src.audio.vad import (
     SpeechState,
     VADConfig,
-    VADResult,
     VoiceActivityDetector,
     create_vad,
 )

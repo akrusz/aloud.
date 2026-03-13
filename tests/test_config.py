@@ -1,17 +1,14 @@
 """Tests for configuration loading."""
 
 import os
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from src.config import (
     AudioConfig,
     Config,
     LLMConfig,
     PacingConfig,
-    TTSConfig,
     WebConfig,
     _update_dataclass,
     load_config,

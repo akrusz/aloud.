@@ -1,9 +1,8 @@
 """Voice Activity Detection (VAD)."""
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable
 
 import numpy as np
 
@@ -115,8 +114,6 @@ class VoiceActivityDetector:
         is_speech = energy > threshold
 
         # State machine
-        prev_state = self._state
-
         if self._state == SpeechState.SILENCE:
             if is_speech:
                 self._state = SpeechState.SPEECH_STARTED
@@ -211,7 +208,6 @@ class WebRTCVAD:
 
     def process(self, audio: np.ndarray) -> VADResult:
         """Process audio chunk through webrtcvad."""
-        import webrtcvad
 
         current_time = time.time()
 

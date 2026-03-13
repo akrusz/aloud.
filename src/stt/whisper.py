@@ -5,7 +5,7 @@ from typing import Literal
 
 import numpy as np
 
-from .base import STTEngine, TranscriptionResult
+from .base import TranscriptionResult
 
 logger = logging.getLogger(__name__)
 

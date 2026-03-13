@@ -1,14 +1,8 @@
 """Tests for prompt building and hold signal parsing."""
 
-import pytest
 
 from src.facilitation.prompts import (
-    BASE_SYSTEM_PROMPT,
     CHECK_IN_PROMPTS,
-    DIRECTIVENESS_ADDITIONS,
-    FOCUS_PROMPTS,
-    QUALITY_PROMPTS,
-    VERBOSITY_ADDITIONS,
     PromptBuilder,
     PromptConfig,
     parse_hold_signal,

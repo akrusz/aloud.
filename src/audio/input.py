@@ -3,9 +3,8 @@
 import asyncio
 import logging
 import queue
-import threading
 from dataclasses import dataclass
-from typing import AsyncIterator, Callable
+from typing import AsyncIterator
 
 import numpy as np
 import sounddevice as sd

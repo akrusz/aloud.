@@ -4,9 +4,15 @@ Piper is a fast, local neural TTS system.
 https://github.com/rhasspy/piper
 """
 
+from __future__ import annotations
+
 import asyncio
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .macos import MacOSTTS
 
 
 class PiperTTS:

@@ -4,8 +4,6 @@ import argparse
 import asyncio
 import signal
 import sys
-from datetime import datetime
-from pathlib import Path
 
 import numpy as np
 
@@ -333,7 +331,7 @@ class MeditationFacilitator:
             if session_data:
                 # Save both formats
                 json_path = self.logger.save_session(session_data)
-                txt_path = self.logger.save_session_text(session_data)
+                self.logger.save_session_text(session_data)
                 print(f"\nSession saved to: {json_path}")
 
         print("\nSession ended. Be well.\n")

@@ -1,9 +1,7 @@
 """Tests for the pacing / turn-taking controller."""
 
 import time
-from unittest.mock import patch
 
-import pytest
 
 from src.config import PacingConfig
 from src.facilitation.pacing import (

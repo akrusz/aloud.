@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.config import Config, PacingConfig, LLMConfig
+from src.config import Config, PacingConfig
 from src.facilitation.pacing import PacingController
 from src.facilitation.prompts import PromptBuilder, PromptConfig
 from src.facilitation.session import SessionManager

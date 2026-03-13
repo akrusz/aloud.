@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from src.facilitation.session import Exchange, SessionManager, SessionState
+from src.facilitation.session import Exchange, SessionState
 
 
 class TestExchange:

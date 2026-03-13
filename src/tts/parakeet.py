@@ -10,7 +10,6 @@ Can be run via:
 """
 
 import asyncio
-import io
 import logging
 import tempfile
 from pathlib import Path

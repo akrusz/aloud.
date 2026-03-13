@@ -6,7 +6,6 @@ and emotion. Ideal for meditation facilitation where voice quality matters.
 https://elevenlabs.io/
 """
 
-import asyncio
 import os
 
 import httpx

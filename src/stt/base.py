@@ -1,6 +1,5 @@
 """Base classes for speech-to-text engines."""
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Protocol
 
