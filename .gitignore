@@ -1,6 +1,6 @@
 *.pyc
 __pycache__/
-/sessions
+sessions/
 .DS_Store
 .DS_Store
 
