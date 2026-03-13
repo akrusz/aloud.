@@ -82,7 +82,7 @@ once running, the server listens on port 4649 (よろしく):
 
 ### platform notes
 
-- **windows**: set `tts.engine: browser` in config. for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis. Chrome and Firefox only have the basic system voices.
+- **windows**: for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis. Chrome and Firefox only have the basic system voices.
 - **linux**: for server-side TTS, install piper-tts (`uv pip install piper-tts`) and set `tts.engine: piper`. otherwise TTS falls back to browser speechSynthesis.
 
 ### nix
