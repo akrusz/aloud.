@@ -93,6 +93,11 @@ export function buildVoiceList() {
         } else {
             state.preferredVoice = scored[0].voice;
         }
+
+        // Tell the server which voice to use (restores preference on new sessions)
+        if (state.preferredVoice) {
+            socket.emit('set_tts_voice', { voice: state.preferredVoice.name });
+        }
     }
 
     updateVoicePickerLabel();
