@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 NOVELTY_VOICES = frozenset({
     "Albert", "Bad News", "Bahh", "Bells", "Boing", "Bubbles", "Cellos",
-    "Deranged", "Good News", "Hysterical", "Jester", "Organ", "Princess",
-    "Trinoids", "Whisper", "Wobble", "Zarvox",
+    "Deranged", "Good News", "Organ", "Trinoids", "Zarvox",
 })
 
 ALIEN_PERSONA_PROMPT = (
