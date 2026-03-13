@@ -1,11 +1,14 @@
 """Text-to-speech engines."""
 
+import logging
 import sys
 
 from .base import TTSEngine
 from .piper import PiperTTS
 from .parakeet import ParakeetTTS
 from .elevenlabs import ElevenLabsTTS
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "TTSEngine",
@@ -45,10 +48,7 @@ def create_tts(
     """
     if engine == "macos":
         if sys.platform != "darwin":
-            print(
-                "Warning: 'macos' TTS engine is only available on macOS. "
-                "Falling back to browser TTS."
-            )
+            logger.warning("'macos' TTS engine is only available on macOS. Falling back to browser TTS.")
             return None
         from .macos import MacOSTTS
         return MacOSTTS(

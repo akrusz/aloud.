@@ -11,11 +11,14 @@ Can be run via:
 
 import asyncio
 import io
+import logging
 import tempfile
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class ParakeetTTS:
@@ -85,7 +88,7 @@ class ParakeetTTS:
             else:
                 device = "cpu"
 
-        print(f"Loading Parakeet model on {device}...")
+        logger.info("Loading Parakeet model on %s...", device)
 
         self._processor = AutoProcessor.from_pretrained(self.model_name)
         self._model = AutoModelForTextToWaveform.from_pretrained(self.model_name)
@@ -102,7 +105,7 @@ class ParakeetTTS:
                 "NeMo required. Run: pip install nemo_toolkit[tts]"
             )
 
-        print("Loading Parakeet via NeMo...")
+        logger.info("Loading Parakeet via NeMo...")
         self._model = nemo_tts.models.FastPitchModel.from_pretrained(self.model_name)
         self._vocoder = nemo_tts.models.HifiGanModel.from_pretrained("nvidia/tts_hifigan")
 
@@ -123,7 +126,7 @@ class ParakeetTTS:
                 "Export the model first or use 'transformers' backend."
             )
 
-        print("Loading Parakeet ONNX model...")
+        logger.info("Loading Parakeet ONNX model...")
         self._model = ort.InferenceSession(str(onnx_path))
 
     def _synthesize(self, text: str) -> np.ndarray:

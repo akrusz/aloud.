@@ -1,9 +1,12 @@
 """macOS native text-to-speech using the 'say' command."""
 
 import asyncio
+import logging
 import subprocess
 import tempfile
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class MacOSTTS:
@@ -92,7 +95,7 @@ class MacOSTTS:
             wav_bytes = Path(tmp.name).read_bytes()
             return wav_bytes
         except Exception as e:
-            print(f"  [TTS] Error generating audio: {e}", flush=True)
+            logger.error("Error generating audio: %s", e)
             return None
         finally:
             if tmp:

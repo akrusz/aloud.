@@ -1,10 +1,13 @@
 """Whisper speech-to-text engine."""
 
+import logging
 from typing import Literal
 
 import numpy as np
 
 from .base import STTEngine, TranscriptionResult
+
+logger = logging.getLogger(__name__)
 
 
 WhisperModel = Literal["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]
@@ -73,7 +76,7 @@ class WhisperSTT:
             else:
                 device = "cpu"
 
-        print(f"  Loading Whisper model '{self.model_name}'...", flush=True)
+        logger.info("Loading Whisper model '%s'...", self.model_name)
         self._model = whisper.load_model(self.model_name, device=device)
         self._whisper_module = whisper
 
@@ -86,7 +89,7 @@ class WhisperSTT:
                 "mlx-whisper not installed. Run: pip install mlx-whisper"
             )
 
-        print(f"  Loading MLX Whisper model '{self.model_name}'...", flush=True)
+        logger.info("Loading MLX Whisper model '%s'...", self.model_name)
         # mlx-whisper uses different model loading
         self._mlx_whisper = mlx_whisper
         self._model = self.model_name  # mlx-whisper loads on demand

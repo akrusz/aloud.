@@ -1,9 +1,12 @@
 """Audio output / speaker playback."""
 
 import asyncio
+import logging
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

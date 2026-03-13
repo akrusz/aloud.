@@ -20,6 +20,7 @@ from .llm.base import Message
 from .facilitation.pacing import PacingController, TurnDecision
 from .facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal
 from .facilitation.session import SessionManager
+from .log_config import configure_logging
 from .logging.transcript import TranscriptLogger
 
 
@@ -398,6 +399,7 @@ def view_session(session_id: str, config: Config) -> None:
 
 def main():
     """Main entry point."""
+    configure_logging()
     parser = argparse.ArgumentParser(
         description="Somatic Exploration Meditation Facilitator"
     )

@@ -82,6 +82,15 @@ class SessionConfig:
 
 
 @dataclass
+class WebConfig:
+    """Web server configuration."""
+
+    secret_key: str = "glooow-local"
+    host: str = "0.0.0.0"
+    port: int = 4649
+
+
+@dataclass
 class Config:
     """Complete application configuration."""
 
@@ -92,6 +101,7 @@ class Config:
     pacing: PacingConfig = field(default_factory=PacingConfig)
     facilitation: FacilitationConfig = field(default_factory=FacilitationConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
+    web: WebConfig = field(default_factory=WebConfig)
 
 
 def load_config(path: str | Path | None = None) -> Config:
@@ -147,6 +157,8 @@ def load_config(path: str | Path | None = None) -> Config:
             config.facilitation = _update_dataclass(FacilitationConfig(), data["facilitation"])
         if "session" in data:
             config.session = _update_dataclass(SessionConfig(), data["session"])
+        if "web" in data:
+            config.web = _update_dataclass(WebConfig(), data["web"])
 
     # Handle environment variable substitution for API keys
     if config.llm.api_key and config.llm.api_key.startswith("${"):

@@ -6,9 +6,13 @@ prompt caching via cache_control passes through to Anthropic.
 https://github.com/router-for-me/CLIProxyAPI
 """
 
+import logging
+
 import httpx
 
 from .base import BaseLLMProvider, Message, CompletionResult
+
+logger = logging.getLogger(__name__)
 
 
 class ClaudeProxyProvider(BaseLLMProvider):
@@ -113,12 +117,11 @@ class ClaudeProxyProvider(BaseLLMProvider):
             output_tokens = usage.get("output_tokens", 0)
             tokens_used = input_tokens + output_tokens
 
-            # Log cache stats when available
             cache_read = usage.get("cache_read_input_tokens", 0)
             cache_create = usage.get("cache_creation_input_tokens", 0)
             if cache_read or cache_create:
-                print(f"  [Cache] read={cache_read} create={cache_create} "
-                      f"input={input_tokens} output={output_tokens}", flush=True)
+                logger.debug("Cache read=%d create=%d input=%d output=%d",
+                             cache_read, cache_create, input_tokens, output_tokens)
 
         return CompletionResult(
             text=text,

@@ -1,6 +1,7 @@
 """Microphone audio capture."""
 
 import asyncio
+import logging
 import queue
 import threading
 from dataclasses import dataclass
@@ -8,6 +9,8 @@ from typing import AsyncIterator, Callable
 
 import numpy as np
 import sounddevice as sd
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -48,7 +51,7 @@ class AudioInput:
     ) -> None:
         """Called by sounddevice for each audio chunk."""
         if status:
-            print(f"Audio input status: {status}")
+            logger.debug("Audio input status: %s", status)
         # Copy the data to avoid buffer issues
         self._audio_queue.put(indata.copy())
 
