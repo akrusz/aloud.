@@ -2,17 +2,17 @@
 
 your voice is an overpowered and underrated tool for meditation and inner work.
 
-this is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration and parts work as well. it runs in your browser and uses an LLM to guide you, whisper for speech recognition, and your mic for voice input
+this is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration and parts work as well. it runs in your browser and uses an LLM to guide you, whisper for speech recognition, and your mic for voice input.
 
-works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or it can install one for you with local ollama
+works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or it can install one for you with local ollama.
 
 ![glooow screenshot](docs/glooow-screen.png)
 
 ## what it does
 
-you start a session, optionally set an intention, pick a preset or build your own combo, and start talking. the facilitator listens, transcribes what you say with whisper, sends it to an LLM, and speaks the response back. it can hold silence when appropriate and gently check in if you've been quiet for a while
+you start a session, optionally set an intention, pick a preset or build your own combo, and start talking. the facilitator listens, transcribes what you say with whisper, sends it to an LLM, and speaks the response back. it can hold silence when appropriate and gently check in if you've been quiet for a while.
 
-instead of fixed styles, you mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want
+instead of fixed styles, you mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want.
 
 ## getting started
 
@@ -24,7 +24,7 @@ open Terminal, paste this line, and hit Return:
 curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.sh | bash
 ```
 
-this clones the repo to `~/glooow`, installs everything, and puts a launcher on your Desktop. works on both macOS and Linux
+this clones the repo to `~/glooow`, installs everything, and puts a launcher on your Desktop. works on both macOS and Linux.
 
 ### easy install (Windows)
 
@@ -82,8 +82,8 @@ once running, the server listens on port 4649 (よろしく):
 
 ### platform notes
 
-- **windows**: set `tts.engine: browser` in config. for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis. Chrome and Firefox only get the basic system voices
-- **linux**: for server-side TTS, install piper-tts (`uv pip install piper-tts`) and set `tts.engine: piper`. otherwise TTS falls back to browser speechSynthesis
+- **windows**: set `tts.engine: browser` in config. for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis. Chrome and Firefox only have the basic system voices.
+- **linux**: for server-side TTS, install piper-tts (`uv pip install piper-tts`) and set `tts.engine: piper`. otherwise TTS falls back to browser speechSynthesis.
 
 ### nix
 
@@ -96,14 +96,14 @@ nix develop -c python -m src.web  # web server
 nix develop -c python -m src      # CLI mode
 ```
 
-the flake automatically sets up all dependencies including portaudio, ffmpeg, and python packages. the dev shell creates `config/default.yaml` if it doesn't exist
+the flake automatically sets up all dependencies including portaudio, ffmpeg, and python packages. the dev shell creates `config/default.yaml` if it doesn't exist.
 
 ## how it works
 
 - **audio capture** -- Web Audio API in the browser, shipped as raw PCM to the server
 - **speech recognition** -- openai whisper running locally (the `small` model, ~500mb)
-- **LLM** -- claude via CLIProxyAPI or anthropic API, openrouter (deepseek, kimi, etc.), venice.ai, or local ollama. also supports any OpenAI-compatible endpoint via config
-- **TTS** -- macos `say` command on mac, browser speechSynthesis on linux/windows. piper-tts is an option if you want better quality server-side audio on linux
+- **LLM** -- claude via CLIProxyAPI or anthropic API, openrouter (deepseek, kimi, etc.), venice.ai, or local ollama. also supports any OpenAI-compatible endpoint via config.
+- **TTS** -- macos `say` command on mac, browser speechSynthesis on linux/windows. piper-tts is an option if you want better quality server-side audio on linux.
 
 ## presets
 
@@ -152,9 +152,9 @@ stt:
 
 ### LLM providers
 
-the web UI has a provider dropdown that shows which providers are configured. unavailable ones are marked with ✘ and show what you need to do
+the web UI has a provider dropdown that shows which providers are configured. unavailable ones are marked with ✘ and show what you need to do.
 
-**CLIProxyAPI** (default) -- uses your claude subscription. install via homebrew, the install script handles it
+**CLIProxyAPI** (default) -- uses your claude subscription. install via homebrew, the install script handles it.
 
 **anthropic API** -- direct API access, no proxy needed
 ```bash
@@ -168,19 +168,19 @@ export OPENROUTER_API_KEY=sk-or-...
 ```
 then select "OpenRouter" in the web UI, or set `llm.provider: openrouter` in config. default model is DeepSeek V3.2
 
-**venice.ai** -- privacy-focused, no prompt storage. good for meditation where you may not want conversations logged by the provider
+**venice.ai** -- privacy-focused, no prompt storage. good for meditation where you may not want conversations logged by the provider.
 ```bash
 export VENICE_API_KEY=...
 ```
 then select "Venice.ai (Private)" in the web UI, or set `llm.provider: venice` in config
 
-**openai-compatible** -- any OpenAI-compatible endpoint. set `OPENAI_API_KEY` and `llm.provider: openai` in config, with optional `llm.openai_base_url` for custom endpoints. not shown in the web UI dropdown but works via config
+**openai-compatible** -- any OpenAI-compatible endpoint. set `OPENAI_API_KEY` and `llm.provider: openai` in config, with optional `llm.openai_base_url` for custom endpoints. not shown in the web UI dropdown but works via config.
 
 **ollama** -- fully local, no API key needed. the install script can set this up for you automatically (option 2), including installing ollama and downloading a default model (~2.5GB). or do it manually:
 ```bash
 ollama pull qwen3.5:4b
 ```
-select "Ollama (Local)" in the web UI — the model dropdown auto-populates with your pulled models. or set `llm.provider: ollama` in config
+select "Ollama (Local)" in the web UI — the model dropdown auto-populates with your pulled models. or set `llm.provider: ollama` in config.
 
 ## cli mode
 
@@ -190,22 +190,22 @@ there's also a CLI version for hands-free sessions:
 uv run python -m src
 ```
 
-uses your mic directly via sounddevice and speaks responses through the system TTS. press ctrl-c to end
+uses your mic directly via sounddevice and speaks responses through the system TTS. press ctrl-c to end.
 
 ## tips
 
-- the theme toggle in the top right follows your system preference by default, or just click it
-- if speech recognition feels slow, try `stt.model: base` (faster, less accurate)
-- on linux without piper, TTS falls back to browser speechSynthesis automatically
-- sessions auto-save to `sessions/` as JSON and plain text, with a short LLM-generated summary
-- from the history page you can continue any past session. the facilitator picks up where you left off with full context
-- say something like "hold on a bit" during a session to enter silence mode. say "come back" or similar to come back - it understands intent
-- say "mute" to immediately turn off the microphone. click the mic button to resume. both buttons show a line through them when off
-- the speaker button next to the mic toggles TTS. turning it off cuts audio immediately
-- set an intention loosely or not at all. the facilitator holds it lightly
-- click the orb in the nav bar to enter kasina gazing mode. click away from it to exit
-- the ember controls add floating particles. each level doubles the count and increases the size
-- click the voice name in the controls bar to open a voice picker modal — voices are grouped by quality tier and you can preview them before choosing
+- the theme toggle in the top right follows your system preference by default, or just click it.
+- if speech recognition feels slow, try `stt.model: base` (faster, less accurate).
+- on linux without piper, TTS falls back to browser speechSynthesis automatically.
+- sessions auto-save to `sessions/` as JSON and plain text, with a short LLM-generated summary.
+- from the history page you can continue any past session. the facilitator picks up where you left off with full context.
+- say something like "hold on a bit" during a session to enter silence mode. say "come back" or similar to come back - it understands intent.
+- say "mute" to immediately turn off the microphone. click the mic button to resume. both buttons show a line through them when off.
+- the speaker button next to the mic toggles text-to-speech.
+- set an intention loosely or not at all. the facilitator holds it lightly.
+- click the orb in the nav bar to enter kasina gazing mode. click away from it to exit.
+- the ember controls add floating particles. each level doubles the count and increases the size.
+- click the voice name in the controls bar to open a voice picker modal — voices are grouped by quality tier and you can preview them before choosing.
 
 ## project layout
 
