@@ -109,8 +109,10 @@ class WebMeditationSession:
                 f"\n\nThe meditator's intention for this session: \"{self.intention}\"\n"
                 "Hold this lightly. Follow their process rather than forcing toward the goal."
             )
-        if self.tts_voice_name and self.tts_voice_name in NOVELTY_VOICES:
-            base += ALIEN_PERSONA_PROMPT
+        if self.tts_voice_name:
+            voice_base = self.tts_voice_name.split("(")[0].strip()
+            if voice_base in NOVELTY_VOICES:
+                base += ALIEN_PERSONA_PROMPT
         return base
 
     async def generate_response(self, user_text: str) -> tuple[str, str]:
