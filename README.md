@@ -4,7 +4,7 @@ your voice is an overpowered and underrated tool for meditation and inner work.
 
 **glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration and parts work as well. it runs in your browser and uses an LLM to guide you, whisper for speech recognition, and your mic for voice input.
 
-works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or it can install one for you with local ollama.
+works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openai, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or it can install one for you with local ollama.
 
 ![glooow screenshot](docs/glooow-screen.png)
 
@@ -102,7 +102,7 @@ the flake automatically sets up all dependencies including portaudio, ffmpeg, an
 
 - **audio capture** -- Web Audio API in the browser, shipped as raw PCM to the server
 - **speech recognition** -- openai whisper running locally (the `small` model, ~500mb)
-- **LLM** -- claude via CLIProxyAPI or anthropic API, openrouter (deepseek, kimi, etc.), venice.ai, or local ollama. also supports any OpenAI-compatible endpoint via config.
+- **LLM** -- claude via CLIProxyAPI or anthropic API, openai, openrouter (deepseek, kimi, etc.), venice.ai, or local ollama
 - **TTS** -- macos `say` command on mac, browser speechSynthesis on linux/windows. piper-tts is an option if you want better quality server-side audio on linux.
 
 ## presets
@@ -137,7 +137,7 @@ tts:
   rate: 160
 
 llm:
-  provider: claude_proxy   # claude_proxy, anthropic, openrouter, venice, ollama
+  provider: claude_proxy   # claude_proxy, anthropic, openai, openrouter, venice, ollama
   model: claude-sonnet-4-5-20250929
 
 facilitation:
@@ -154,29 +154,33 @@ stt:
 
 the web UI has a provider dropdown that shows which providers are configured. unavailable ones are marked with ✘ and show what you need to do.
 
-**CLIProxyAPI** (default) -- uses your claude subscription. install via homebrew, the install script handles it.
+**Anthropic (Subscription)** (default) -- uses your claude subscription via CLIProxyAPI. install via homebrew, the install script handles it.
 
-**anthropic API** -- direct API access, no proxy needed
+**Anthropic (API Key)** -- direct API access, no proxy needed
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
-then select "Anthropic (API Key)" in the web UI, or set `llm.provider: anthropic` in config
+select "Anthropic (API Key)" in the web UI, or set `llm.provider: anthropic` in config
 
-**openrouter** -- access deepseek, kimi, and other models at low cost
+**OpenAI (API Key)** -- use GPT-4, o3, etc. also works with any OpenAI-compatible endpoint via `llm.openai_base_url` in config.
+```bash
+export OPENAI_API_KEY=sk-...
+```
+select "OpenAI (API Key)" in the web UI, or set `llm.provider: openai` in config
+
+**OpenRouter (API Key)** -- access deepseek, kimi, and other models at low cost
 ```bash
 export OPENROUTER_API_KEY=sk-or-...
 ```
-then select "OpenRouter" in the web UI, or set `llm.provider: openrouter` in config. default model is DeepSeek V3.2
+select "OpenRouter (API Key)" in the web UI, or set `llm.provider: openrouter` in config
 
-**venice.ai** -- privacy-focused, no prompt storage. good for meditation where you may not want conversations logged by the provider.
+**Venice.ai (API Key)** -- privacy-focused, no prompt storage. good for meditation where you may not want conversations logged by the provider.
 ```bash
 export VENICE_API_KEY=...
 ```
-then select "Venice.ai (Private)" in the web UI, or set `llm.provider: venice` in config
+select "Venice.ai (API Key)" in the web UI, or set `llm.provider: venice` in config
 
-**openai-compatible** -- any OpenAI-compatible endpoint. set `OPENAI_API_KEY` and `llm.provider: openai` in config, with optional `llm.openai_base_url` for custom endpoints. not shown in the web UI dropdown but works via config.
-
-**ollama** -- fully local, no API key needed. the install script can set this up for you automatically (option 2), including installing ollama and downloading a default model (~2.5GB). or do it manually:
+**Ollama (Local)** -- fully local, no API key needed. the install script can set this up for you automatically (option 2), including installing ollama and downloading a default model (~2.5GB). or do it manually:
 ```bash
 ollama pull qwen3.5:4b
 ```
