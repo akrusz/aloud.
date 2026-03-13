@@ -154,6 +154,12 @@ class TranscriptLogger:
 
         return sessions
 
+    @staticmethod
+    def _valid_session_id(session_id: str) -> bool:
+        """Check that a session ID is safe for use as a filename."""
+        import re
+        return bool(re.match(r'^[a-zA-Z0-9_-]+$', session_id))
+
     def load_session(self, session_id: str) -> dict | None:
         """Load a saved session.
 
@@ -163,6 +169,9 @@ class TranscriptLogger:
         Returns:
             Session data, or None if not found
         """
+        if not self._valid_session_id(session_id):
+            return None
+
         filepath = self.save_directory / f"{session_id}.json"
 
         if not filepath.exists():
@@ -180,6 +189,9 @@ class TranscriptLogger:
         Returns:
             True if deleted, False if not found
         """
+        if not self._valid_session_id(session_id):
+            return False
+
         json_path = self.save_directory / f"{session_id}.json"
         txt_path = self.save_directory / f"{session_id}.txt"
 

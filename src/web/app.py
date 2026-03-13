@@ -265,7 +265,7 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
     socketio = SocketIO(
         app,
         async_mode="threading",
-        cors_allowed_origins="*",
+        cors_allowed_origins=[],  # same-origin only; populated at startup
         max_http_buffer_size=10 * 1024 * 1024,  # 10MB — ~2.5min of 16kHz float32 audio
     )
 
@@ -1106,5 +1106,17 @@ def run_web(
 
     # Ensure Ctrl+C actually exits — threading mode can swallow KeyboardInterrupt
     signal.signal(signal.SIGINT, _shutdown)
+
+    # Allow same-origin connections from localhost and the bound host
+    origins = {f"http://localhost:{port}", f"http://127.0.0.1:{port}"}
+    if host not in ("127.0.0.1", "localhost"):
+        origins.add(f"http://{host}:{port}")
+        import socket
+        try:
+            local_ip = socket.gethostbyname(socket.gethostname())
+            origins.add(f"http://{local_ip}:{port}")
+        except socket.gaierror:
+            pass
+    socketio.server.cors_allowed_origins = list(origins)
 
     socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
