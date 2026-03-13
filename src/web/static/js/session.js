@@ -296,11 +296,11 @@ function init() {
                 var dy2 = shakeHistory[i].y - shakeHistory[i - 1].y;
                 var dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
                 // Check for direction reversal with enough movement
-                if (dist > 15 && (dx1 * dx2 + dy1 * dy2) < 0) {
+                if (dist > 10 && (dx1 * dx2 + dy1 * dy2) < 0) {
                     reversals++;
                 }
             }
-            if (reversals >= 3) {
+            if (reversals >= 2) {
                 state.orbRainbow = !state.orbRainbow;
                 dom.orbEl.classList.toggle('orb-rainbow', state.orbRainbow);
                 shakeHistory = [];
@@ -368,6 +368,10 @@ function init() {
     dom.confirmNo.addEventListener('click', function () {
         hideConfirm();
     });
+
+    // Pass saved voice so the server knows the voice from the first message
+    var savedVoice = localStorage.getItem('glooow-voice');
+    if (savedVoice) params.voice_name = savedVoice;
 
     // Start session
     socket.emit('start_session', params);

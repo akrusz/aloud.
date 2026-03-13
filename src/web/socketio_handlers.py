@@ -76,6 +76,11 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         app.session_to_sid[session_id] = sid
         logger.info("New session %s… for sid=%s…", session_id[:12], sid[:8])
 
+        # Restore voice name so easter egg persona works from the first message
+        voice_name = data.get("voice_name")
+        if voice_name:
+            web_session.tts_voice_name = voice_name
+
         # Handle continuation from a previous session
         continue_from = data.get("continue_from")
         if continue_from:
