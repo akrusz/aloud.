@@ -2,7 +2,7 @@
 
 your voice is an overpowered and underrated tool for meditation and inner work.
 
-this is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration and parts work as well. it runs in your browser and uses an LLM to guide you, whisper for speech recognition, and your mic for voice input.
+**glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration and parts work as well. it runs in your browser and uses an LLM to guide you, whisper for speech recognition, and your mic for voice input.
 
 works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or it can install one for you with local ollama.
 
