@@ -301,8 +301,12 @@ function init() {
                 }
             }
             if (reversals >= 2) {
-                state.orbRainbow = !state.orbRainbow;
-                dom.orbEl.classList.toggle('orb-rainbow', state.orbRainbow);
+                var now = Date.now();
+                if (!state._rainbowCooldownUntil || now >= state._rainbowCooldownUntil) {
+                    state.orbRainbow = !state.orbRainbow;
+                    dom.orbEl.classList.toggle('orb-rainbow', state.orbRainbow);
+                    state._rainbowCooldownUntil = now + 2000;
+                }
                 shakeHistory = [];
             }
         }
