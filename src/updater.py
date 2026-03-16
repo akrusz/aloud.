@@ -183,21 +183,12 @@ def _check_github_api() -> UpdateStatus:
         remote_sha = data["sha"][:12]
         status.remote_sha = remote_sha
 
-        # Try to get local SHA from a marker file or git
-        try:
-            result = _run_git("rev-parse", "HEAD")
-            if result.returncode == 0:
-                status.current_sha = result.stdout.strip()[:12]
-                status.available = status.current_sha != remote_sha
-        except Exception:
-            # Can't determine local version — assume update available
-            status.available = True
-
-        if status.available:
-            status.commits_behind = 1  # Can't determine exact count without git
-            msg = data.get("commit", {}).get("message", "").split("\n")[0]
-            if msg:
-                status.commit_messages = [msg]
+        # Without git we can't determine the local version
+        status.available = True
+        status.commits_behind = 1  # Can't determine exact count without git
+        msg = data.get("commit", {}).get("message", "").split("\n")[0]
+        if msg:
+            status.commit_messages = [msg]
 
     except Exception as e:
         status.error = f"Could not check for updates: {e}"
@@ -210,7 +201,12 @@ def apply_update() -> UpdateResult:
     if not _is_git_repo():
         return UpdateResult(
             success=False,
-            message="Not a git installation. Re-run the install script to update.",
+            message=(
+                "Not a git installation — automatic updates aren't available. "
+                "To update, run the install script again:\n\n"
+                "  curl -fsSL https://raw.githubusercontent.com/akrusz/glooow"
+                "/main/scripts/install-easy.sh | bash"
+            ),
         )
 
     # Check for uncommitted changes to tracked files (ignore user data dirs)
@@ -222,7 +218,7 @@ def apply_update() -> UpdateResult:
         ignore_prefixes = ("sessions/", "config/", ".beads/")
         changes = [
             line for line in result.stdout.strip().splitlines()
-            if not any(line.strip().lstrip("MADRCU? ").startswith(p) for p in ignore_prefixes)
+            if not any(line[3:].startswith(p) for p in ignore_prefixes)
         ]
         if changes:
             return UpdateResult(
