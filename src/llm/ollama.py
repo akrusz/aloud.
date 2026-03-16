@@ -1,5 +1,7 @@
 """Ollama provider for local LLM inference."""
 
+import asyncio
+
 import httpx
 
 from .base import BaseLLMProvider, Message, CompletionResult
@@ -31,11 +33,24 @@ class OllamaProvider(BaseLLMProvider):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client: httpx.AsyncClient | None = None
+        self._client_loop: asyncio.AbstractEventLoop | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client."""
+        """Get or create HTTP client.
+
+        Recreates the client when the event loop changes (e.g. between
+        successive ``asyncio.run()`` calls in the SocketIO handlers).
+        """
+        loop = asyncio.get_running_loop()
+        if self._client is not None and self._client_loop is not loop:
+            try:
+                await self._client.aclose()
+            except Exception:
+                pass
+            self._client = None
         if self._client is None:
             self._client = httpx.AsyncClient(timeout=self.timeout)
+            self._client_loop = loop
         return self._client
 
     async def complete(

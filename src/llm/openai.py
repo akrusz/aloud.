@@ -1,5 +1,6 @@
 """OpenAI API provider."""
 
+import asyncio
 import os
 
 from .base import BaseLLMProvider, Message, CompletionResult
@@ -39,9 +40,17 @@ class OpenAIProvider(BaseLLMProvider):
             )
 
         self._client = None
+        self._client_loop: asyncio.AbstractEventLoop | None = None
 
     def _get_client(self):
-        """Get or create OpenAI client."""
+        """Get or create OpenAI client.
+
+        Recreates the client when the event loop changes (e.g. between
+        successive ``asyncio.run()`` calls in the SocketIO handlers).
+        """
+        loop = asyncio.get_running_loop()
+        if self._client is not None and self._client_loop is not loop:
+            self._client = None
         if self._client is None:
             try:
                 import openai
@@ -54,6 +63,7 @@ class OpenAIProvider(BaseLLMProvider):
                 api_key=self.api_key,
                 base_url=self.base_url,
             )
+            self._client_loop = loop
 
         return self._client
 
