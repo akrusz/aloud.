@@ -11,7 +11,7 @@ import httpx
 # Cache file lives in the project root
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CACHE_FILE = _PROJECT_ROOT / ".update-cache.json"
-_CACHE_TTL = 3600  # 1 hour
+_CACHE_TTL = 300  # 5 minutes
 
 GITHUB_REPO = "akrusz/glooow"
 
