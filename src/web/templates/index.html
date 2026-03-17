@@ -397,15 +397,27 @@
     }
 
     function applyProviderAvailability() {
+        const available = [];
+        const unavailable = [];
         for (const opt of providerSelect.options) {
             const info = providerStatus[opt.value];
             if (info && !info.available) {
                 opt.classList.add('provider-unavailable');
                 opt.textContent = opt.textContent.replace(/ \u2718$/, '') + ' \u2718';
+                unavailable.push(opt);
             } else {
                 opt.classList.remove('provider-unavailable');
                 opt.textContent = opt.textContent.replace(/ \u2718$/, '');
+                available.push(opt);
             }
+        }
+        // Sort available providers to the top
+        for (const opt of [...available, ...unavailable]) {
+            providerSelect.appendChild(opt);
+        }
+        // Auto-select the first available provider
+        if (available.length) {
+            providerSelect.value = available[0].value;
         }
         updateProviderHint();
     }
