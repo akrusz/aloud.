@@ -132,6 +132,14 @@ if [ -d "sessions" ]; then
     fi
 fi
 
+# ── Remove install breadcrumb ────────────────────
+
+BREADCRUMB="$HOME/.glooow-path"
+if [ -f "$BREADCRUMB" ]; then
+    rm -f "$BREADCRUMB"
+    ok "Removed $BREADCRUMB"
+fi
+
 # ── Remove macOS Desktop app ────────────────────
 
 if [ "$OS" = "Darwin" ]; then

@@ -123,6 +123,14 @@ if (Test-Path "sessions") {
     }
 }
 
+# ── Remove install breadcrumb ────────────────────
+
+$Breadcrumb = "$HOME\.glooow-path"
+if (Test-Path $Breadcrumb) {
+    Remove-Item -Force $Breadcrumb
+    Ok "Removed $Breadcrumb"
+}
+
 # ── Remove Desktop shortcut ─────────────────────
 
 $Desktop = [Environment]::GetFolderPath("Desktop")

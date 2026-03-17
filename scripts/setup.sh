@@ -6,8 +6,17 @@ set -euo pipefail
 # Usage: curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.sh | bash
 # ─────────────────────────────────────────────────
 
-GLOOOW_DIR="${GLOOOW_DIR:-$HOME/glooow}"
+BREADCRUMB="$HOME/.glooow-path"
 REPO_URL="https://github.com/akrusz/glooow.git"
+
+# Resolve install path: env var > breadcrumb > default
+if [ -n "${GLOOOW_DIR:-}" ]; then
+    GLOOOW_DIR="$GLOOOW_DIR"
+elif [ -f "$BREADCRUMB" ]; then
+    GLOOOW_DIR="$(cat "$BREADCRUMB")"
+else
+    GLOOOW_DIR="$HOME/glooow"
+fi
 
 info()  { printf "\n  \033[1;34m▸\033[0m %s\n" "$*"; }
 ok()    { printf "  \033[1;32m✓\033[0m %s\n" "$*"; }
@@ -71,12 +80,39 @@ if ! command -v git &>/dev/null; then
     fi
 fi
 
+# Choose install location
+echo "  Where would you like to install Glooow?"
+echo ""
+echo "    1) $GLOOOW_DIR (default)"
+echo "    2) Current directory ($(pwd)/glooow)"
+echo "    3) Custom path"
+echo ""
+printf "  Choice [1]: "
+read -r LOC_CHOICE
+LOC_CHOICE="${LOC_CHOICE:-1}"
+
+if [ "$LOC_CHOICE" = "2" ]; then
+    GLOOOW_DIR="$(pwd)/glooow"
+elif [ "$LOC_CHOICE" = "3" ]; then
+    printf "  Install path: "
+    read -r CUSTOM_PATH
+    if [ -z "$CUSTOM_PATH" ]; then
+        err "No path provided."
+    fi
+    # Expand ~ manually since read doesn't do shell expansion
+    CUSTOM_PATH="${CUSTOM_PATH/#\~/$HOME}"
+    GLOOOW_DIR="$CUSTOM_PATH"
+fi
+
 # Clone
 info "Cloning glooow to $GLOOOW_DIR..."
 git clone "$REPO_URL" "$GLOOOW_DIR"
 ok "Cloned"
 
 cd "$GLOOOW_DIR"
+
+# Save install path so future runs can find it
+echo "$GLOOOW_DIR" > "$BREADCRUMB"
 
 # Run install.sh
 info "Running installer..."

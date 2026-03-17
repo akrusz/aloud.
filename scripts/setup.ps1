@@ -5,8 +5,17 @@
 
 $ErrorActionPreference = "Stop"
 
-$GlooowDir = if ($env:GLOOOW_DIR) { $env:GLOOOW_DIR } else { "$HOME\glooow" }
+$Breadcrumb = "$HOME\.glooow-path"
 $RepoUrl = "https://github.com/akrusz/glooow.git"
+
+# Resolve install path: env var > breadcrumb > default
+if ($env:GLOOOW_DIR) {
+    $GlooowDir = $env:GLOOOW_DIR
+} elseif (Test-Path $Breadcrumb) {
+    $GlooowDir = (Get-Content $Breadcrumb -Raw).Trim()
+} else {
+    $GlooowDir = "$HOME\glooow"
+}
 
 function Info($msg)  { Write-Host "  > $msg" -ForegroundColor Blue }
 function Ok($msg)    { Write-Host "  $([char]0x2713) $msg" -ForegroundColor Green }
@@ -55,12 +64,40 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
+# Choose install location
+Write-Host "  Where would you like to install Glooow?"
+Write-Host ""
+Write-Host "    1) $GlooowDir (default)"
+Write-Host "    2) Current directory ($((Get-Location).Path)\glooow)"
+Write-Host "    3) Custom path"
+Write-Host ""
+$LocChoice = Read-Host "  Choice [1]"
+if (-not $LocChoice) { $LocChoice = "1" }
+
+if ($LocChoice -eq "2") {
+    $GlooowDir = Join-Path (Get-Location).Path "glooow"
+} elseif ($LocChoice -eq "3") {
+    $CustomPath = Read-Host "  Install path"
+    if (-not $CustomPath) {
+        Write-Host "  X No path provided." -ForegroundColor Red
+        exit 1
+    }
+    # Expand ~ to home directory
+    if ($CustomPath.StartsWith("~")) {
+        $CustomPath = $CustomPath -replace "^~", $HOME
+    }
+    $GlooowDir = $CustomPath
+}
+
 # Clone
 Info "Cloning glooow to $GlooowDir..."
 git clone $RepoUrl $GlooowDir
 Ok "Cloned"
 
 Set-Location $GlooowDir
+
+# Save install path so future runs can find it
+$GlooowDir | Set-Content $Breadcrumb -Encoding UTF8
 
 # Run installer
 Info "Running installer..."
