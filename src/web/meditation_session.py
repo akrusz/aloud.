@@ -1,6 +1,7 @@
 """Web meditation session management."""
 
 import logging
+import re
 import time
 
 from ..config import Config
@@ -11,6 +12,18 @@ from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signa
 from ..facilitation.session import SessionManager
 
 logger = logging.getLogger(__name__)
+
+
+_THINK_RE = re.compile(r'<think>.*?</think>\s*', flags=re.DOTALL)
+
+
+def _strip_think_tags(text: str) -> str:
+    """Strip <think>...</think> blocks from model output.
+
+    Some models (e.g. Qwen 3) wrap reasoning in <think> tags by default.
+    This content shouldn't be shown to the meditator.
+    """
+    return _THINK_RE.sub('', text).strip()
 
 
 NOVELTY_VOICES = frozenset({
@@ -135,7 +148,9 @@ class WebMeditationSession:
                 messages=llm_messages,
                 system=self.build_system_prompt(),
             )
-            response = result.text.strip()
+            response = _strip_think_tags(result.text)
+            if not response:
+                response = "What do you notice now?"
         except Exception as e:
             logger.error("LLM %s: %s", type(e).__name__, e)
             response = "What do you notice now?"
@@ -164,7 +179,7 @@ class WebMeditationSession:
                 system=RESUME_INTENT_SYSTEM_PROMPT,
                 max_tokens=10,
             )
-            return result.text.strip().upper().startswith("YES")
+            return _strip_think_tags(result.text).upper().startswith("YES")
         except Exception:
             return False
 
@@ -217,7 +232,7 @@ class WebMeditationSession:
                 "the summary, nothing else."
             ),
         )
-        return result.text.strip()
+        return _strip_think_tags(result.text)
 
     def end(self) -> dict | None:
         """End the session and return serialized data."""

@@ -20,6 +20,7 @@ class OllamaProvider(BaseLLMProvider):
         model: str = "llama3",
         max_tokens: int = 300,
         timeout: float = 120.0,
+        think: bool = False,
     ):
         """Initialize Ollama provider.
 
@@ -28,10 +29,12 @@ class OllamaProvider(BaseLLMProvider):
             model: Model to use (e.g., "llama3", "mistral", "llama3:8b")
             max_tokens: Maximum tokens in response (Ollama uses num_predict)
             timeout: Request timeout in seconds
+            think: Enable thinking/reasoning mode (slower, off by default)
         """
         super().__init__(model=model, max_tokens=max_tokens)
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.think = think
         self._client: httpx.AsyncClient | None = None
         self._client_loop: asyncio.AbstractEventLoop | None = None
 
@@ -77,13 +80,14 @@ class OllamaProvider(BaseLLMProvider):
                 "content": msg.content,
             })
 
-        # Make request
+        # Make request — disable thinking by default for faster responses
         response = await client.post(
             f"{self.base_url}/api/chat",
             json={
                 "model": self.model,
                 "messages": ollama_messages,
                 "stream": False,
+                "think": self.think,
                 "options": {
                     "num_predict": max_tokens or self.max_tokens,
                 },
