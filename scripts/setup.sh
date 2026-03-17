@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────
-# Glooow — Easy installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.sh | bash
+# Glooow — Setup (install / update / uninstall)
+# Usage: curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.sh | bash
 # ─────────────────────────────────────────────────
 
 GLOOOW_DIR="${GLOOOW_DIR:-$HOME/glooow}"
@@ -19,16 +19,48 @@ if [ ! -t 0 ] && [ -e /dev/tty ]; then
     exec < /dev/tty
 fi
 
+OS="$(uname -s)"
+
 echo ""
 echo "  ╔══════════════════════════════════════╗"
-echo "  ║       Glooow — Easy Install          ║"
+echo "  ║   Glooow — Install / Uninstall      ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 
-# ── Check git ────────────────────────────────────
+# ── If already installed, offer choices ─────────
 
+if [ -d "$GLOOOW_DIR" ]; then
+    echo "  Glooow is installed at $GLOOOW_DIR"
+    echo ""
+    echo "    1) Update       — pull latest changes and re-run setup"
+    echo "    2) Uninstall    — remove Glooow and downloaded models"
+    echo "    3) Cancel"
+    echo ""
+    printf "  Choice [1]: "
+    read -r ACTION
+    ACTION="${ACTION:-1}"
+
+    if [ "$ACTION" = "3" ]; then
+        echo ""; exit 0
+    elif [ "$ACTION" = "2" ]; then
+        cd "$GLOOOW_DIR"
+        ./scripts/uninstall.sh
+        exit 0
+    else
+        cd "$GLOOOW_DIR"
+        info "Updating..."
+        git pull
+        ok "Updated"
+        info "Running setup..."
+        ./scripts/install.sh
+        exit 0
+    fi
+fi
+
+# ── Fresh install ────────────────────────────────
+
+# Check git
 if ! command -v git &>/dev/null; then
-    OS="$(uname -s)"
     if [ "$OS" = "Darwin" ]; then
         info "git not found — triggering Xcode Command Line Tools install..."
         echo "  A dialog should appear. Click 'Install', then re-run this script."
@@ -39,34 +71,18 @@ if ! command -v git &>/dev/null; then
     fi
 fi
 
-# ── Clone or update ──────────────────────────────
-
-if [ -d "$GLOOOW_DIR" ]; then
-    info "glooow already exists at $GLOOOW_DIR"
-    printf "  Update with git pull? [Y/n]: "
-    read -r PULL_ANSWER
-    PULL_ANSWER="${PULL_ANSWER:-Y}"
-    if [ "$PULL_ANSWER" = "Y" ] || [ "$PULL_ANSWER" = "y" ]; then
-        cd "$GLOOOW_DIR"
-        git pull
-        ok "Updated"
-    fi
-else
-    info "Cloning glooow to $GLOOOW_DIR..."
-    git clone "$REPO_URL" "$GLOOOW_DIR"
-    ok "Cloned"
-fi
+# Clone
+info "Cloning glooow to $GLOOOW_DIR..."
+git clone "$REPO_URL" "$GLOOOW_DIR"
+ok "Cloned"
 
 cd "$GLOOOW_DIR"
 
-# ── Run install.sh ───────────────────────────────
-
+# Run install.sh
 info "Running installer..."
 ./scripts/install.sh
 
-# ── macOS extras: Desktop app + remove quarantine
-
-OS="$(uname -s)"
+# macOS extras: Desktop app + remove quarantine
 if [ "$OS" = "Darwin" ] && [ -d "Glooow.app" ]; then
     info "Copying Glooow.app to Desktop..."
     DESKTOP_APP="$HOME/Desktop/Glooow.app"

@@ -11,7 +11,7 @@ if [ -f "$RELATIVE_DIR/scripts/start.sh" ]; then
     PROJECT_DIR="$RELATIVE_DIR"
 fi
 
-# Strategy 2: breadcrumb file written by install-easy.sh
+# Strategy 2: breadcrumb file written by setup.sh
 if [ -z "$PROJECT_DIR" ]; then
     BREADCRUMB="$(dirname "$0")/../Resources/.glooow-project-path"
     if [ -f "$BREADCRUMB" ]; then

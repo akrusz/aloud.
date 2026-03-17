@@ -16,25 +16,25 @@ instead of fixed styles, you mix and match **attention focuses** (body, emotions
 
 ## getting started
 
-### easy install (macOS / Linux)
+### easy setup (macOS / Linux)
 
 open Terminal, paste this line, and hit Return:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.sh | bash
+curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.sh | bash
 ```
 
-this clones the repo to `~/glooow`, installs everything, and puts a launcher on your Desktop. works on both macOS and Linux.
+this clones the repo to `~/glooow`, installs everything, and puts a launcher on your Desktop. works on both macOS and Linux. run it again to update or uninstall.
 
-### easy install (Windows)
+### easy setup (Windows)
 
 open PowerShell, paste this line, and hit Enter:
 
 ```powershell
-irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/install-easy.ps1 | iex
+irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.ps1 | iex
 ```
 
-this clones the repo to `~\glooow`, installs dependencies, and puts a shortcut on your Desktop
+this clones the repo to `~\glooow`, installs dependencies, and puts a shortcut on your Desktop. run it again to update or uninstall.
 
 ### double-click launchers
 
@@ -225,8 +225,8 @@ config/             default.yaml
 sessions/           saved transcripts
 scripts/
   install.sh        first-time setup (interactive)
-  install-easy.sh   one-line installer (macOS/linux)
-  install-easy.ps1  one-line installer (windows)
+  setup.sh          one-line setup: install, update, or uninstall (macOS/linux)
+  setup.ps1         one-line setup: install, update, or uninstall (windows)
   install.ps1       first-time setup (windows)
   start.sh          full launcher (macOS/linux) — auto-starts proxy, shows config
   start-server.sh   lightweight launcher — just the web server

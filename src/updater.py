@@ -203,9 +203,9 @@ def apply_update() -> UpdateResult:
             success=False,
             message=(
                 "Not a git installation — automatic updates aren't available. "
-                "To update, run the install script again:\n\n"
+                "To update, run the setup script again:\n\n"
                 "  curl -fsSL https://raw.githubusercontent.com/akrusz/glooow"
-                "/main/scripts/install-easy.sh | bash"
+                "/main/scripts/setup.sh | bash"
             ),
         )
 
