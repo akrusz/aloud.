@@ -1,0 +1,248 @@
+/* noting.js — round-robin noting circle orchestrator.
+ *
+ * Manages the turn-based flow: User → P1 → P2 → ... → User.
+ * Client-side timers drive the circle; server handles LLM + TTS calls.
+ */
+
+import { state, dom, socket } from './state.js';
+import { addMessage } from './ui.js';
+import { playServerAudio, speakBrowser, stopServerAudio } from './tts.js';
+
+var notingState = {
+    active: false,
+    participants: [],    // from setup config
+    userTurnCue: false,
+    turnOrder: [],       // ['user', 0, 1, 2, ...] indices into participants
+    currentTurn: -1,
+    recentLabels: [],    // last N labels for reactive context
+    userTurnStart: 0,
+    userCadences: [],    // rolling window of user turn durations (ms)
+    defaultCadenceMs: 4000,
+    waitTimer: null,
+    audioContext: null,
+    awaitingUser: false, // true when it's the user's turn
+    sendTextFn: null,    // injected from session.js
+};
+
+// Expose for socket handlers
+export { notingState };
+
+export function initNoting(participants, userTurnCue, sendTextFn) {
+    notingState.participants = participants || [];
+    notingState.userTurnCue = userTurnCue || false;
+    notingState.sendTextFn = sendTextFn;
+    notingState.active = true;
+    notingState.recentLabels = [];
+    notingState.userCadences = [];
+    notingState.currentTurn = -1;
+
+    // Build turn order: user, then each participant index
+    notingState.turnOrder = ['user'];
+    for (var i = 0; i < notingState.participants.length; i++) {
+        notingState.turnOrder.push(i);
+    }
+
+    // Audio context for turn cue sound
+    notingState.audioContext = state.audioContext || null;
+
+    // Listen for noting responses from server
+    socket.on('noting_label', handleNotingLabel);
+    socket.on('noting_audio', handleNotingAudio);
+}
+
+export function startCircle() {
+    if (!notingState.active) return;
+    advanceTurn();
+}
+
+export function stopCircle() {
+    notingState.active = false;
+    if (notingState.waitTimer) {
+        clearTimeout(notingState.waitTimer);
+        notingState.waitTimer = null;
+    }
+    socket.off('noting_label', handleNotingLabel);
+    socket.off('noting_audio', handleNotingAudio);
+}
+
+// Called by audio.js/session.js when user speaks during their turn
+export function handleUserNote(text) {
+    if (!notingState.awaitingUser || !notingState.active) return false;
+
+    notingState.awaitingUser = false;
+
+    // Record cadence
+    var elapsed = Date.now() - notingState.userTurnStart;
+    notingState.userCadences.push(elapsed);
+    if (notingState.userCadences.length > 5) notingState.userCadences.shift();
+
+    notingState.recentLabels.push(text);
+    if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
+
+    addMessage('user', text);
+
+    // Wait briefly then advance
+    scheduleNextTurn(500);
+    return true;
+}
+
+function advanceTurn() {
+    if (!notingState.active) return;
+
+    notingState.currentTurn = (notingState.currentTurn + 1) % notingState.turnOrder.length;
+    var turn = notingState.turnOrder[notingState.currentTurn];
+
+    if (turn === 'user') {
+        startUserTurn();
+    } else {
+        startParticipantTurn(turn);
+    }
+}
+
+function startUserTurn() {
+    notingState.awaitingUser = true;
+    notingState.userTurnStart = Date.now();
+
+    if (notingState.userTurnCue) {
+        playTurnCue();
+    }
+}
+
+function startParticipantTurn(index) {
+    var p = notingState.participants[index];
+    if (!p) { scheduleNextTurn(1000); return; }
+
+    var delay = getParticipantDelay(p);
+
+    notingState.waitTimer = setTimeout(function () {
+        notingState.waitTimer = null;
+        executeParticipantTurn(index, p);
+    }, delay);
+}
+
+function executeParticipantTurn(index, p) {
+    if (!notingState.active) return;
+
+    if (p.type === 'llm') {
+        socket.emit('noting_turn', {
+            context: notingState.recentLabels.slice(),
+            reactive: p.reactive || false,
+            participant_index: index,
+            voice: p.voice || null,
+        });
+    } else if (p.type === 'fixed') {
+        var phrase = p.phrase || 'breathing';
+        notingState.recentLabels.push(phrase);
+        if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
+        addMessage('facilitator', phrase);
+
+        socket.emit('noting_tts', {
+            text: phrase,
+            voice: p.voice || null,
+            participant_index: index,
+        });
+    } else if (p.type === 'sound') {
+        playTurnCue();
+        addMessage('facilitator', '~');
+        scheduleNextTurn(1000);
+    }
+}
+
+function handleNotingLabel(data) {
+    if (!notingState.active) return;
+
+    var label = data.text || 'breathing';
+    notingState.recentLabels.push(label);
+    if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
+
+    addMessage('facilitator', label);
+
+    if (data.audio && state.audioContext) {
+        playAudioThenAdvance(data.audio, label);
+    } else {
+        speakBrowser(label);
+        scheduleNextTurn(2000);
+    }
+}
+
+function handleNotingAudio(data) {
+    if (!notingState.active) return;
+
+    if (data.audio && state.audioContext) {
+        playAudioThenAdvance(data.audio, data.text);
+    } else if (data.text) {
+        speakBrowser(data.text);
+        scheduleNextTurn(2000);
+    } else {
+        scheduleNextTurn(1000);
+    }
+}
+
+function playAudioThenAdvance(audioBytes, fallbackText) {
+    stopServerAudio();
+
+    var buffer = audioBytes instanceof ArrayBuffer ? audioBytes : audioBytes.buffer || audioBytes;
+
+    state.ttsSpeaking = true;
+    state.serverAudioPlaying = true;
+
+    state.audioContext.decodeAudioData(buffer.slice(0), function (decoded) {
+        state.serverAudioSource = state.audioContext.createBufferSource();
+        state.serverAudioSource.buffer = decoded;
+        state.serverAudioSource.connect(state.audioContext.destination);
+        state.serverAudioSource.onended = function () {
+            state.serverAudioPlaying = false;
+            state.serverAudioSource = null;
+            state.ttsSpeaking = false;
+            scheduleNextTurn(300);
+        };
+        state.serverAudioSource.start(0);
+    }, function () {
+        state.serverAudioPlaying = false;
+        state.ttsSpeaking = false;
+        if (fallbackText) speakBrowser(fallbackText);
+        scheduleNextTurn(2000);
+    });
+}
+
+function scheduleNextTurn(delayMs) {
+    if (!notingState.active) return;
+    notingState.waitTimer = setTimeout(function () {
+        notingState.waitTimer = null;
+        advanceTurn();
+    }, delayMs);
+}
+
+function getParticipantDelay(p) {
+    if (p.timing === 'fixed') {
+        return (p.fixedDelay || 4) * 1000;
+    }
+    // Adaptive: use rolling average of user cadences
+    if (notingState.userCadences.length > 0) {
+        var sum = 0;
+        for (var i = 0; i < notingState.userCadences.length; i++) {
+            sum += notingState.userCadences[i];
+        }
+        return sum / notingState.userCadences.length;
+    }
+    return notingState.defaultCadenceMs;
+}
+
+function playTurnCue() {
+    var ctx = notingState.audioContext || state.audioContext;
+    if (!ctx) return;
+
+    // Simple two-tone ascending chime (~200ms)
+    var now = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.setValueAtTime(554, now + 0.1);  // A4 → C#5
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    osc.start(now);
+    osc.stop(now + 0.2);
+}

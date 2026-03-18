@@ -11,11 +11,18 @@ import {
     setEmberLevel, regenerateEmbers, showConfirm, hideConfirm,
     endSession, doEndSession,
 } from './ui.js';
+import { initNoting, startCircle, stopCircle, handleUserNote, notingState } from './noting.js';
 
 // ---- Messaging ----
 
 function sendText(text) {
     if (!text || !state.sessionActive) return;
+
+    // Noting mode: route through the noting circle
+    if (notingState.active) {
+        handleUserNote(text);
+        return;
+    }
 
     // During silence mode, buffer speech instead of submitting.
     if (state.inSilenceMode) {
@@ -395,6 +402,23 @@ function init() {
     // Clear continuation flags so they don't persist
     sessionStorage.removeItem('continueFrom');
     sessionStorage.removeItem('continueFromSummary');
+
+    // Initialize noting mode if applicable
+    var isNoting = params.meditation_type === 'noting';
+    if (isNoting) {
+        initNoting(params.participants || [], params.userTurnCue || false, sendText);
+
+        // Start the circle after the opener plays.
+        // Listen for the first facilitator_message (the opener) and start after it.
+        var startedCircle = false;
+        socket.on('facilitator_message', function onOpenerForNoting(data) {
+            if (startedCircle) return;
+            startedCircle = true;
+            // Wait a moment for TTS to finish, then start circle
+            setTimeout(function () { startCircle(); }, 3000);
+            // Don't remove — the existing handler in socketHandlers still needs to fire
+        });
+    }
 
     // Auto-activate voice
     activateVoice();

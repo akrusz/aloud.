@@ -92,6 +92,8 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
             for session_id, web_session in list(app.web_sessions.items()):
                 if web_session.client_muted:
                     continue
+                if web_session.meditation_type == "noting":
+                    continue
                 decision = web_session.pacing.should_respond()
                 if decision == TurnDecision.CHECK_IN:
                     sid = app.session_to_sid.get(session_id)

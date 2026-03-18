@@ -340,6 +340,108 @@ body {
     outline: none;
 }
 
+/* ---- Noting participant rows ---- */
+
+.participant-row {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.participant-row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.participant-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.participant-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.3rem;
+    line-height: 1;
+    transition: color var(--transition);
+}
+
+.participant-remove:hover {
+    color: var(--danger);
+}
+
+.participant-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.participant-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.participant-field label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.participant-field select,
+.participant-field input[type="text"],
+.participant-field input[type="number"] {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.6rem;
+}
+
+.participant-field input[type="number"] {
+    width: 60px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font);
+}
+
+.participant-voice-btn {
+    font-size: 0.85rem !important;
+    padding: 0.4rem 0.6rem !important;
+}
+
+.participant-checkbox-label {
+    display: flex !important;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem !important;
+    cursor: pointer;
+    white-space: nowrap;
+    padding-bottom: 0.4rem;
+}
+
+.noting-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.btn-small {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+}
+
 textarea, select, input[type="text"] {
     background: var(--bg-input);
     border: 1px solid var(--border);

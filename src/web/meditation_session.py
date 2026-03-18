@@ -9,7 +9,10 @@ from ..llm.ollama import create_llm_provider
 from ..llm.base import Message
 from ..facilitation.pacing import PacingController
 from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal, RESUME_INTENT_SYSTEM_PROMPT
-from ..facilitation.noting_prompts import NOTING_SYSTEM_PROMPT, NOTING_OPENER_PROMPT, NOTING_CHECK_IN_PROMPTS
+from ..facilitation.noting_prompts import (
+    NOTING_SYSTEM_PROMPT, NOTING_OPENER_PROMPT, NOTING_CHECK_IN_PROMPTS,
+    NOTING_LABEL_SYSTEM_PROMPT, NOTING_LABEL_REACTIVE_ADDENDUM,
+)
 from ..facilitation.session import SessionManager
 
 logger = logging.getLogger(__name__)
@@ -246,6 +249,31 @@ class WebMeditationSession:
             ),
         )
         return _strip_think_tags(result.text)
+
+    async def generate_noting_label(self, context: list[str], reactive: bool) -> str:
+        """Generate a 1-3 word noting label for the circle.
+
+        Args:
+            context: Recent labels from the circle (last few turns).
+            reactive: Whether to let context influence the label.
+        """
+        system = NOTING_LABEL_SYSTEM_PROMPT
+        if reactive and context:
+            system += NOTING_LABEL_REACTIVE_ADDENDUM.format(
+                context=", ".join(context[-6:]),
+            )
+
+        try:
+            result = await self.llm.complete(
+                messages=[Message(role="user", content="Your turn. Note what you notice.")],
+                system=system,
+                max_tokens=20,
+            )
+            label = _strip_think_tags(result.text).strip().rstrip(".").lower()
+            return label or "breathing"
+        except Exception as e:
+            logger.error("Noting label error: %s", e)
+            return "breathing"
 
     def end(self) -> dict | None:
         """End the session and return serialized data."""

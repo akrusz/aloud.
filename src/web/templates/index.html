@@ -204,6 +204,16 @@
         </div>
 
         <div class="tab-panel" id="noting-panel" style="display:none">
+            <div class="form-group">
+                <label>Participants</label>
+                <div id="participant-list"></div>
+                <button type="button" id="add-participant-btn" class="btn btn-secondary btn-small">+ Add participant</button>
+            </div>
+
+            <label class="noting-option">
+                <input type="checkbox" id="user-turn-cue">
+                <span>Play a sound when it's your turn</span>
+            </label>
         </div>
 
         <div class="form-row">
@@ -651,6 +661,194 @@
         });
     }
 
+    // ---- Noting participants ----
+    const participantList = document.getElementById('participant-list');
+    const addParticipantBtn = document.getElementById('add-participant-btn');
+    let participantCount = 0;
+    const MAX_PARTICIPANTS = 4;
+
+    function createParticipantRow(index) {
+        const row = document.createElement('div');
+        row.className = 'participant-row';
+        row.dataset.index = index;
+
+        row.innerHTML = `
+            <div class="participant-row-header">
+                <span class="participant-label">Participant ${index + 1}</span>
+                <button type="button" class="participant-remove" title="Remove">&times;</button>
+            </div>
+            <div class="participant-fields">
+                <div class="participant-field">
+                    <label>Type</label>
+                    <select class="participant-type">
+                        <option value="llm" selected>LLM</option>
+                        <option value="fixed">Fixed phrase</option>
+                        <option value="sound">Sound effect</option>
+                    </select>
+                </div>
+                <div class="participant-field participant-voice-field">
+                    <label>Voice</label>
+                    <button type="button" class="setup-voice-btn participant-voice-btn">Default</button>
+                </div>
+                <div class="participant-field">
+                    <label>Timing</label>
+                    <select class="participant-timing">
+                        <option value="adaptive" selected>Adaptive</option>
+                        <option value="fixed">Fixed</option>
+                    </select>
+                </div>
+                <div class="participant-field participant-delay-field" style="display:none">
+                    <label>Seconds</label>
+                    <input type="number" class="participant-delay" value="4" min="1" max="30" step="1">
+                </div>
+                <div class="participant-field participant-reactive-field">
+                    <label class="participant-checkbox-label">
+                        <input type="checkbox" class="participant-reactive" checked>
+                        <span>Reactive</span>
+                    </label>
+                </div>
+                <div class="participant-field participant-phrase-field" style="display:none">
+                    <label>Phrase</label>
+                    <input type="text" class="participant-phrase" placeholder="e.g. breathing" maxlength="30">
+                </div>
+            </div>
+        `;
+
+        // Type change: show/hide conditional fields
+        const typeSelect = row.querySelector('.participant-type');
+        const voiceField = row.querySelector('.participant-voice-field');
+        const reactiveField = row.querySelector('.participant-reactive-field');
+        const phraseField = row.querySelector('.participant-phrase-field');
+
+        typeSelect.addEventListener('change', () => {
+            const t = typeSelect.value;
+            voiceField.style.display = t === 'sound' ? 'none' : '';
+            reactiveField.style.display = t === 'llm' ? '' : 'none';
+            phraseField.style.display = t === 'fixed' ? '' : 'none';
+        });
+
+        // Timing change: show/hide delay input
+        const timingSelect = row.querySelector('.participant-timing');
+        const delayField = row.querySelector('.participant-delay-field');
+        timingSelect.addEventListener('change', () => {
+            delayField.style.display = timingSelect.value === 'fixed' ? '' : 'none';
+        });
+
+        // Voice picker for this participant
+        const voiceBtn = row.querySelector('.participant-voice-btn');
+        let participantVoice = localStorage.getItem('glooow-voice') || null;
+        if (participantVoice) voiceBtn.textContent = participantVoice;
+        voiceBtn.addEventListener('click', () => {
+            openParticipantVoicePicker(voiceBtn, (voiceName) => {
+                participantVoice = voiceName;
+                voiceBtn.textContent = voiceName;
+                voiceBtn.dataset.voice = voiceName;
+            });
+        });
+
+        // Remove button
+        row.querySelector('.participant-remove').addEventListener('click', () => {
+            row.remove();
+            participantCount--;
+            updateAddButton();
+            renumberParticipants();
+        });
+
+        return row;
+    }
+
+    function renumberParticipants() {
+        participantList.querySelectorAll('.participant-row').forEach((row, i) => {
+            row.dataset.index = i;
+            row.querySelector('.participant-label').textContent = `Participant ${i + 1}`;
+        });
+    }
+
+    function updateAddButton() {
+        addParticipantBtn.style.display = participantCount >= MAX_PARTICIPANTS ? 'none' : '';
+    }
+
+    function addParticipant() {
+        if (participantCount >= MAX_PARTICIPANTS) return;
+        const row = createParticipantRow(participantCount);
+        participantList.appendChild(row);
+        participantCount++;
+        updateAddButton();
+    }
+
+    addParticipantBtn.addEventListener('click', addParticipant);
+
+    // Add one default participant
+    addParticipant();
+
+    function getParticipantConfigs() {
+        const configs = [];
+        participantList.querySelectorAll('.participant-row').forEach(row => {
+            const type = row.querySelector('.participant-type').value;
+            const timing = row.querySelector('.participant-timing').value;
+            const config = {
+                type,
+                timing,
+                fixedDelay: parseInt(row.querySelector('.participant-delay').value, 10) || 4,
+                voice: row.querySelector('.participant-voice-btn').dataset.voice || null,
+            };
+            if (type === 'llm') {
+                config.reactive = row.querySelector('.participant-reactive').checked;
+            }
+            if (type === 'fixed') {
+                config.phrase = row.querySelector('.participant-phrase').value.trim() || 'breathing';
+            }
+            configs.push(config);
+        });
+        return configs;
+    }
+
+    // Participant voice picker — reuses the setup voice modal
+    function openParticipantVoicePicker(triggerBtn, onSelect) {
+        renderVoiceModal();
+        // Highlight the current voice for this participant
+        const currentVoice = triggerBtn.dataset.voice;
+        if (currentVoice) {
+            setupVoiceModalList.querySelectorAll('.voice-row').forEach(row => {
+                const isSelected = row.dataset.voiceName === currentVoice;
+                row.classList.toggle('selected', isSelected);
+                const check = row.querySelector('.voice-row-check');
+                if (isSelected && !check) {
+                    const c = document.createElement('span');
+                    c.className = 'voice-row-check';
+                    c.textContent = '\u2713';
+                    row.insertBefore(c, row.querySelector('.voice-row-preview'));
+                } else if (!isSelected && check) {
+                    check.remove();
+                }
+            });
+        }
+
+        setupVoiceModal.style.display = 'flex';
+
+        // Temporarily override click handler for selection
+        const handler = (e) => {
+            const previewBtn = e.target.closest('.voice-row-preview');
+            if (previewBtn) return; // let preview work normally
+
+            const row = e.target.closest('.voice-row');
+            if (!row) return;
+            onSelect(row.dataset.voiceName);
+            setupVoiceModal.style.display = 'none';
+            stopVoicePreview();
+            setupVoiceModalList.removeEventListener('click', handler, true);
+        };
+        // Use capture to intercept before the global handler
+        setupVoiceModalList.addEventListener('click', handler, true);
+
+        // Clean up on modal close
+        const closeHandler = () => {
+            setupVoiceModalList.removeEventListener('click', handler, true);
+            setupVoiceModalClose.removeEventListener('click', closeHandler);
+        };
+        setupVoiceModalClose.addEventListener('click', closeHandler);
+    }
+
     // Home orb bounce on click
     const homeOrb = document.getElementById('home-orb');
     if (homeOrb) {
@@ -713,6 +911,9 @@
             params.directiveness = dirBackendValue();
             params.verbosity = document.getElementById('verbosity').value;
             params.custom_instructions = document.getElementById('custom_instructions').value;
+        } else if (activeTab === 'noting') {
+            params.participants = getParticipantConfigs();
+            params.userTurnCue = document.getElementById('user-turn-cue').checked;
         }
 
         const cf = sessionStorage.getItem('continueFrom');
