@@ -11,7 +11,10 @@
 {% block content %}
 <div class="setup-container">
     <div class="setup-header">
-        <p class="setup-subtitle">Set an intention, choose how you'd like to be guided, then sit or lie down.</p>
+        <div class="tab-bar">
+            <button type="button" class="tab-btn active" data-tab="exploration">Exploration</button>
+            <button type="button" class="tab-btn" data-tab="noting">Noting</button>
+        </div>
     </div>
 
     <div id="continue-banner" class="continue-banner" style="display:none">
@@ -20,165 +23,187 @@
     </div>
 
     <form id="setup-form" class="setup-form">
-        <div class="form-group">
-            <label for="intention">Intention <span class="optional">(optional)</span></label>
-            <textarea
-                id="intention"
-                name="intention"
-                rows="2"
-                placeholder="e.g. Explore pleasant sensations... Practice jhana... Just be present... Let go and drift..."
-            ></textarea>
-        </div>
-
-        <div class="form-group">
-            <label>Quick Start</label>
-            <div class="style-cards">
-                <label class="style-card selected" data-preset="pleasant_play">
-                    <input type="radio" name="preset" value="pleasant_play" checked>
-                    <div class="style-card-inner">
-                        <span class="style-name">Pleasant Play</span>
-                        <span class="style-desc">Playfully exploring emotions, body sensations, jhana factors</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="warmth_goodwill">
-                    <input type="radio" name="preset" value="warmth_goodwill">
-                    <div class="style-card-inner">
-                        <span class="style-name">Warmth & Goodwill</span>
-                        <span class="style-desc">Orienting toward kind and loving feelings for yourself and others</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="parts_work">
-                    <input type="radio" name="preset" value="parts_work">
-                    <div class="style-card-inner">
-                        <span class="style-name">Parts Work</span>
-                        <span class="style-desc">Explore inner parts, speak to them, let them speak back</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="somatic">
-                    <input type="radio" name="preset" value="somatic">
-                    <div class="style-card-inner">
-                        <span class="style-name">Somatic</span>
-                        <span class="style-desc">Body-focused exploration of sensation and physical experience</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="freeform">
-                    <input type="radio" name="preset" value="freeform">
-                    <div class="style-card-inner">
-                        <span class="style-name">Freeform</span>
-                        <span class="style-desc">Spacious, effortless. Flow with whatever arises</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="stillness">
-                    <input type="radio" name="preset" value="stillness">
-                    <div class="style-card-inner">
-                        <span class="style-name">Stillness</span>
-                        <span class="style-desc">Minimal guidance, holding space for whatever wants to happen</span>
-                    </div>
-                </label>
+        <div class="tab-panel" id="exploration-panel">
+            <div class="form-group">
+                <label for="intention">Intention <span class="optional">(optional)</span></label>
+                <textarea
+                    id="intention"
+                    name="intention"
+                    rows="2"
+                    placeholder="e.g. Explore pleasant sensations... Practice jhana... Just be present... Let go and drift..."
+                ></textarea>
             </div>
-        </div>
 
-        <div class="form-group">
-            <label>Attention Focus</label>
-            <div class="modifier-toggles">
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="focus" value="body_sensations">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Body & sensations</span>
-                        <span class="modifier-desc">Physical experience - texture, temperature, movement</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="focus" value="emotions">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Emotions & feeling tone</span>
-                        <span class="modifier-desc">Emotional landscape, warmth, what's alive underneath</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="focus" value="inner_parts">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Parts & inner world</span>
-                        <span class="modifier-desc">Inner parts, protectors, body parts, speaking to/as parts</span>
-                    </div>
-                </label>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>Vibe</label>
-            <div class="modifier-toggles">
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="playful">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Playful & light</span>
-                        <span class="modifier-desc">Play, spontaneity, delight. Doesn't have to be serious</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="compassionate">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Compassionate</span>
-                        <span class="modifier-desc">Meeting what arises with care, tenderness, gentleness</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="loving">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Loving & kind</span>
-                        <span class="modifier-desc">Generating and radiating love and goodwill</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="spacious">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Spacious</span>
-                        <span class="modifier-desc">Notice the openness that's already here</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="effortless">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Effortless</span>
-                        <span class="modifier-desc">Hands off the wheel, let things unfold</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="feeling_good">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Feeling good</span>
-                        <span class="modifier-desc">Noticing and cultivating pleasant sensations</span>
-                    </div>
-                </label>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="form-group form-group-half">
-                <label for="directiveness">Guidance Level</label>
-                <input
-                    type="range"
-                    id="directiveness"
-                    name="directiveness"
-                    min="0"
-                    max="4"
-                    value="1"
-                    step="1"
-                >
-                <div class="range-labels">
-                    <span>Following</span>
-                    <span>Directing</span>
+            <div class="form-group">
+                <label>Quick Start</label>
+                <div class="style-cards">
+                    <label class="style-card selected" data-preset="pleasant_play">
+                        <input type="radio" name="preset" value="pleasant_play" checked>
+                        <div class="style-card-inner">
+                            <span class="style-name">Pleasant Play</span>
+                            <span class="style-desc">Playfully exploring emotions, body sensations, jhana factors</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="warmth_goodwill">
+                        <input type="radio" name="preset" value="warmth_goodwill">
+                        <div class="style-card-inner">
+                            <span class="style-name">Warmth & Goodwill</span>
+                            <span class="style-desc">Orienting toward kind and loving feelings for yourself and others</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="parts_work">
+                        <input type="radio" name="preset" value="parts_work">
+                        <div class="style-card-inner">
+                            <span class="style-name">Parts Work</span>
+                            <span class="style-desc">Explore inner parts, speak to them, let them speak back</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="somatic">
+                        <input type="radio" name="preset" value="somatic">
+                        <div class="style-card-inner">
+                            <span class="style-name">Somatic</span>
+                            <span class="style-desc">Body-focused exploration of sensation and physical experience</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="freeform">
+                        <input type="radio" name="preset" value="freeform">
+                        <div class="style-card-inner">
+                            <span class="style-name">Freeform</span>
+                            <span class="style-desc">Spacious, effortless. Flow with whatever arises</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="stillness">
+                        <input type="radio" name="preset" value="stillness">
+                        <div class="style-card-inner">
+                            <span class="style-name">Stillness</span>
+                            <span class="style-desc">Minimal guidance, holding space for whatever wants to happen</span>
+                        </div>
+                    </label>
                 </div>
             </div>
 
-            <div class="form-group form-group-half">
-                <label for="verbosity">Response Length</label>
-                <select id="verbosity" name="verbosity">
-                    <option value="low">Brief</option>
-                    <option value="medium" selected>Medium</option>
-                    <option value="high">Longer</option>
-                </select>
+            <div class="form-group">
+                <label>Attention Focus</label>
+                <div class="modifier-toggles">
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="focus" value="body_sensations">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Body & sensations</span>
+                            <span class="modifier-desc">Physical experience - texture, temperature, movement</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="focus" value="emotions">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Emotions & feeling tone</span>
+                            <span class="modifier-desc">Emotional landscape, warmth, what's alive underneath</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="focus" value="inner_parts">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Parts & inner world</span>
+                            <span class="modifier-desc">Inner parts, protectors, body parts, speaking to/as parts</span>
+                        </div>
+                    </label>
+                </div>
             </div>
+
+            <div class="form-group">
+                <label>Vibe</label>
+                <div class="modifier-toggles">
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="playful">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Playful & light</span>
+                            <span class="modifier-desc">Play, spontaneity, delight. Doesn't have to be serious</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="compassionate">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Compassionate</span>
+                            <span class="modifier-desc">Meeting what arises with care, tenderness, gentleness</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="loving">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Loving & kind</span>
+                            <span class="modifier-desc">Generating and radiating love and goodwill</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="spacious">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Spacious</span>
+                            <span class="modifier-desc">Notice the openness that's already here</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="effortless">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Effortless</span>
+                            <span class="modifier-desc">Hands off the wheel, let things unfold</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="feeling_good">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Feeling good</span>
+                            <span class="modifier-desc">Noticing and cultivating pleasant sensations</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row form-row-thirds">
+                <div class="form-group">
+                    <label for="directiveness">Guidance Level</label>
+                    <input
+                        type="range"
+                        id="directiveness"
+                        name="directiveness"
+                        min="0"
+                        max="4"
+                        value="1"
+                        step="1"
+                    >
+                    <div class="range-labels">
+                        <span>Following</span>
+                        <span>Directing</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="verbosity">Response Length</label>
+                    <select id="verbosity" name="verbosity">
+                        <option value="low">Brief</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">Longer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Voice</label>
+                    <button type="button" id="setup-voice-btn" class="setup-voice-btn">Default</button>
+                </div>
+            </div>
+
+            <details class="advanced-settings">
+                <summary>Additional instructions</summary>
+                <div class="form-group">
+                    <textarea
+                        id="custom_instructions"
+                        name="custom_instructions"
+                        rows="3"
+                        placeholder="Any specific guidance for the facilitator..."
+                    ></textarea>
+                </div>
+            </details>
+        </div>
+
+        <div class="tab-panel" id="noting-panel" style="display:none">
         </div>
 
         <div class="form-row">
@@ -201,27 +226,38 @@
         </div>
         <div id="provider-hint" class="provider-hint" style="display:none"></div>
 
-        <details class="advanced-settings">
-            <summary>Additional instructions</summary>
-            <div class="form-group">
-                <textarea
-                    id="custom_instructions"
-                    name="custom_instructions"
-                    rows="3"
-                    placeholder="Any specific guidance for the facilitator..."
-                ></textarea>
-            </div>
-        </details>
-
         <button type="submit" class="btn btn-primary btn-begin">
             Begin Session
         </button>
     </form>
+
+    <div class="voice-modal-overlay" id="setup-voice-modal" style="display: none;">
+        <div class="voice-modal">
+            <div class="voice-modal-header">
+                <span class="voice-modal-title">Choose Voice</span>
+                <button type="button" class="voice-modal-close" id="setup-voice-modal-close">&times;</button>
+            </div>
+            <div class="voice-modal-list" id="setup-voice-modal-list">
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // ---- Tab switching ----
+    let activeTab = 'exploration';
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeTab = btn.dataset.tab;
+            document.getElementById('exploration-panel').style.display = activeTab === 'exploration' ? '' : 'none';
+            document.getElementById('noting-panel').style.display = activeTab === 'noting' ? '' : 'none';
+        });
+    });
+
     // ---- Presets ----
     const presets = {
         pleasant_play: {
@@ -443,6 +479,178 @@
     providerSelect.addEventListener('change', updateModelOptions);
     updateModelOptions();
 
+    // ---- Voice picker ----
+    const QUALITY_VOICES_RE = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
+    const TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
+
+    const setupVoiceBtn = document.getElementById('setup-voice-btn');
+    const setupVoiceModal = document.getElementById('setup-voice-modal');
+    const setupVoiceModalList = document.getElementById('setup-voice-modal-list');
+    const setupVoiceModalClose = document.getElementById('setup-voice-modal-close');
+
+    let scoredVoices = [];
+    let selectedVoiceName = localStorage.getItem('glooow-voice') || null;
+    let previewAudio = null;
+
+    function scoreVoiceName(name) {
+        if (/Premium/i.test(name)) return 3;
+        if (/Enhanced|Online|Natural/i.test(name)) return 2;
+        if (/^Google/i.test(name)) return 1;
+        const baseName = name.replace(/\s*\(.*\)$/, '');
+        if (QUALITY_VOICES_RE.test(baseName)) return 1;
+        return 0;
+    }
+
+    function updateVoiceBtnLabel() {
+        setupVoiceBtn.textContent = selectedVoiceName || 'Default';
+    }
+
+    function buildSetupVoiceList(serverVoices) {
+        const langPrefix = (navigator.language || 'en').split(/[-_]/)[0];
+        const browserVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+        const browserByName = {};
+        browserVoices.forEach(v => { browserByName[v.name] = v; });
+
+        const scored = [];
+        const seen = {};
+
+        // Server voices first
+        (serverVoices || []).forEach(sv => {
+            const vLang = (sv.lang || '').split(/[-_]/)[0];
+            if (vLang !== 'en' && vLang !== langPrefix) return;
+            const score = scoreVoiceName(sv.name);
+            scored.push({ name: sv.name, score });
+            seen[sv.name] = true;
+        });
+
+        // Browser-only voices
+        browserVoices.forEach(v => {
+            if (seen[v.name]) return;
+            const vLang = (v.lang || '').split(/[-_]/)[0];
+            if (vLang !== 'en' && vLang !== langPrefix) return;
+            let score = scoreVoiceName(v.name);
+            if (!v.localService) score = Math.max(score, 2);
+            scored.push({ name: v.name, score });
+            seen[v.name] = true;
+        });
+
+        scored.sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
+        scoredVoices = scored;
+
+        // If no saved voice, default to best available
+        if (!selectedVoiceName && scored.length) {
+            selectedVoiceName = scored[0].name;
+            localStorage.setItem('glooow-voice', selectedVoiceName);
+        }
+        updateVoiceBtnLabel();
+    }
+
+    function renderVoiceModal() {
+        setupVoiceModalList.innerHTML = '';
+        const tiers = {};
+        scoredVoices.forEach(v => {
+            if (!tiers[v.score]) tiers[v.score] = [];
+            tiers[v.score].push(v);
+        });
+
+        [3, 2, 1, 0].forEach(tier => {
+            const items = tiers[tier];
+            if (!items || !items.length) return;
+
+            const label = document.createElement('div');
+            label.className = 'voice-tier-label';
+            label.textContent = TIER_LABELS[tier];
+            setupVoiceModalList.appendChild(label);
+
+            items.forEach(entry => {
+                const row = document.createElement('div');
+                row.className = 'voice-row';
+                if (entry.name === selectedVoiceName) row.classList.add('selected');
+                row.dataset.voiceName = entry.name;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'voice-row-name';
+                nameSpan.textContent = entry.name;
+                row.appendChild(nameSpan);
+
+                if (entry.name === selectedVoiceName) {
+                    const check = document.createElement('span');
+                    check.className = 'voice-row-check';
+                    check.textContent = '\u2713';
+                    row.appendChild(check);
+                }
+
+                const previewBtn = document.createElement('button');
+                previewBtn.type = 'button';
+                previewBtn.className = 'voice-row-preview';
+                previewBtn.textContent = 'Preview';
+                previewBtn.dataset.voiceName = entry.name;
+                row.appendChild(previewBtn);
+
+                setupVoiceModalList.appendChild(row);
+            });
+        });
+    }
+
+    function stopVoicePreview() {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        if (previewAudio) { previewAudio.pause(); previewAudio = null; }
+    }
+
+    setupVoiceBtn.addEventListener('click', () => {
+        renderVoiceModal();
+        setupVoiceModal.style.display = 'flex';
+    });
+
+    setupVoiceModalClose.addEventListener('click', () => {
+        setupVoiceModal.style.display = 'none';
+        stopVoicePreview();
+    });
+
+    setupVoiceModal.addEventListener('click', (e) => {
+        if (e.target === setupVoiceModal) {
+            setupVoiceModal.style.display = 'none';
+            stopVoicePreview();
+        }
+    });
+
+    setupVoiceModalList.addEventListener('click', (e) => {
+        const previewBtn = e.target.closest('.voice-row-preview');
+        if (previewBtn) {
+            e.stopPropagation();
+            stopVoicePreview();
+            const voiceName = previewBtn.dataset.voiceName;
+            let url = '/api/voices/preview?voice=' + encodeURIComponent(voiceName);
+            if (voiceName === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
+            previewAudio = new Audio(url);
+            previewAudio.play().catch(() => {});
+            return;
+        }
+
+        const row = e.target.closest('.voice-row');
+        if (!row) return;
+        selectedVoiceName = row.dataset.voiceName;
+        localStorage.setItem('glooow-voice', selectedVoiceName);
+        updateVoiceBtnLabel();
+        renderVoiceModal();
+    });
+
+    // Fetch server voices and build the list
+    fetch('/api/voices')
+        .then(r => r.json())
+        .then(voices => buildSetupVoiceList(voices))
+        .catch(() => buildSetupVoiceList([]));
+
+    // Also rebuild when browser voices load (can be async)
+    if (window.speechSynthesis) {
+        window.speechSynthesis.addEventListener('voiceschanged', () => {
+            fetch('/api/voices')
+                .then(r => r.json())
+                .then(voices => buildSetupVoiceList(voices))
+                .catch(() => buildSetupVoiceList([]));
+        });
+    }
+
     // Home orb bounce on click
     const homeOrb = document.getElementById('home-orb');
     if (homeOrb) {
@@ -492,15 +700,20 @@
         ).map(el => el.value);
 
         const params = {
-            intention: document.getElementById('intention').value,
-            focuses: focuses,
-            qualities: qualities,
-            directiveness: dirBackendValue(),
-            verbosity: document.getElementById('verbosity').value,
-            custom_instructions: document.getElementById('custom_instructions').value,
+            meditation_type: activeTab,
             provider: providerSelect.value,
             model: modelSelect.value,
+            voice_name: selectedVoiceName || undefined,
         };
+
+        if (activeTab === 'exploration') {
+            params.intention = document.getElementById('intention').value;
+            params.focuses = focuses;
+            params.qualities = qualities;
+            params.directiveness = dirBackendValue();
+            params.verbosity = document.getElementById('verbosity').value;
+            params.custom_instructions = document.getElementById('custom_instructions').value;
+        }
 
         const cf = sessionStorage.getItem('continueFrom');
         if (cf) {

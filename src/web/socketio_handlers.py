@@ -67,6 +67,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             model=data.get("model"),
             provider=data.get("provider"),
             tts_enabled=data.get("tts", True),
+            meditation_type=data.get("meditation_type", "exploration"),
         )
 
         if not session_id:

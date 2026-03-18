@@ -243,6 +243,38 @@ body {
     font-size: 0.95rem;
 }
 
+.tab-bar {
+    display: flex;
+    gap: 0;
+    justify-content: center;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    padding: 0.5rem 1.5rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
 .setup-form {
     display: flex;
     flex-direction: column;
@@ -279,6 +311,33 @@ body {
 
 .form-group-half {
     flex: 1;
+}
+
+.form-row-thirds > .form-group {
+    flex: 1;
+}
+
+.setup-voice-btn {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 0.95rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: border-color var(--transition);
+}
+
+.setup-voice-btn:hover,
+.setup-voice-btn:focus {
+    border-color: var(--accent);
+    outline: none;
 }
 
 textarea, select, input[type="text"] {
