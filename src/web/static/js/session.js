@@ -406,7 +406,7 @@ function init() {
     // Initialize noting mode if applicable
     var isNoting = params.meditation_type === 'noting';
     if (isNoting) {
-        initNoting(params.participants || [], params.userTurnCue || false, sendText);
+        initNoting(params.participants || [], params.userTurnCue || false, sendText, params.userTurnCueSound || null);
 
         // Start the circle after the opener plays.
         // Listen for the first facilitator_message (the opener) and start after it.

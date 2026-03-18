@@ -177,6 +177,20 @@ def register_routes(app: Flask) -> None:
             "needs_restart": result.needs_restart,
         })
 
+    @app.route("/api/sounds")
+    def api_sounds():
+        """Return short names of available sound effects in static/audio/."""
+        audio_dir = os.path.join(app.static_folder, "audio")
+        if not os.path.isdir(audio_dir):
+            return jsonify([])
+        sounds = []
+        for fname in sorted(os.listdir(audio_dir)):
+            if not fname.endswith(".mp3"):
+                continue
+            name = fname.rsplit(".", 1)[0]
+            sounds.append({"name": name, "file": fname})
+        return jsonify(sounds)
+
     @app.route("/api/models/<provider>")
     def api_models(provider):
         """Fetch available models from a provider's API."""

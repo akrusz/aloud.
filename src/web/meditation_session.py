@@ -11,7 +11,7 @@ from ..facilitation.pacing import PacingController
 from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal, RESUME_INTENT_SYSTEM_PROMPT
 from ..facilitation.noting_prompts import (
     NOTING_SYSTEM_PROMPT, NOTING_OPENER_PROMPT, NOTING_CHECK_IN_PROMPTS,
-    NOTING_LABEL_SYSTEM_PROMPT, NOTING_LABEL_REACTIVE_ADDENDUM,
+    NOTING_LABEL_SYSTEM_PROMPT, NOTING_LABEL_REACTIVE_LOW, NOTING_LABEL_REACTIVE_HIGH,
 )
 from ..facilitation.session import SessionManager
 
@@ -250,16 +250,20 @@ class WebMeditationSession:
         )
         return _strip_think_tags(result.text)
 
-    async def generate_noting_label(self, context: list[str], reactive: bool) -> str:
+    async def generate_noting_label(self, context: list[str], reactive: str = "none") -> str:
         """Generate a 1-3 word noting label for the circle.
 
         Args:
             context: Recent labels from the circle (last few turns).
-            reactive: Whether to let context influence the label.
+            reactive: Reactivity level — "none", "low", or "high".
         """
         system = NOTING_LABEL_SYSTEM_PROMPT
-        if reactive and context:
-            system += NOTING_LABEL_REACTIVE_ADDENDUM.format(
+        if reactive == "high" and context:
+            system += NOTING_LABEL_REACTIVE_HIGH.format(
+                context=", ".join(context[-6:]),
+            )
+        elif reactive == "low" and context:
+            system += NOTING_LABEL_REACTIVE_LOW.format(
                 context=", ".join(context[-6:]),
             )
 

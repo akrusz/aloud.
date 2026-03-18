@@ -210,10 +210,13 @@
                 <button type="button" id="add-participant-btn" class="btn btn-secondary btn-small">+ Add participant</button>
             </div>
 
-            <label class="noting-option">
-                <input type="checkbox" id="user-turn-cue">
-                <span>Play a sound when it's your turn</span>
-            </label>
+            <div class="noting-option-row">
+                <label class="noting-option">
+                    <input type="checkbox" id="user-turn-cue">
+                    <span>Play a sound when it's your turn</span>
+                </label>
+                <button type="button" id="user-turn-cue-sound-btn" class="btn btn-secondary btn-small sound-pick-btn" data-sound="">Choose</button>
+            </div>
         </div>
 
         <div class="form-row">
@@ -251,22 +254,41 @@
             </div>
         </div>
     </div>
+
+    <div class="voice-modal-overlay" id="sound-modal" style="display: none;">
+        <div class="voice-modal">
+            <div class="voice-modal-header">
+                <span class="voice-modal-title">Choose Sound</span>
+                <button type="button" class="voice-modal-close" id="sound-modal-close">&times;</button>
+            </div>
+            <div class="voice-modal-list" id="sound-modal-list">
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     // ---- Tab switching ----
-    let activeTab = 'exploration';
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeTab = btn.dataset.tab;
-            document.getElementById('exploration-panel').style.display = activeTab === 'exploration' ? '' : 'none';
-            document.getElementById('noting-panel').style.display = activeTab === 'noting' ? '' : 'none';
+    let activeTab = localStorage.getItem('glooow-tab') || 'exploration';
+
+    function applyTab(tab) {
+        activeTab = tab;
+        localStorage.setItem('glooow-tab', tab);
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === tab);
         });
+        document.getElementById('exploration-panel').style.display = tab === 'exploration' ? '' : 'none';
+        document.getElementById('noting-panel').style.display = tab === 'noting' ? '' : 'none';
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => applyTab(btn.dataset.tab));
     });
+
+    // Restore saved tab on load
+    applyTab(activeTab);
 
     // ---- Presets ----
     const presets = {
@@ -489,6 +511,11 @@
     providerSelect.addEventListener('change', updateModelOptions);
     updateModelOptions();
 
+    // ---- Helpers ----
+    function stripVoiceQualifier(name) {
+        return name ? name.replace(/\s*\(.*\)$/, '') : name;
+    }
+
     // ---- Voice picker ----
     const QUALITY_VOICES_RE = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
     const TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
@@ -672,16 +699,19 @@
         row.className = 'participant-row';
         row.dataset.index = index;
 
+        const defaultVoice = localStorage.getItem('glooow-voice') || null;
+        const defaultLabel = defaultVoice ? stripVoiceQualifier(defaultVoice) : `Participant ${index + 1}`;
+
         row.innerHTML = `
             <div class="participant-row-header">
-                <span class="participant-label">Participant ${index + 1}</span>
+                <span class="participant-label">${defaultLabel}</span>
                 <button type="button" class="participant-remove" title="Remove">&times;</button>
             </div>
             <div class="participant-fields">
                 <div class="participant-field">
                     <label>Type</label>
                     <select class="participant-type">
-                        <option value="llm" selected>LLM</option>
+                        <option value="llm" selected>AI</option>
                         <option value="fixed">Fixed phrase</option>
                         <option value="sound">Sound effect</option>
                     </select>
@@ -702,14 +732,22 @@
                     <input type="number" class="participant-delay" value="4" min="1" max="30" step="1">
                 </div>
                 <div class="participant-field participant-reactive-field">
-                    <label class="participant-checkbox-label">
-                        <input type="checkbox" class="participant-reactive" checked>
-                        <span>Reactive</span>
-                    </label>
+                    <label>Responsiveness</label>
+                    <div class="reactive-slider-wrap">
+                        <input type="range" class="participant-reactive" min="0" max="2" value="1" step="1">
+                        <span class="reactive-label">Low</span>
+                    </div>
                 </div>
                 <div class="participant-field participant-phrase-field" style="display:none">
                     <label>Phrase</label>
-                    <input type="text" class="participant-phrase" placeholder="e.g. breathing" maxlength="30">
+                    <div class="phrase-input-wrap">
+                        <input type="text" class="participant-phrase" placeholder="e.g. breathing" maxlength="30">
+                        <button type="button" class="participant-phrase-preview btn btn-secondary btn-small" title="Preview phrase">&#9654;</button>
+                    </div>
+                </div>
+                <div class="participant-field participant-sound-field" style="display:none">
+                    <label>Sound</label>
+                    <button type="button" class="btn btn-secondary btn-small participant-sound-btn sound-pick-btn" data-sound="">Choose</button>
                 </div>
             </div>
         `;
@@ -719,12 +757,35 @@
         const voiceField = row.querySelector('.participant-voice-field');
         const reactiveField = row.querySelector('.participant-reactive-field');
         const phraseField = row.querySelector('.participant-phrase-field');
+        const soundField = row.querySelector('.participant-sound-field');
+
+        const labelEl = row.querySelector('.participant-label');
+
+        function updateLabel() {
+            if (typeSelect.value === 'sound') {
+                const snd = row.querySelector('.participant-sound-btn').dataset.sound;
+                labelEl.textContent = snd ? snd.charAt(0).toUpperCase() + snd.slice(1) : 'Sound';
+            } else {
+                const voice = row.querySelector('.participant-voice-btn').dataset.voice;
+                labelEl.textContent = voice ? stripVoiceQualifier(voice) : `Participant ${parseInt(row.dataset.index, 10) + 1}`;
+            }
+        }
 
         typeSelect.addEventListener('change', () => {
             const t = typeSelect.value;
             voiceField.style.display = t === 'sound' ? 'none' : '';
             reactiveField.style.display = t === 'llm' ? '' : 'none';
             phraseField.style.display = t === 'fixed' ? '' : 'none';
+            soundField.style.display = t === 'sound' ? '' : 'none';
+            updateLabel();
+        });
+
+        // Reactivity slider label
+        const reactiveSlider = row.querySelector('.participant-reactive');
+        const reactiveLabel = row.querySelector('.reactive-label');
+        const reactiveLabels = ['None', 'Low', 'High'];
+        reactiveSlider.addEventListener('input', () => {
+            reactiveLabel.textContent = reactiveLabels[reactiveSlider.value];
         });
 
         // Timing change: show/hide delay input
@@ -737,12 +798,40 @@
         // Voice picker for this participant
         const voiceBtn = row.querySelector('.participant-voice-btn');
         let participantVoice = localStorage.getItem('glooow-voice') || null;
-        if (participantVoice) voiceBtn.textContent = participantVoice;
+        if (participantVoice) {
+            voiceBtn.textContent = participantVoice;
+            voiceBtn.dataset.voice = participantVoice;
+        }
         voiceBtn.addEventListener('click', () => {
             openParticipantVoicePicker(voiceBtn, (voiceName) => {
                 participantVoice = voiceName;
                 voiceBtn.textContent = voiceName;
                 voiceBtn.dataset.voice = voiceName;
+                updateLabel();
+            });
+        });
+
+        // Phrase preview button
+        const phrasePreviewBtn = row.querySelector('.participant-phrase-preview');
+        const phraseInput = row.querySelector('.participant-phrase');
+        let phrasePreviewAudio = null;
+        phrasePreviewBtn.addEventListener('click', () => {
+            const text = phraseInput.value.trim() || 'breathing';
+            const voice = voiceBtn.dataset.voice || '';
+            if (phrasePreviewAudio) { phrasePreviewAudio.pause(); phrasePreviewAudio = null; }
+            let url = '/api/voices/preview?text=' + encodeURIComponent(text);
+            if (voice) url += '&voice=' + encodeURIComponent(voice);
+            phrasePreviewAudio = new Audio(url);
+            phrasePreviewAudio.play().catch(() => {});
+        });
+
+        // Sound picker button
+        const soundBtn = row.querySelector('.participant-sound-btn');
+        soundBtn.addEventListener('click', () => {
+            openSoundModal(soundBtn.dataset.sound, (name) => {
+                soundBtn.dataset.sound = name;
+                soundBtn.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+                updateLabel();
             });
         });
 
@@ -760,7 +849,10 @@
     function renumberParticipants() {
         participantList.querySelectorAll('.participant-row').forEach((row, i) => {
             row.dataset.index = i;
-            row.querySelector('.participant-label').textContent = `Participant ${i + 1}`;
+            const voice = row.querySelector('.participant-voice-btn').dataset.voice;
+            if (!voice) {
+                row.querySelector('.participant-label').textContent = `Participant ${i + 1}`;
+            }
         });
     }
 
@@ -781,6 +873,93 @@
     // Add one default participant
     addParticipant();
 
+    // ---- Sound modal ----
+    let availableSounds = [];
+    const soundModal = document.getElementById('sound-modal');
+    const soundModalList = document.getElementById('sound-modal-list');
+    const soundModalClose = document.getElementById('sound-modal-close');
+    let soundPreviewAudio = null;
+    let soundModalCallback = null;
+
+    fetch('/api/sounds').then(r => r.json()).then(sounds => {
+        availableSounds = sounds;
+    }).catch(() => {});
+
+    function openSoundModal(currentSound, onSelect) {
+        soundModalCallback = onSelect;
+        soundModalList.innerHTML = '';
+
+        availableSounds.forEach(s => {
+            const row = document.createElement('div');
+            row.className = 'voice-row' + (s.name === currentSound ? ' selected' : '');
+            row.dataset.soundName = s.name;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'voice-row-name';
+            nameSpan.textContent = s.name.charAt(0).toUpperCase() + s.name.slice(1);
+            row.appendChild(nameSpan);
+
+            if (s.name === currentSound) {
+                const check = document.createElement('span');
+                check.className = 'voice-row-check';
+                check.textContent = '\u2713';
+                row.appendChild(check);
+            }
+
+            const previewBtn = document.createElement('button');
+            previewBtn.type = 'button';
+            previewBtn.className = 'voice-row-preview';
+            previewBtn.textContent = 'Preview';
+            previewBtn.dataset.soundFile = s.file;
+            row.appendChild(previewBtn);
+
+            soundModalList.appendChild(row);
+        });
+
+        soundModal.style.display = 'flex';
+    }
+
+    function stopSoundPreview() {
+        if (soundPreviewAudio) { soundPreviewAudio.pause(); soundPreviewAudio = null; }
+    }
+
+    function closeSoundModal() {
+        soundModal.style.display = 'none';
+        stopSoundPreview();
+        soundModalCallback = null;
+    }
+
+    soundModalClose.addEventListener('click', closeSoundModal);
+    soundModal.addEventListener('click', (e) => {
+        if (e.target === soundModal) closeSoundModal();
+    });
+
+    soundModalList.addEventListener('click', (e) => {
+        // Preview
+        const previewBtn = e.target.closest('.voice-row-preview');
+        if (previewBtn) {
+            stopSoundPreview();
+            soundPreviewAudio = new Audio('/static/audio/' + encodeURIComponent(previewBtn.dataset.soundFile));
+            soundPreviewAudio.play().catch(() => {});
+            return;
+        }
+        // Select
+        const row = e.target.closest('.voice-row');
+        if (row && soundModalCallback) {
+            soundModalCallback(row.dataset.soundName);
+            closeSoundModal();
+        }
+    });
+
+    // User turn cue sound button
+    const userCueSoundBtn = document.getElementById('user-turn-cue-sound-btn');
+    userCueSoundBtn.addEventListener('click', () => {
+        openSoundModal(userCueSoundBtn.dataset.sound, (name) => {
+            userCueSoundBtn.dataset.sound = name;
+            userCueSoundBtn.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        });
+    });
+
     function getParticipantConfigs() {
         const configs = [];
         participantList.querySelectorAll('.participant-row').forEach(row => {
@@ -793,10 +972,14 @@
                 voice: row.querySelector('.participant-voice-btn').dataset.voice || null,
             };
             if (type === 'llm') {
-                config.reactive = row.querySelector('.participant-reactive').checked;
+                const reactiveVal = parseInt(row.querySelector('.participant-reactive').value, 10);
+                config.reactive = ['none', 'low', 'high'][reactiveVal] || 'none';
             }
             if (type === 'fixed') {
                 config.phrase = row.querySelector('.participant-phrase').value.trim() || 'breathing';
+            }
+            if (type === 'sound') {
+                config.sound = row.querySelector('.participant-sound-btn').dataset.sound || null;
             }
             configs.push(config);
         });
@@ -914,6 +1097,9 @@
         } else if (activeTab === 'noting') {
             params.participants = getParticipantConfigs();
             params.userTurnCue = document.getElementById('user-turn-cue').checked;
+            if (params.userTurnCue) {
+                params.userTurnCueSound = document.getElementById('user-turn-cue-sound-btn').dataset.sound || null;
+            }
         }
 
         const cf = sessionStorage.getItem('continueFrom');

@@ -276,7 +276,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             return
 
         context = data.get("context", [])
-        reactive = data.get("reactive", False)
+        reactive = data.get("reactive", "none")
         participant_index = data.get("participant_index", 0)
         voice = data.get("voice")
 

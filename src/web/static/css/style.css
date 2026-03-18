@@ -343,8 +343,8 @@ body {
 /* ---- Noting participant rows ---- */
 
 .participant-row {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
     padding: 0.75rem;
     margin-bottom: 0.75rem;
@@ -382,7 +382,7 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    align-items: flex-end;
+    align-items: stretch;
 }
 
 .participant-field {
@@ -401,7 +401,11 @@ body {
 .participant-field input[type="text"],
 .participant-field input[type="number"] {
     font-size: 0.85rem;
-    padding: 0.4rem 0.6rem;
+    padding: 0.4rem 1.6rem 0.4rem 0.6rem;
+}
+.participant-field input[type="text"],
+.participant-field input[type="number"] {
+    padding-right: 0.6rem;
 }
 
 .participant-field input[type="number"] {
@@ -413,9 +417,14 @@ body {
     font-family: var(--font);
 }
 
+.participant-voice-field {
+    min-width: 9rem;
+}
 .participant-voice-btn {
     font-size: 0.85rem !important;
     padding: 0.4rem 0.6rem !important;
+    width: 100%;
+    text-align: left;
 }
 
 .participant-checkbox-label {
@@ -428,6 +437,12 @@ body {
     padding-bottom: 0.4rem;
 }
 
+.noting-option-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
 .noting-option {
     display: flex;
     align-items: center;
@@ -435,6 +450,42 @@ body {
     font-size: 0.9rem;
     color: var(--text-secondary);
     cursor: pointer;
+}
+.noting-option input[type="checkbox"] {
+    accent-color: var(--accent);
+}
+.reactive-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+.reactive-slider-wrap input[type="range"] {
+    width: 5rem;
+    accent-color: var(--accent);
+}
+.reactive-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 2.5rem;
+}
+.sound-pick-btn {
+    font-size: 0.85rem !important;
+    padding: 0.4rem 0.6rem !important;
+}
+.phrase-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.phrase-input-wrap input[type="text"] {
+    flex: 1;
+    min-width: 0;
+}
+.participant-phrase-preview {
+    padding: 0.3rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1;
 }
 
 .btn-small {
@@ -815,6 +866,17 @@ body:has(.session-container) {
     animation: messageIn 0.4s ease;
 }
 
+.message-sender {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.15rem;
+    padding-left: 0.25rem;
+}
+.message.user .message-sender {
+    text-align: right;
+    padding-right: 0.25rem;
+    padding-left: 0;
+}
 .message-content {
     padding: 0.75rem 1rem;
     border-radius: var(--radius);

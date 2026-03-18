@@ -10,8 +10,10 @@ import { playServerAudio, speakBrowser, stopServerAudio } from './tts.js';
 
 var notingState = {
     active: false,
+    paused: false,       // true when mic is muted
     participants: [],    // from setup config
     userTurnCue: false,
+    userTurnCueSound: null,  // short name of sound for user turn cue
     turnOrder: [],       // ['user', 0, 1, 2, ...] indices into participants
     currentTurn: -1,
     recentLabels: [],    // last N labels for reactive context
@@ -22,19 +24,37 @@ var notingState = {
     audioContext: null,
     awaitingUser: false, // true when it's the user's turn
     sendTextFn: null,    // injected from session.js
+    soundBuffers: {},    // name -> AudioBuffer cache
 };
 
 // Expose for socket handlers
 export { notingState };
 
-export function initNoting(participants, userTurnCue, sendTextFn) {
+function participantName(index) {
+    var p = notingState.participants[index];
+    if (!p) return 'Participant';
+    if (p.type === 'sound') {
+        var snd = p.sound || 'sound';
+        return snd.charAt(0).toUpperCase() + snd.slice(1);
+    }
+    if (p.voice) {
+        // Strip qualifier like "(Premium)" from voice name
+        return p.voice.replace(/\s*\(.*\)$/, '');
+    }
+    return 'Participant ' + (index + 1);
+}
+
+export function initNoting(participants, userTurnCue, sendTextFn, userTurnCueSound) {
     notingState.participants = participants || [];
     notingState.userTurnCue = userTurnCue || false;
+    notingState.userTurnCueSound = userTurnCueSound || null;
     notingState.sendTextFn = sendTextFn;
     notingState.active = true;
+    notingState.paused = false;
     notingState.recentLabels = [];
     notingState.userCadences = [];
     notingState.currentTurn = -1;
+    notingState.soundBuffers = {};
 
     // Build turn order: user, then each participant index
     notingState.turnOrder = ['user'];
@@ -45,9 +65,32 @@ export function initNoting(participants, userTurnCue, sendTextFn) {
     // Audio context for turn cue sound
     notingState.audioContext = state.audioContext || null;
 
+    // Preload sound effects
+    var soundsToLoad = [];
+    if (notingState.userTurnCueSound) soundsToLoad.push(notingState.userTurnCueSound);
+    for (var j = 0; j < notingState.participants.length; j++) {
+        if (notingState.participants[j].type === 'sound' && notingState.participants[j].sound) {
+            soundsToLoad.push(notingState.participants[j].sound);
+        }
+    }
+    soundsToLoad.forEach(function (name) {
+        preloadSound(name);
+    });
+
     // Listen for noting responses from server
     socket.on('noting_label', handleNotingLabel);
     socket.on('noting_audio', handleNotingAudio);
+
+    // Pause/resume when mic is muted/unmuted.
+    // Poll voiceActive state — catches all mute paths (button, voice command, etc.)
+    notingState._mutePoller = setInterval(function () {
+        if (!notingState.active) return;
+        if (!state.voiceActive && !notingState.paused) {
+            pauseCircle();
+        } else if (state.voiceActive && notingState.paused) {
+            resumeCircle();
+        }
+    }, 500);
 }
 
 export function startCircle() {
@@ -57,12 +100,41 @@ export function startCircle() {
 
 export function stopCircle() {
     notingState.active = false;
+    notingState.paused = false;
+    clearServerTimeout();
     if (notingState.waitTimer) {
         clearTimeout(notingState.waitTimer);
         notingState.waitTimer = null;
     }
+    if (notingState._mutePoller) {
+        clearInterval(notingState._mutePoller);
+        notingState._mutePoller = null;
+    }
     socket.off('noting_label', handleNotingLabel);
     socket.off('noting_audio', handleNotingAudio);
+}
+
+export function pauseCircle() {
+    if (!notingState.active || notingState.paused) return;
+    notingState.paused = true;
+    notingState.awaitingUser = false;
+    if (notingState.waitTimer) {
+        clearTimeout(notingState.waitTimer);
+        notingState.waitTimer = null;
+    }
+    stopServerAudio();
+}
+
+export function resumeCircle() {
+    if (!notingState.active || !notingState.paused) return;
+    notingState.paused = false;
+    // Restart from the current turn position
+    var turn = notingState.turnOrder[notingState.currentTurn];
+    if (turn === 'user') {
+        startUserTurn();
+    } else {
+        startParticipantTurn(turn);
+    }
 }
 
 // Called by audio.js/session.js when user speaks during their turn
@@ -79,7 +151,7 @@ export function handleUserNote(text) {
     notingState.recentLabels.push(text);
     if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
 
-    addMessage('user', text);
+    addMessage('user', text, false, 'You');
 
     // Wait briefly then advance
     scheduleNextTurn(500);
@@ -87,7 +159,7 @@ export function handleUserNote(text) {
 }
 
 function advanceTurn() {
-    if (!notingState.active) return;
+    if (!notingState.active || notingState.paused) return;
 
     notingState.currentTurn = (notingState.currentTurn + 1) % notingState.turnOrder.length;
     var turn = notingState.turnOrder[notingState.currentTurn];
@@ -100,15 +172,21 @@ function advanceTurn() {
 }
 
 function startUserTurn() {
+    if (notingState.paused) return;
     notingState.awaitingUser = true;
     notingState.userTurnStart = Date.now();
 
     if (notingState.userTurnCue) {
-        playTurnCue();
+        if (notingState.userTurnCueSound) {
+            playSound(notingState.userTurnCueSound);
+        } else {
+            playSynthChime();
+        }
     }
 }
 
 function startParticipantTurn(index) {
+    if (notingState.paused) return;
     var p = notingState.participants[index];
     if (!p) { scheduleNextTurn(1000); return; }
 
@@ -121,12 +199,13 @@ function startParticipantTurn(index) {
 }
 
 function executeParticipantTurn(index, p) {
-    if (!notingState.active) return;
+    if (!notingState.active || notingState.paused) return;
 
     if (p.type === 'llm') {
+        startServerTimeout();
         socket.emit('noting_turn', {
             context: notingState.recentLabels.slice(),
-            reactive: p.reactive || false,
+            reactive: p.reactive || 'none',
             participant_index: index,
             voice: p.voice || null,
         });
@@ -134,28 +213,37 @@ function executeParticipantTurn(index, p) {
         var phrase = p.phrase || 'breathing';
         notingState.recentLabels.push(phrase);
         if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
-        addMessage('facilitator', phrase);
+        addMessage('facilitator', phrase, false, participantName(index));
 
+        startServerTimeout();
         socket.emit('noting_tts', {
             text: phrase,
             voice: p.voice || null,
             participant_index: index,
         });
     } else if (p.type === 'sound') {
-        playTurnCue();
-        addMessage('facilitator', '~');
-        scheduleNextTurn(1000);
+        var soundName = p.sound || null;
+        var displayName = participantName(index);
+        if (soundName) {
+            playSound(soundName, function () { scheduleNextTurn(300); });
+        } else {
+            playSynthChime();
+            scheduleNextTurn(1000);
+        }
+        addMessage('facilitator', '\u2329' + displayName + '\u232A', false, displayName);
     }
 }
 
 function handleNotingLabel(data) {
-    if (!notingState.active) return;
+    if (!notingState.active || notingState.paused) return;
 
+    clearServerTimeout();
     var label = data.text || 'breathing';
+    var pIndex = data.participant_index;
     notingState.recentLabels.push(label);
     if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
 
-    addMessage('facilitator', label);
+    addMessage('facilitator', label, false, participantName(pIndex));
 
     if (data.audio && state.audioContext) {
         playAudioThenAdvance(data.audio, label);
@@ -166,8 +254,9 @@ function handleNotingLabel(data) {
 }
 
 function handleNotingAudio(data) {
-    if (!notingState.active) return;
+    if (!notingState.active || notingState.paused) return;
 
+    clearServerTimeout();
     if (data.audio && state.audioContext) {
         playAudioThenAdvance(data.audio, data.text);
     } else if (data.text) {
@@ -206,7 +295,7 @@ function playAudioThenAdvance(audioBytes, fallbackText) {
 }
 
 function scheduleNextTurn(delayMs) {
-    if (!notingState.active) return;
+    if (!notingState.active || notingState.paused) return;
     notingState.waitTimer = setTimeout(function () {
         notingState.waitTimer = null;
         advanceTurn();
@@ -228,7 +317,61 @@ function getParticipantDelay(p) {
     return notingState.defaultCadenceMs;
 }
 
-function playTurnCue() {
+// Server response timeout — if the server doesn't respond within this
+// window, skip the turn so the circle doesn't stall.
+var SERVER_TIMEOUT_MS = 15000;
+
+function startServerTimeout() {
+    clearServerTimeout();
+    notingState._serverTimeout = setTimeout(function () {
+        notingState._serverTimeout = null;
+        if (!notingState.active || notingState.paused) return;
+        console.warn('Noting: server response timeout, skipping turn');
+        scheduleNextTurn(500);
+    }, SERVER_TIMEOUT_MS);
+}
+
+function clearServerTimeout() {
+    if (notingState._serverTimeout) {
+        clearTimeout(notingState._serverTimeout);
+        notingState._serverTimeout = null;
+    }
+}
+
+function preloadSound(name) {
+    if (notingState.soundBuffers[name]) return;
+    var ctx = notingState.audioContext || state.audioContext;
+    if (!ctx) return;
+
+    fetch('/static/audio/' + encodeURIComponent(name) + '.mp3')
+        .then(function (r) { return r.arrayBuffer(); })
+        .then(function (buf) {
+            return ctx.decodeAudioData(buf);
+        })
+        .then(function (decoded) {
+            notingState.soundBuffers[name] = decoded;
+        })
+        .catch(function () { /* sound will fall back to synth chime */ });
+}
+
+function playSound(name, onEnded) {
+    var ctx = notingState.audioContext || state.audioContext;
+    var buffer = notingState.soundBuffers[name];
+    if (!ctx || !buffer) {
+        playSynthChime();
+        if (onEnded) onEnded();
+        return;
+    }
+    var source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    if (onEnded) {
+        source.onended = onEnded;
+    }
+    source.start(0);
+}
+
+function playSynthChime() {
     var ctx = notingState.audioContext || state.audioContext;
     if (!ctx) return;
 
