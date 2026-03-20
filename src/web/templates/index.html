@@ -215,7 +215,7 @@
                     <input type="checkbox" id="user-turn-cue">
                     <span>Play a sound when it's your turn</span>
                 </label>
-                <button type="button" id="user-turn-cue-sound-btn" class="btn btn-secondary btn-small sound-pick-btn" data-sound="">Choose</button>
+                <button type="button" id="user-turn-cue-sound-btn" class="btn btn-secondary btn-small sound-pick-btn" data-sound="card">Card</button>
             </div>
         </div>
 
@@ -747,7 +747,7 @@
                 </div>
                 <div class="participant-field participant-sound-field" style="display:none">
                     <label>Sound</label>
-                    <button type="button" class="btn btn-secondary btn-small participant-sound-btn sound-pick-btn" data-sound="">Choose</button>
+                    <button type="button" class="btn btn-secondary btn-small participant-sound-btn sound-pick-btn" data-sound="crow">Crow</button>
                 </div>
             </div>
         `;
@@ -881,9 +881,12 @@
     let soundPreviewAudio = null;
     let soundModalCallback = null;
 
+    // Built-in synth chime (no MP3 file — generated via Web Audio API)
+    const BUILTIN_CHIME = { name: 'chime', file: null, builtin: true };
+
     fetch('/api/sounds').then(r => r.json()).then(sounds => {
-        availableSounds = sounds;
-    }).catch(() => {});
+        availableSounds = [BUILTIN_CHIME].concat(sounds);
+    }).catch(() => { availableSounds = [BUILTIN_CHIME]; });
 
     function openSoundModal(currentSound, onSelect) {
         soundModalCallback = onSelect;
@@ -910,7 +913,7 @@
             previewBtn.type = 'button';
             previewBtn.className = 'voice-row-preview';
             previewBtn.textContent = 'Preview';
-            previewBtn.dataset.soundFile = s.file;
+            previewBtn.dataset.soundFile = s.file || '';
             row.appendChild(previewBtn);
 
             soundModalList.appendChild(row);
@@ -934,13 +937,34 @@
         if (e.target === soundModal) closeSoundModal();
     });
 
+    function previewChime() {
+        // Play the same two-tone ascending chime as noting.js playSynthChime
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(554, now + 0.1);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }
+
     soundModalList.addEventListener('click', (e) => {
         // Preview
         const previewBtn = e.target.closest('.voice-row-preview');
         if (previewBtn) {
             stopSoundPreview();
-            soundPreviewAudio = new Audio('/static/audio/' + encodeURIComponent(previewBtn.dataset.soundFile));
-            soundPreviewAudio.play().catch(() => {});
+            if (previewBtn.dataset.soundFile) {
+                soundPreviewAudio = new Audio('/static/audio/' + encodeURIComponent(previewBtn.dataset.soundFile));
+                soundPreviewAudio.play().catch(() => {});
+            } else {
+                previewChime();
+            }
             return;
         }
         // Select

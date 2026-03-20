@@ -62,18 +62,21 @@ export function initNoting(participants, userTurnCue, sendTextFn, userTurnCueSou
         notingState.turnOrder.push(i);
     }
 
-    // Audio context for turn cue sound
+    // Audio context for turn cue sound (may be null here — sounds
+    // are preloaded lazily in startCircle once AudioContext exists)
     notingState.audioContext = state.audioContext || null;
 
-    // Preload sound effects
-    var soundsToLoad = [];
-    if (notingState.userTurnCueSound) soundsToLoad.push(notingState.userTurnCueSound);
+    // Collect sound names to preload (actual loading deferred to startCircle)
+    notingState._pendingSounds = [];
+    if (notingState.userTurnCueSound) notingState._pendingSounds.push(notingState.userTurnCueSound);
     for (var j = 0; j < notingState.participants.length; j++) {
         if (notingState.participants[j].type === 'sound' && notingState.participants[j].sound) {
-            soundsToLoad.push(notingState.participants[j].sound);
+            notingState._pendingSounds.push(notingState.participants[j].sound);
         }
     }
-    soundsToLoad.forEach(function (name) {
+
+    // Try preloading now (will succeed if AudioContext already exists)
+    notingState._pendingSounds.forEach(function (name) {
         preloadSound(name);
     });
 
@@ -95,6 +98,16 @@ export function initNoting(participants, userTurnCue, sendTextFn, userTurnCueSou
 
 export function startCircle() {
     if (!notingState.active) return;
+
+    // AudioContext now exists — pick it up and preload any sounds that
+    // failed earlier (initNoting runs before activateVoice creates it).
+    notingState.audioContext = state.audioContext || notingState.audioContext;
+    if (notingState._pendingSounds) {
+        notingState._pendingSounds.forEach(function (name) {
+            preloadSound(name);
+        });
+    }
+
     advanceTurn();
 }
 
@@ -141,6 +154,12 @@ export function resumeCircle() {
 export function handleUserNote(text) {
     if (!notingState.awaitingUser || !notingState.active) return false;
 
+    // Reject transcriptions arriving too quickly after turn start — these
+    // are echo from the previous participant's audio, not real user speech.
+    // Real notes need: ~0.5s think + ~0.5s speech + ~1s silence + ~0.5s STT ≈ 2.5s+
+    var timeSinceTurnStart = Date.now() - notingState.userTurnStart;
+    if (timeSinceTurnStart < 2000) return false;
+
     notingState.awaitingUser = false;
 
     // Record cadence
@@ -149,7 +168,7 @@ export function handleUserNote(text) {
     if (notingState.userCadences.length > 5) notingState.userCadences.shift();
 
     notingState.recentLabels.push(text);
-    if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
+    if (notingState.recentLabels.length > 16) notingState.recentLabels.shift();
 
     addMessage('user', text, false, 'You');
 
@@ -171,16 +190,52 @@ function advanceTurn() {
     }
 }
 
+var USER_TURN_DELAY = 1000; // pause before user turn cue to let circle breathe
+
 function startUserTurn() {
     if (notingState.paused) return;
+
+    // Reset VAD state so stale audio from participant turns (AI TTS echo,
+    // sound effects leaking through the mic) doesn't get transcribed as
+    // user speech.  All VAD fields live on the shared state object.
+    state.audioChunks = [];
+    state.vadState = 'silence';
+    state.speechStartTime = 0;
+    state.lastSpeechTime = 0;
+    state.preBuffer = [];
+    state.speculativeSent = false;
+    state.speculativeText = null;
+    state.awaitingSpeculative = false;
+    state.pendingTranscriptions = 0;
+
+    // Accept speech immediately (especially important for the first turn
+    // after the opener, where there's already a natural pause).
     notingState.awaitingUser = true;
     notingState.userTurnStart = Date.now();
 
+    // Brief pause before the turn cue sound — prevents the cue from
+    // feeling rushed after the previous participant.  On the very first
+    // turn (no cadence data yet) skip the delay since the opener gap
+    // already provides breathing room.
+    var cueDelay = notingState.userCadences.length === 0 ? 0 : USER_TURN_DELAY;
+
     if (notingState.userTurnCue) {
-        if (notingState.userTurnCueSound) {
-            playSound(notingState.userTurnCueSound);
+        if (cueDelay > 0) {
+            notingState.waitTimer = setTimeout(function () {
+                notingState.waitTimer = null;
+                if (!notingState.active || notingState.paused) return;
+                if (notingState.userTurnCueSound) {
+                    playSound(notingState.userTurnCueSound);
+                } else {
+                    playSynthChime();
+                }
+            }, cueDelay);
         } else {
-            playSynthChime();
+            if (notingState.userTurnCueSound) {
+                playSound(notingState.userTurnCueSound);
+            } else {
+                playSynthChime();
+            }
         }
     }
 }
@@ -212,7 +267,7 @@ function executeParticipantTurn(index, p) {
     } else if (p.type === 'fixed') {
         var phrase = p.phrase || 'breathing';
         notingState.recentLabels.push(phrase);
-        if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
+        if (notingState.recentLabels.length > 16) notingState.recentLabels.shift();
         addMessage('facilitator', phrase, false, participantName(index));
 
         startServerTimeout();
@@ -241,7 +296,7 @@ function handleNotingLabel(data) {
     var label = data.text || 'breathing';
     var pIndex = data.participant_index;
     notingState.recentLabels.push(label);
-    if (notingState.recentLabels.length > 8) notingState.recentLabels.shift();
+    if (notingState.recentLabels.length > 16) notingState.recentLabels.shift();
 
     addMessage('facilitator', label, false, participantName(pIndex));
 
@@ -339,6 +394,7 @@ function clearServerTimeout() {
 }
 
 function preloadSound(name) {
+    if (!name || name === 'chime') return; // built-in synth, no file to load
     if (notingState.soundBuffers[name]) return;
     var ctx = notingState.audioContext || state.audioContext;
     if (!ctx) return;
@@ -355,25 +411,65 @@ function preloadSound(name) {
 }
 
 function playSound(name, onEnded) {
-    var ctx = notingState.audioContext || state.audioContext;
-    var buffer = notingState.soundBuffers[name];
-    if (!ctx || !buffer) {
+    // Built-in synth chime — no MP3 file
+    if (!name || name === 'chime') {
         playSynthChime();
         if (onEnded) onEnded();
         return;
     }
+
+    var ctx = notingState.audioContext || state.audioContext;
+    if (!ctx) {
+        playSynthChime();
+        if (onEnded) onEnded();
+        return;
+    }
+
+    var buffer = notingState.soundBuffers[name];
+    if (buffer) {
+        playSoundBuffer(ctx, buffer, onEnded);
+        return;
+    }
+
+    // Buffer not ready — try loading on demand (preload may have run
+    // before AudioContext existed).
+    fetch('/static/audio/' + encodeURIComponent(name) + '.mp3')
+        .then(function (r) { return r.arrayBuffer(); })
+        .then(function (buf) { return ctx.decodeAudioData(buf); })
+        .then(function (decoded) {
+            notingState.soundBuffers[name] = decoded;
+            playSoundBuffer(ctx, decoded, onEnded);
+        })
+        .catch(function () {
+            playSynthChime();
+            if (onEnded) onEnded();
+        });
+}
+
+function playSoundBuffer(ctx, buffer, onEnded) {
+    // Signal the VAD so the mic ignores this playback (prevents the
+    // mic from picking up the sound and transcribing it as user speech).
+    state.ttsSpeaking = true;
+    state.serverAudioPlaying = true;
+
     var source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
-    if (onEnded) {
-        source.onended = onEnded;
-    }
+    source.onended = function () {
+        state.serverAudioPlaying = false;
+        state.ttsSpeaking = false;
+        if (onEnded) onEnded();
+    };
     source.start(0);
 }
 
 function playSynthChime() {
     var ctx = notingState.audioContext || state.audioContext;
     if (!ctx) return;
+
+    // Signal the VAD so the mic ignores this playback
+    state.ttsSpeaking = true;
+    state.serverAudioPlaying = true;
 
     // Simple two-tone ascending chime (~200ms)
     var now = ctx.currentTime;
@@ -388,4 +484,8 @@ function playSynthChime() {
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
     osc.start(now);
     osc.stop(now + 0.2);
+    osc.onended = function () {
+        state.serverAudioPlaying = false;
+        state.ttsSpeaking = false;
+    };
 }

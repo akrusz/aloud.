@@ -261,11 +261,11 @@ class WebMeditationSession:
         system = NOTING_LABEL_SYSTEM_PROMPT
         if reactive == "high" and context:
             system += NOTING_LABEL_REACTIVE_HIGH.format(
-                context=", ".join(context[-6:]),
+                context=", ".join(context[-12:]),
             )
         elif reactive == "low" and context:
             system += NOTING_LABEL_REACTIVE_LOW.format(
-                context=", ".join(context[-6:]),
+                context=", ".join(context[-12:]),
             )
 
         try:

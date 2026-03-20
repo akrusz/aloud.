@@ -1,0 +1,76 @@
+audio:
+  input_device: default
+  sample_rate: 16000
+  channels: 1
+  chunk_size: 480  # 30ms at 16kHz
+  vad_sensitivity: 2  # 0-3, higher = more sensitive
+
+stt:
+  engine: whisper
+  model: small  # tiny, base, small, medium, large
+  language: en
+  device: auto  # auto, cpu, cuda, mps
+
+tts:
+  # Engine options:
+  #   macos   -- macOS native 'say' command (macOS only)
+  #   piper   -- Piper neural TTS (pip install piper-tts)
+  #   browser -- no server-side audio; falls back to browser speechSynthesis
+  engine: macos
+  voice: "Zoe (Premium)"
+  rate: 160  # words per minute
+
+  # Parakeet options (if engine: parakeet)
+  # model_name: nvidia/parakeet-tts-1.1b
+  # backend: transformers  # transformers, nemo, onnx
+
+  # ElevenLabs options (if engine: elevenlabs)
+  # api_key: ${ELEVENLABS_API_KEY}
+  # voice_id: 21m00Tcm4TlvDq8ikWAM  # Rachel - calm, warm
+  # model_id: eleven_v3
+  # stability: 0.75
+  # similarity_boost: 0.75
+
+llm:
+  provider: claude_proxy  # ollama, claude_proxy, anthropic, openai, openrouter, venice
+  model: claude-sonnet-4-6
+
+  # API key — uses env var substitution so keys stay out of the file.
+  # Set the matching env var for your provider:
+  #   anthropic:   ANTHROPIC_API_KEY
+  #   openai:      OPENAI_API_KEY
+  #   openrouter:  OPENROUTER_API_KEY
+  #   venice:      VENICE_API_KEY
+  #   claude_proxy: uses the fixed key below (localhost only)
+  api_key: glooow
+
+  # For claude_proxy (CLIProxyAPI)
+  proxy_url: http://127.0.0.1:8317
+
+  # For Ollama
+  ollama_url: http://localhost:11434
+  ollama_model: qwen3.5:4b
+
+  context:
+    strategy: full  # full, rolling
+    window_size: 10    # exchanges to keep (if rolling)
+    max_tokens: 300    # max response tokens
+
+pacing:
+  response_delay_ms: 2000       # wait after speech ends before responding
+  min_speech_duration_ms: 500   # ignore very short sounds
+  extended_silence_sec: 300     # when to offer gentle check-in
+
+facilitation:
+  directiveness: 3          # 0-10 scale
+  focuses: []               # body_sensations, emotions, inner_parts
+  qualities: []             # playful, compassionate, loving, spacious, effortless, feeling_good
+  verbosity: low            # low, medium, high
+  custom_instructions: |
+    Feel free to suggest releasing the need to pay attention to anything specific.
+    Trust the meditator's process.
+
+session:
+  auto_save: true
+  save_directory: sessions
+  include_timestamps: true

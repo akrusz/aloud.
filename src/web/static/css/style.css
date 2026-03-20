@@ -472,6 +472,7 @@ body {
 .sound-pick-btn {
     font-size: 0.85rem !important;
     padding: 0.4rem 0.6rem !important;
+    background: var(--bg-input);
 }
 .phrase-input-wrap {
     display: flex;

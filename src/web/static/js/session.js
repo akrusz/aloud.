@@ -408,16 +408,24 @@ function init() {
     if (isNoting) {
         initNoting(params.participants || [], params.userTurnCue || false, sendText, params.userTurnCueSound || null);
 
-        // Start the circle after the opener plays.
-        // Listen for the first facilitator_message (the opener) and start after it.
-        var startedCircle = false;
-        socket.on('facilitator_message', function onOpenerForNoting(data) {
-            if (startedCircle) return;
-            startedCircle = true;
-            // Wait a moment for TTS to finish, then start circle
-            setTimeout(function () { startCircle(); }, 3000);
-            // Don't remove — the existing handler in socketHandlers still needs to fire
-        });
+        // Start the circle after the opener TTS finishes playing.
+        // We register a one-shot callback (state.onTtsDone) that fires
+        // when TTS playback completes — no polling needed.
+        var circleStarted = false;
+
+        function onOpenerDone() {
+            if (circleStarted) return;
+            circleStarted = true;
+            setTimeout(function () { startCircle(); }, 1500);
+        }
+
+        // Set the callback BEFORE the facilitator_message arrives so it's
+        // in place whether speak() runs immediately or speech is queued.
+        state.onTtsDone = onOpenerDone;
+
+        // Safety: if TTS never fires (toggle off, broken synth, no audio),
+        // start the circle after 15s.
+        setTimeout(function () { onOpenerDone(); }, 15000);
     }
 
     // Auto-activate voice

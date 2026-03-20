@@ -11,7 +11,7 @@ import webbrowser
 from pathlib import Path
 
 import httpx
-from flask import Flask
+from flask import Flask, request
 from flask_socketio import SocketIO
 
 from .. import __version__
@@ -40,7 +40,17 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
         static_folder=str(Path(__file__).parent / "static"),
     )
     app.config["SECRET_KEY"] = os.environ.get("GLOOOW_SECRET_KEY", config.web.secret_key)
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     app.jinja_env.globals["glooow_version"] = __version__
+
+    @app.after_request
+    def _no_cache_js(response):
+        """Prevent browser from caching JS files (including ES module imports)."""
+        if request.path.endswith('.js') or request.path.endswith('.css'):
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
 
     socketio = SocketIO(
         app,

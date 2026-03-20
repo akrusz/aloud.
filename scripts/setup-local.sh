@@ -226,19 +226,8 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
 
     ok "All set! Using local AI with $OLLAMA_MODEL"
 
-elif [ "$LLM_CHOICE" = "3" ]; then
-    LLM_PROVIDER="venice"
-    LLM_MODEL="llama-3.3-70b"
-    printf "  Venice API key: " >&2
-    read -r VENICE_KEY < /dev/tty
-    if [ -n "$VENICE_KEY" ]; then
-        echo "  Add to your shell profile:"
-        echo "    export VENICE_API_KEY=\"$VENICE_KEY\""
-        export VENICE_API_KEY="$VENICE_KEY"
-    fi
-    ok "Using Venice.ai with model $LLM_MODEL"
-else
-    API_KEY=$(ask "CLIProxyAPI key" "$API_KEY")
+elif [ "$LLM_CHOICE" = "2" ]; then
+    LLM_PROVIDER="claude_proxy"
 
     # CLIProxyAPI is a local proxy that lets apps use your Claude Pro/Max
     # subscription. It must be installed and running separately.
