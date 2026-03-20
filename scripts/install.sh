@@ -203,18 +203,29 @@ elif [ "$LLM_CHOICE" = "2" ]; then
     # CLIProxyAPI is a local proxy that lets apps use your Claude Pro/Max
     # subscription. It must be installed and running separately.
     if command -v CLIProxyAPI &>/dev/null; then
-        ok "CLIProxyAPI found"
+        ok "CLIProxyAPI already installed"
+    elif command -v brew &>/dev/null; then
+        echo ""
+        echo "  Claude mode uses CLIProxyAPI — a small local proxy that lets apps"
+        echo "  use your Claude Pro or Max subscription (no API key needed)."
+        echo ""
+        printf "  Install CLIProxyAPI via Homebrew? [Y/n]: " >&2
+        read -r INSTALL_PROXY < /dev/tty
+        INSTALL_PROXY="${INSTALL_PROXY:-Y}"
+        if [ "$INSTALL_PROXY" = "Y" ] || [ "$INSTALL_PROXY" = "y" ]; then
+            info "Installing CLIProxyAPI..."
+            brew install cliproxyapi
+            ok "CLIProxyAPI installed"
+        else
+            warn "You can install it later: brew install cliproxyapi"
+        fi
     else
         echo ""
-        echo "  Claude mode requires CLIProxyAPI — a local proxy that connects"
-        echo "  to your Claude subscription. It needs to be installed separately."
+        echo "  Claude mode uses CLIProxyAPI — a small local proxy that lets apps"
+        echo "  use your Claude Pro or Max subscription (no API key needed)."
         echo ""
-        echo "  Install:  brew install cliproxyapi"
-        echo "  Info:     https://github.com/nickthecook/CLIProxyAPI"
-        echo ""
-        warn "CLIProxyAPI not found — you can install it later and re-run setup"
-        warn "Continuing with claude_proxy config (will work once CLIProxyAPI is running)"
-        echo ""
+        warn "Homebrew not found — install CLIProxyAPI manually:"
+        warn "  https://github.com/router-for-me/CLIProxyAPI"
     fi
 
 elif [ "$LLM_CHOICE" = "3" ]; then
