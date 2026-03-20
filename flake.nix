@@ -181,7 +181,7 @@
 
             llm:
               provider: claude_proxy
-              model: claude-sonnet-4-5-20250929
+              model: claude-sonnet-4-6
               proxy_url: http://127.0.0.1:8317
               api_key: glooow
               ollama_url: http://localhost:11434

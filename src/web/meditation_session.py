@@ -109,9 +109,10 @@ class WebMeditationSession:
         else:
             api_key = config.llm.api_key
 
+        effective_model = model or config.llm.effective_model_for(effective_provider)
         self.llm = create_llm_provider(
             provider=effective_provider,
-            model=model or config.llm.model,
+            model=effective_model,
             proxy_url=config.llm.proxy_url,
             ollama_url=config.llm.ollama_url,
             api_key=api_key,

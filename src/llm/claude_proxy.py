@@ -26,7 +26,7 @@ class ClaudeProxyProvider(BaseLLMProvider):
     def __init__(
         self,
         proxy_url: str = "http://127.0.0.1:8317",
-        model: str = "claude-sonnet-4-5-20250929",
+        model: str = "claude-sonnet-4-6",
         api_key: str | None = None,
         max_tokens: int = 300,
         timeout: float = 60.0,

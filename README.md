@@ -59,7 +59,7 @@ then:
 ```bash
 git clone https://github.com/akrusz/glooow.git
 cd glooow
-./scripts/install.sh        # walks you through setup — deps, LLM provider, whisper model
+./scripts/setup-local.sh        # walks you through setup — deps, LLM provider, whisper model
 ./scripts/start.sh          # starts the server (and CLIProxyAPI if needed)
 ```
 
@@ -138,7 +138,7 @@ tts:
 
 llm:
   provider: claude_proxy   # claude_proxy, anthropic, openai, openrouter, venice, ollama
-  model: claude-sonnet-4-5-20250929
+  model: claude-sonnet-4-6
 
 facilitation:
   directiveness: 3       # 0-10 scale
@@ -224,10 +224,9 @@ src/
 config/             default.yaml
 sessions/           saved transcripts
 scripts/
-  install.sh        first-time setup (interactive)
+  setup-local.sh    setup / reconfigure / uninstall (interactive)
   setup.sh          one-line setup: install, update, or uninstall (macOS/linux)
   setup.ps1         one-line setup: install, update, or uninstall (windows)
-  install.ps1       first-time setup (windows)
   start.sh          full launcher (macOS/linux) — auto-starts proxy, shows config
   start-server.sh   lightweight launcher — just the web server
   start.ps1         full launcher (windows)

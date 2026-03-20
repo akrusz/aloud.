@@ -75,7 +75,7 @@ def create_tts(
             api_key=kwargs.get("api_key"),
             voice_name=voice,
             voice_id=kwargs.get("voice_id"),
-            model_id=kwargs.get("model_id", "eleven_monolingual_v1"),
+            model_id=kwargs.get("model_id", "eleven_v3"),
             stability=kwargs.get("stability", 0.75),
             similarity_boost=kwargs.get("similarity_boost", 0.75),
         )

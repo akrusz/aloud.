@@ -19,7 +19,7 @@ warn()  { printf "  \033[1;33m!\033[0m %s\n" "$*"; }
 ask_yn() {
     local prompt="$1" default="$2"
     printf "  %s [%s]: " "$prompt" "$default" >&2
-    read -r answer
+    read -r answer < /dev/tty
     answer="${answer:-$default}"
     [ "$answer" = "Y" ] || [ "$answer" = "y" ]
 }
@@ -84,6 +84,20 @@ if command -v ollama &>/dev/null; then
                 rm -rf "$HOME/.ollama"
                 ok "Removed ~/.ollama"
             fi
+        fi
+    fi
+fi
+
+# ── Remove CLIProxyAPI ─────────────────────────
+
+if command -v CLIProxyAPI &>/dev/null; then
+    echo ""
+    if ask_yn "Uninstall CLIProxyAPI?" "n"; then
+        if [ "$OS" = "Darwin" ] && command -v brew &>/dev/null; then
+            brew uninstall cliproxyapi 2>/dev/null || true
+            ok "CLIProxyAPI uninstalled via Homebrew"
+        else
+            warn "Could not auto-uninstall CLIProxyAPI on this platform. Remove it manually."
         fi
     fi
 fi
@@ -164,6 +178,10 @@ if ask_yn "Remove the Glooow project directory ($PROJECT_DIR)?" "n"; then
         ok "Removed $PROJECT_DIR"
         echo ""
         echo "  Glooow has been completely removed."
+        if [ "${GLOOOW_APP:-}" = "1" ]; then
+            echo ""
+            echo "  You can close this window."
+        fi
         echo ""
         exit 0
     fi
@@ -177,4 +195,8 @@ echo "  ║        Uninstall Complete!           ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 echo "  Note: uv and Homebrew were left in place (shared tools)."
+if [ "${GLOOOW_APP:-}" = "1" ]; then
+    echo ""
+    echo "  You can close this window."
+fi
 echo ""

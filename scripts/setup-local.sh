@@ -10,6 +10,13 @@ cd "$SCRIPT_DIR/.."
 
 VENV_DIR=".venv"
 CONFIG_FILE="config/default.yaml"
+FRESH=0
+
+for arg in "$@"; do
+    case "$arg" in
+        --fresh) FRESH=1 ;;
+    esac
+done
 
 # ── Helpers ──────────────────────────────────────
 
@@ -35,6 +42,32 @@ echo ""
 echo "  ╔══════════════════════════════════════╗"
 echo "  ║       Glooow — Setup                 ║"
 echo "  ╚══════════════════════════════════════╝"
+
+if [ "$FRESH" = "1" ]; then
+    echo ""
+    warn "Running in --fresh mode (ignoring existing setup)"
+fi
+
+# ── If already set up, offer choices ─────────
+
+if [ "$FRESH" = "0" ] && [ -d "$VENV_DIR" ] && [ -f "$CONFIG_FILE" ]; then
+    echo ""
+    echo "  Glooow is already set up."
+    echo ""
+    echo "    1) Re-run setup   — reconfigure LLM provider, TTS, etc."
+    echo "    2) Uninstall      — remove Glooow and downloaded models"
+    echo "    3) Cancel"
+    echo ""
+    SETUP_ACTION=$(ask "Choice" "1")
+
+    if [ "$SETUP_ACTION" = "3" ]; then
+        echo ""; exit 0
+    elif [ "$SETUP_ACTION" = "2" ]; then
+        ./scripts/uninstall.sh
+        exit 0
+    fi
+    # Fall through to re-run setup
+fi
 
 # uv
 info "Checking uv..."
@@ -99,20 +132,22 @@ info "Configuring LLM provider..."
 echo ""
 echo "  How would you like to power the AI?"
 echo ""
-echo "    1) Claude       — best quality, needs a Claude subscription + CLIProxyAPI"
-echo "    2) Local (Ollama) — runs on your computer, no account needed (~2.5GB download)"
-echo "    3) Venice.ai    — cloud-based, privacy-focused"
+echo "    1) Local (Ollama)    — runs on your computer, no account needed (~2.5GB download)"
+echo "    2) Claude (proxy)    — best quality, uses your Claude subscription (we'll set it up)"
+echo "    3) Anthropic API     — Claude via API key (pay per use)"
+echo "    4) OpenAI API        — GPT-5.4 and other OpenAI models"
+echo "    5) OpenRouter API    — many models, one API key"
+echo "    6) Venice.ai API     — cloud-based, privacy-focused"
 echo ""
 LLM_CHOICE=$(ask "Choice" "1")
 
-LLM_PROVIDER="claude_proxy"
-LLM_MODEL="claude-sonnet-4-5-20250929"
+LLM_PROVIDER="ollama"
+LLM_MODEL="claude-sonnet-4-6"
 PROXY_URL="http://127.0.0.1:8317"
-API_KEY="glooow"
 OLLAMA_URL="http://localhost:11434"
 OLLAMA_MODEL="qwen3.5:4b"
 
-if [ "$LLM_CHOICE" = "2" ]; then
+if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
     LLM_PROVIDER="ollama"
 
     # ── Install Ollama if needed ──────────────────
@@ -122,7 +157,10 @@ if [ "$LLM_CHOICE" = "2" ]; then
         echo "  It's free, open source, and your data never leaves your machine."
         echo ""
 
-        if [ "$OS" = "Darwin" ]; then
+        printf "  Install Ollama now? [Y/n]: " >&2
+        read -r INSTALL_OLLAMA < /dev/tty
+        INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
+        if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
             if command -v brew &>/dev/null; then
                 printf "  Install Ollama via Homebrew? [Y/n]: " >&2
                 read -r INSTALL_OLLAMA < /dev/tty
@@ -136,23 +174,13 @@ if [ "$LLM_CHOICE" = "2" ]; then
                     err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
                 fi
             else
-                echo "  To use local mode, install Ollama from https://ollama.ai"
-                echo "  then re-run this script."
-                exit 1
-            fi
-        else
-            # Linux — use the official install script
-            printf "  Install Ollama now? [Y/n]: " >&2
-            read -r INSTALL_OLLAMA
-            INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
-            if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
                 info "Installing Ollama..."
                 curl -fsSL https://ollama.com/install.sh | sh
-                ok "Ollama installed"
-            else
-                echo ""
-                err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
             fi
+            ok "Ollama installed"
+        else
+            echo ""
+            err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
         fi
     else
         ok "Ollama already installed"
@@ -212,18 +240,111 @@ elif [ "$LLM_CHOICE" = "3" ]; then
 else
     API_KEY=$(ask "CLIProxyAPI key" "$API_KEY")
 
-    # Install CLIProxyAPI if not present
-    if ! command -v CLIProxyAPI &>/dev/null; then
-        if command -v brew &>/dev/null; then
-            info "Installing CLIProxyAPI via Homebrew..."
-            brew install cliproxyapi
+    # CLIProxyAPI is a local proxy that lets apps use your Claude Pro/Max
+    # subscription. It must be installed and running separately.
+    if command -v CLIProxyAPI &>/dev/null; then
+        ok "CLIProxyAPI already installed"
+    else
+        echo ""
+        echo "  Claude mode uses CLIProxyAPI — a small local proxy that lets apps"
+        echo "  use your Claude Pro or Max subscription (no API key needed)."
+        echo ""
+        printf "  Install CLIProxyAPI now? [Y/n]: " >&2
+        read -r INSTALL_PROXY < /dev/tty
+        INSTALL_PROXY="${INSTALL_PROXY:-Y}"
+        if [ "$INSTALL_PROXY" = "Y" ] || [ "$INSTALL_PROXY" = "y" ]; then
+            if command -v brew &>/dev/null; then
+                info "Installing CLIProxyAPI via Homebrew..."
+                brew install cliproxyapi
+            else
+                info "Installing CLIProxyAPI..."
+                curl -fsSL https://raw.githubusercontent.com/brokechubb/cliproxyapi-installer/refs/heads/master/cliproxyapi-installer | bash
+            fi
             ok "CLIProxyAPI installed"
         else
-            warn "CLIProxyAPI not found and Homebrew not available."
-            warn "Install it manually: https://github.com/CLIProxyAPI/CLIProxyAPI"
+            warn "You can install it later:"
+            if command -v brew &>/dev/null; then
+                warn "  brew install cliproxyapi"
+            else
+                warn "  curl -fsSL https://raw.githubusercontent.com/brokechubb/cliproxyapi-installer/refs/heads/master/cliproxyapi-installer | bash"
+            fi
         fi
+    fi
+
+elif [ "$LLM_CHOICE" = "3" ]; then
+    LLM_PROVIDER="anthropic"
+    LLM_MODEL="claude-sonnet-4-6"
+    echo ""
+    echo "  Get your API key at https://console.anthropic.com/settings/keys"
+    echo "  Set ANTHROPIC_API_KEY in your shell profile, or enter it now."
+    echo ""
+    printf "  Anthropic API key (or press Enter to set later): " >&2
+    read -r ANTHROPIC_KEY < /dev/tty
+    if [ -n "$ANTHROPIC_KEY" ]; then
+        export ANTHROPIC_API_KEY="$ANTHROPIC_KEY"
+        ok "Using Anthropic API with $LLM_MODEL"
+        echo ""
+        echo "  To persist, add to your shell profile:"
+        echo "    export ANTHROPIC_API_KEY=\"$ANTHROPIC_KEY\""
     else
-        ok "CLIProxyAPI already installed"
+        ok "Config set to anthropic — set ANTHROPIC_API_KEY before running"
+    fi
+
+elif [ "$LLM_CHOICE" = "4" ]; then
+    LLM_PROVIDER="openai"
+    LLM_MODEL="gpt-5.4-mini"
+    echo ""
+    echo "  Get your API key at https://platform.openai.com/api-keys"
+    echo "  Set OPENAI_API_KEY in your shell profile, or enter it now."
+    echo ""
+    printf "  OpenAI API key (or press Enter to set later): " >&2
+    read -r OPENAI_KEY < /dev/tty
+    if [ -n "$OPENAI_KEY" ]; then
+        export OPENAI_API_KEY="$OPENAI_KEY"
+        ok "Using OpenAI with $LLM_MODEL"
+        echo ""
+        echo "  To persist, add to your shell profile:"
+        echo "    export OPENAI_API_KEY=\"$OPENAI_KEY\""
+    else
+        ok "Config set to openai — set OPENAI_API_KEY before running"
+    fi
+
+elif [ "$LLM_CHOICE" = "5" ]; then
+    LLM_PROVIDER="openrouter"
+    LLM_MODEL="deepseek/deepseek-v3.2-20251201"
+    echo ""
+    echo "  OpenRouter gives you access to many models with one API key."
+    echo "  Get your key at https://openrouter.ai/keys"
+    echo ""
+    printf "  OpenRouter API key (or press Enter to set later): " >&2
+    read -r OPENROUTER_KEY < /dev/tty
+    if [ -n "$OPENROUTER_KEY" ]; then
+        export OPENROUTER_API_KEY="$OPENROUTER_KEY"
+        ok "Using OpenRouter with $LLM_MODEL"
+        echo ""
+        echo "  To persist, add to your shell profile:"
+        echo "    export OPENROUTER_API_KEY=\"$OPENROUTER_KEY\""
+    else
+        ok "Config set to openrouter — set OPENROUTER_API_KEY before running"
+    fi
+
+elif [ "$LLM_CHOICE" = "6" ]; then
+    LLM_PROVIDER="venice"
+    LLM_MODEL="llama-3.3-70b"
+    echo ""
+    echo "  Venice.ai is privacy-focused — zero prompt storage."
+    echo "  Get your key at https://venice.ai/settings/api"
+    echo ""
+    printf "  Venice API key (or press Enter to set later): " >&2
+    read -r VENICE_KEY < /dev/tty
+    if [ -n "$VENICE_KEY" ]; then
+        export VENICE_API_KEY="$VENICE_KEY"
+        ok "Using Venice.ai with $LLM_MODEL"
+        echo ""
+        echo "  To persist, add to your shell profile:"
+        echo "    export VENICE_API_KEY=\"$VENICE_KEY\""
+    else
+        ok "Config set to venice — set VENICE_API_KEY before running"
     fi
 fi
 
@@ -265,11 +386,25 @@ ok "Whisper model ready"
 
 # ── Write config ─────────────────────────────────
 
-info "Writing configuration to $CONFIG_FILE..."
+# Resolve the api_key value for the config file
+case "$LLM_PROVIDER" in
+    claude_proxy) CONFIG_API_KEY="glooow" ;;
+    anthropic)    CONFIG_API_KEY='${ANTHROPIC_API_KEY}' ;;
+    openai)       CONFIG_API_KEY='${OPENAI_API_KEY}' ;;
+    openrouter)   CONFIG_API_KEY='${OPENROUTER_API_KEY}' ;;
+    venice)       CONFIG_API_KEY='${VENICE_API_KEY}' ;;
+    *)            CONFIG_API_KEY="" ;;
+esac
 
-mkdir -p config
+if [ "$FRESH" = "0" ] && [ -f "$CONFIG_FILE" ]; then
+    info "Config already exists at $CONFIG_FILE — skipping write"
+    ok "To reconfigure, delete $CONFIG_FILE and re-run setup"
+else
+    info "Writing configuration to $CONFIG_FILE..."
 
-cat > "$CONFIG_FILE" << YAML
+    mkdir -p config
+
+    cat > "$CONFIG_FILE" << YAML
 audio:
   input_device: default
   sample_rate: 16000
@@ -299,20 +434,25 @@ tts:
   # ElevenLabs options (if engine: elevenlabs)
   # api_key: \${ELEVENLABS_API_KEY}
   # voice_id: 21m00Tcm4TlvDq8ikWAM  # Rachel - calm, warm
-  # model_id: eleven_monolingual_v1
+  # model_id: eleven_v3
   # stability: 0.75
   # similarity_boost: 0.75
 
 llm:
-  provider: $LLM_PROVIDER  # claude_proxy, anthropic, openai, ollama, openrouter, venice
+  provider: $LLM_PROVIDER  # ollama, claude_proxy, anthropic, openai, openrouter, venice
   model: $LLM_MODEL
+
+  # API key — uses env var substitution so keys stay out of the file.
+  # Set the matching env var for your provider:
+  #   anthropic:   ANTHROPIC_API_KEY
+  #   openai:      OPENAI_API_KEY
+  #   openrouter:  OPENROUTER_API_KEY
+  #   venice:      VENICE_API_KEY
+  #   claude_proxy: uses the fixed key below (localhost only)
+  api_key: $CONFIG_API_KEY
 
   # For claude_proxy (CLIProxyAPI)
   proxy_url: $PROXY_URL
-  api_key: $API_KEY
-
-  # For direct Anthropic API
-  # api_key: \${ANTHROPIC_API_KEY}
 
   # For Ollama
   ollama_url: $OLLAMA_URL
@@ -343,7 +483,8 @@ session:
   include_timestamps: true
 YAML
 
-ok "Config written"
+    ok "Config written"
+fi
 
 # ── Summary ──────────────────────────────────────
 
@@ -354,15 +495,19 @@ echo "  ╚═══════════════════════
 echo ""
 echo "  LLM provider:  $LLM_PROVIDER"
 if [ "$LLM_PROVIDER" = "ollama" ]; then
-    echo "  Ollama model:  $OLLAMA_MODEL @ $OLLAMA_URL"
-elif [ "$LLM_PROVIDER" = "venice" ]; then
-    echo "  Venice model:  $LLM_MODEL"
-else
+    echo "  Model:         $OLLAMA_MODEL"
+elif [ "$LLM_PROVIDER" = "claude_proxy" ]; then
     echo "  Proxy URL:     $PROXY_URL"
+else
+    echo "  Model:         $LLM_MODEL"
 fi
 echo "  TTS engine:    $TTS_ENGINE"
 echo "  Config file:   $CONFIG_FILE"
 echo "  Python env:    $VENV_DIR/ (managed by uv)"
 echo ""
 echo "  To start: ./scripts/start.sh"
+if [ "${GLOOOW_APP:-}" = "1" ]; then
+    echo ""
+    echo "  You can close this window."
+fi
 echo ""

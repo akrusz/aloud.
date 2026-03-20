@@ -39,7 +39,7 @@ class TTSConfig:
     # ElevenLabs options
     api_key: str | None = None
     voice_id: str | None = None
-    model_id: str = "eleven_monolingual_v1"
+    model_id: str = "eleven_v3"
     stability: float = 0.75
     similarity_boost: float = 0.75
 
@@ -47,15 +47,30 @@ class TTSConfig:
 @dataclass
 class LLMConfig:
     provider: str = "claude_proxy"
-    model: str = "claude-sonnet-4-5-20250929"
+    model: str = "claude-sonnet-4-6"
     proxy_url: str = "http://127.0.0.1:8317"
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3"
+    ollama_model: str = "qwen3.5:4b"
     api_key: str | None = None
     openai_base_url: str | None = None
     context_strategy: str = "full"
     window_size: int = 100
     max_tokens: int = 400
+
+    @property
+    def effective_model(self) -> str:
+        """Return the right model for the configured provider."""
+        return self.effective_model_for(self.provider)
+
+    def effective_model_for(self, provider: str) -> str:
+        """Return the right model for a given provider.
+
+        When provider is 'ollama', uses ollama_model instead of the
+        main model field (which typically holds the claude model name).
+        """
+        if provider == "ollama":
+            return self.ollama_model
+        return self.model
 
 
 @dataclass

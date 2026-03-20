@@ -85,7 +85,7 @@ def register_routes(app: Flask) -> None:
             results["ollama"] = {
                 "available": len(models) > 0,
                 "models": models,
-                "hint": "No models pulled. Run: ollama pull llama3" if not models else "",
+                "hint": "No models pulled. Run: ollama pull qwen3.5:4b" if not models else "",
             }
         except Exception:
             results["ollama"] = {
@@ -250,7 +250,7 @@ def _fetch_openai_models() -> list[dict]:
     raw = resp.json().get("data", [])
 
     # Filter to chat models only
-    chat_prefixes = ("gpt-4", "gpt-3.5", "o1", "o3", "o4", "chatgpt")
+    chat_prefixes = ("gpt-5", "gpt-4", "gpt-3.5", "o1", "o3", "o4", "chatgpt")
     exclude_terms = ("realtime", "audio", "search", "transcription",
                      "embedding", "moderation", "tts", "whisper", "dall-e",
                      "instruct")

@@ -28,18 +28,19 @@ err()   { printf "  \033[1;31m✗\033[0m %s\n" "$*"; exit 1; }
 # ── Check uv ─────────────────────────────────────
 
 if ! command -v uv &>/dev/null; then
-    err "uv not found. Run ./scripts/install.sh first or install uv: https://docs.astral.sh/uv/"
+    err "uv not found. Run ./scripts/setup-local.sh first or install uv: https://docs.astral.sh/uv/"
 fi
 
 # ── Read config values ───────────────────────────
 
 if [ ! -f "$CONFIG_FILE" ]; then
-    err "Config not found at $CONFIG_FILE. Run ./scripts/install.sh first."
+    err "Config not found at $CONFIG_FILE. Run ./scripts/setup-local.sh first."
 fi
 
 # Extract key values from YAML (simple grep — avoids needing yq)
 LLM_PROVIDER=$(grep '^\s*provider:' "$CONFIG_FILE" | head -1 | sed 's/.*provider:\s*//' | sed 's/\s*#.*//')
 LLM_MODEL=$(grep '^\s*model:' "$CONFIG_FILE" | head -1 | sed 's/.*model:\s*//' | sed 's/\s*#.*//')
+OLLAMA_MODEL=$(grep '^\s*ollama_model:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_model:\s*//' | sed 's/\s*#.*//')
 TTS_ENGINE=$(grep '^\s*engine:' "$CONFIG_FILE" | head -2 | tail -1 | sed 's/.*engine:\s*//' | sed 's/\s*#.*//')
 PROXY_URL=$(grep '^\s*proxy_url:' "$CONFIG_FILE" | head -1 | sed 's/.*proxy_url:\s*//' | sed 's/\s*#.*//')
 OLLAMA_URL=$(grep '^\s*ollama_url:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_url:\s*//' | sed 's/\s*#.*//')
@@ -57,6 +58,11 @@ cleanup() {
         ok "CLIProxyAPI stopped"
     fi
     ok "Done."
+    if [ "${GLOOOW_APP:-}" = "1" ]; then
+        echo ""
+        echo "  You can close this window."
+        echo ""
+    fi
 }
 trap cleanup EXIT INT TERM
 
@@ -68,7 +74,12 @@ if [ "${QUIET:-}" != "1" ]; then
     echo "  ║       Glooow                         ║"
     echo "  ╚══════════════════════════════════════╝"
     echo ""
-    info "LLM:    $LLM_PROVIDER ($LLM_MODEL)"
+    if [ "$LLM_PROVIDER" = "ollama" ] && [ -n "$OLLAMA_MODEL" ]; then
+        DISPLAY_MODEL="$OLLAMA_MODEL"
+    else
+        DISPLAY_MODEL="$LLM_MODEL"
+    fi
+    info "LLM:    $LLM_PROVIDER ($DISPLAY_MODEL)"
     info "TTS:    $TTS_ENGINE"
     info "Config: $CONFIG_FILE"
 
@@ -91,27 +102,21 @@ if [ "$LLM_PROVIDER" = "claude_proxy" ]; then
 
     if curl -sf "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
         ok "CLIProxyAPI already running on port $PROXY_PORT"
-    else
-        if command -v CLIProxyAPI &>/dev/null; then
-            info "Starting CLIProxyAPI on port $PROXY_PORT..."
-            CLIProxyAPI &
-            PROXY_PID=$!
+    elif command -v CLIProxyAPI &>/dev/null; then
+        info "Starting CLIProxyAPI on port $PROXY_PORT..."
+        CLIProxyAPI &
+        PROXY_PID=$!
 
-            # Wait for it to be ready (up to 10 seconds)
-            for i in $(seq 1 20); do
-                if curl -sf "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
-                    ok "CLIProxyAPI ready (pid $PROXY_PID)"
-                    break
-                fi
-                if [ "$i" -eq 20 ]; then
-                    err "CLIProxyAPI failed to start within 10 seconds."
-                fi
-                sleep 0.5
-            done
-        else
-            echo ""
-            err "CLIProxyAPI not found. Install it or switch to Ollama in $CONFIG_FILE."
-        fi
+        for i in $(seq 1 20); do
+            if curl -sf "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
+                ok "CLIProxyAPI ready (pid $PROXY_PID)"
+                break
+            fi
+            if [ "$i" -eq 20 ]; then
+                warn "CLIProxyAPI didn't respond in 10s — it may still be loading"
+            fi
+            sleep 0.5
+        done
     fi
 fi
 
@@ -120,29 +125,24 @@ fi
 if [ "$LLM_PROVIDER" = "ollama" ]; then
     if curl -sf "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
         ok "Ollama running"
-    else
-        if command -v ollama &>/dev/null; then
-            info "Starting Ollama..."
-            OS="$(uname -s)"
-            if [ "$OS" = "Darwin" ]; then
-                open -a Ollama 2>/dev/null || ollama serve &>/dev/null &
-            else
-                ollama serve &>/dev/null &
-            fi
-            for i in $(seq 1 20); do
-                if curl -sf "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
-                    ok "Ollama ready"
-                    break
-                fi
-                if [ "$i" -eq 20 ]; then
-                    warn "Ollama didn't respond in 10s — it may still be loading"
-                fi
-                sleep 0.5
-            done
+    elif command -v ollama &>/dev/null; then
+        info "Starting Ollama..."
+        OS="$(uname -s)"
+        if [ "$OS" = "Darwin" ]; then
+            open -a Ollama 2>/dev/null || ollama serve &>/dev/null &
         else
-            echo ""
-            err "Ollama not found. Install from https://ollama.ai or run ./scripts/install.sh"
+            ollama serve &>/dev/null &
         fi
+        for i in $(seq 1 20); do
+            if curl -sf "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
+                ok "Ollama ready"
+                break
+            fi
+            if [ "$i" -eq 20 ]; then
+                warn "Ollama didn't respond in 10s — it may still be loading"
+            fi
+            sleep 0.5
+        done
     fi
 fi
 
