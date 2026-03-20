@@ -99,20 +99,19 @@ info "Configuring LLM provider..."
 echo ""
 echo "  How would you like to power the AI?"
 echo ""
-echo "    1) Claude       — best quality, needs a Claude subscription + CLIProxyAPI"
-echo "    2) Local (Ollama) — runs on your computer, no account needed (~2.5GB download)"
-echo "    3) Venice.ai    — cloud-based, privacy-focused"
+echo "    1) Local (Ollama) — runs on your computer, no account needed (~2.5GB download)"
+echo "    2) Claude         — best quality, needs CLIProxyAPI running locally"
+echo "    3) Venice.ai      — cloud-based, privacy-focused"
 echo ""
 LLM_CHOICE=$(ask "Choice" "1")
 
-LLM_PROVIDER="claude_proxy"
+LLM_PROVIDER="ollama"
 LLM_MODEL="claude-sonnet-4-5-20250929"
 PROXY_URL="http://127.0.0.1:8317"
-API_KEY="glooow"
 OLLAMA_URL="http://localhost:11434"
 OLLAMA_MODEL="qwen3.5:4b"
 
-if [ "$LLM_CHOICE" = "2" ]; then
+if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
     LLM_PROVIDER="ollama"
 
     # ── Install Ollama if needed ──────────────────
@@ -143,7 +142,7 @@ if [ "$LLM_CHOICE" = "2" ]; then
         else
             # Linux — use the official install script
             printf "  Install Ollama now? [Y/n]: " >&2
-            read -r INSTALL_OLLAMA
+            read -r INSTALL_OLLAMA < /dev/tty
             INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
             if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
                 info "Installing Ollama..."
@@ -198,6 +197,26 @@ if [ "$LLM_CHOICE" = "2" ]; then
 
     ok "All set! Using local AI with $OLLAMA_MODEL"
 
+elif [ "$LLM_CHOICE" = "2" ]; then
+    LLM_PROVIDER="claude_proxy"
+
+    # CLIProxyAPI is a local proxy that lets apps use your Claude Pro/Max
+    # subscription. It must be installed and running separately.
+    if command -v CLIProxyAPI &>/dev/null; then
+        ok "CLIProxyAPI found"
+    else
+        echo ""
+        echo "  Claude mode requires CLIProxyAPI — a local proxy that connects"
+        echo "  to your Claude subscription. It needs to be installed separately."
+        echo ""
+        echo "  Install:  brew install cliproxyapi"
+        echo "  Info:     https://github.com/nickthecook/CLIProxyAPI"
+        echo ""
+        warn "CLIProxyAPI not found — you can install it later and re-run setup"
+        warn "Continuing with claude_proxy config (will work once CLIProxyAPI is running)"
+        echo ""
+    fi
+
 elif [ "$LLM_CHOICE" = "3" ]; then
     LLM_PROVIDER="venice"
     LLM_MODEL="llama-3.3-70b"
@@ -209,22 +228,6 @@ elif [ "$LLM_CHOICE" = "3" ]; then
         export VENICE_API_KEY="$VENICE_KEY"
     fi
     ok "Using Venice.ai with model $LLM_MODEL"
-else
-    API_KEY=$(ask "CLIProxyAPI key" "$API_KEY")
-
-    # Install CLIProxyAPI if not present
-    if ! command -v CLIProxyAPI &>/dev/null; then
-        if command -v brew &>/dev/null; then
-            info "Installing CLIProxyAPI via Homebrew..."
-            brew install cliproxyapi
-            ok "CLIProxyAPI installed"
-        else
-            warn "CLIProxyAPI not found and Homebrew not available."
-            warn "Install it manually: https://github.com/CLIProxyAPI/CLIProxyAPI"
-        fi
-    else
-        ok "CLIProxyAPI already installed"
-    fi
 fi
 
 # ── TTS engine ───────────────────────────────────
@@ -309,7 +312,7 @@ llm:
 
   # For claude_proxy (CLIProxyAPI)
   proxy_url: $PROXY_URL
-  api_key: $API_KEY
+  api_key: glooow
 
   # For direct Anthropic API
   # api_key: \${ANTHROPIC_API_KEY}
