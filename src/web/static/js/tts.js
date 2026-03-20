@@ -35,10 +35,16 @@ export function speakBrowser(text) {
 
     state.ttsSpeaking = true;
     utterance.onend = function () {
-        setTimeout(function () { state.ttsSpeaking = false; }, TTS_COOLDOWN_MS);
+        setTimeout(function () {
+            state.ttsSpeaking = false;
+            if (state.onTtsDone) { var cb = state.onTtsDone; state.onTtsDone = null; cb(); }
+        }, TTS_COOLDOWN_MS);
     };
     utterance.onerror = function () {
-        setTimeout(function () { state.ttsSpeaking = false; }, TTS_COOLDOWN_MS);
+        setTimeout(function () {
+            state.ttsSpeaking = false;
+            if (state.onTtsDone) { var cb = state.onTtsDone; state.onTtsDone = null; cb(); }
+        }, TTS_COOLDOWN_MS);
     };
 
     state.synth.speak(utterance);
@@ -61,7 +67,10 @@ export function playServerAudio(audioBytes, fallbackText) {
         state.serverAudioSource.onended = function () {
             state.serverAudioPlaying = false;
             state.serverAudioSource = null;
-            setTimeout(function () { state.ttsSpeaking = false; }, TTS_COOLDOWN_MS);
+            setTimeout(function () {
+                state.ttsSpeaking = false;
+                if (state.onTtsDone) { var cb = state.onTtsDone; state.onTtsDone = null; cb(); }
+            }, TTS_COOLDOWN_MS);
         };
         state.serverAudioSource.start(0);
     }, function (err) {

@@ -9,6 +9,10 @@ from ..llm.ollama import create_llm_provider
 from ..llm.base import Message
 from ..facilitation.pacing import PacingController
 from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal, RESUME_INTENT_SYSTEM_PROMPT
+from ..facilitation.noting_prompts import (
+    NOTING_SYSTEM_PROMPT, NOTING_OPENER_PROMPT, NOTING_CHECK_IN_PROMPTS,
+    NOTING_LABEL_SYSTEM_PROMPT, NOTING_LABEL_REACTIVE_LOW, NOTING_LABEL_REACTIVE_HIGH,
+)
 from ..facilitation.session import SessionManager
 
 logger = logging.getLogger(__name__)
@@ -68,9 +72,11 @@ class WebMeditationSession:
         model: str | None = None,
         provider: str | None = None,
         tts_enabled: bool = True,
+        meditation_type: str = "exploration",
     ):
         self.config = config
         self.intention = intention
+        self.meditation_type = meditation_type
         self.tts_enabled = tts_enabled
         self.tts_voice_name: str | None = None
         self.start_time = time.time()
@@ -118,7 +124,10 @@ class WebMeditationSession:
 
     def build_system_prompt(self) -> str:
         """Build system prompt, incorporating the meditator's intention."""
-        base = self.prompts.build_system_prompt()
+        if self.meditation_type == "noting":
+            base = NOTING_SYSTEM_PROMPT
+        else:
+            base = self.prompts.build_system_prompt()
         if self.intention:
             base += (
                 f"\n\nThe meditator's intention for this session: \"{self.intention}\"\n"
@@ -186,7 +195,11 @@ class WebMeditationSession:
 
     def get_opener(self) -> str:
         """Get a static session opening message (fallback)."""
-        opener = self.prompts.get_session_opener()
+        if self.meditation_type == "noting":
+            import random
+            opener = random.choice(NOTING_CHECK_IN_PROMPTS)
+        else:
+            opener = self.prompts.get_session_opener()
         self.session.add_assistant_message(opener)
         return opener
 
@@ -197,7 +210,10 @@ class WebMeditationSession:
         falling back to the static opener pool on error.
         """
         try:
-            opener_prompt = self.prompts.build_opener_prompt(intention=self.intention)
+            if self.meditation_type == "noting":
+                opener_prompt = NOTING_OPENER_PROMPT
+            else:
+                opener_prompt = self.prompts.build_opener_prompt(intention=self.intention)
             response, _ = await self.generate_response(opener_prompt)
 
             # Clean up: remove the fake user message (the opener prompt)
@@ -234,6 +250,35 @@ class WebMeditationSession:
             ),
         )
         return _strip_think_tags(result.text)
+
+    async def generate_noting_label(self, context: list[str], reactive: str = "none") -> str:
+        """Generate a 1-3 word noting label for the circle.
+
+        Args:
+            context: Recent labels from the circle (last few turns).
+            reactive: Reactivity level — "none", "low", or "high".
+        """
+        system = NOTING_LABEL_SYSTEM_PROMPT
+        if reactive == "high" and context:
+            system += NOTING_LABEL_REACTIVE_HIGH.format(
+                context=", ".join(context[-12:]),
+            )
+        elif reactive == "low" and context:
+            system += NOTING_LABEL_REACTIVE_LOW.format(
+                context=", ".join(context[-12:]),
+            )
+
+        try:
+            result = await self.llm.complete(
+                messages=[Message(role="user", content="Your turn. Note what you notice.")],
+                system=system,
+                max_tokens=20,
+            )
+            label = _strip_think_tags(result.text).strip().rstrip(".").lower()
+            return label or "breathing"
+        except Exception as e:
+            logger.error("Noting label error: %s", e)
+            return "breathing"
 
     def end(self) -> dict | None:
         """End the session and return serialized data."""

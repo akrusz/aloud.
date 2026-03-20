@@ -94,7 +94,7 @@ LOC_CHOICE="${LOC_CHOICE:-1}"
 if [ "$LOC_CHOICE" = "2" ]; then
     GLOOOW_DIR="$(pwd)/glooow"
 elif [ "$LOC_CHOICE" = "3" ]; then
-    printf "  Path: "
+    printf "  Install path: "
     read -r CUSTOM_PATH < /dev/tty
     if [ -z "$CUSTOM_PATH" ]; then
         err "No path provided."

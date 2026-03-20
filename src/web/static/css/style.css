@@ -243,6 +243,38 @@ body {
     font-size: 0.95rem;
 }
 
+.tab-bar {
+    display: flex;
+    gap: 0;
+    justify-content: center;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    padding: 0.5rem 1.5rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
 .setup-form {
     display: flex;
     flex-direction: column;
@@ -279,6 +311,187 @@ body {
 
 .form-group-half {
     flex: 1;
+}
+
+.form-row-thirds > .form-group {
+    flex: 1;
+}
+
+.setup-voice-btn {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 0.95rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: border-color var(--transition);
+}
+
+.setup-voice-btn:hover,
+.setup-voice-btn:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+/* ---- Noting participant rows ---- */
+
+.participant-row {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.participant-row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.participant-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.participant-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.3rem;
+    line-height: 1;
+    transition: color var(--transition);
+}
+
+.participant-remove:hover {
+    color: var(--danger);
+}
+
+.participant-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.participant-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.participant-field label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.participant-field select,
+.participant-field input[type="text"],
+.participant-field input[type="number"] {
+    font-size: 0.85rem;
+    padding: 0.4rem 1.6rem 0.4rem 0.6rem;
+}
+.participant-field input[type="text"],
+.participant-field input[type="number"] {
+    padding-right: 0.6rem;
+}
+
+.participant-field input[type="number"] {
+    width: 60px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font);
+}
+
+.participant-voice-field {
+    min-width: 9rem;
+}
+.participant-voice-btn {
+    font-size: 0.85rem !important;
+    padding: 0.4rem 0.6rem !important;
+    width: 100%;
+    text-align: left;
+}
+
+.participant-checkbox-label {
+    display: flex !important;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem !important;
+    cursor: pointer;
+    white-space: nowrap;
+    padding-bottom: 0.4rem;
+}
+
+.noting-option-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.noting-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.noting-option input[type="checkbox"] {
+    accent-color: var(--accent);
+}
+.reactive-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+.reactive-slider-wrap input[type="range"] {
+    width: 5rem;
+    accent-color: var(--accent);
+}
+.reactive-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 2.5rem;
+}
+.sound-pick-btn {
+    font-size: 0.85rem !important;
+    padding: 0.4rem 0.6rem !important;
+    background: var(--bg-input);
+}
+.phrase-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.phrase-input-wrap input[type="text"] {
+    flex: 1;
+    min-width: 0;
+}
+.participant-phrase-preview {
+    padding: 0.3rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1;
+}
+
+.btn-small {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
 }
 
 textarea, select, input[type="text"] {
@@ -654,6 +867,17 @@ body:has(.session-container) {
     animation: messageIn 0.4s ease;
 }
 
+.message-sender {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.15rem;
+    padding-left: 0.25rem;
+}
+.message.user .message-sender {
+    text-align: right;
+    padding-right: 0.25rem;
+    padding-left: 0;
+}
 .message-content {
     padding: 0.75rem 1rem;
     border-radius: var(--radius);
