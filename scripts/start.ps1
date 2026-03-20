@@ -25,13 +25,13 @@ function Err($msg)   { Write-Host "  X $msg" -ForegroundColor Red; exit 1 }
 # ── Check uv ─────────────────────────────────────
 
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    Err "uv not found. Run install script first or install uv: https://docs.astral.sh/uv/"
+    Err "uv not found. Run .\scripts\setup-local.ps1 first or install uv: https://docs.astral.sh/uv/"
 }
 
 # ── Read config values ───────────────────────────
 
 if (-not (Test-Path $ConfigFile)) {
-    Err "Config not found at $ConfigFile. Run install script first."
+    Err "Config not found at $ConfigFile. Run .\scripts\setup-local.ps1 first."
 }
 
 # Extract key values from YAML (simple regex — avoids needing a YAML parser)
@@ -120,11 +120,8 @@ try {
                     Start-Sleep -Milliseconds 500
                 }
                 if (-not $Ready) {
-                    Err "CLIProxyAPI failed to start within 10 seconds."
+                    Warn "CLIProxyAPI didn't respond in 10s - it may still be loading"
                 }
-            } else {
-                Write-Host ""
-                Err "CLIProxyAPI not found. Install it or switch to Ollama in $ConfigFile."
             }
         }
     }
@@ -157,9 +154,6 @@ try {
                 if (-not $Ready) {
                     Warn "Ollama didn't respond in 10s - it may still be loading"
                 }
-            } else {
-                Write-Host ""
-                Err "Ollama not found. Install from https://ollama.ai or run install script."
             }
         }
     }

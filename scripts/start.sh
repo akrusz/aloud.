@@ -28,13 +28,13 @@ err()   { printf "  \033[1;31m✗\033[0m %s\n" "$*"; exit 1; }
 # ── Check uv ─────────────────────────────────────
 
 if ! command -v uv &>/dev/null; then
-    err "uv not found. Run ./scripts/install.sh first or install uv: https://docs.astral.sh/uv/"
+    err "uv not found. Run ./scripts/setup-local.sh first or install uv: https://docs.astral.sh/uv/"
 fi
 
 # ── Read config values ───────────────────────────
 
 if [ ! -f "$CONFIG_FILE" ]; then
-    err "Config not found at $CONFIG_FILE. Run ./scripts/install.sh first."
+    err "Config not found at $CONFIG_FILE. Run ./scripts/setup-local.sh first."
 fi
 
 # Extract key values from YAML (simple grep — avoids needing yq)
@@ -58,6 +58,11 @@ cleanup() {
         ok "CLIProxyAPI stopped"
     fi
     ok "Done."
+    if [ "${GLOOOW_APP:-}" = "1" ]; then
+        echo ""
+        echo "  You can close this window."
+        echo ""
+    fi
 }
 trap cleanup EXIT INT TERM
 

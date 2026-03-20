@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────
-# Glooow — First-time setup (Windows)
+# Glooow — Setup (Windows)
 # ─────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
@@ -22,8 +22,29 @@ function Ask($prompt, $default) {
 
 Write-Host ""
 Write-Host "  +======================================+"
-Write-Host "  |       Glooow - Setup                 |"
+Write-Host "  |       Glooow - Setup                  |"
 Write-Host "  +======================================+"
+
+# ── If already set up, offer choices ─────────
+
+if ((Test-Path $VenvDir) -and (Test-Path $ConfigFile)) {
+    Write-Host ""
+    Write-Host "  Glooow is already set up."
+    Write-Host ""
+    Write-Host "    1) Re-run setup   - reconfigure LLM provider, TTS, etc."
+    Write-Host "    2) Uninstall      - remove Glooow and downloaded models"
+    Write-Host "    3) Cancel"
+    Write-Host ""
+    $SetupAction = Ask "Choice" "1"
+
+    if ($SetupAction -eq "3") {
+        Write-Host ""; exit 0
+    } elseif ($SetupAction -eq "2") {
+        powershell -ExecutionPolicy Bypass -File scripts\uninstall.ps1
+        exit 0
+    }
+    # Fall through to re-run setup
+}
 
 # ── Check uv ─────────────────────────────────────
 
@@ -36,7 +57,7 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
         irm https://astral.sh/uv/install.ps1 | iex
         $env:PATH = "$HOME\.local\bin;$HOME\.cargo\bin;$env:PATH"
         if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-            Err "uv installation failed. Install manually: https://docs.astral.sh/uv/getting-started/installation/"
+            Err "uv setup failed. Install manually: https://docs.astral.sh/uv/getting-started/installation/"
         }
         Ok "uv installed"
     } else {
@@ -52,20 +73,23 @@ Info "Configuring LLM provider..."
 Write-Host ""
 Write-Host "  How would you like to power the AI?"
 Write-Host ""
-Write-Host "    1) Claude       - best quality, needs a Claude subscription + CLIProxyAPI"
-Write-Host "    2) Local (Ollama) - runs on your computer, no account needed (~2.5GB download)"
-Write-Host "    3) Venice.ai    - cloud-based, privacy-focused"
+Write-Host "    1) Local (Ollama)    - runs on your computer, no account needed (~2.5GB download)"
+Write-Host "    2) Claude (proxy)    - best quality, uses your Claude subscription (we'll set it up)"
+Write-Host "    3) Anthropic API     - Claude via API key (pay per use)"
+Write-Host "    4) OpenAI API        - GPT-4o and other OpenAI models"
+Write-Host "    5) OpenRouter API    - many models, one API key"
+Write-Host "    6) Venice.ai API     - cloud-based, privacy-focused"
 Write-Host ""
 $LlmChoice = Ask "Choice" "1"
 
-$LlmProvider = "claude_proxy"
+$LlmProvider = "ollama"
 $LlmModel = "claude-sonnet-4-5-20250929"
 $ProxyUrl = "http://127.0.0.1:8317"
-$ApiKey = "glooow"
+$ConfigApiKey = ""
 $OllamaUrl = "http://localhost:11434"
 $OllamaModel = "qwen3.5:4b"
 
-if ($LlmChoice -eq "2") {
+if ($LlmChoice -eq "1" -or $LlmChoice -eq "") {
     $LlmProvider = "ollama"
 
     # ── Install Ollama if needed ──────────────────
@@ -142,18 +166,97 @@ if ($LlmChoice -eq "2") {
 
     Ok "All set! Using local AI with $OllamaModel"
 
+} elseif ($LlmChoice -eq "2") {
+    $LlmProvider = "claude_proxy"
+    $ConfigApiKey = "glooow"
+
+    if (Get-Command CLIProxyAPI -ErrorAction SilentlyContinue) {
+        Ok "CLIProxyAPI already installed"
+    } else {
+        Write-Host ""
+        Write-Host "  Claude mode uses CLIProxyAPI - a small local proxy that lets apps"
+        Write-Host "  use your Claude Pro or Max subscription (no API key needed)."
+        Write-Host ""
+        Write-Host "  Download it from: https://github.com/router-for-me/CLIProxyAPI/releases"
+        Write-Host ""
+        Warn "CLIProxyAPI not found - install it and re-run setup"
+    }
+
 } elseif ($LlmChoice -eq "3") {
+    $LlmProvider = "anthropic"
+    $LlmModel = "claude-sonnet-4-5-20250929"
+    $ConfigApiKey = '${ANTHROPIC_API_KEY}'
+    Write-Host ""
+    Write-Host "  Get your API key at https://console.anthropic.com/settings/keys"
+    Write-Host "  Set ANTHROPIC_API_KEY in your environment, or enter it now."
+    Write-Host ""
+    $ApiKeyInput = Read-Host "  Anthropic API key (or press Enter to set later)"
+    if ($ApiKeyInput) {
+        $env:ANTHROPIC_API_KEY = $ApiKeyInput
+        Ok "Using Anthropic API with $LlmModel"
+        Write-Host ""
+        Write-Host "  To persist, run:"
+        Write-Host "    [Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', '$ApiKeyInput', 'User')"
+    } else {
+        Ok "Config set to anthropic - set ANTHROPIC_API_KEY before running"
+    }
+
+} elseif ($LlmChoice -eq "4") {
+    $LlmProvider = "openai"
+    $LlmModel = "gpt-4o"
+    $ConfigApiKey = '${OPENAI_API_KEY}'
+    Write-Host ""
+    Write-Host "  Get your API key at https://platform.openai.com/api-keys"
+    Write-Host "  Set OPENAI_API_KEY in your environment, or enter it now."
+    Write-Host ""
+    $ApiKeyInput = Read-Host "  OpenAI API key (or press Enter to set later)"
+    if ($ApiKeyInput) {
+        $env:OPENAI_API_KEY = $ApiKeyInput
+        Ok "Using OpenAI with $LlmModel"
+        Write-Host ""
+        Write-Host "  To persist, run:"
+        Write-Host "    [Environment]::SetEnvironmentVariable('OPENAI_API_KEY', '$ApiKeyInput', 'User')"
+    } else {
+        Ok "Config set to openai - set OPENAI_API_KEY before running"
+    }
+
+} elseif ($LlmChoice -eq "5") {
+    $LlmProvider = "openrouter"
+    $LlmModel = "deepseek/deepseek-v3.2-20251201"
+    $ConfigApiKey = '${OPENROUTER_API_KEY}'
+    Write-Host ""
+    Write-Host "  OpenRouter gives you access to many models with one API key."
+    Write-Host "  Get your key at https://openrouter.ai/keys"
+    Write-Host ""
+    $ApiKeyInput = Read-Host "  OpenRouter API key (or press Enter to set later)"
+    if ($ApiKeyInput) {
+        $env:OPENROUTER_API_KEY = $ApiKeyInput
+        Ok "Using OpenRouter with $LlmModel"
+        Write-Host ""
+        Write-Host "  To persist, run:"
+        Write-Host "    [Environment]::SetEnvironmentVariable('OPENROUTER_API_KEY', '$ApiKeyInput', 'User')"
+    } else {
+        Ok "Config set to openrouter - set OPENROUTER_API_KEY before running"
+    }
+
+} elseif ($LlmChoice -eq "6") {
     $LlmProvider = "venice"
     $LlmModel = "llama-3.3-70b"
-    $VeniceKey = Read-Host "  Venice API key"
-    if ($VeniceKey) {
-        Write-Host "  Add to your profile:"
-        Write-Host "    `$env:VENICE_API_KEY = `"$VeniceKey`""
-        $env:VENICE_API_KEY = $VeniceKey
+    $ConfigApiKey = '${VENICE_API_KEY}'
+    Write-Host ""
+    Write-Host "  Venice.ai is privacy-focused - zero prompt storage."
+    Write-Host "  Get your key at https://venice.ai/settings/api"
+    Write-Host ""
+    $ApiKeyInput = Read-Host "  Venice API key (or press Enter to set later)"
+    if ($ApiKeyInput) {
+        $env:VENICE_API_KEY = $ApiKeyInput
+        Ok "Using Venice.ai with $LlmModel"
+        Write-Host ""
+        Write-Host "  To persist, run:"
+        Write-Host "    [Environment]::SetEnvironmentVariable('VENICE_API_KEY', '$ApiKeyInput', 'User')"
+    } else {
+        Ok "Config set to venice - set VENICE_API_KEY before running"
     }
-    Ok "Using Venice.ai with model $LlmModel"
-} else {
-    $ApiKey = Ask "CLIProxyAPI key" $ApiKey
 }
 
 # ── TTS engine ───────────────────────────────────
@@ -182,8 +285,12 @@ Ok "Whisper model ready"
 
 # ── Write config ─────────────────────────────────
 
-Info "Writing configuration to $ConfigFile..."
-New-Item -ItemType Directory -Force -Path "config" | Out-Null
+if (Test-Path $ConfigFile) {
+    Info "Config already exists at $ConfigFile - skipping write"
+    Ok "To reconfigure, delete $ConfigFile and re-run setup"
+} else {
+    Info "Writing configuration to $ConfigFile..."
+    New-Item -ItemType Directory -Force -Path "config" | Out-Null
 
 @"
 audio:
@@ -207,8 +314,8 @@ tts:
 llm:
   provider: $LlmProvider
   model: $LlmModel
+  api_key: $ConfigApiKey
   proxy_url: $ProxyUrl
-  api_key: $ApiKey
   ollama_url: $OllamaUrl
   ollama_model: $OllamaModel
 
@@ -237,7 +344,8 @@ session:
   include_timestamps: true
 "@ | Set-Content $ConfigFile -Encoding UTF8
 
-Ok "Config written"
+    Ok "Config written"
+}
 
 # ── Summary ──────────────────────────────────────
 
@@ -248,11 +356,11 @@ Write-Host "  +======================================+"
 Write-Host ""
 Write-Host "  LLM provider:  $LlmProvider"
 if ($LlmProvider -eq "ollama") {
-    Write-Host "  Ollama model:  $OllamaModel @ $OllamaUrl"
-} elseif ($LlmProvider -eq "venice") {
-    Write-Host "  Venice model:  $LlmModel"
-} else {
+    Write-Host "  Model:         $OllamaModel"
+} elseif ($LlmProvider -eq "claude_proxy") {
     Write-Host "  Proxy URL:     $ProxyUrl"
+} else {
+    Write-Host "  Model:         $LlmModel"
 }
 Write-Host "  TTS engine:    $TtsEngine"
 Write-Host "  Config file:   $ConfigFile"

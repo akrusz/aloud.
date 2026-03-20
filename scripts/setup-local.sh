@@ -36,6 +36,27 @@ echo "  ╔═══════════════════════
 echo "  ║       Glooow — Setup                 ║"
 echo "  ╚══════════════════════════════════════╝"
 
+# ── If already set up, offer choices ─────────
+
+if [ -d "$VENV_DIR" ] && [ -f "$CONFIG_FILE" ]; then
+    echo ""
+    echo "  Glooow is already set up."
+    echo ""
+    echo "    1) Re-run setup   — reconfigure LLM provider, TTS, etc."
+    echo "    2) Uninstall      — remove Glooow and downloaded models"
+    echo "    3) Cancel"
+    echo ""
+    SETUP_ACTION=$(ask "Choice" "1")
+
+    if [ "$SETUP_ACTION" = "3" ]; then
+        echo ""; exit 0
+    elif [ "$SETUP_ACTION" = "2" ]; then
+        ./scripts/uninstall.sh
+        exit 0
+    fi
+    # Fall through to re-run setup
+fi
+
 # uv
 info "Checking uv..."
 if ! command -v uv &>/dev/null; then
@@ -99,9 +120,12 @@ info "Configuring LLM provider..."
 echo ""
 echo "  How would you like to power the AI?"
 echo ""
-echo "    1) Local (Ollama) — runs on your computer, no account needed (~2.5GB download)"
-echo "    2) Claude         — best quality, needs CLIProxyAPI running locally"
-echo "    3) Venice.ai      — cloud-based, privacy-focused"
+echo "    1) Local (Ollama)    — runs on your computer, no account needed (~2.5GB download)"
+echo "    2) Claude (proxy)    — best quality, uses your Claude subscription (we'll set it up)"
+echo "    3) Anthropic API     — Claude via API key (pay per use)"
+echo "    4) OpenAI API        — GPT-4o and other OpenAI models"
+echo "    5) OpenRouter API    — many models, one API key"
+echo "    6) Venice.ai API     — cloud-based, privacy-focused"
 echo ""
 LLM_CHOICE=$(ask "Choice" "1")
 
@@ -216,16 +240,80 @@ elif [ "$LLM_CHOICE" = "2" ]; then
     fi
 
 elif [ "$LLM_CHOICE" = "3" ]; then
+    LLM_PROVIDER="anthropic"
+    LLM_MODEL="claude-sonnet-4-5-20250929"
+    echo ""
+    echo "  Get your API key at https://console.anthropic.com/settings/keys"
+    echo "  Set ANTHROPIC_API_KEY in your shell profile, or enter it now."
+    echo ""
+    printf "  Anthropic API key (or press Enter to set later): " >&2
+    read -r ANTHROPIC_KEY < /dev/tty
+    if [ -n "$ANTHROPIC_KEY" ]; then
+        export ANTHROPIC_API_KEY="$ANTHROPIC_KEY"
+        ok "Using Anthropic API with $LLM_MODEL"
+        echo ""
+        echo "  To persist, add to your shell profile:"
+        echo "    export ANTHROPIC_API_KEY=\"$ANTHROPIC_KEY\""
+    else
+        ok "Config set to anthropic — set ANTHROPIC_API_KEY before running"
+    fi
+
+elif [ "$LLM_CHOICE" = "4" ]; then
+    LLM_PROVIDER="openai"
+    LLM_MODEL="gpt-4o"
+    echo ""
+    echo "  Get your API key at https://platform.openai.com/api-keys"
+    echo "  Set OPENAI_API_KEY in your shell profile, or enter it now."
+    echo ""
+    printf "  OpenAI API key (or press Enter to set later): " >&2
+    read -r OPENAI_KEY < /dev/tty
+    if [ -n "$OPENAI_KEY" ]; then
+        export OPENAI_API_KEY="$OPENAI_KEY"
+        ok "Using OpenAI with $LLM_MODEL"
+        echo ""
+        echo "  To persist, add to your shell profile:"
+        echo "    export OPENAI_API_KEY=\"$OPENAI_KEY\""
+    else
+        ok "Config set to openai — set OPENAI_API_KEY before running"
+    fi
+
+elif [ "$LLM_CHOICE" = "5" ]; then
+    LLM_PROVIDER="openrouter"
+    LLM_MODEL="deepseek/deepseek-v3.2-20251201"
+    echo ""
+    echo "  OpenRouter gives you access to many models with one API key."
+    echo "  Get your key at https://openrouter.ai/keys"
+    echo ""
+    printf "  OpenRouter API key (or press Enter to set later): " >&2
+    read -r OPENROUTER_KEY < /dev/tty
+    if [ -n "$OPENROUTER_KEY" ]; then
+        export OPENROUTER_API_KEY="$OPENROUTER_KEY"
+        ok "Using OpenRouter with $LLM_MODEL"
+        echo ""
+        echo "  To persist, add to your shell profile:"
+        echo "    export OPENROUTER_API_KEY=\"$OPENROUTER_KEY\""
+    else
+        ok "Config set to openrouter — set OPENROUTER_API_KEY before running"
+    fi
+
+elif [ "$LLM_CHOICE" = "6" ]; then
     LLM_PROVIDER="venice"
     LLM_MODEL="llama-3.3-70b"
-    printf "  Venice API key: " >&2
+    echo ""
+    echo "  Venice.ai is privacy-focused — zero prompt storage."
+    echo "  Get your key at https://venice.ai/settings/api"
+    echo ""
+    printf "  Venice API key (or press Enter to set later): " >&2
     read -r VENICE_KEY < /dev/tty
     if [ -n "$VENICE_KEY" ]; then
-        echo "  Add to your shell profile:"
-        echo "    export VENICE_API_KEY=\"$VENICE_KEY\""
         export VENICE_API_KEY="$VENICE_KEY"
+        ok "Using Venice.ai with $LLM_MODEL"
+        echo ""
+        echo "  To persist, add to your shell profile:"
+        echo "    export VENICE_API_KEY=\"$VENICE_KEY\""
+    else
+        ok "Config set to venice — set VENICE_API_KEY before running"
     fi
-    ok "Using Venice.ai with model $LLM_MODEL"
 fi
 
 # ── TTS engine ───────────────────────────────────
@@ -266,11 +354,25 @@ ok "Whisper model ready"
 
 # ── Write config ─────────────────────────────────
 
-info "Writing configuration to $CONFIG_FILE..."
+# Resolve the api_key value for the config file
+case "$LLM_PROVIDER" in
+    claude_proxy) CONFIG_API_KEY="glooow" ;;
+    anthropic)    CONFIG_API_KEY='${ANTHROPIC_API_KEY}' ;;
+    openai)       CONFIG_API_KEY='${OPENAI_API_KEY}' ;;
+    openrouter)   CONFIG_API_KEY='${OPENROUTER_API_KEY}' ;;
+    venice)       CONFIG_API_KEY='${VENICE_API_KEY}' ;;
+    *)            CONFIG_API_KEY="" ;;
+esac
 
-mkdir -p config
+if [ -f "$CONFIG_FILE" ]; then
+    info "Config already exists at $CONFIG_FILE — skipping write"
+    ok "To reconfigure, delete $CONFIG_FILE and re-run setup"
+else
+    info "Writing configuration to $CONFIG_FILE..."
 
-cat > "$CONFIG_FILE" << YAML
+    mkdir -p config
+
+    cat > "$CONFIG_FILE" << YAML
 audio:
   input_device: default
   sample_rate: 16000
@@ -305,15 +407,20 @@ tts:
   # similarity_boost: 0.75
 
 llm:
-  provider: $LLM_PROVIDER  # claude_proxy, anthropic, openai, ollama, openrouter, venice
+  provider: $LLM_PROVIDER  # ollama, claude_proxy, anthropic, openai, openrouter, venice
   model: $LLM_MODEL
+
+  # API key — uses env var substitution so keys stay out of the file.
+  # Set the matching env var for your provider:
+  #   anthropic:   ANTHROPIC_API_KEY
+  #   openai:      OPENAI_API_KEY
+  #   openrouter:  OPENROUTER_API_KEY
+  #   venice:      VENICE_API_KEY
+  #   claude_proxy: uses the fixed key below (localhost only)
+  api_key: $CONFIG_API_KEY
 
   # For claude_proxy (CLIProxyAPI)
   proxy_url: $PROXY_URL
-  api_key: glooow
-
-  # For direct Anthropic API
-  # api_key: \${ANTHROPIC_API_KEY}
 
   # For Ollama
   ollama_url: $OLLAMA_URL
@@ -344,7 +451,8 @@ session:
   include_timestamps: true
 YAML
 
-ok "Config written"
+    ok "Config written"
+fi
 
 # ── Summary ──────────────────────────────────────
 
@@ -355,15 +463,19 @@ echo "  ╚═══════════════════════
 echo ""
 echo "  LLM provider:  $LLM_PROVIDER"
 if [ "$LLM_PROVIDER" = "ollama" ]; then
-    echo "  Ollama model:  $OLLAMA_MODEL @ $OLLAMA_URL"
-elif [ "$LLM_PROVIDER" = "venice" ]; then
-    echo "  Venice model:  $LLM_MODEL"
-else
+    echo "  Model:         $OLLAMA_MODEL"
+elif [ "$LLM_PROVIDER" = "claude_proxy" ]; then
     echo "  Proxy URL:     $PROXY_URL"
+else
+    echo "  Model:         $LLM_MODEL"
 fi
 echo "  TTS engine:    $TTS_ENGINE"
 echo "  Config file:   $CONFIG_FILE"
 echo "  Python env:    $VENV_DIR/ (managed by uv)"
 echo ""
 echo "  To start: ./scripts/start.sh"
+if [ "${GLOOOW_APP:-}" = "1" ]; then
+    echo ""
+    echo "  You can close this window."
+fi
 echo ""

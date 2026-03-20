@@ -2,14 +2,14 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────
-# Glooow — Setup (install / update / uninstall)
+# Glooow — Setup (fresh setup / update / uninstall)
 # Usage: curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.sh | bash
 # ─────────────────────────────────────────────────
 
 BREADCRUMB="$HOME/.glooow-path"
 REPO_URL="https://github.com/akrusz/glooow.git"
 
-# Resolve install path: env var > breadcrumb > default
+# Resolve path: env var > breadcrumb > default
 if [ -n "${GLOOOW_DIR:-}" ]; then
     GLOOOW_DIR="$GLOOOW_DIR"
 elif [ -f "$BREADCRUMB" ]; then
@@ -32,14 +32,14 @@ OS="$(uname -s)"
 
 echo ""
 echo "  ╔══════════════════════════════════════╗"
-echo "  ║   Glooow — Install / Uninstall      ║"
+echo "  ║       Glooow — Setup                 ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 
-# ── If already installed, offer choices ─────────
+# ── If already set up, offer choices ─────────
 
 if [ -d "$GLOOOW_DIR" ]; then
-    echo "  Glooow is installed at $GLOOOW_DIR"
+    echo "  Glooow is set up at $GLOOOW_DIR"
     echo ""
     echo "    1) Update       — pull latest changes and re-run setup"
     echo "    2) Uninstall    — remove Glooow and downloaded models"
@@ -61,17 +61,17 @@ if [ -d "$GLOOOW_DIR" ]; then
         git pull
         ok "Updated"
         info "Running setup..."
-        ./scripts/install.sh
+        ./scripts/setup-local.sh
         exit 0
     fi
 fi
 
-# ── Fresh install ────────────────────────────────
+# ── Fresh setup ───────────────────────────────
 
 # Check git
 if ! command -v git &>/dev/null; then
     if [ "$OS" = "Darwin" ]; then
-        info "git not found — triggering Xcode Command Line Tools install..."
+        info "git not found — triggering Xcode Command Line Tools setup..."
         echo "  A dialog should appear. Click 'Install', then re-run this script."
         xcode-select --install 2>/dev/null || true
         exit 1
@@ -80,8 +80,8 @@ if ! command -v git &>/dev/null; then
     fi
 fi
 
-# Choose install location
-echo "  Where would you like to install Glooow?"
+# Choose location
+echo "  Where would you like to set up Glooow?"
 echo ""
 echo "    1) $GLOOOW_DIR (default)"
 echo "    2) Current directory ($(pwd)/glooow)"
@@ -94,7 +94,7 @@ LOC_CHOICE="${LOC_CHOICE:-1}"
 if [ "$LOC_CHOICE" = "2" ]; then
     GLOOOW_DIR="$(pwd)/glooow"
 elif [ "$LOC_CHOICE" = "3" ]; then
-    printf "  Install path: "
+    printf "  Path: "
     read -r CUSTOM_PATH < /dev/tty
     if [ -z "$CUSTOM_PATH" ]; then
         err "No path provided."
@@ -111,12 +111,12 @@ ok "Cloned"
 
 cd "$GLOOOW_DIR"
 
-# Save install path so future runs can find it
+# Save path so future runs can find it
 echo "$GLOOOW_DIR" > "$BREADCRUMB"
 
-# Run install.sh
-info "Running installer..."
-./scripts/install.sh
+# Run setup
+info "Running setup..."
+./scripts/setup-local.sh
 
 # macOS extras: Desktop app + remove quarantine
 if [ "$OS" = "Darwin" ] && [ -d "Glooow.app" ]; then
@@ -138,7 +138,7 @@ fi
 
 echo ""
 echo "  ╔══════════════════════════════════════╗"
-echo "  ║          Install Complete!           ║"
+echo "  ║          Setup Complete!             ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 echo "  To start:"

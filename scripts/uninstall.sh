@@ -178,6 +178,10 @@ if ask_yn "Remove the Glooow project directory ($PROJECT_DIR)?" "n"; then
         ok "Removed $PROJECT_DIR"
         echo ""
         echo "  Glooow has been completely removed."
+        if [ "${GLOOOW_APP:-}" = "1" ]; then
+            echo ""
+            echo "  You can close this window."
+        fi
         echo ""
         exit 0
     fi
@@ -191,4 +195,8 @@ echo "  ║        Uninstall Complete!           ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 echo "  Note: uv and Homebrew were left in place (shared tools)."
+if [ "${GLOOOW_APP:-}" = "1" ]; then
+    echo ""
+    echo "  You can close this window."
+fi
 echo ""
