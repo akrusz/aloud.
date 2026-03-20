@@ -12,7 +12,7 @@ class OpenAIProvider(BaseLLMProvider):
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "gpt-4o",
+        model: str = "gpt-5.4-mini",
         max_tokens: int = 300,
         base_url: str | None = None,
         env_key: str = "OPENAI_API_KEY",

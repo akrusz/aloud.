@@ -135,14 +135,14 @@ echo ""
 echo "    1) Local (Ollama)    — runs on your computer, no account needed (~2.5GB download)"
 echo "    2) Claude (proxy)    — best quality, uses your Claude subscription (we'll set it up)"
 echo "    3) Anthropic API     — Claude via API key (pay per use)"
-echo "    4) OpenAI API        — GPT-4o and other OpenAI models"
+echo "    4) OpenAI API        — GPT-5.4 and other OpenAI models"
 echo "    5) OpenRouter API    — many models, one API key"
 echo "    6) Venice.ai API     — cloud-based, privacy-focused"
 echo ""
 LLM_CHOICE=$(ask "Choice" "1")
 
 LLM_PROVIDER="ollama"
-LLM_MODEL="claude-sonnet-4-5-20250929"
+LLM_MODEL="claude-sonnet-4-6"
 PROXY_URL="http://127.0.0.1:8317"
 OLLAMA_URL="http://localhost:11434"
 OLLAMA_MODEL="qwen3.5:4b"
@@ -253,7 +253,7 @@ elif [ "$LLM_CHOICE" = "2" ]; then
 
 elif [ "$LLM_CHOICE" = "3" ]; then
     LLM_PROVIDER="anthropic"
-    LLM_MODEL="claude-sonnet-4-5-20250929"
+    LLM_MODEL="claude-sonnet-4-6"
     echo ""
     echo "  Get your API key at https://console.anthropic.com/settings/keys"
     echo "  Set ANTHROPIC_API_KEY in your shell profile, or enter it now."
@@ -272,7 +272,7 @@ elif [ "$LLM_CHOICE" = "3" ]; then
 
 elif [ "$LLM_CHOICE" = "4" ]; then
     LLM_PROVIDER="openai"
-    LLM_MODEL="gpt-4o"
+    LLM_MODEL="gpt-5.4-mini"
     echo ""
     echo "  Get your API key at https://platform.openai.com/api-keys"
     echo "  Set OPENAI_API_KEY in your shell profile, or enter it now."
@@ -414,7 +414,7 @@ tts:
   # ElevenLabs options (if engine: elevenlabs)
   # api_key: \${ELEVENLABS_API_KEY}
   # voice_id: 21m00Tcm4TlvDq8ikWAM  # Rachel - calm, warm
-  # model_id: eleven_monolingual_v1
+  # model_id: eleven_v3
   # stability: 0.75
   # similarity_boost: 0.75
 

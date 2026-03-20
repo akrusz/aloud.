@@ -36,7 +36,7 @@ class ElevenLabsTTS:
         api_key: str | None = None,
         voice_id: str | None = None,
         voice_name: str | None = None,
-        model_id: str = "eleven_monolingual_v1",
+        model_id: str = "eleven_v3",
         stability: float = 0.75,  # Higher = more consistent
         similarity_boost: float = 0.75,
         style: float = 0.0,  # 0 = more stable for meditation
@@ -48,7 +48,7 @@ class ElevenLabsTTS:
             api_key: ElevenLabs API key (defaults to ELEVENLABS_API_KEY env var)
             voice_id: Voice ID to use (takes precedence over voice_name)
             voice_name: Voice name from RECOMMENDED_VOICES
-            model_id: Model to use (eleven_monolingual_v1, eleven_multilingual_v2, etc.)
+            model_id: Model to use (eleven_v3, eleven_flash_v2_5, etc.)
             stability: Voice stability (0-1, higher = more consistent)
             similarity_boost: Similarity boost (0-1)
             style: Style exaggeration (0-1, 0 = more natural for meditation)

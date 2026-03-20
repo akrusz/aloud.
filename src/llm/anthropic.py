@@ -17,7 +17,7 @@ class AnthropicProvider(BaseLLMProvider):
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-sonnet-4-5-20250929",
+        model: str = "claude-sonnet-4-6",
         max_tokens: int = 300,
     ):
         """Initialize Anthropic provider.

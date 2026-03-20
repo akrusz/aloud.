@@ -17,7 +17,7 @@ class OllamaProvider(BaseLLMProvider):
     def __init__(
         self,
         base_url: str = "http://localhost:11434",
-        model: str = "llama3",
+        model: str = "qwen3.5:4b",
         max_tokens: int = 300,
         timeout: float = 120.0,
         think: bool = False,
@@ -26,7 +26,7 @@ class OllamaProvider(BaseLLMProvider):
 
         Args:
             base_url: Ollama server URL
-            model: Model to use (e.g., "llama3", "mistral", "llama3:8b")
+            model: Model to use (e.g., "qwen3.5:4b", "llama3.3", "mistral")
             max_tokens: Maximum tokens in response (Ollama uses num_predict)
             timeout: Request timeout in seconds
             think: Enable thinking/reasoning mode (slower, off by default)
@@ -170,27 +170,27 @@ def create_llm_provider(
     if provider == "claude_proxy":
         return ClaudeProxyProvider(
             proxy_url=proxy_url or "http://127.0.0.1:8317",
-            model=model or "claude-sonnet-4-5-20250929",
+            model=model or "claude-sonnet-4-6",
             api_key=api_key,
             max_tokens=max_tokens,
         )
     elif provider == "anthropic":
         return AnthropicProvider(
             api_key=api_key,
-            model=model or "claude-sonnet-4-5-20250929",
+            model=model or "claude-sonnet-4-6",
             max_tokens=max_tokens,
         )
     elif provider == "openai":
         return OpenAIProvider(
             api_key=api_key,
-            model=model or "gpt-4o",
+            model=model or "gpt-5.4-mini",
             max_tokens=max_tokens,
             base_url=base_url,
         )
     elif provider == "openrouter":
         return OpenAIProvider(
             api_key=api_key,
-            model=model or "deepseek/deepseek-v3.2-20251201",
+            model=model or "deepseek/deepseek-v3.2",
             max_tokens=max_tokens,
             base_url="https://openrouter.ai/api/v1",
             env_key="OPENROUTER_API_KEY",
@@ -207,7 +207,7 @@ def create_llm_provider(
     elif provider == "ollama":
         return OllamaProvider(
             base_url=ollama_url or "http://localhost:11434",
-            model=model or "llama3",
+            model=model or "qwen3.5:4b",
             max_tokens=max_tokens,
         )
     else:

@@ -76,14 +76,14 @@ Write-Host ""
 Write-Host "    1) Local (Ollama)    - runs on your computer, no account needed (~2.5GB download)"
 Write-Host "    2) Claude (proxy)    - best quality, uses your Claude subscription (we'll set it up)"
 Write-Host "    3) Anthropic API     - Claude via API key (pay per use)"
-Write-Host "    4) OpenAI API        - GPT-4o and other OpenAI models"
+Write-Host "    4) OpenAI API        - GPT-5.4 and other OpenAI models"
 Write-Host "    5) OpenRouter API    - many models, one API key"
 Write-Host "    6) Venice.ai API     - cloud-based, privacy-focused"
 Write-Host ""
 $LlmChoice = Ask "Choice" "1"
 
 $LlmProvider = "ollama"
-$LlmModel = "claude-sonnet-4-5-20250929"
+$LlmModel = "claude-sonnet-4-6"
 $ProxyUrl = "http://127.0.0.1:8317"
 $ConfigApiKey = ""
 $OllamaUrl = "http://localhost:11434"
@@ -184,7 +184,7 @@ if ($LlmChoice -eq "1" -or $LlmChoice -eq "") {
 
 } elseif ($LlmChoice -eq "3") {
     $LlmProvider = "anthropic"
-    $LlmModel = "claude-sonnet-4-5-20250929"
+    $LlmModel = "claude-sonnet-4-6"
     $ConfigApiKey = '${ANTHROPIC_API_KEY}'
     Write-Host ""
     Write-Host "  Get your API key at https://console.anthropic.com/settings/keys"
@@ -203,7 +203,7 @@ if ($LlmChoice -eq "1" -or $LlmChoice -eq "") {
 
 } elseif ($LlmChoice -eq "4") {
     $LlmProvider = "openai"
-    $LlmModel = "gpt-4o"
+    $LlmModel = "gpt-5.4-mini"
     $ConfigApiKey = '${OPENAI_API_KEY}'
     Write-Host ""
     Write-Host "  Get your API key at https://platform.openai.com/api-keys"

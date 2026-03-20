@@ -138,7 +138,7 @@ tts:
 
 llm:
   provider: claude_proxy   # claude_proxy, anthropic, openai, openrouter, venice, ollama
-  model: claude-sonnet-4-5-20250929
+  model: claude-sonnet-4-6
 
 facilitation:
   directiveness: 3       # 0-10 scale
