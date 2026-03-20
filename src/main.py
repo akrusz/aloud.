@@ -86,9 +86,10 @@ class MeditationFacilitator:
 
     def _init_llm(self) -> None:
         """Initialize LLM provider."""
+        model = self.config.llm.effective_model
         self.llm = create_llm_provider(
             provider=self.config.llm.provider,
-            model=self.config.llm.model,
+            model=model,
             proxy_url=self.config.llm.proxy_url,
             ollama_url=self.config.llm.ollama_url,
             api_key=self.config.llm.api_key,

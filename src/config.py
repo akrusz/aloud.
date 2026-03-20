@@ -57,6 +57,21 @@ class LLMConfig:
     window_size: int = 100
     max_tokens: int = 400
 
+    @property
+    def effective_model(self) -> str:
+        """Return the right model for the configured provider."""
+        return self.effective_model_for(self.provider)
+
+    def effective_model_for(self, provider: str) -> str:
+        """Return the right model for a given provider.
+
+        When provider is 'ollama', uses ollama_model instead of the
+        main model field (which typically holds the claude model name).
+        """
+        if provider == "ollama":
+            return self.ollama_model
+        return self.model
+
 
 @dataclass
 class PacingConfig:

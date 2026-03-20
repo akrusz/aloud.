@@ -33,8 +33,12 @@ tts:
   # similarity_boost: 0.75
 
 llm:
-  provider: claude_proxy  # claude_proxy, anthropic, openai, ollama, openrouter, venice
-  model: claude-sonnet-4-5-20250929
+  provider: ollama  # ollama, claude_proxy, anthropic, openai, openrouter, venice
+  model: claude-sonnet-4-5-20250929  # used by claude_proxy, anthropic, openai, openrouter, venice
+
+  # For Ollama (local, no API key needed — install from https://ollama.ai)
+  ollama_url: http://localhost:11434
+  ollama_model: qwen3  # model name as shown by `ollama list`
 
   # For claude_proxy (CLIProxyAPI)
   proxy_url: http://127.0.0.1:8317
@@ -56,10 +60,6 @@ llm:
 
   # For OpenAI (or any OpenAI-compatible endpoint)
   # openai_base_url: https://api.example.com/v1
-
-  # For Ollama
-  ollama_url: http://localhost:11434
-  ollama_model: llama3
 
   context:
     strategy: full  # full, rolling
