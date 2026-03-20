@@ -20,9 +20,10 @@ err()   { printf "  \033[1;31m✗\033[0m %s\n" "$*"; }
 
 ask() {
     # ask PROMPT DEFAULT → prints answer
+    # Reads from /dev/tty so it works when piped from curl
     local prompt="$1" default="$2"
     printf "  %s [%s]: " "$prompt" "$default" >&2
-    read -r answer
+    read -r answer < /dev/tty
     echo "${answer:-$default}"
 }
 
@@ -41,7 +42,7 @@ if ! command -v uv &>/dev/null; then
     warn "uv not found. uv is a fast Python package manager needed to run glooow."
     echo ""
     printf "  Install uv now? [Y/n]: " >&2
-    read -r INSTALL_UV
+    read -r INSTALL_UV < /dev/tty
     INSTALL_UV="${INSTALL_UV:-Y}"
     if [ "$INSTALL_UV" = "Y" ] || [ "$INSTALL_UV" = "y" ]; then
         info "Installing uv..."
@@ -124,7 +125,7 @@ if [ "$LLM_CHOICE" = "2" ]; then
         if [ "$OS" = "Darwin" ]; then
             if command -v brew &>/dev/null; then
                 printf "  Install Ollama via Homebrew? [Y/n]: " >&2
-                read -r INSTALL_OLLAMA
+                read -r INSTALL_OLLAMA < /dev/tty
                 INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
                 if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
                     info "Installing Ollama (this may take a minute)..."
@@ -201,7 +202,7 @@ elif [ "$LLM_CHOICE" = "3" ]; then
     LLM_PROVIDER="venice"
     LLM_MODEL="llama-3.3-70b"
     printf "  Venice API key: " >&2
-    read -r VENICE_KEY
+    read -r VENICE_KEY < /dev/tty
     if [ -n "$VENICE_KEY" ]; then
         echo "  Add to your shell profile:"
         echo "    export VENICE_API_KEY=\"$VENICE_KEY\""

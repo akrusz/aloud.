@@ -23,10 +23,10 @@ ok()    { printf "  \033[1;32m✓\033[0m %s\n" "$*"; }
 warn()  { printf "  \033[1;33m!\033[0m %s\n" "$*"; }
 err()   { printf "  \033[1;31m✗\033[0m %s\n" "$*"; exit 1; }
 
-# Allow interactive prompts even when piped from curl
-if [ ! -t 0 ] && [ -e /dev/tty ]; then
-    exec < /dev/tty
-fi
+# When piped from curl, bash reads the script from stdin.
+# Do NOT use `exec < /dev/tty` — that would redirect stdin away from
+# the pipe and bash would hang trying to read the script from the terminal.
+# Instead, individual `read` calls use `< /dev/tty` for interactive input.
 
 OS="$(uname -s)"
 
@@ -46,7 +46,7 @@ if [ -d "$GLOOOW_DIR" ]; then
     echo "    3) Cancel"
     echo ""
     printf "  Choice [1]: "
-    read -r ACTION
+    read -r ACTION < /dev/tty
     ACTION="${ACTION:-1}"
 
     if [ "$ACTION" = "3" ]; then
@@ -88,14 +88,14 @@ echo "    2) Current directory ($(pwd)/glooow)"
 echo "    3) Custom path"
 echo ""
 printf "  Choice [1]: "
-read -r LOC_CHOICE
+read -r LOC_CHOICE < /dev/tty
 LOC_CHOICE="${LOC_CHOICE:-1}"
 
 if [ "$LOC_CHOICE" = "2" ]; then
     GLOOOW_DIR="$(pwd)/glooow"
 elif [ "$LOC_CHOICE" = "3" ]; then
     printf "  Install path: "
-    read -r CUSTOM_PATH
+    read -r CUSTOM_PATH < /dev/tty
     if [ -z "$CUSTOM_PATH" ]; then
         err "No path provided."
     fi
