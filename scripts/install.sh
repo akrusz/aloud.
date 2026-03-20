@@ -121,37 +121,21 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
         echo "  It's free, open source, and your data never leaves your machine."
         echo ""
 
-        if [ "$OS" = "Darwin" ]; then
+        printf "  Install Ollama now? [Y/n]: " >&2
+        read -r INSTALL_OLLAMA < /dev/tty
+        INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
+        if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
             if command -v brew &>/dev/null; then
-                printf "  Install Ollama via Homebrew? [Y/n]: " >&2
-                read -r INSTALL_OLLAMA < /dev/tty
-                INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
-                if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
-                    info "Installing Ollama (this may take a minute)..."
-                    brew install ollama
-                    ok "Ollama installed"
-                else
-                    echo ""
-                    err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
-                fi
+                info "Installing Ollama via Homebrew (this may take a minute)..."
+                brew install ollama
             else
-                echo "  To use local mode, install Ollama from https://ollama.ai"
-                echo "  then re-run this script."
-                exit 1
-            fi
-        else
-            # Linux — use the official install script
-            printf "  Install Ollama now? [Y/n]: " >&2
-            read -r INSTALL_OLLAMA < /dev/tty
-            INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
-            if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
                 info "Installing Ollama..."
                 curl -fsSL https://ollama.com/install.sh | sh
-                ok "Ollama installed"
-            else
-                echo ""
-                err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
             fi
+            ok "Ollama installed"
+        else
+            echo ""
+            err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
         fi
     else
         ok "Ollama already installed"
@@ -204,28 +188,31 @@ elif [ "$LLM_CHOICE" = "2" ]; then
     # subscription. It must be installed and running separately.
     if command -v CLIProxyAPI &>/dev/null; then
         ok "CLIProxyAPI already installed"
-    elif command -v brew &>/dev/null; then
-        echo ""
-        echo "  Claude mode uses CLIProxyAPI — a small local proxy that lets apps"
-        echo "  use your Claude Pro or Max subscription (no API key needed)."
-        echo ""
-        printf "  Install CLIProxyAPI via Homebrew? [Y/n]: " >&2
-        read -r INSTALL_PROXY < /dev/tty
-        INSTALL_PROXY="${INSTALL_PROXY:-Y}"
-        if [ "$INSTALL_PROXY" = "Y" ] || [ "$INSTALL_PROXY" = "y" ]; then
-            info "Installing CLIProxyAPI..."
-            brew install cliproxyapi
-            ok "CLIProxyAPI installed"
-        else
-            warn "You can install it later: brew install cliproxyapi"
-        fi
     else
         echo ""
         echo "  Claude mode uses CLIProxyAPI — a small local proxy that lets apps"
         echo "  use your Claude Pro or Max subscription (no API key needed)."
         echo ""
-        warn "Homebrew not found — install CLIProxyAPI manually:"
-        warn "  https://github.com/router-for-me/CLIProxyAPI"
+        printf "  Install CLIProxyAPI now? [Y/n]: " >&2
+        read -r INSTALL_PROXY < /dev/tty
+        INSTALL_PROXY="${INSTALL_PROXY:-Y}"
+        if [ "$INSTALL_PROXY" = "Y" ] || [ "$INSTALL_PROXY" = "y" ]; then
+            if command -v brew &>/dev/null; then
+                info "Installing CLIProxyAPI via Homebrew..."
+                brew install cliproxyapi
+            else
+                info "Installing CLIProxyAPI..."
+                curl -fsSL https://raw.githubusercontent.com/brokechubb/cliproxyapi-installer/refs/heads/master/cliproxyapi-installer | bash
+            fi
+            ok "CLIProxyAPI installed"
+        else
+            warn "You can install it later:"
+            if command -v brew &>/dev/null; then
+                warn "  brew install cliproxyapi"
+            else
+                warn "  curl -fsSL https://raw.githubusercontent.com/brokechubb/cliproxyapi-installer/refs/heads/master/cliproxyapi-installer | bash"
+            fi
+        fi
     fi
 
 elif [ "$LLM_CHOICE" = "3" ]; then
