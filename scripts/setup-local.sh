@@ -10,6 +10,13 @@ cd "$SCRIPT_DIR/.."
 
 VENV_DIR=".venv"
 CONFIG_FILE="config/default.yaml"
+FRESH=0
+
+for arg in "$@"; do
+    case "$arg" in
+        --fresh) FRESH=1 ;;
+    esac
+done
 
 # ── Helpers ──────────────────────────────────────
 
@@ -36,9 +43,14 @@ echo "  ╔═══════════════════════
 echo "  ║       Glooow — Setup                 ║"
 echo "  ╚══════════════════════════════════════╝"
 
+if [ "$FRESH" = "1" ]; then
+    echo ""
+    warn "Running in --fresh mode (ignoring existing setup)"
+fi
+
 # ── If already set up, offer choices ─────────
 
-if [ -d "$VENV_DIR" ] && [ -f "$CONFIG_FILE" ]; then
+if [ "$FRESH" = "0" ] && [ -d "$VENV_DIR" ] && [ -f "$CONFIG_FILE" ]; then
     echo ""
     echo "  Glooow is already set up."
     echo ""
@@ -364,7 +376,7 @@ case "$LLM_PROVIDER" in
     *)            CONFIG_API_KEY="" ;;
 esac
 
-if [ -f "$CONFIG_FILE" ]; then
+if [ "$FRESH" = "0" ] && [ -f "$CONFIG_FILE" ]; then
     info "Config already exists at $CONFIG_FILE — skipping write"
     ok "To reconfigure, delete $CONFIG_FILE and re-run setup"
 else
