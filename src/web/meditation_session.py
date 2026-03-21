@@ -10,7 +10,7 @@ from ..llm.base import Message
 from ..facilitation.pacing import PacingController
 from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal, RESUME_INTENT_SYSTEM_PROMPT
 from ..facilitation.noting_prompts import (
-    NOTING_SYSTEM_PROMPT, NOTING_OPENER_PROMPT, NOTING_CHECK_IN_PROMPTS,
+    NOTING_SYSTEM_PROMPT, NOTING_OPENER_PROMPT,
     NOTING_LABEL_SYSTEM_PROMPT, NOTING_LABEL_REACTIVE_LOW, NOTING_LABEL_REACTIVE_HIGH,
 )
 from ..facilitation.session import SessionManager
