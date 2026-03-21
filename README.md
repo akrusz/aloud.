@@ -45,15 +45,15 @@ if you already cloned the repo, you can skip the terminal entirely:
 
 | file | what it does |
 |------|--------------|
-| **Install-Mac.command** / **Install-Windows.bat** / **Install-Linux.desktop** | runs the installer |
+| **Setup-Mac.command** / **Setup-Windows.bat** / **Setup-Linux.desktop** | runs the setup wizard |
 | **Start-Mac.command** / **Start-Windows.bat** / **Start-Linux.desktop** | starts the server and opens your browser |
 | **Glooow.app** (mac only) | same as Start-Mac.command but works from anywhere |
 
-### manual install
+### manual setup
 
 you need:
 - python 3.10+
-- [uv](https://docs.astral.sh/uv/) for package management (the install script will offer to install it if missing)
+- [uv](https://docs.astral.sh/uv/) for package management (the setup script will offer to install it if missing)
 - a mic
 - an LLM provider (see below)
 
@@ -131,7 +131,7 @@ quick-start presets pre-fill the focus/quality checkboxes, then you can adjust a
 
 ## configuration
 
-everything lives in `config/default.yaml`. the install script writes this for you but here's what you can tweak:
+everything lives in `config/default.yaml`. the setup script writes this for you but here's what you can tweak:
 
 ```yaml
 tts:
@@ -157,7 +157,7 @@ stt:
 
 the web UI has a provider dropdown that shows which providers are configured. unavailable ones are marked with ✘ and show what you need to do.
 
-**Anthropic (Subscription)** (default) -- uses your claude subscription via CLIProxyAPI. install via homebrew, the install script handles it.
+**Anthropic (Subscription)** (default) -- uses your claude subscription via CLIProxyAPI. install via homebrew, the setup script handles it.
 
 **Anthropic (API Key)** -- direct API access, no proxy needed
 ```bash
@@ -183,7 +183,7 @@ export VENICE_API_KEY=...
 ```
 select "Venice.ai (API Key)" in the web UI, or set `llm.provider: venice` in config
 
-**Ollama (Local)** -- fully local, no API key needed. the install script can set this up for you automatically (option 2), including installing ollama and downloading a default model (~2.5GB). or do it manually:
+**Ollama (Local)** -- fully local, no API key needed. the setup script can set this up for you automatically (option 2), including installing ollama and downloading a default model (~2.5GB). or do it manually:
 ```bash
 ollama pull qwen3.5:4b
 ```
@@ -222,25 +222,28 @@ src/
   tts/              text-to-speech engines (macos, piper, parakeet, elevenlabs)
   stt/              whisper speech-to-text
   llm/              LLM provider abstraction
-  facilitation/     prompt building, session management
+  facilitation/     prompt building, session management, noting prompts
   audio/            CLI audio capture + VAD
+  logging/          transcript logger
 config/             default.yaml
 sessions/           saved transcripts
 scripts/
   setup-local.sh    setup / reconfigure / uninstall (interactive)
   setup.sh          one-line setup: install, update, or uninstall (macOS/linux)
   setup.ps1         one-line setup: install, update, or uninstall (windows)
+  uninstall.sh      standalone uninstaller (macOS/linux)
+  uninstall.ps1     standalone uninstaller (windows)
   start.sh          full launcher (macOS/linux) — auto-starts proxy, shows config
   start-server.sh   lightweight launcher — just the web server
   start.ps1         full launcher (windows)
 docs/
   glooow-screen.png screenshot
   README.nix.md     nix-specific notes
-Install-Mac.command       double-click installer (macOS)
+Setup-Mac.command         double-click setup wizard (macOS)
 Start-Mac.command         double-click launcher (macOS)
-Install-Windows.bat       double-click installer (Windows)
+Setup-Windows.bat         double-click setup wizard (Windows)
 Start-Windows.bat         double-click launcher (Windows)
-Install-Linux.desktop     double-click installer (Linux)
+Setup-Linux.desktop       double-click setup wizard (Linux)
 Start-Linux.desktop       double-click launcher (Linux)
 Glooow.app/         macOS app bundle
 ```
