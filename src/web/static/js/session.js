@@ -424,8 +424,18 @@ function init() {
         state.onTtsDone = onOpenerDone;
 
         // Safety: if TTS never fires (toggle off, broken synth, no audio),
-        // start the circle after 15s.
-        setTimeout(function () { onOpenerDone(); }, 15000);
+        // start the circle after 15s.  But if TTS is actively playing
+        // (server LLM + TTS generation can push the opener arrival past
+        // the 15s mark), rely on the onTtsDone event callback instead.
+        setTimeout(function () {
+            if (state.ttsSpeaking || state.serverAudioPlaying) {
+                // TTS is still playing — onTtsDone will start the circle.
+                // Re-arm in case the callback was consumed by an earlier event.
+                if (!state.onTtsDone) state.onTtsDone = onOpenerDone;
+                return;
+            }
+            onOpenerDone();
+        }, 15000);
     }
 
     // Auto-activate voice
