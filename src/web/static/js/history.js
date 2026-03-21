@@ -161,7 +161,7 @@
 
                     var role = document.createElement('div');
                     role.className = 'transcript-role ' + ex.role;
-                    role.textContent = ex.role === 'assistant' ? 'Facilitator' : 'You';
+                    role.textContent = ex.name || (ex.role === 'assistant' ? 'Facilitator' : 'You');
 
                     var text = document.createElement('div');
                     text.className = 'transcript-text';

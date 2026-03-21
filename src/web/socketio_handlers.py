@@ -277,7 +277,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             return
         text = (data.get("text") or "").strip()
         if text:
-            web_session.session.add_user_message(text)
+            web_session.session.add_user_message(text, name=data.get("name"))
 
     @socketio.on("noting_turn")
     def handle_noting_turn(data):
@@ -298,7 +298,8 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             label = "breathing"
 
         # Save to session transcript
-        web_session.session.add_assistant_message(label)
+        name = data.get("name")
+        web_session.session.add_assistant_message(label, name=name)
 
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
@@ -327,7 +328,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             return
 
         # Save to session transcript
-        web_session.session.add_assistant_message(text)
+        web_session.session.add_assistant_message(text, name=data.get("name"))
 
         audio = None
         if app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):

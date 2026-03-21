@@ -13,15 +13,19 @@ class Exchange:
     role: Literal["user", "assistant"]
     content: str
     timestamp: float = field(default_factory=time.time)
+    name: str | None = None  # display name (e.g. participant name in noting)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
-        return {
+        d = {
             "role": self.role,
             "content": self.content,
             "timestamp": self.timestamp,
             "time": datetime.fromtimestamp(self.timestamp).isoformat(),
         }
+        if self.name:
+            d["name"] = self.name
+        return d
 
 
 @dataclass
@@ -115,11 +119,12 @@ class SessionManager:
         state = self._state
         return state
 
-    def add_user_message(self, content: str) -> None:
+    def add_user_message(self, content: str, name: str | None = None) -> None:
         """Add a user (meditator) message to the session.
 
         Args:
             content: The transcribed speech
+            name: Optional display name (e.g. "You" in noting circles)
         """
         if self._state is None:
             raise RuntimeError("No active session")
@@ -127,13 +132,15 @@ class SessionManager:
         self._state.exchanges.append(Exchange(
             role="user",
             content=content,
+            name=name,
         ))
 
-    def add_assistant_message(self, content: str) -> None:
+    def add_assistant_message(self, content: str, name: str | None = None) -> None:
         """Add an assistant (facilitator) message to the session.
 
         Args:
             content: The facilitator's response
+            name: Optional display name (e.g. participant name in noting)
         """
         if self._state is None:
             raise RuntimeError("No active session")
@@ -141,6 +148,7 @@ class SessionManager:
         self._state.exchanges.append(Exchange(
             role="assistant",
             content=content,
+            name=name,
         ))
 
     def load_exchanges(self, exchanges: list[dict]) -> None:

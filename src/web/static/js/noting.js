@@ -173,7 +173,7 @@ export function handleUserNote(text) {
     addMessage('user', text, false, 'You');
 
     // Save to session history for transcript
-    socket.emit('noting_user_note', { text: text });
+    socket.emit('noting_user_note', { text: text, name: 'You' });
 
     // Wait briefly then advance
     scheduleNextTurn(500);
@@ -266,6 +266,7 @@ function executeParticipantTurn(index, p) {
             reactive: p.reactive || 'none',
             participant_index: index,
             voice: p.voice || null,
+            name: participantName(index),
         });
     } else if (p.type === 'fixed') {
         var phrase = p.phrase || 'breathing';
@@ -278,6 +279,7 @@ function executeParticipantTurn(index, p) {
             text: phrase,
             voice: p.voice || null,
             participant_index: index,
+            name: participantName(index),
         });
     } else if (p.type === 'sound') {
         var soundName = p.sound || null;
