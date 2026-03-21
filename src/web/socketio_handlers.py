@@ -212,6 +212,8 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         session_data = web_session.end()
         if summary:
             session_data["summary"] = summary
+        if web_session.meditation_type != "exploration":
+            session_data["meditation_type"] = web_session.meditation_type
         saved_id = None
         if session_data and app.meditation_config.session.auto_save:
             if hasattr(web_session, 'continued_from'):
@@ -267,6 +269,16 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             if web_session:
                 web_session.tts_voice_name = voice
 
+    @socketio.on("noting_user_note")
+    def handle_noting_user_note(data):
+        """Save a user's noting label to the session transcript."""
+        web_session = _get_session(request.sid)
+        if not web_session:
+            return
+        text = (data.get("text") or "").strip()
+        if text:
+            web_session.session.add_user_message(text)
+
     @socketio.on("noting_turn")
     def handle_noting_turn(data):
         """Generate an LLM noting label for a circle participant."""
@@ -284,6 +296,9 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             label = asyncio.run(web_session.generate_noting_label(context, reactive))
         except Exception:
             label = "breathing"
+
+        # Save to session transcript
+        web_session.session.add_assistant_message(label)
 
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
@@ -310,6 +325,9 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         participant_index = data.get("participant_index", 0)
         if not text:
             return
+
+        # Save to session transcript
+        web_session.session.add_assistant_message(text)
 
         audio = None
         if app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):

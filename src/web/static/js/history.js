@@ -42,7 +42,15 @@
         var durationText = s.duration
             ? Math.floor(s.duration / 60) + 'm ' + Math.floor(s.duration % 60) + 's'
             : '--';
-        var dateText = s.date ? s.date.substring(0, 10) : 'Unknown';
+        var dateText = 'Unknown';
+        if (s.date) {
+            var d = new Date(s.date);
+            if (!isNaN(d)) {
+                dateText = d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+            } else {
+                dateText = s.date.substring(0, 10);
+            }
+        }
 
         var header = document.createElement('div');
         header.className = 'session-item-header';
@@ -53,7 +61,9 @@
 
         var dateSpan = document.createElement('span');
         dateSpan.className = 'session-date';
-        dateSpan.textContent = dateText;
+        dateSpan.textContent = dateText + (s.meditation_type
+            ? ' \u00B7 ' + s.meditation_type.charAt(0).toUpperCase() + s.meditation_type.slice(1)
+            : '');
         info.appendChild(dateSpan);
 
         var metaSpan = document.createElement('span');

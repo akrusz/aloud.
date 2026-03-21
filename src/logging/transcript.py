@@ -139,7 +139,7 @@ class TranscriptLogger:
                 with open(filepath) as f:
                     data = json.load(f)
 
-                sessions.append({
+                entry = {
                     "session_id": data.get("session_id", filepath.stem),
                     "date": data.get("saved_at", "unknown"),
                     "duration": data.get("duration"),
@@ -147,7 +147,11 @@ class TranscriptLogger:
                     "tags": data.get("tags", []),
                     "summary": data.get("summary", ""),
                     "filepath": str(filepath),
-                })
+                }
+                mt = data.get("meditation_type")
+                if mt:
+                    entry["meditation_type"] = mt
+                sessions.append(entry)
             except (json.JSONDecodeError, IOError):
                 continue
 

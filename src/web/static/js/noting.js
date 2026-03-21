@@ -172,6 +172,9 @@ export function handleUserNote(text) {
 
     addMessage('user', text, false, 'You');
 
+    // Save to session history for transcript
+    socket.emit('noting_user_note', { text: text });
+
     // Wait briefly then advance
     scheduleNextTurn(500);
     return true;
