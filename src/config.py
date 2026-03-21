@@ -51,7 +51,7 @@ class LLMConfig:
     proxy_url: str = "http://127.0.0.1:8317"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"
-    api_key: str | None = None
+    api_key: str | None = "glooow"  # default for claude_proxy; overridden by config file
     openai_base_url: str | None = None
     context_strategy: str = "full"
     window_size: int = 100
