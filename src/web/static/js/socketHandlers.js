@@ -4,6 +4,7 @@ import { state, dom, socket } from './state.js';
 import { addMessage, addContinuation, showTyping, hideTyping, scrollToBottom, stopTimer, setStatus, showErrorToast } from './ui.js';
 import { speak, stopServerAudio } from './tts.js';
 import { handleTranscription } from './audio.js';
+import { notingState, stopCircle } from './noting.js';
 
 export function registerSocketHandlers(deactivateVoiceFn) {
 
@@ -48,6 +49,7 @@ export function registerSocketHandlers(deactivateVoiceFn) {
     });
 
     socket.on('session_ended', function (data) {
+        if (notingState.active) stopCircle();
         state.sessionActive = false;
         window._glooowSessionActive = false;
         stopTimer();

@@ -11,7 +11,10 @@
 {% block content %}
 <div class="setup-container">
     <div class="setup-header">
-        <p class="setup-subtitle">Set an intention, choose how you'd like to be guided, then sit or lie down.</p>
+        <div class="tab-bar">
+            <button type="button" class="tab-btn active" data-tab="exploration">Exploration</button>
+            <button type="button" class="tab-btn" data-tab="noting">Noting</button>
+        </div>
     </div>
 
     <div id="continue-banner" class="continue-banner" style="display:none">
@@ -20,164 +23,199 @@
     </div>
 
     <form id="setup-form" class="setup-form">
-        <div class="form-group">
-            <label for="intention">Intention <span class="optional">(optional)</span></label>
-            <textarea
-                id="intention"
-                name="intention"
-                rows="2"
-                placeholder="e.g. Explore pleasant sensations... Practice jhana... Just be present... Let go and drift..."
-            ></textarea>
-        </div>
-
-        <div class="form-group">
-            <label>Quick Start</label>
-            <div class="style-cards">
-                <label class="style-card selected" data-preset="pleasant_play">
-                    <input type="radio" name="preset" value="pleasant_play" checked>
-                    <div class="style-card-inner">
-                        <span class="style-name">Pleasant Play</span>
-                        <span class="style-desc">Playfully exploring emotions, body sensations, jhana factors</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="warmth_goodwill">
-                    <input type="radio" name="preset" value="warmth_goodwill">
-                    <div class="style-card-inner">
-                        <span class="style-name">Warmth & Goodwill</span>
-                        <span class="style-desc">Orienting toward kind and loving feelings for yourself and others</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="parts_work">
-                    <input type="radio" name="preset" value="parts_work">
-                    <div class="style-card-inner">
-                        <span class="style-name">Parts Work</span>
-                        <span class="style-desc">Explore inner parts, speak to them, let them speak back</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="somatic">
-                    <input type="radio" name="preset" value="somatic">
-                    <div class="style-card-inner">
-                        <span class="style-name">Somatic</span>
-                        <span class="style-desc">Body-focused exploration of sensation and physical experience</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="freeform">
-                    <input type="radio" name="preset" value="freeform">
-                    <div class="style-card-inner">
-                        <span class="style-name">Freeform</span>
-                        <span class="style-desc">Spacious, effortless. Flow with whatever arises</span>
-                    </div>
-                </label>
-                <label class="style-card" data-preset="stillness">
-                    <input type="radio" name="preset" value="stillness">
-                    <div class="style-card-inner">
-                        <span class="style-name">Stillness</span>
-                        <span class="style-desc">Minimal guidance, holding space for whatever wants to happen</span>
-                    </div>
-                </label>
+        <div class="tab-panel" id="exploration-panel">
+            <div class="form-group">
+                <label for="intention">Intention <span class="optional">(optional)</span></label>
+                <textarea
+                    id="intention"
+                    name="intention"
+                    rows="2"
+                    placeholder="e.g. Explore pleasant sensations... Practice jhana... Just be present... Let go and drift..."
+                ></textarea>
             </div>
-        </div>
 
-        <div class="form-group">
-            <label>Attention Focus</label>
-            <div class="modifier-toggles">
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="focus" value="body_sensations">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Body & sensations</span>
-                        <span class="modifier-desc">Physical experience - texture, temperature, movement</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="focus" value="emotions">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Emotions & feeling tone</span>
-                        <span class="modifier-desc">Emotional landscape, warmth, what's alive underneath</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="focus" value="inner_parts">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Parts & inner world</span>
-                        <span class="modifier-desc">Inner parts, protectors, body parts, speaking to/as parts</span>
-                    </div>
-                </label>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>Vibe</label>
-            <div class="modifier-toggles">
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="playful">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Playful & light</span>
-                        <span class="modifier-desc">Play, spontaneity, delight. Doesn't have to be serious</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="compassionate">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Compassionate</span>
-                        <span class="modifier-desc">Meeting what arises with care, tenderness, gentleness</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="loving">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Loving & kind</span>
-                        <span class="modifier-desc">Generating and radiating love and goodwill</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="spacious">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Spacious</span>
-                        <span class="modifier-desc">Notice the openness that's already here</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="effortless">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Effortless</span>
-                        <span class="modifier-desc">Hands off the wheel, let things unfold</span>
-                    </div>
-                </label>
-                <label class="modifier-toggle">
-                    <input type="checkbox" name="quality" value="feeling_good">
-                    <div class="modifier-info">
-                        <span class="modifier-name">Feeling good</span>
-                        <span class="modifier-desc">Noticing and cultivating pleasant sensations</span>
-                    </div>
-                </label>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="form-group form-group-half">
-                <label for="directiveness">Guidance Level</label>
-                <input
-                    type="range"
-                    id="directiveness"
-                    name="directiveness"
-                    min="0"
-                    max="4"
-                    value="1"
-                    step="1"
-                >
-                <div class="range-labels">
-                    <span>Following</span>
-                    <span>Directing</span>
+            <div class="form-group">
+                <label>Quick Start</label>
+                <div class="style-cards">
+                    <label class="style-card selected" data-preset="pleasant_play">
+                        <input type="radio" name="preset" value="pleasant_play" checked>
+                        <div class="style-card-inner">
+                            <span class="style-name">Pleasant Play</span>
+                            <span class="style-desc">Playfully exploring emotions, body sensations, jhana factors</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="warmth_goodwill">
+                        <input type="radio" name="preset" value="warmth_goodwill">
+                        <div class="style-card-inner">
+                            <span class="style-name">Warmth & Goodwill</span>
+                            <span class="style-desc">Orienting toward kind and loving feelings for yourself and others</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="parts_work">
+                        <input type="radio" name="preset" value="parts_work">
+                        <div class="style-card-inner">
+                            <span class="style-name">Parts Work</span>
+                            <span class="style-desc">Explore inner parts, speak to them, let them speak back</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="somatic">
+                        <input type="radio" name="preset" value="somatic">
+                        <div class="style-card-inner">
+                            <span class="style-name">Somatic</span>
+                            <span class="style-desc">Body-focused exploration of sensation and physical experience</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="freeform">
+                        <input type="radio" name="preset" value="freeform">
+                        <div class="style-card-inner">
+                            <span class="style-name">Freeform</span>
+                            <span class="style-desc">Spacious, effortless. Flow with whatever arises</span>
+                        </div>
+                    </label>
+                    <label class="style-card" data-preset="stillness">
+                        <input type="radio" name="preset" value="stillness">
+                        <div class="style-card-inner">
+                            <span class="style-name">Stillness</span>
+                            <span class="style-desc">Minimal guidance, holding space for whatever wants to happen</span>
+                        </div>
+                    </label>
                 </div>
             </div>
 
-            <div class="form-group form-group-half">
-                <label for="verbosity">Response Length</label>
-                <select id="verbosity" name="verbosity">
-                    <option value="low">Brief</option>
-                    <option value="medium" selected>Medium</option>
-                    <option value="high">Longer</option>
-                </select>
+            <div class="form-group">
+                <label>Attention Focus</label>
+                <div class="modifier-toggles">
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="focus" value="body_sensations">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Body & sensations</span>
+                            <span class="modifier-desc">Physical experience - texture, temperature, movement</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="focus" value="emotions">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Emotions & feeling tone</span>
+                            <span class="modifier-desc">Emotional landscape, warmth, what's alive underneath</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="focus" value="inner_parts">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Parts & inner world</span>
+                            <span class="modifier-desc">Inner parts, protectors, body parts, speaking to/as parts</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Vibe</label>
+                <div class="modifier-toggles">
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="playful">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Playful & light</span>
+                            <span class="modifier-desc">Play, spontaneity, delight. Doesn't have to be serious</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="compassionate">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Compassionate</span>
+                            <span class="modifier-desc">Meeting what arises with care, tenderness, gentleness</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="loving">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Loving & kind</span>
+                            <span class="modifier-desc">Generating and radiating love and goodwill</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="spacious">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Spacious</span>
+                            <span class="modifier-desc">Notice the openness that's already here</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="effortless">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Effortless</span>
+                            <span class="modifier-desc">Hands off the wheel, let things unfold</span>
+                        </div>
+                    </label>
+                    <label class="modifier-toggle">
+                        <input type="checkbox" name="quality" value="feeling_good">
+                        <div class="modifier-info">
+                            <span class="modifier-name">Feeling good</span>
+                            <span class="modifier-desc">Noticing and cultivating pleasant sensations</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row form-row-thirds">
+                <div class="form-group">
+                    <label for="directiveness">Guidance Level</label>
+                    <input
+                        type="range"
+                        id="directiveness"
+                        name="directiveness"
+                        min="0"
+                        max="4"
+                        value="1"
+                        step="1"
+                    >
+                    <div class="range-labels">
+                        <span>Following</span>
+                        <span>Directing</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="verbosity">Response Length</label>
+                    <select id="verbosity" name="verbosity">
+                        <option value="low">Brief</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">Longer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Voice</label>
+                    <button type="button" id="setup-voice-btn" class="setup-voice-btn">Default</button>
+                </div>
+            </div>
+
+            <details class="advanced-settings">
+                <summary>Additional instructions</summary>
+                <div class="form-group">
+                    <textarea
+                        id="custom_instructions"
+                        name="custom_instructions"
+                        rows="3"
+                        placeholder="Any specific guidance for the facilitator..."
+                    ></textarea>
+                </div>
+            </details>
+        </div>
+
+        <div class="tab-panel" id="noting-panel" style="display:none">
+            <div class="form-group">
+                <label>Participants</label>
+                <div id="participant-list"></div>
+                <button type="button" id="add-participant-btn" class="btn btn-secondary btn-small">+ Add participant</button>
+            </div>
+
+            <div class="noting-option-row">
+                <label class="noting-option">
+                    <input type="checkbox" id="user-turn-cue">
+                    <span>Play a sound when it's your turn</span>
+                </label>
+                <button type="button" id="user-turn-cue-sound-btn" class="btn btn-secondary btn-small sound-pick-btn" data-sound="card">Card</button>
             </div>
         </div>
 
@@ -201,27 +239,57 @@
         </div>
         <div id="provider-hint" class="provider-hint" style="display:none"></div>
 
-        <details class="advanced-settings">
-            <summary>Additional instructions</summary>
-            <div class="form-group">
-                <textarea
-                    id="custom_instructions"
-                    name="custom_instructions"
-                    rows="3"
-                    placeholder="Any specific guidance for the facilitator..."
-                ></textarea>
-            </div>
-        </details>
-
         <button type="submit" class="btn btn-primary btn-begin">
             Begin Session
         </button>
     </form>
+
+    <div class="voice-modal-overlay" id="setup-voice-modal" style="display: none;">
+        <div class="voice-modal">
+            <div class="voice-modal-header">
+                <span class="voice-modal-title">Choose Voice</span>
+                <button type="button" class="voice-modal-close" id="setup-voice-modal-close">&times;</button>
+            </div>
+            <div class="voice-modal-list" id="setup-voice-modal-list">
+            </div>
+        </div>
+    </div>
+
+    <div class="voice-modal-overlay" id="sound-modal" style="display: none;">
+        <div class="voice-modal">
+            <div class="voice-modal-header">
+                <span class="voice-modal-title">Choose Sound</span>
+                <button type="button" class="voice-modal-close" id="sound-modal-close">&times;</button>
+            </div>
+            <div class="voice-modal-list" id="sound-modal-list">
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // ---- Tab switching ----
+    let activeTab = localStorage.getItem('glooow-tab') || 'exploration';
+
+    function applyTab(tab) {
+        activeTab = tab;
+        localStorage.setItem('glooow-tab', tab);
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === tab);
+        });
+        document.getElementById('exploration-panel').style.display = tab === 'exploration' ? '' : 'none';
+        document.getElementById('noting-panel').style.display = tab === 'noting' ? '' : 'none';
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => applyTab(btn.dataset.tab));
+    });
+
+    // Restore saved tab on load
+    applyTab(activeTab);
+
     // ---- Presets ----
     const presets = {
         pleasant_play: {
@@ -443,6 +511,551 @@
     providerSelect.addEventListener('change', updateModelOptions);
     updateModelOptions();
 
+    // ---- Helpers ----
+    function stripVoiceQualifier(name) {
+        return name ? name.replace(/\s*\(.*\)$/, '') : name;
+    }
+
+    // ---- Voice picker ----
+    const QUALITY_VOICES_RE = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
+    const TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
+
+    const setupVoiceBtn = document.getElementById('setup-voice-btn');
+    const setupVoiceModal = document.getElementById('setup-voice-modal');
+    const setupVoiceModalList = document.getElementById('setup-voice-modal-list');
+    const setupVoiceModalClose = document.getElementById('setup-voice-modal-close');
+
+    let scoredVoices = [];
+    let selectedVoiceName = localStorage.getItem('glooow-voice') || null;
+    let previewAudio = null;
+
+    function scoreVoiceName(name) {
+        if (/Premium/i.test(name)) return 3;
+        if (/Enhanced|Online|Natural/i.test(name)) return 2;
+        if (/^Google/i.test(name)) return 1;
+        const baseName = name.replace(/\s*\(.*\)$/, '');
+        if (QUALITY_VOICES_RE.test(baseName)) return 1;
+        return 0;
+    }
+
+    function updateVoiceBtnLabel() {
+        setupVoiceBtn.textContent = selectedVoiceName || 'Default';
+    }
+
+    function buildSetupVoiceList(serverVoices) {
+        const langPrefix = (navigator.language || 'en').split(/[-_]/)[0];
+        const browserVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+        const browserByName = {};
+        browserVoices.forEach(v => { browserByName[v.name] = v; });
+
+        const scored = [];
+        const seen = {};
+
+        // Server voices first
+        (serverVoices || []).forEach(sv => {
+            const vLang = (sv.lang || '').split(/[-_]/)[0];
+            if (vLang !== 'en' && vLang !== langPrefix) return;
+            const score = scoreVoiceName(sv.name);
+            scored.push({ name: sv.name, score });
+            seen[sv.name] = true;
+        });
+
+        // Browser-only voices
+        browserVoices.forEach(v => {
+            if (seen[v.name]) return;
+            const vLang = (v.lang || '').split(/[-_]/)[0];
+            if (vLang !== 'en' && vLang !== langPrefix) return;
+            let score = scoreVoiceName(v.name);
+            if (!v.localService) score = Math.max(score, 2);
+            scored.push({ name: v.name, score });
+            seen[v.name] = true;
+        });
+
+        scored.sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
+        scoredVoices = scored;
+
+        // If no saved voice, default to best available
+        if (!selectedVoiceName && scored.length) {
+            selectedVoiceName = scored[0].name;
+            localStorage.setItem('glooow-voice', selectedVoiceName);
+        }
+        updateVoiceBtnLabel();
+    }
+
+    function renderVoiceModal() {
+        setupVoiceModalList.innerHTML = '';
+        const tiers = {};
+        scoredVoices.forEach(v => {
+            if (!tiers[v.score]) tiers[v.score] = [];
+            tiers[v.score].push(v);
+        });
+
+        [3, 2, 1, 0].forEach(tier => {
+            const items = tiers[tier];
+            if (!items || !items.length) return;
+
+            const label = document.createElement('div');
+            label.className = 'voice-tier-label';
+            label.textContent = TIER_LABELS[tier];
+            setupVoiceModalList.appendChild(label);
+
+            items.forEach(entry => {
+                const row = document.createElement('div');
+                row.className = 'voice-row';
+                if (entry.name === selectedVoiceName) row.classList.add('selected');
+                row.dataset.voiceName = entry.name;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'voice-row-name';
+                nameSpan.textContent = entry.name;
+                row.appendChild(nameSpan);
+
+                if (entry.name === selectedVoiceName) {
+                    const check = document.createElement('span');
+                    check.className = 'voice-row-check';
+                    check.textContent = '\u2713';
+                    row.appendChild(check);
+                }
+
+                const previewBtn = document.createElement('button');
+                previewBtn.type = 'button';
+                previewBtn.className = 'voice-row-preview';
+                previewBtn.textContent = 'Preview';
+                previewBtn.dataset.voiceName = entry.name;
+                row.appendChild(previewBtn);
+
+                setupVoiceModalList.appendChild(row);
+            });
+        });
+    }
+
+    function stopVoicePreview() {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        if (previewAudio) { previewAudio.pause(); previewAudio = null; }
+    }
+
+    setupVoiceBtn.addEventListener('click', () => {
+        renderVoiceModal();
+        setupVoiceModal.style.display = 'flex';
+    });
+
+    setupVoiceModalClose.addEventListener('click', () => {
+        setupVoiceModal.style.display = 'none';
+        stopVoicePreview();
+    });
+
+    setupVoiceModal.addEventListener('click', (e) => {
+        if (e.target === setupVoiceModal) {
+            setupVoiceModal.style.display = 'none';
+            stopVoicePreview();
+        }
+    });
+
+    setupVoiceModalList.addEventListener('click', (e) => {
+        const previewBtn = e.target.closest('.voice-row-preview');
+        if (previewBtn) {
+            e.stopPropagation();
+            stopVoicePreview();
+            const voiceName = previewBtn.dataset.voiceName;
+            let url = '/api/voices/preview?voice=' + encodeURIComponent(voiceName);
+            if (voiceName === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
+            previewAudio = new Audio(url);
+            previewAudio.play().catch(() => {});
+            return;
+        }
+
+        const row = e.target.closest('.voice-row');
+        if (!row) return;
+        selectedVoiceName = row.dataset.voiceName;
+        localStorage.setItem('glooow-voice', selectedVoiceName);
+        updateVoiceBtnLabel();
+        renderVoiceModal();
+    });
+
+    // Fetch server voices and build the list
+    fetch('/api/voices')
+        .then(r => r.json())
+        .then(voices => buildSetupVoiceList(voices))
+        .catch(() => buildSetupVoiceList([]));
+
+    // Also rebuild when browser voices load (can be async)
+    if (window.speechSynthesis) {
+        window.speechSynthesis.addEventListener('voiceschanged', () => {
+            fetch('/api/voices')
+                .then(r => r.json())
+                .then(voices => buildSetupVoiceList(voices))
+                .catch(() => buildSetupVoiceList([]));
+        });
+    }
+
+    // ---- Noting participants ----
+    const participantList = document.getElementById('participant-list');
+    const addParticipantBtn = document.getElementById('add-participant-btn');
+    let participantCount = 0;
+    const MAX_PARTICIPANTS = 4;
+
+    function createParticipantRow(index) {
+        const row = document.createElement('div');
+        row.className = 'participant-row';
+        row.dataset.index = index;
+
+        const defaultVoice = localStorage.getItem('glooow-voice') || null;
+        const defaultLabel = defaultVoice ? stripVoiceQualifier(defaultVoice) : `Participant ${index + 1}`;
+
+        row.innerHTML = `
+            <div class="participant-row-header">
+                <span class="participant-label">${defaultLabel}</span>
+                <button type="button" class="participant-remove" title="Remove">&times;</button>
+            </div>
+            <div class="participant-fields">
+                <div class="participant-field">
+                    <label>Type</label>
+                    <select class="participant-type">
+                        <option value="llm" selected>AI</option>
+                        <option value="fixed">Fixed phrase</option>
+                        <option value="sound">Sound effect</option>
+                    </select>
+                </div>
+                <div class="participant-field participant-voice-field">
+                    <label>Voice</label>
+                    <button type="button" class="setup-voice-btn participant-voice-btn">Default</button>
+                </div>
+                <div class="participant-field">
+                    <label>Timing</label>
+                    <select class="participant-timing">
+                        <option value="adaptive" selected>Adaptive</option>
+                        <option value="fixed">Fixed</option>
+                    </select>
+                </div>
+                <div class="participant-field participant-delay-field" style="display:none">
+                    <label>Seconds</label>
+                    <input type="number" class="participant-delay" value="4" min="1" max="30" step="1">
+                </div>
+                <div class="participant-field participant-reactive-field">
+                    <label>Responsiveness</label>
+                    <div class="reactive-slider-wrap">
+                        <input type="range" class="participant-reactive" min="0" max="2" value="1" step="1">
+                        <span class="reactive-label">Low</span>
+                    </div>
+                </div>
+                <div class="participant-field participant-phrase-field" style="display:none">
+                    <label>Phrase</label>
+                    <div class="phrase-input-wrap">
+                        <input type="text" class="participant-phrase" placeholder="e.g. breathing" maxlength="30">
+                        <button type="button" class="participant-phrase-preview btn btn-secondary btn-small" title="Preview phrase">&#9654;</button>
+                    </div>
+                </div>
+                <div class="participant-field participant-sound-field" style="display:none">
+                    <label>Sound</label>
+                    <button type="button" class="btn btn-secondary btn-small participant-sound-btn sound-pick-btn" data-sound="crow">Crow</button>
+                </div>
+            </div>
+        `;
+
+        // Type change: show/hide conditional fields
+        const typeSelect = row.querySelector('.participant-type');
+        const voiceField = row.querySelector('.participant-voice-field');
+        const reactiveField = row.querySelector('.participant-reactive-field');
+        const phraseField = row.querySelector('.participant-phrase-field');
+        const soundField = row.querySelector('.participant-sound-field');
+
+        const labelEl = row.querySelector('.participant-label');
+
+        function updateLabel() {
+            if (typeSelect.value === 'sound') {
+                const snd = row.querySelector('.participant-sound-btn').dataset.sound;
+                labelEl.textContent = snd ? snd.charAt(0).toUpperCase() + snd.slice(1) : 'Sound';
+            } else {
+                const voice = row.querySelector('.participant-voice-btn').dataset.voice;
+                labelEl.textContent = voice ? stripVoiceQualifier(voice) : `Participant ${parseInt(row.dataset.index, 10) + 1}`;
+            }
+        }
+
+        typeSelect.addEventListener('change', () => {
+            const t = typeSelect.value;
+            voiceField.style.display = t === 'sound' ? 'none' : '';
+            reactiveField.style.display = t === 'llm' ? '' : 'none';
+            phraseField.style.display = t === 'fixed' ? '' : 'none';
+            soundField.style.display = t === 'sound' ? '' : 'none';
+            updateLabel();
+        });
+
+        // Reactivity slider label
+        const reactiveSlider = row.querySelector('.participant-reactive');
+        const reactiveLabel = row.querySelector('.reactive-label');
+        const reactiveLabels = ['None', 'Low', 'High'];
+        reactiveSlider.addEventListener('input', () => {
+            reactiveLabel.textContent = reactiveLabels[reactiveSlider.value];
+        });
+
+        // Timing change: show/hide delay input
+        const timingSelect = row.querySelector('.participant-timing');
+        const delayField = row.querySelector('.participant-delay-field');
+        timingSelect.addEventListener('change', () => {
+            delayField.style.display = timingSelect.value === 'fixed' ? '' : 'none';
+        });
+
+        // Voice picker for this participant
+        const voiceBtn = row.querySelector('.participant-voice-btn');
+        let participantVoice = localStorage.getItem('glooow-voice') || null;
+        if (participantVoice) {
+            voiceBtn.textContent = participantVoice;
+            voiceBtn.dataset.voice = participantVoice;
+        }
+        voiceBtn.addEventListener('click', () => {
+            openParticipantVoicePicker(voiceBtn, (voiceName) => {
+                participantVoice = voiceName;
+                voiceBtn.textContent = voiceName;
+                voiceBtn.dataset.voice = voiceName;
+                updateLabel();
+            });
+        });
+
+        // Phrase preview button
+        const phrasePreviewBtn = row.querySelector('.participant-phrase-preview');
+        const phraseInput = row.querySelector('.participant-phrase');
+        let phrasePreviewAudio = null;
+        phrasePreviewBtn.addEventListener('click', () => {
+            const text = phraseInput.value.trim() || 'breathing';
+            const voice = voiceBtn.dataset.voice || '';
+            if (phrasePreviewAudio) { phrasePreviewAudio.pause(); phrasePreviewAudio = null; }
+            let url = '/api/voices/preview?text=' + encodeURIComponent(text);
+            if (voice) url += '&voice=' + encodeURIComponent(voice);
+            phrasePreviewAudio = new Audio(url);
+            phrasePreviewAudio.play().catch(() => {});
+        });
+
+        // Sound picker button
+        const soundBtn = row.querySelector('.participant-sound-btn');
+        soundBtn.addEventListener('click', () => {
+            openSoundModal(soundBtn.dataset.sound, (name) => {
+                soundBtn.dataset.sound = name;
+                soundBtn.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+                updateLabel();
+            });
+        });
+
+        // Remove button
+        row.querySelector('.participant-remove').addEventListener('click', () => {
+            row.remove();
+            participantCount--;
+            updateAddButton();
+            renumberParticipants();
+        });
+
+        return row;
+    }
+
+    function renumberParticipants() {
+        participantList.querySelectorAll('.participant-row').forEach((row, i) => {
+            row.dataset.index = i;
+            const voice = row.querySelector('.participant-voice-btn').dataset.voice;
+            if (!voice) {
+                row.querySelector('.participant-label').textContent = `Participant ${i + 1}`;
+            }
+        });
+    }
+
+    function updateAddButton() {
+        addParticipantBtn.style.display = participantCount >= MAX_PARTICIPANTS ? 'none' : '';
+    }
+
+    function addParticipant() {
+        if (participantCount >= MAX_PARTICIPANTS) return;
+        const row = createParticipantRow(participantCount);
+        participantList.appendChild(row);
+        participantCount++;
+        updateAddButton();
+    }
+
+    addParticipantBtn.addEventListener('click', addParticipant);
+
+    // Add one default participant
+    addParticipant();
+
+    // ---- Sound modal ----
+    let availableSounds = [];
+    const soundModal = document.getElementById('sound-modal');
+    const soundModalList = document.getElementById('sound-modal-list');
+    const soundModalClose = document.getElementById('sound-modal-close');
+    let soundPreviewAudio = null;
+    let soundModalCallback = null;
+
+    // Built-in synth chime (no MP3 file — generated via Web Audio API)
+    const BUILTIN_CHIME = { name: 'chime', file: null, builtin: true };
+
+    fetch('/api/sounds').then(r => r.json()).then(sounds => {
+        availableSounds = [BUILTIN_CHIME].concat(sounds);
+    }).catch(() => { availableSounds = [BUILTIN_CHIME]; });
+
+    function openSoundModal(currentSound, onSelect) {
+        soundModalCallback = onSelect;
+        soundModalList.innerHTML = '';
+
+        availableSounds.forEach(s => {
+            const row = document.createElement('div');
+            row.className = 'voice-row' + (s.name === currentSound ? ' selected' : '');
+            row.dataset.soundName = s.name;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'voice-row-name';
+            nameSpan.textContent = s.name.charAt(0).toUpperCase() + s.name.slice(1);
+            row.appendChild(nameSpan);
+
+            if (s.name === currentSound) {
+                const check = document.createElement('span');
+                check.className = 'voice-row-check';
+                check.textContent = '\u2713';
+                row.appendChild(check);
+            }
+
+            const previewBtn = document.createElement('button');
+            previewBtn.type = 'button';
+            previewBtn.className = 'voice-row-preview';
+            previewBtn.textContent = 'Preview';
+            previewBtn.dataset.soundFile = s.file || '';
+            row.appendChild(previewBtn);
+
+            soundModalList.appendChild(row);
+        });
+
+        soundModal.style.display = 'flex';
+    }
+
+    function stopSoundPreview() {
+        if (soundPreviewAudio) { soundPreviewAudio.pause(); soundPreviewAudio = null; }
+    }
+
+    function closeSoundModal() {
+        soundModal.style.display = 'none';
+        stopSoundPreview();
+        soundModalCallback = null;
+    }
+
+    soundModalClose.addEventListener('click', closeSoundModal);
+    soundModal.addEventListener('click', (e) => {
+        if (e.target === soundModal) closeSoundModal();
+    });
+
+    function previewChime() {
+        // Play the same two-tone ascending chime as noting.js playSynthChime
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(554, now + 0.1);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }
+
+    soundModalList.addEventListener('click', (e) => {
+        // Preview
+        const previewBtn = e.target.closest('.voice-row-preview');
+        if (previewBtn) {
+            stopSoundPreview();
+            if (previewBtn.dataset.soundFile) {
+                soundPreviewAudio = new Audio('/static/audio/' + encodeURIComponent(previewBtn.dataset.soundFile));
+                soundPreviewAudio.play().catch(() => {});
+            } else {
+                previewChime();
+            }
+            return;
+        }
+        // Select
+        const row = e.target.closest('.voice-row');
+        if (row && soundModalCallback) {
+            soundModalCallback(row.dataset.soundName);
+            closeSoundModal();
+        }
+    });
+
+    // User turn cue sound button
+    const userCueSoundBtn = document.getElementById('user-turn-cue-sound-btn');
+    userCueSoundBtn.addEventListener('click', () => {
+        openSoundModal(userCueSoundBtn.dataset.sound, (name) => {
+            userCueSoundBtn.dataset.sound = name;
+            userCueSoundBtn.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        });
+    });
+
+    function getParticipantConfigs() {
+        const configs = [];
+        participantList.querySelectorAll('.participant-row').forEach(row => {
+            const type = row.querySelector('.participant-type').value;
+            const timing = row.querySelector('.participant-timing').value;
+            const config = {
+                type,
+                timing,
+                fixedDelay: parseInt(row.querySelector('.participant-delay').value, 10) || 4,
+                voice: row.querySelector('.participant-voice-btn').dataset.voice || null,
+            };
+            if (type === 'llm') {
+                const reactiveVal = parseInt(row.querySelector('.participant-reactive').value, 10);
+                config.reactive = ['none', 'low', 'high'][reactiveVal] || 'none';
+            }
+            if (type === 'fixed') {
+                config.phrase = row.querySelector('.participant-phrase').value.trim() || 'breathing';
+            }
+            if (type === 'sound') {
+                config.sound = row.querySelector('.participant-sound-btn').dataset.sound || null;
+            }
+            configs.push(config);
+        });
+        return configs;
+    }
+
+    // Participant voice picker — reuses the setup voice modal
+    function openParticipantVoicePicker(triggerBtn, onSelect) {
+        renderVoiceModal();
+        // Highlight the current voice for this participant
+        const currentVoice = triggerBtn.dataset.voice;
+        if (currentVoice) {
+            setupVoiceModalList.querySelectorAll('.voice-row').forEach(row => {
+                const isSelected = row.dataset.voiceName === currentVoice;
+                row.classList.toggle('selected', isSelected);
+                const check = row.querySelector('.voice-row-check');
+                if (isSelected && !check) {
+                    const c = document.createElement('span');
+                    c.className = 'voice-row-check';
+                    c.textContent = '\u2713';
+                    row.insertBefore(c, row.querySelector('.voice-row-preview'));
+                } else if (!isSelected && check) {
+                    check.remove();
+                }
+            });
+        }
+
+        setupVoiceModal.style.display = 'flex';
+
+        // Temporarily override click handler for selection
+        const handler = (e) => {
+            const previewBtn = e.target.closest('.voice-row-preview');
+            if (previewBtn) return; // let preview work normally
+
+            const row = e.target.closest('.voice-row');
+            if (!row) return;
+            onSelect(row.dataset.voiceName);
+            setupVoiceModal.style.display = 'none';
+            stopVoicePreview();
+            setupVoiceModalList.removeEventListener('click', handler, true);
+        };
+        // Use capture to intercept before the global handler
+        setupVoiceModalList.addEventListener('click', handler, true);
+
+        // Clean up on modal close
+        const closeHandler = () => {
+            setupVoiceModalList.removeEventListener('click', handler, true);
+            setupVoiceModalClose.removeEventListener('click', closeHandler);
+        };
+        setupVoiceModalClose.addEventListener('click', closeHandler);
+    }
+
     // Home orb bounce on click
     const homeOrb = document.getElementById('home-orb');
     if (homeOrb) {
@@ -492,15 +1105,26 @@
         ).map(el => el.value);
 
         const params = {
-            intention: document.getElementById('intention').value,
-            focuses: focuses,
-            qualities: qualities,
-            directiveness: dirBackendValue(),
-            verbosity: document.getElementById('verbosity').value,
-            custom_instructions: document.getElementById('custom_instructions').value,
+            meditation_type: activeTab,
             provider: providerSelect.value,
             model: modelSelect.value,
+            voice_name: selectedVoiceName || undefined,
         };
+
+        if (activeTab === 'exploration') {
+            params.intention = document.getElementById('intention').value;
+            params.focuses = focuses;
+            params.qualities = qualities;
+            params.directiveness = dirBackendValue();
+            params.verbosity = document.getElementById('verbosity').value;
+            params.custom_instructions = document.getElementById('custom_instructions').value;
+        } else if (activeTab === 'noting') {
+            params.participants = getParticipantConfigs();
+            params.userTurnCue = document.getElementById('user-turn-cue').checked;
+            if (params.userTurnCue) {
+                params.userTurnCueSound = document.getElementById('user-turn-cue-sound-btn').dataset.sound || null;
+            }
+        }
 
         const cf = sessionStorage.getItem('continueFrom');
         if (cf) {

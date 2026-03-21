@@ -4,6 +4,7 @@
 import { state, dom, socket } from './state.js';
 import { stopServerAudio, speak, TTS_COOLDOWN_MS } from './tts.js';
 import { setStatus } from './ui.js';
+import { notingState } from './noting.js';
 
 // ---- VAD constants ----
 
@@ -20,6 +21,10 @@ export var TTS_WATCHDOG_MS = 1500;    // force-reset ttsSpeaking if synth stoppe
 export var BARGE_IN_THRESHOLD = 0.04; // RMS energy to detect user speaking over TTS
 export var BARGE_IN_CHUNKS = 3;       // consecutive chunks required (~280ms at 44.1kHz)
 export var TRANSCRIPTION_TIMEOUT_MS = 15000; // warn if transcription takes too long
+
+// ---- Noting-mode overrides (short labels need snappy detection) ----
+var SILENCE_DURATION_NOTING = 1000;         // 1s silence for quick noting words
+var MIN_UTTERANCE_DURATION_NOTING = 800;    // 0.8s min — noting labels are very short
 
 // ---- Internal refs ----
 
@@ -286,21 +291,29 @@ function processAudio(e) {
                 state.speculativeText = null;
             }
         } else {
+            var isNoting = notingState.active;
+
             // Adaptive silence: the longer the user has been
             // speaking, the more patience for thinking pauses.
+            // Noting mode uses flat, short thresholds for snappy detection.
             var speechDur = state.lastSpeechTime - state.speechStartTime;
+            var baseSilence = isNoting ? SILENCE_DURATION_NOTING : SILENCE_DURATION;
+            var maxSilence = isNoting ? SILENCE_DURATION_NOTING : SILENCE_DURATION_MAX;
+            var rampRate = isNoting ? 0 : SILENCE_RAMP_RATE;
             var silenceNeeded = Math.min(
-                SILENCE_DURATION + speechDur * SILENCE_RAMP_RATE,
-                SILENCE_DURATION_MAX
+                baseSilence + speechDur * rampRate,
+                maxSilence
             );
             var silenceElapsed = now - state.lastSpeechTime;
 
             var minUtterance = state.inSilenceMode
                 ? MIN_UTTERANCE_DURATION_SILENCE
-                : MIN_UTTERANCE_DURATION;
+                : (isNoting ? MIN_UTTERANCE_DURATION_NOTING : MIN_UTTERANCE_DURATION);
 
             // At base silence, pre-send audio for transcription
-            if (!state.speculativeSent &&
+            // (skip speculative in noting mode — labels are short, just submit directly)
+            if (!isNoting &&
+                !state.speculativeSent &&
                 silenceNeeded > SILENCE_DURATION &&
                 silenceElapsed >= SILENCE_DURATION &&
                 now - state.speechStartTime >= minUtterance) {
@@ -309,9 +322,9 @@ function processAudio(e) {
 
             if (silenceElapsed >= silenceNeeded) {
                 if (now - state.speechStartTime >= minUtterance) {
-                    if (state.speculativeText !== null) {
+                    if (!isNoting && state.speculativeText !== null) {
                         finalizeSpeculative();
-                    } else if (state.speculativeSent) {
+                    } else if (!isNoting && state.speculativeSent) {
                         state.awaitingSpeculative = true;
                         if (!state.inSilenceMode) setStatus('Transcribing...');
                         state.vadState = 'silence';
@@ -528,6 +541,15 @@ export function handleTranscription(data) {
             }
         } else {
             state.speculativeText = text;
+        }
+        // Reset idle status (the non-speculative path does this below,
+        // but this early-return would skip it).
+        if (state.vadState === 'silence' && state.pendingTranscriptions === 0 && state.voiceActive) {
+            if (state.inSilenceMode) {
+                setStatus("Holding space\u2026 say something like \u2018I\u2019m ready\u2019 to resume");
+            } else {
+                setStatus("Speak naturally, or say 'mute' to turn off mic");
+            }
         }
         return;
     }

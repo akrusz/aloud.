@@ -67,6 +67,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             model=data.get("model"),
             provider=data.get("provider"),
             tts_enabled=data.get("tts", True),
+            meditation_type=data.get("meditation_type", "exploration"),
         )
 
         if not session_id:
@@ -265,6 +266,62 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             web_session = _get_session(request.sid)
             if web_session:
                 web_session.tts_voice_name = voice
+
+    @socketio.on("noting_turn")
+    def handle_noting_turn(data):
+        """Generate an LLM noting label for a circle participant."""
+        sid = request.sid
+        web_session = _get_session(sid)
+        if not web_session:
+            return
+
+        context = data.get("context", [])
+        reactive = data.get("reactive", "none")
+        participant_index = data.get("participant_index", 0)
+        voice = data.get("voice")
+
+        try:
+            label = asyncio.run(web_session.generate_noting_label(context, reactive))
+        except Exception:
+            label = "breathing"
+
+        audio = None
+        if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
+            if voice:
+                app.server_tts.set_voice(voice)
+            audio = app.server_tts.speak_to_bytes(label)
+
+        emit("noting_label", {
+            "text": label,
+            "audio": audio,
+            "participant_index": participant_index,
+        })
+
+    @socketio.on("noting_tts")
+    def handle_noting_tts(data):
+        """Generate TTS audio for a fixed-phrase noting participant."""
+        sid = request.sid
+        web_session = _get_session(sid)
+        if not web_session:
+            return
+
+        text = data.get("text", "").strip()
+        voice = data.get("voice")
+        participant_index = data.get("participant_index", 0)
+        if not text:
+            return
+
+        audio = None
+        if app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
+            if voice:
+                app.server_tts.set_voice(voice)
+            audio = app.server_tts.speak_to_bytes(text)
+
+        emit("noting_audio", {
+            "text": text,
+            "audio": audio,
+            "participant_index": participant_index,
+        })
 
     @socketio.on("audio_data")
     def handle_audio_data(data):

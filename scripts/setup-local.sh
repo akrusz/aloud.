@@ -162,8 +162,17 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
         INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
         if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
             if command -v brew &>/dev/null; then
-                info "Installing Ollama via Homebrew (this may take a minute)..."
-                brew install ollama
+                printf "  Install Ollama via Homebrew? [Y/n]: " >&2
+                read -r INSTALL_OLLAMA < /dev/tty
+                INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
+                if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
+                    info "Installing Ollama (this may take a minute)..."
+                    brew install ollama
+                    ok "Ollama installed"
+                else
+                    echo ""
+                    err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."
+                fi
             else
                 info "Installing Ollama..."
                 curl -fsSL https://ollama.com/install.sh | sh

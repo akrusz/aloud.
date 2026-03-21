@@ -5,11 +5,18 @@ import { state, dom, socket } from './state.js';
 
 // ---- Messaging ----
 
-export function addMessage(role, text, historical) {
+export function addMessage(role, text, historical, sender) {
     var wasAtBottom = isNearBottom();
 
     var msg = document.createElement('div');
     msg.className = 'message ' + role + (historical ? ' historical' : '');
+
+    if (sender) {
+        var senderEl = document.createElement('div');
+        senderEl.className = 'message-sender';
+        senderEl.textContent = sender;
+        msg.appendChild(senderEl);
+    }
 
     var content = document.createElement('div');
     content.className = 'message-content';

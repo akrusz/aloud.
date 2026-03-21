@@ -11,11 +11,18 @@ import {
     setEmberLevel, regenerateEmbers, showConfirm, hideConfirm,
     endSession, doEndSession,
 } from './ui.js';
+import { initNoting, startCircle, stopCircle, handleUserNote, notingState } from './noting.js';
 
 // ---- Messaging ----
 
 function sendText(text) {
     if (!text || !state.sessionActive) return;
+
+    // Noting mode: route through the noting circle
+    if (notingState.active) {
+        handleUserNote(text);
+        return;
+    }
 
     // During silence mode, buffer speech instead of submitting.
     if (state.inSilenceMode) {
@@ -395,6 +402,31 @@ function init() {
     // Clear continuation flags so they don't persist
     sessionStorage.removeItem('continueFrom');
     sessionStorage.removeItem('continueFromSummary');
+
+    // Initialize noting mode if applicable
+    var isNoting = params.meditation_type === 'noting';
+    if (isNoting) {
+        initNoting(params.participants || [], params.userTurnCue || false, sendText, params.userTurnCueSound || null);
+
+        // Start the circle after the opener TTS finishes playing.
+        // We register a one-shot callback (state.onTtsDone) that fires
+        // when TTS playback completes — no polling needed.
+        var circleStarted = false;
+
+        function onOpenerDone() {
+            if (circleStarted) return;
+            circleStarted = true;
+            setTimeout(function () { startCircle(); }, 1500);
+        }
+
+        // Set the callback BEFORE the facilitator_message arrives so it's
+        // in place whether speak() runs immediately or speech is queued.
+        state.onTtsDone = onOpenerDone;
+
+        // Safety: if TTS never fires (toggle off, broken synth, no audio),
+        // start the circle after 15s.
+        setTimeout(function () { onOpenerDone(); }, 15000);
+    }
 
     // Auto-activate voice
     activateVoice();

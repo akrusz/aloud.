@@ -115,6 +115,10 @@ export const state = {
     speculativeText: null,
     awaitingSpeculative: false,
 
+    // One-shot TTS completion callback (used by noting circle to know
+    // when the opener finishes).  Cleared after firing.
+    onTtsDone: null,
+
     // Voice list internals
     _maxRawVoices: 0,
     _serverVoices: null,
