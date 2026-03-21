@@ -729,7 +729,11 @@
                 </div>
                 <div class="participant-field participant-delay-field" style="display:none">
                     <label>Seconds</label>
-                    <input type="number" class="participant-delay" value="4" min="1" max="30" step="1">
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" aria-label="Decrease">&minus;</button>
+                        <input type="number" class="participant-delay stepper-value" value="4" min="1" max="30" step="1">
+                        <button type="button" class="stepper-btn stepper-inc" aria-label="Increase">+</button>
+                    </div>
                 </div>
                 <div class="participant-field participant-reactive-field">
                     <label>Responsiveness</label>
@@ -793,6 +797,16 @@
         const delayField = row.querySelector('.participant-delay-field');
         timingSelect.addEventListener('change', () => {
             delayField.style.display = timingSelect.value === 'fixed' ? '' : 'none';
+        });
+
+        // Stepper buttons for delay field
+        row.querySelector('.stepper-dec').addEventListener('click', () => {
+            const inp = row.querySelector('.participant-delay');
+            inp.value = Math.max(parseInt(inp.min), (parseInt(inp.value) || 0) - 1);
+        });
+        row.querySelector('.stepper-inc').addEventListener('click', () => {
+            const inp = row.querySelector('.participant-delay');
+            inp.value = Math.min(parseInt(inp.max), (parseInt(inp.value) || 0) + 1);
         });
 
         // Voice picker for this participant

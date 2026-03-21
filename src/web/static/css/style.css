@@ -391,6 +391,10 @@ body {
     gap: 0.25rem;
     min-width: 0;
 }
+.participant-field > :not(label) {
+    margin-top: auto;
+    margin-bottom: auto;
+}
 
 .participant-field label {
     font-size: 0.75rem;
@@ -415,6 +419,55 @@ body {
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-family: var(--font);
+}
+
+/* Custom stepper for number inputs */
+.stepper {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--bg-input);
+    box-sizing: border-box;
+}
+.participant-field .stepper .stepper-value {
+    width: 2.4rem;
+    border: none;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    text-align: center;
+    padding: 0.4rem 0;
+    margin: 0;
+    font-size: 0.85rem;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+.stepper .stepper-value::-webkit-inner-spin-button,
+.stepper .stepper-value::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.stepper-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    width: 1.6rem;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    user-select: none;
+}
+.stepper-btn:hover {
+    background: rgba(255,255,255,0.08);
+}
+.stepper-btn:active {
+    background: rgba(255,255,255,0.15);
 }
 
 .participant-voice-field {
