@@ -196,8 +196,7 @@ class WebMeditationSession:
     def get_opener(self) -> str:
         """Get a static session opening message (fallback)."""
         if self.meditation_type == "noting":
-            import random
-            opener = random.choice(NOTING_CHECK_IN_PROMPTS)
+            opener = "On your turn, just say one or two words that describe something in your awareness. Let's begin."
         else:
             opener = self.prompts.get_session_opener()
         self.session.add_assistant_message(opener)

@@ -331,7 +331,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         web_session.session.add_assistant_message(text, name=data.get("name"))
 
         audio = None
-        if app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
+        if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
             if voice:
                 app.server_tts.set_voice(voice)
             audio = app.server_tts.speak_to_bytes(text)

@@ -163,12 +163,11 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
         if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
             if command -v brew &>/dev/null; then
                 printf "  Install Ollama via Homebrew? [Y/n]: " >&2
-                read -r INSTALL_OLLAMA < /dev/tty
-                INSTALL_OLLAMA="${INSTALL_OLLAMA:-Y}"
-                if [ "$INSTALL_OLLAMA" = "Y" ] || [ "$INSTALL_OLLAMA" = "y" ]; then
+                read -r USE_BREW < /dev/tty
+                USE_BREW="${USE_BREW:-Y}"
+                if [ "$USE_BREW" = "Y" ] || [ "$USE_BREW" = "y" ]; then
                     info "Installing Ollama (this may take a minute)..."
                     brew install ollama
-                    ok "Ollama installed"
                 else
                     echo ""
                     err "Ollama is needed for local mode. Install from https://ollama.ai and re-run."

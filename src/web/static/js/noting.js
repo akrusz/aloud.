@@ -25,6 +25,9 @@ var notingState = {
     awaitingUser: false, // true when it's the user's turn
     sendTextFn: null,    // injected from session.js
     soundBuffers: {},    // name -> AudioBuffer cache
+    _pendingSounds: [],  // sound names to preload once AudioContext exists
+    _serverTimeout: null, // timeout handle for server response watchdog
+    _mutePoller: null,   // interval handle for mic mute detection
 };
 
 // Expose for socket handlers
@@ -418,15 +421,13 @@ function preloadSound(name) {
 function playSound(name, onEnded) {
     // Built-in synth chime — no MP3 file
     if (!name || name === 'chime') {
-        playSynthChime();
-        if (onEnded) onEnded();
+        playSynthChime(onEnded);
         return;
     }
 
     var ctx = notingState.audioContext || state.audioContext;
     if (!ctx) {
-        playSynthChime();
-        if (onEnded) onEnded();
+        playSynthChime(onEnded);
         return;
     }
 
@@ -446,8 +447,7 @@ function playSound(name, onEnded) {
             playSoundBuffer(ctx, decoded, onEnded);
         })
         .catch(function () {
-            playSynthChime();
-            if (onEnded) onEnded();
+            playSynthChime(onEnded);
         });
 }
 
@@ -468,9 +468,9 @@ function playSoundBuffer(ctx, buffer, onEnded) {
     source.start(0);
 }
 
-function playSynthChime() {
+function playSynthChime(onEnded) {
     var ctx = notingState.audioContext || state.audioContext;
-    if (!ctx) return;
+    if (!ctx) { if (onEnded) onEnded(); return; }
 
     // Signal the VAD so the mic ignores this playback
     state.ttsSpeaking = true;
@@ -492,5 +492,6 @@ function playSynthChime() {
     osc.onended = function () {
         state.serverAudioPlaying = false;
         state.ttsSpeaking = false;
+        if (onEnded) onEnded();
     };
 }
