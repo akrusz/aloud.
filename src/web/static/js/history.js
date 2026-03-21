@@ -6,7 +6,7 @@
     var loaded = {};
     var currentPage = 0;
     var totalPages = 1;
-    var LIMIT = 20;
+    var LIMIT = 50;
     var listEl = document.getElementById('session-list');
     var emptyEl = document.getElementById('empty-state');
     var loadMoreBtn = document.getElementById('load-more');

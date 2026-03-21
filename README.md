@@ -2,17 +2,20 @@
 
 your voice is an overpowered and underrated tool for meditation and inner work.
 
-**glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration and parts work as well. it runs in your browser and uses an LLM to guide you, whisper for speech recognition, and your mic for voice input.
+**glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting as well. it runs in your browser and uses an LLM to guide you, whisper for speech recognition, and your mic for voice input.
 
 works on macos, linux, and windows. bring your own LLM - claude subscription via CLIProxyAPI, anthropic API key, openai, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or it can install one for you with local ollama.
 
 ![glooow screenshot](docs/glooow-screen.png)
 
 ## what it does
+glooow has two modes: exploration and noting.
 
-you start a session, optionally set an intention, pick a preset or build your own combo, and start talking. the facilitator listens, transcribes what you say with whisper, sends it to an LLM, and speaks the response back. it can hold silence when appropriate and gently check in if you've been quiet for a while.
+**exploration**: you optionally set an intention, pick a preset or build your own combo, and start talking. the facilitator listens, transcribes what you say with whisper, sends it to an LLM, and speaks the response back. it can hold silence when appropriate and gently check in if you've been quiet for a while.
 
 instead of fixed styles, you mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want.
+
+**noting**: you specify what virtual participants you'd like, if any - AIs, fixed phrases, or sound effects. then starting with you, each participant notes a sensation in their "awareness" (ideally 1-2 words) or plays their fixed phrase or sound. if there are no other participants, it'll just briefly introduce the method and then record what you note.
 
 ## getting started
 
