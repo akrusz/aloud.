@@ -8,6 +8,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install pyyaml numpy pytest ruff
+      - run: pip install -r requirements.txt pytest ruff
       - run: ruff check src/ tests/
       - run: pytest tests/ -v
