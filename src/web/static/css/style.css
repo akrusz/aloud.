@@ -2179,6 +2179,7 @@ body::before {
 
 .settings-section:last-of-type {
     border-bottom: none;
+    padding-bottom: var(--space-xs);
 }
 
 .settings-section h2 {
