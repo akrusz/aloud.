@@ -178,10 +178,20 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/api/voices")
     def api_voices():
-        """Return voices available to the server-side TTS engine."""
-        if app.server_tts and hasattr(app.server_tts, "list_voices"):
-            return jsonify(app.server_tts.list_voices())
-        return jsonify([])
+        """Return voices available to the server-side TTS engine.
+
+        Optional query param ?lang=en filters to voices matching that language prefix.
+        """
+        if not app.server_tts or not hasattr(app.server_tts, "list_voices"):
+            return jsonify([])
+        voices = app.server_tts.list_voices()
+        lang_filter = request.args.get("lang")
+        if lang_filter:
+            voices = [
+                v for v in voices
+                if v.get("lang", "").split("_")[0] == lang_filter
+            ]
+        return jsonify(voices)
 
     @app.route("/api/voices/preview")
     def api_voice_preview():
@@ -190,7 +200,8 @@ def register_routes(app: Flask) -> None:
         if not voice or not app.server_tts or not hasattr(app.server_tts, "speak_to_bytes"):
             return Response(status=404)
 
-        text = request.args.get("text", "Welcome to glow. I'll be your guide.")
+        default_text = _preview_text_for_voice(voice, app.server_tts)
+        text = request.args.get("text", default_text)
 
         # Temporarily switch voice, generate audio, then restore
         original_voice = app.server_tts.voice
@@ -247,6 +258,53 @@ def register_routes(app: Flask) -> None:
         """Fetch available models from a provider's API."""
         models = _fetch_provider_models(provider, app.meditation_config)
         return jsonify(models)
+
+
+# ---- Localized preview text ----
+
+_PREVIEW_TEXTS = {
+    "en": "Welcome to Glooow. I'll be your guide.",
+    "es": "Bienvenido a Glooow. Seré tu guía.",
+    "fr": "Bienvenue sur Glooow. Je serai votre guide.",
+    "de": "Willkommen bei Glooow. Ich werde dein Begleiter sein.",
+    "it": "Benvenuto su Glooow. Sarò la tua guida.",
+    "pt": "Bem-vindo ao Glooow. Eu serei o seu guia.",
+    "nl": "Welkom bij Glooow. Ik zal je gids zijn.",
+    "pl": "Witaj w Glooow. Będę twoim przewodnikiem.",
+    "ru": "Добро пожаловать в Glooow. Я буду вашим проводником.",
+    "uk": "Ласкаво просимо до Glooow. Я буду вашим провідником.",
+    "ja": "グロウへようこそ。私があなたのガイドです。",
+    "zh": "欢迎来到Glooow。我将是你的向导。",
+    "ko": "글로우에 오신 것을 환영합니다. 제가 안내해 드리겠습니다.",
+    "ar": "مرحباً بك في غلوو. سأكون دليلك.",
+    "hi": "ग्लूव में आपका स्वागत है। मैं आपका मार्गदर्शक रहूँगा।",
+    "tr": "Glooow'a hoş geldiniz. Rehberiniz ben olacağım.",
+    "vi": "Chào mừng bạn đến với Glooow. Tôi sẽ là hướng dẫn viên của bạn.",
+    "th": "ยินดีต้อนรับสู่ Glooow ฉันจะเป็นผู้นำทางของคุณ",
+    "sv": "Välkommen till Glooow. Jag kommer att vara din guide.",
+    "da": "Velkommen til Glooow. Jeg vil være din guide.",
+    "no": "Velkommen til Glooow. Jeg vil være din guide.",
+    "fi": "Tervetuloa Glooowiin. Minä olen oppaasi.",
+    "el": "Καλώς ήρθατε στο Glooow. Θα είμαι ο οδηγός σας.",
+    "he": "ברוכים הבאים ל-Glooow. אני אהיה המדריך שלכם.",
+    "cs": "Vítejte v Glooow. Budu vaším průvodcem.",
+    "ro": "Bun venit la Glooow. Voi fi ghidul tău.",
+    "hu": "Üdvözöljük a Glooow-ban. Én leszek a kísérője.",
+    "id": "Selamat datang di Glooow. Saya akan menjadi pemandu Anda.",
+    "ms": "Selamat datang ke Glooow. Saya akan menjadi pemandu anda.",
+    "ca": "Benvingut a Glooow. Seré el teu guia.",
+}
+
+
+def _preview_text_for_voice(voice_name: str, tts) -> str:
+    """Return a preview sentence in the voice's language."""
+    # Look up the voice's language from the TTS engine
+    if hasattr(tts, "list_voices"):
+        for v in tts.list_voices():
+            if v.get("name") == voice_name:
+                lang_code = v.get("lang", "en_US").split("_")[0]
+                return _PREVIEW_TEXTS.get(lang_code, _PREVIEW_TEXTS["en"])
+    return _PREVIEW_TEXTS["en"]
 
 
 # ---- Dynamic model fetching ----

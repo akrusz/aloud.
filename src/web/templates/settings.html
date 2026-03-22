@@ -385,14 +385,33 @@
         }
     });
 
-    // Fetch server voices
-    fetch('/api/voices')
-        .then(function(r) { return r.json(); })
-        .then(function(voices) {
-            serverVoices = voices;
-            buildVoiceList();
-        })
-        .catch(function() {});
+    // Fetch server voices filtered by selected language
+    function fetchVoices() {
+        var lang = document.getElementById('s-whisper-language').value || 'en';
+        fetch('/api/voices?lang=' + encodeURIComponent(lang))
+            .then(function(r) { return r.json(); })
+            .then(function(voices) {
+                serverVoices = voices;
+                buildVoiceList();
+                // If current voice isn't in the filtered list, clear selection
+                if (selectedVoiceName) {
+                    var found = false;
+                    for (var i = 0; i < scoredVoices.length; i++) {
+                        if (scoredVoices[i].name === selectedVoiceName) { found = true; break; }
+                    }
+                    if (!found) {
+                        selectedVoiceName = scoredVoices.length > 0 ? scoredVoices[0].name : '';
+                        voiceBtn.textContent = selectedVoiceName || 'Default';
+                    }
+                }
+            })
+            .catch(function() {});
+    }
+
+    fetchVoices();
+
+    // Refresh voices when language changes
+    document.getElementById('s-whisper-language').addEventListener('change', fetchVoices);
 
     // Map provider to which API key group to show
     const providerKeyGroups = {
