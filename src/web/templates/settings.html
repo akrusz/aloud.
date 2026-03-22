@@ -21,60 +21,6 @@
 
     <form id="settings-form" class="setup-form">
 
-        <!-- Language & Speech Recognition -->
-        <section class="settings-section">
-            <h2>Language & Speech Recognition</h2>
-            <div class="form-row">
-                <div class="form-group form-group-half">
-                    <label for="s-language">Language</label>
-                    <select id="s-language" name="language">
-                        <option value="en">English</option>
-                        <option value="es">Espa&#241;ol</option>
-                        <option value="fr">Fran&#231;ais</option>
-                        <option value="de">Deutsch</option>
-                        <option value="it">Italiano</option>
-                        <option value="pt">Portugu&#234;s</option>
-                        <option value="nl">Nederlands</option>
-                        <option value="pl">Polski</option>
-                        <option value="ru">&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</option>
-                        <option value="uk">&#1059;&#1082;&#1088;&#1072;&#1111;&#1085;&#1089;&#1100;&#1082;&#1072;</option>
-                        <option value="ja">&#26085;&#26412;&#35486;</option>
-                        <option value="zh">&#20013;&#25991;</option>
-                        <option value="ko">&#54620;&#44397;&#50612;</option>
-                        <option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option>
-                        <option value="hi">&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</option>
-                        <option value="tr">T&#252;rk&#231;e</option>
-                        <option value="vi">Ti&#7871;ng Vi&#7879;t</option>
-                        <option value="th">&#3616;&#3634;&#3625;&#3634;&#3652;&#3607;&#3618;</option>
-                        <option value="sv">Svenska</option>
-                        <option value="da">Dansk</option>
-                        <option value="no">Norsk</option>
-                        <option value="fi">Suomi</option>
-                        <option value="el">&#917;&#955;&#955;&#951;&#957;&#953;&#954;&#940;</option>
-                        <option value="he">&#1506;&#1489;&#1512;&#1497;&#1514;</option>
-                        <option value="cs">&#268;e&#353;tina</option>
-                        <option value="ro">Rom&#226;n&#259;</option>
-                        <option value="hu">Magyar</option>
-                        <option value="id">Bahasa Indonesia</option>
-                        <option value="ms">Bahasa Melayu</option>
-                        <option value="ca">Catal&#224;</option>
-                    </select>
-                    <span class="form-hint">Affects speech recognition, voices, and previews</span>
-                </div>
-                <div class="form-group form-group-half">
-                    <label for="s-whisper-model">Whisper Model</label>
-                    <select id="s-whisper-model" name="whisper_model">
-                        <option value="tiny">Tiny (fastest)</option>
-                        <option value="base">Base</option>
-                        <option value="small">Small (recommended)</option>
-                        <option value="medium">Medium</option>
-                        <option value="large">Large (most accurate)</option>
-                    </select>
-                    <span class="form-hint">Larger = more accurate but slower. Requires restart.</span>
-                </div>
-            </div>
-        </section>
-
         <!-- LLM Provider Section -->
         <section class="settings-section">
             <h2>LLM Provider</h2>
@@ -148,6 +94,60 @@
             </div>
 
             <div id="s-provider-status" class="provider-hint" style="display:none"></div>
+        </section>
+
+        <!-- Language & Speech Recognition -->
+        <section class="settings-section">
+            <h2>Language & Speech Recognition</h2>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="s-language">Language</label>
+                    <select id="s-language" name="language">
+                        <option value="en">English</option>
+                        <option value="es">Espa&#241;ol</option>
+                        <option value="fr">Fran&#231;ais</option>
+                        <option value="de">Deutsch</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Portugu&#234;s</option>
+                        <option value="nl">Nederlands</option>
+                        <option value="pl">Polski</option>
+                        <option value="ru">&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</option>
+                        <option value="uk">&#1059;&#1082;&#1088;&#1072;&#1111;&#1085;&#1089;&#1100;&#1082;&#1072;</option>
+                        <option value="ja">&#26085;&#26412;&#35486;</option>
+                        <option value="zh">&#20013;&#25991;</option>
+                        <option value="ko">&#54620;&#44397;&#50612;</option>
+                        <option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option>
+                        <option value="hi">&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</option>
+                        <option value="tr">T&#252;rk&#231;e</option>
+                        <option value="vi">Ti&#7871;ng Vi&#7879;t</option>
+                        <option value="th">&#3616;&#3634;&#3625;&#3634;&#3652;&#3607;&#3618;</option>
+                        <option value="sv">Svenska</option>
+                        <option value="da">Dansk</option>
+                        <option value="no">Norsk</option>
+                        <option value="fi">Suomi</option>
+                        <option value="el">&#917;&#955;&#955;&#951;&#957;&#953;&#954;&#940;</option>
+                        <option value="he">&#1506;&#1489;&#1512;&#1497;&#1514;</option>
+                        <option value="cs">&#268;e&#353;tina</option>
+                        <option value="ro">Rom&#226;n&#259;</option>
+                        <option value="hu">Magyar</option>
+                        <option value="id">Bahasa Indonesia</option>
+                        <option value="ms">Bahasa Melayu</option>
+                        <option value="ca">Catal&#224;</option>
+                    </select>
+                    <span class="form-hint">Affects speech recognition, voices, and previews</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label for="s-whisper-model">Whisper Model</label>
+                    <select id="s-whisper-model" name="whisper_model">
+                        <option value="tiny">Tiny (fastest)</option>
+                        <option value="base">Base</option>
+                        <option value="small">Small (recommended)</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large (most accurate)</option>
+                    </select>
+                    <span class="form-hint">Larger = more accurate but slower. Requires restart.</span>
+                </div>
+            </div>
         </section>
 
         <!-- TTS Section -->
