@@ -2166,9 +2166,9 @@ body::before {
 }
 
 .settings-section {
-    margin-top: var(--space-sm);
+    margin-top: var(--space-xs);
     margin-bottom: var(--space-xs);
-    padding-bottom: var(--space-md);
+    padding-bottom: var(--space-lg);
     border-bottom: 1px solid var(--border);
 }
 
