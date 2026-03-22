@@ -5,9 +5,13 @@ import os
 import time
 
 import httpx
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, redirect, url_for
 
 from .. import __version__
+from ..config import (
+    has_user_config, load_user_config, save_user_config,
+    config_to_dict, load_config, get_user_config_path,
+)
 from ..updater import check_for_updates, apply_update
 
 
@@ -16,6 +20,9 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/")
     def index():
+        # First-run: redirect to settings if no user config exists
+        if not has_user_config():
+            return redirect(url_for("settings_page"))
         return render_template("index.html")
 
     @app.route("/session")
@@ -25,6 +32,50 @@ def register_routes(app: Flask) -> None:
     @app.route("/history")
     def history_page():
         return render_template("history.html")
+
+    @app.route("/settings")
+    def settings_page():
+        first_run = not has_user_config()
+        return render_template("settings.html", first_run=first_run)
+
+    @app.route("/api/config", methods=["GET"])
+    def api_config_get():
+        """Return the current merged configuration (with API keys masked)."""
+        cfg = config_to_dict(app.meditation_config)
+        # Mask sensitive fields
+        if cfg.get("llm", {}).get("api_key"):
+            key = cfg["llm"]["api_key"]
+            if len(key) > 8:
+                cfg["llm"]["api_key"] = key[:4] + "..." + key[-4:]
+            else:
+                cfg["llm"]["api_key"] = "***"
+        if cfg.get("tts", {}).get("api_key"):
+            key = cfg["tts"]["api_key"]
+            if len(key) > 8:
+                cfg["tts"]["api_key"] = key[:4] + "..." + key[-4:]
+            else:
+                cfg["tts"]["api_key"] = "***"
+        cfg["_has_user_config"] = has_user_config()
+        cfg["_config_path"] = str(get_user_config_path())
+        return jsonify(cfg)
+
+    @app.route("/api/config", methods=["POST"])
+    def api_config_save():
+        """Save user configuration overrides."""
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        try:
+            path = save_user_config(data)
+
+            # Reload config into the running app
+            new_config = load_config()
+            app.meditation_config = new_config
+
+            return jsonify({"saved": True, "path": str(path)})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     @app.route("/api/providers")
     def api_providers():

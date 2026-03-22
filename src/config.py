@@ -1,11 +1,15 @@
 """Configuration loading and management."""
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, asdict
 from pathlib import Path
 from typing import Any
 
 import yaml
+from platformdirs import user_config_dir
+
+APP_NAME = "Glooow"
+APP_AUTHOR = "Glooow"
 
 
 @dataclass
@@ -126,6 +130,71 @@ class Config:
     auth: AuthConfig = field(default_factory=AuthConfig)
 
 
+def get_user_config_dir() -> Path:
+    """Return the OS-appropriate config directory for Glooow.
+
+    - macOS:  ~/Library/Application Support/Glooow
+    - Windows: %APPDATA%/Glooow/Glooow
+    - Linux:  ~/.config/Glooow
+    """
+    return Path(user_config_dir(APP_NAME, APP_AUTHOR))
+
+
+def get_user_config_path() -> Path:
+    """Return the path to the user's config file."""
+    return get_user_config_dir() / "config.yaml"
+
+
+def has_user_config() -> bool:
+    """Check whether a user config file exists."""
+    return get_user_config_path().is_file()
+
+
+def save_user_config(data: dict) -> Path:
+    """Save user configuration overrides to the OS config directory.
+
+    Only saves non-default values. Returns the path written to.
+    """
+    path = get_user_config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Merge with existing user config if present
+    existing = {}
+    if path.is_file():
+        with open(path) as f:
+            existing = yaml.safe_load(f) or {}
+
+    _deep_merge(existing, data)
+
+    with open(path, "w") as f:
+        yaml.dump(existing, f, default_flow_style=False, sort_keys=False)
+
+    return path
+
+
+def load_user_config() -> dict:
+    """Load the user config file as a raw dict. Returns {} if not found."""
+    path = get_user_config_path()
+    if not path.is_file():
+        return {}
+    with open(path) as f:
+        return yaml.safe_load(f) or {}
+
+
+def config_to_dict(config: Config) -> dict:
+    """Convert a Config dataclass tree to a plain dict."""
+    return asdict(config)
+
+
+def _deep_merge(base: dict, override: dict) -> None:
+    """Merge override into base in-place, recursing into nested dicts."""
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+
 def load_config(path: str | Path | None = None) -> Config:
     """Load configuration from YAML file.
 
@@ -136,11 +205,11 @@ def load_config(path: str | Path | None = None) -> Config:
         Loaded configuration
     """
     if path is None:
-        # Try default locations
+        # Try default locations (most specific first)
         candidates = [
+            get_user_config_path(),
             Path("config/default.yaml"),
             Path("config.yaml"),
-            Path.home() / ".config" / "somatic-facilitator" / "config.yaml",
         ]
         for candidate in candidates:
             if candidate.exists():

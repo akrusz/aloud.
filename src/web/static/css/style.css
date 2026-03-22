@@ -2124,3 +2124,109 @@ body::before {
 .error-toast.visible {
     opacity: 1;
 }
+
+/* ---- Settings Page ---- */
+
+.settings-welcome {
+    text-align: center;
+    margin-bottom: var(--space-lg);
+}
+
+.settings-welcome h1 {
+    font-family: 'Lexend Exa', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: var(--space-sm);
+}
+
+.settings-welcome p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.settings-title {
+    font-family: 'Lexend Exa', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-md);
+}
+
+.settings-section {
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--border);
+}
+
+.settings-section:last-of-type {
+    border-bottom: none;
+}
+
+.settings-section h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-xs);
+}
+
+.settings-desc {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: var(--space-md);
+}
+
+.input-with-action {
+    display: flex;
+    gap: var(--space-xs);
+    align-items: center;
+}
+
+.input-with-action input {
+    flex: 1;
+}
+
+.form-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.form-hint a {
+    color: var(--accent-dim);
+}
+
+.settings-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+}
+
+.settings-saved {
+    color: var(--success);
+    font-size: 0.9rem;
+    animation: settings-fade-in 0.3s ease;
+}
+
+@keyframes settings-fade-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.settings-error {
+    color: var(--danger);
+    font-size: 0.9rem;
+}
+
+.settings-config-path {
+    margin-top: var(--space-md);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    word-break: break-all;
+}
+
+.nav-active {
+    color: var(--accent) !important;
+}

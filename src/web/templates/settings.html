@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}{% if first_run %}Welcome to Glooow{% else %}Settings{% endif %} — Glooow{% endblock %}
+
+{% block nav_center %}
+<div class="nav-session-info">
+    <div class="orb orb-idle orb-nav"></div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="setup-container">
+    {% if first_run %}
+    <div class="settings-welcome">
+        <h1>Welcome to Glooow</h1>
+        <p>Let's set up your meditation facilitator. You'll need at least one LLM provider configured to get started.</p>
+    </div>
+    {% else %}
+    <h1 class="settings-title">Settings</h1>
+    {% endif %}
+
+    <form id="settings-form" class="setup-form">
+
+        <!-- LLM Provider Section -->
+        <section class="settings-section">
+            <h2>LLM Provider</h2>
+            <p class="settings-desc">Choose how Glooow connects to a language model. You need at least one provider configured.</p>
+
+            <div class="form-group">
+                <label for="s-provider">Default Provider</label>
+                <select id="s-provider" name="provider">
+                    <option value="claude_proxy">Anthropic (Subscription / CLIProxyAPI)</option>
+                    <option value="anthropic">Anthropic (API Key)</option>
+                    <option value="openai">OpenAI (API Key)</option>
+                    <option value="openrouter">OpenRouter (API Key)</option>
+                    <option value="venice">Venice.ai (API Key)</option>
+                    <option value="ollama">Ollama (Local)</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="s-model-group">
+                <label for="s-model">Default Model</label>
+                <select id="s-model" name="model">
+                    <option value="">Loading models...</option>
+                </select>
+            </div>
+
+            <!-- API Key fields — shown/hidden per provider -->
+            <div class="form-group api-key-group" id="s-anthropic-key-group" style="display:none">
+                <label for="s-anthropic-key">Anthropic API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-anthropic-key" placeholder="sk-ant-..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+                <span class="form-hint">From <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></span>
+            </div>
+
+            <div class="form-group api-key-group" id="s-openai-key-group" style="display:none">
+                <label for="s-openai-key">OpenAI API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-openai-key" placeholder="sk-..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+                <span class="form-hint">From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a></span>
+            </div>
+
+            <div class="form-group api-key-group" id="s-openrouter-key-group" style="display:none">
+                <label for="s-openrouter-key">OpenRouter API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-openrouter-key" placeholder="sk-or-..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+                <span class="form-hint">From <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a></span>
+            </div>
+
+            <div class="form-group api-key-group" id="s-venice-key-group" style="display:none">
+                <label for="s-venice-key">Venice API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-venice-key" placeholder="..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+            </div>
+
+            <div class="form-group api-key-group" id="s-proxy-group" style="display:none">
+                <label for="s-proxy-url">Proxy URL</label>
+                <input type="text" id="s-proxy-url" placeholder="http://127.0.0.1:8317">
+                <span class="form-hint">URL where CLIProxyAPI is running</span>
+            </div>
+
+            <div class="form-group api-key-group" id="s-ollama-group" style="display:none">
+                <label for="s-ollama-url">Ollama URL</label>
+                <input type="text" id="s-ollama-url" placeholder="http://localhost:11434">
+            </div>
+
+            <div id="s-provider-status" class="provider-hint" style="display:none"></div>
+        </section>
+
+        <!-- TTS Section -->
+        <section class="settings-section">
+            <h2>Text-to-Speech</h2>
+            <div class="form-group">
+                <label for="s-tts-engine">TTS Engine</label>
+                <select id="s-tts-engine" name="tts_engine">
+                    <option value="macos">macOS (built-in 'say' command)</option>
+                    <option value="browser">Browser (speechSynthesis)</option>
+                    <option value="elevenlabs">ElevenLabs (API)</option>
+                    <option value="piper">Piper (local neural TTS)</option>
+                    <option value="parakeet">Parakeet (local neural TTS)</option>
+                </select>
+            </div>
+
+            <div class="form-group api-key-group" id="s-elevenlabs-key-group" style="display:none">
+                <label for="s-elevenlabs-key">ElevenLabs API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-elevenlabs-key" placeholder="..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="s-tts-voice">Default Voice</label>
+                    <input type="text" id="s-tts-voice" placeholder="Samantha">
+                </div>
+                <div class="form-group form-group-half">
+                    <label for="s-tts-rate">Speech Rate (WPM)</label>
+                    <input type="number" id="s-tts-rate" min="80" max="250" value="160">
+                </div>
+            </div>
+        </section>
+
+        <!-- STT Section -->
+        <section class="settings-section">
+            <h2>Speech-to-Text</h2>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="s-whisper-model">Whisper Model</label>
+                    <select id="s-whisper-model" name="whisper_model">
+                        <option value="tiny">Tiny (fastest, least accurate)</option>
+                        <option value="base">Base</option>
+                        <option value="small">Small (recommended)</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large (slowest, most accurate)</option>
+                    </select>
+                    <span class="form-hint">Larger models are more accurate but slower. Requires restart.</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label for="s-whisper-language">Language</label>
+                    <input type="text" id="s-whisper-language" value="en" placeholder="en">
+                </div>
+            </div>
+        </section>
+
+        <!-- Pacing Section -->
+        <section class="settings-section">
+            <h2>Pacing</h2>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="s-response-delay">Response Delay (ms)</label>
+                    <input type="number" id="s-response-delay" min="500" max="10000" step="100" value="2000">
+                    <span class="form-hint">How long to wait after you stop speaking before responding</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label for="s-silence-sec">Check-in After (seconds)</label>
+                    <input type="number" id="s-silence-sec" min="30" max="3600" step="30" value="300">
+                    <span class="form-hint">Extended silence before a gentle check-in</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Save -->
+        <div class="settings-actions">
+            <button type="submit" class="btn btn-primary btn-begin">
+                {% if first_run %}Save & Start{% else %}Save Settings{% endif %}
+            </button>
+            {% if not first_run %}
+            <span class="settings-saved" id="settings-saved" style="display:none">Saved</span>
+            {% endif %}
+            <div id="settings-error" class="settings-error" style="display:none"></div>
+        </div>
+
+        <div class="settings-config-path" id="settings-config-path"></div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const firstRun = {{ 'true' if first_run else 'false' }};
+    const form = document.getElementById('settings-form');
+    const providerSelect = document.getElementById('s-provider');
+    const modelSelect = document.getElementById('s-model');
+    const ttsEngineSelect = document.getElementById('s-tts-engine');
+    const statusEl = document.getElementById('s-provider-status');
+    const savedEl = document.getElementById('settings-saved');
+    const errorEl = document.getElementById('settings-error');
+    const configPathEl = document.getElementById('settings-config-path');
+
+    // Map provider to which API key group to show
+    const providerKeyGroups = {
+        claude_proxy: ['s-proxy-group'],
+        anthropic: ['s-anthropic-key-group'],
+        openai: ['s-openai-key-group'],
+        openrouter: ['s-openrouter-key-group'],
+        venice: ['s-venice-key-group'],
+        ollama: ['s-ollama-group'],
+    };
+
+    const ttsKeyGroups = {
+        elevenlabs: ['s-elevenlabs-key-group'],
+    };
+
+    function showGroupsFor(select, groupMap) {
+        // Hide all api-key-group elements within the same section
+        const section = select.closest('.settings-section');
+        section.querySelectorAll('.api-key-group').forEach(el => el.style.display = 'none');
+        // Show relevant ones
+        const groups = groupMap[select.value] || [];
+        groups.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
+    }
+
+    providerSelect.addEventListener('change', () => {
+        showGroupsFor(providerSelect, providerKeyGroups);
+        fetchModels(providerSelect.value);
+    });
+
+    ttsEngineSelect.addEventListener('change', () => {
+        showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+    });
+
+    // Toggle password visibility
+    document.querySelectorAll('.toggle-visibility').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.parentElement.querySelector('input');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                btn.textContent = 'Show';
+            }
+        });
+    });
+
+    // Fetch models for a provider
+    function fetchModels(provider) {
+        modelSelect.innerHTML = '<option value="">Loading...</option>';
+
+        // For ollama, models come from /api/providers
+        if (provider === 'ollama') {
+            fetch('/api/providers')
+                .then(r => r.json())
+                .then(data => {
+                    const info = data.ollama || {};
+                    const models = info.models || [];
+                    modelSelect.innerHTML = '';
+                    if (models.length === 0) {
+                        modelSelect.innerHTML = '<option value="">No models available</option>';
+                        return;
+                    }
+                    models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        modelSelect.appendChild(opt);
+                    });
+                })
+                .catch(() => {
+                    modelSelect.innerHTML = '<option value="">Could not fetch models</option>';
+                });
+            return;
+        }
+
+        fetch('/api/models/' + provider)
+            .then(r => r.json())
+            .then(models => {
+                modelSelect.innerHTML = '';
+                if (!models.length) {
+                    modelSelect.innerHTML = '<option value="">No models available</option>';
+                    return;
+                }
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.value;
+                    opt.textContent = m.label;
+                    modelSelect.appendChild(opt);
+                });
+            })
+            .catch(() => {
+                modelSelect.innerHTML = '<option value="">Could not fetch models</option>';
+            });
+    }
+
+    // Load current config and populate form
+    fetch('/api/config')
+        .then(r => r.json())
+        .then(cfg => {
+            // LLM
+            providerSelect.value = cfg.llm?.provider || 'claude_proxy';
+            showGroupsFor(providerSelect, providerKeyGroups);
+
+            document.getElementById('s-proxy-url').value = cfg.llm?.proxy_url || 'http://127.0.0.1:8317';
+            document.getElementById('s-ollama-url').value = cfg.llm?.ollama_url || 'http://localhost:11434';
+
+            // Load API keys from user config (not masked values from merged config)
+            fetch('/api/config')  // keys are masked in the response, so leave placeholders
+                .catch(() => {});
+
+            // TTS
+            ttsEngineSelect.value = cfg.tts?.engine || 'macos';
+            showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+            document.getElementById('s-tts-voice').value = cfg.tts?.voice || '';
+            document.getElementById('s-tts-rate').value = cfg.tts?.rate || 160;
+
+            // STT
+            document.getElementById('s-whisper-model').value = cfg.stt?.model || 'small';
+            document.getElementById('s-whisper-language').value = cfg.stt?.language || 'en';
+
+            // Pacing
+            document.getElementById('s-response-delay').value = cfg.pacing?.response_delay_ms || 2000;
+            document.getElementById('s-silence-sec').value = cfg.pacing?.extended_silence_sec || 300;
+
+            // Config path
+            if (cfg._config_path) {
+                configPathEl.textContent = 'Config file: ' + cfg._config_path;
+            }
+
+            // Fetch models for current provider
+            fetchModels(providerSelect.value);
+
+            // After models load, try to select the current model
+            setTimeout(() => {
+                const currentModel = cfg.llm?.model || '';
+                const ollamaModel = cfg.llm?.ollama_model || '';
+                const target = providerSelect.value === 'ollama' ? ollamaModel : currentModel;
+                if (target) {
+                    for (const opt of modelSelect.options) {
+                        if (opt.value === target) {
+                            modelSelect.value = target;
+                            break;
+                        }
+                    }
+                }
+            }, 1500);
+        })
+        .catch(err => {
+            console.error('Failed to load config:', err);
+        });
+
+    // Save
+    form.addEventListener('submit', e => {
+        e.preventDefault();
+        errorEl.style.display = 'none';
+
+        const provider = providerSelect.value;
+        const data = {
+            llm: {
+                provider: provider,
+                proxy_url: document.getElementById('s-proxy-url').value,
+                ollama_url: document.getElementById('s-ollama-url').value,
+            },
+            tts: {
+                engine: ttsEngineSelect.value,
+                voice: document.getElementById('s-tts-voice').value,
+                rate: parseInt(document.getElementById('s-tts-rate').value, 10),
+            },
+            stt: {
+                model: document.getElementById('s-whisper-model').value,
+                language: document.getElementById('s-whisper-language').value,
+            },
+            pacing: {
+                response_delay_ms: parseInt(document.getElementById('s-response-delay').value, 10),
+                extended_silence_sec: parseInt(document.getElementById('s-silence-sec').value, 10),
+            },
+        };
+
+        // Set the model field based on provider
+        const modelVal = modelSelect.value;
+        if (modelVal) {
+            if (provider === 'ollama') {
+                data.llm.ollama_model = modelVal;
+            } else {
+                data.llm.model = modelVal;
+            }
+        }
+
+        // API keys — only include if the field has been filled (not the masked placeholder)
+        const keyFields = {
+            anthropic: 's-anthropic-key',
+            openai: 's-openai-key',
+            openrouter: 's-openrouter-key',
+            venice: 's-venice-key',
+        };
+        for (const [prov, fieldId] of Object.entries(keyFields)) {
+            const val = document.getElementById(fieldId).value.trim();
+            if (val) {
+                // Store as env var reference if it looks like an env var, otherwise store directly
+                data.llm['_key_' + prov] = val;
+            }
+        }
+
+        // Map provider-specific key to llm.api_key
+        const currentKeyField = keyFields[provider];
+        if (currentKeyField) {
+            const val = document.getElementById(currentKeyField).value.trim();
+            if (val) {
+                data.llm.api_key = val;
+            }
+        }
+        // Clean up temp key fields
+        for (const prov of Object.keys(keyFields)) {
+            delete data.llm['_key_' + prov];
+        }
+
+        // ElevenLabs API key
+        const elKey = document.getElementById('s-elevenlabs-key').value.trim();
+        if (elKey) {
+            data.tts.api_key = elKey;
+        }
+
+        fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (result.error) {
+                errorEl.textContent = result.error;
+                errorEl.style.display = '';
+                return;
+            }
+            if (firstRun) {
+                window.location.href = '/';
+            } else {
+                if (savedEl) {
+                    savedEl.style.display = '';
+                    setTimeout(() => savedEl.style.display = 'none', 3000);
+                }
+            }
+        })
+        .catch(err => {
+            errorEl.textContent = 'Failed to save: ' + err.message;
+            errorEl.style.display = '';
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -48,6 +48,7 @@
             {% block nav_items %}
             {% if request.path != '/' %}<a href="/">New Session</a>{% endif %}
             <a href="/history">History</a>
+            <a href="/settings" {% if request.path == '/settings' %}class="nav-active"{% endif %}>Settings</a>
             {% endblock %}
             <a href="#" class="nav-about-link" id="aboutLink">About</a>
             <button class="update-indicator" id="updateIndicator" title="Update available" aria-label="Check for updates" style="display:none">
