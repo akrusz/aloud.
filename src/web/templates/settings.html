@@ -21,44 +21,57 @@
 
     <form id="settings-form" class="setup-form">
 
-        <!-- Language Section -->
+        <!-- Language & Speech Recognition -->
         <section class="settings-section">
-            <h2>Language</h2>
-            <div class="form-group">
-                <label for="s-language">Session Language</label>
-                <select id="s-language" name="language">
-                    <option value="en">English</option>
-                    <option value="es">Espa&#241;ol</option>
-                    <option value="fr">Fran&#231;ais</option>
-                    <option value="de">Deutsch</option>
-                    <option value="it">Italiano</option>
-                    <option value="pt">Portugu&#234;s</option>
-                    <option value="nl">Nederlands</option>
-                    <option value="pl">Polski</option>
-                    <option value="ru">&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</option>
-                    <option value="uk">&#1059;&#1082;&#1088;&#1072;&#1111;&#1085;&#1089;&#1100;&#1082;&#1072;</option>
-                    <option value="ja">&#26085;&#26412;&#35486;</option>
-                    <option value="zh">&#20013;&#25991;</option>
-                    <option value="ko">&#54620;&#44397;&#50612;</option>
-                    <option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option>
-                    <option value="hi">&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</option>
-                    <option value="tr">T&#252;rk&#231;e</option>
-                    <option value="vi">Ti&#7871;ng Vi&#7879;t</option>
-                    <option value="th">&#3616;&#3634;&#3625;&#3634;&#3652;&#3607;&#3618;</option>
-                    <option value="sv">Svenska</option>
-                    <option value="da">Dansk</option>
-                    <option value="no">Norsk</option>
-                    <option value="fi">Suomi</option>
-                    <option value="el">&#917;&#955;&#955;&#951;&#957;&#953;&#954;&#940;</option>
-                    <option value="he">&#1506;&#1489;&#1512;&#1497;&#1514;</option>
-                    <option value="cs">&#268;e&#353;tina</option>
-                    <option value="ro">Rom&#226;n&#259;</option>
-                    <option value="hu">Magyar</option>
-                    <option value="id">Bahasa Indonesia</option>
-                    <option value="ms">Bahasa Melayu</option>
-                    <option value="ca">Catal&#224;</option>
-                </select>
-                <span class="form-hint">Affects speech recognition, available voices, and voice previews</span>
+            <h2>Language & Speech Recognition</h2>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="s-language">Language</label>
+                    <select id="s-language" name="language">
+                        <option value="en">English</option>
+                        <option value="es">Espa&#241;ol</option>
+                        <option value="fr">Fran&#231;ais</option>
+                        <option value="de">Deutsch</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Portugu&#234;s</option>
+                        <option value="nl">Nederlands</option>
+                        <option value="pl">Polski</option>
+                        <option value="ru">&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</option>
+                        <option value="uk">&#1059;&#1082;&#1088;&#1072;&#1111;&#1085;&#1089;&#1100;&#1082;&#1072;</option>
+                        <option value="ja">&#26085;&#26412;&#35486;</option>
+                        <option value="zh">&#20013;&#25991;</option>
+                        <option value="ko">&#54620;&#44397;&#50612;</option>
+                        <option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option>
+                        <option value="hi">&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</option>
+                        <option value="tr">T&#252;rk&#231;e</option>
+                        <option value="vi">Ti&#7871;ng Vi&#7879;t</option>
+                        <option value="th">&#3616;&#3634;&#3625;&#3634;&#3652;&#3607;&#3618;</option>
+                        <option value="sv">Svenska</option>
+                        <option value="da">Dansk</option>
+                        <option value="no">Norsk</option>
+                        <option value="fi">Suomi</option>
+                        <option value="el">&#917;&#955;&#955;&#951;&#957;&#953;&#954;&#940;</option>
+                        <option value="he">&#1506;&#1489;&#1512;&#1497;&#1514;</option>
+                        <option value="cs">&#268;e&#353;tina</option>
+                        <option value="ro">Rom&#226;n&#259;</option>
+                        <option value="hu">Magyar</option>
+                        <option value="id">Bahasa Indonesia</option>
+                        <option value="ms">Bahasa Melayu</option>
+                        <option value="ca">Catal&#224;</option>
+                    </select>
+                    <span class="form-hint">Affects speech recognition, voices, and previews</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label for="s-whisper-model">Whisper Model</label>
+                    <select id="s-whisper-model" name="whisper_model">
+                        <option value="tiny">Tiny (fastest)</option>
+                        <option value="base">Base</option>
+                        <option value="small">Small (recommended)</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large (most accurate)</option>
+                    </select>
+                    <span class="form-hint">Larger = more accurate but slower. Requires restart.</span>
+                </div>
             </div>
         </section>
 
@@ -140,8 +153,8 @@
         <!-- TTS Section -->
         <section class="settings-section">
             <h2>Text-to-Speech</h2>
-            <div class="form-row form-row-thirds">
-                <div class="form-group">
+            <div class="form-row">
+                <div class="form-group form-group-half">
                     <label for="s-tts-engine">TTS Engine</label>
                     <select id="s-tts-engine" name="tts_engine">
                         <option value="macos">macOS (built-in 'say')</option>
@@ -151,13 +164,9 @@
                         <option value="parakeet">Parakeet (local neural TTS)</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group form-group-half">
                     <label>Default Voice</label>
                     <button type="button" id="s-voice-btn" class="setup-voice-btn">Default</button>
-                </div>
-                <div class="form-group">
-                    <label for="s-tts-rate">Rate (WPM)</label>
-                    <input type="number" id="s-tts-rate" min="80" max="250" value="160">
                 </div>
             </div>
 
@@ -170,45 +179,29 @@
             </div>
         </section>
 
-        <!-- STT Section -->
-        <section class="settings-section">
-            <h2>Speech-to-Text</h2>
-            <div class="form-group">
-                <label for="s-whisper-model">Whisper Model</label>
-                <select id="s-whisper-model" name="whisper_model">
-                    <option value="tiny">Tiny (fastest, least accurate)</option>
-                    <option value="base">Base</option>
-                    <option value="small">Small (recommended)</option>
-                    <option value="medium">Medium</option>
-                    <option value="large">Large (slowest, most accurate)</option>
-                </select>
-                <span class="form-hint">Larger models are more accurate but slower. Requires restart.</span>
-            </div>
-        </section>
-
         <!-- Pacing Section -->
         <section class="settings-section">
             <h2>Pacing</h2>
             <div class="form-row">
                 <div class="form-group form-group-half">
-                    <label for="s-silence-base">Pause Detection (seconds)</label>
+                    <label for="s-silence-base">Pause Detection (s)</label>
                     <input type="number" id="s-silence-base" min="1" max="15" step="0.5" value="3">
-                    <span class="form-hint">How long a pause before your speech is submitted</span>
+                    <span class="form-hint">Pause before your speech is submitted</span>
                 </div>
                 <div class="form-group form-group-half">
-                    <label for="s-silence-max">Extended Pause (seconds)</label>
+                    <label for="s-silence-max">Extended Pause (s)</label>
                     <input type="number" id="s-silence-max" min="2" max="20" step="0.5" value="7">
-                    <span class="form-hint">Maximum pause tolerance after longer speech</span>
+                    <span class="form-hint">Max pause tolerance after longer speech</span>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group form-group-half">
-                    <label for="s-response-delay">Response Delay (ms)</label>
-                    <input type="number" id="s-response-delay" min="500" max="10000" step="100" value="2000">
-                    <span class="form-hint">Additional wait after transcription before the LLM responds</span>
+                    <label for="s-response-delay">Response Delay (s)</label>
+                    <input type="number" id="s-response-delay" min="0.5" max="10" step="0.5" value="2">
+                    <span class="form-hint">Wait after transcription before LLM responds</span>
                 </div>
                 <div class="form-group form-group-half">
-                    <label for="s-silence-sec">Check-in After (seconds)</label>
+                    <label for="s-silence-sec">Check-in After (s)</label>
                     <input type="number" id="s-silence-sec" min="30" max="3600" step="30" value="300">
                     <span class="form-hint">Extended silence before a gentle check-in</span>
                 </div>
@@ -238,6 +231,11 @@
             <button type="button" class="voice-modal-close" id="settings-voice-modal-close">&times;</button>
         </div>
         <div class="voice-modal-list" id="settings-voice-modal-list">
+        </div>
+        <div class="voice-modal-footer">
+            <label class="voice-modal-speed-label" for="s-tts-rate">Speed</label>
+            <input type="range" id="s-tts-rate" min="70" max="170" value="160" step="10">
+            <span class="voice-modal-speed-value" id="s-tts-rate-label">160 wpm</span>
         </div>
     </div>
 </div>
@@ -378,6 +376,13 @@
         previewAudio = new Audio(url);
         previewAudio.play().catch(function() {});
     }
+
+    // Speed slider in voice modal
+    var rateSlider = document.getElementById('s-tts-rate');
+    var rateLabel = document.getElementById('s-tts-rate-label');
+    rateSlider.addEventListener('input', function() {
+        rateLabel.textContent = rateSlider.value + ' wpm';
+    });
 
     // Voice modal events
     voiceBtn.addEventListener('click', openVoiceModal);
@@ -552,7 +557,9 @@
                 selectedVoiceName = voiceName;
                 voiceBtn.textContent = voiceName;
             }
-            document.getElementById('s-tts-rate').value = cfg.tts?.rate || 160;
+            var rate = cfg.tts?.rate || 160;
+            rateSlider.value = rate;
+            rateLabel.textContent = rate + ' wpm';
 
             // Language
             var cfgLang = cfg.stt?.language || 'en';
@@ -567,7 +574,7 @@
             // Pacing
             document.getElementById('s-silence-base').value = (cfg.pacing?.silence_base_ms || 3000) / 1000;
             document.getElementById('s-silence-max').value = (cfg.pacing?.silence_max_ms || 7000) / 1000;
-            document.getElementById('s-response-delay').value = cfg.pacing?.response_delay_ms || 2000;
+            document.getElementById('s-response-delay').value = (cfg.pacing?.response_delay_ms || 2000) / 1000;
             document.getElementById('s-silence-sec').value = cfg.pacing?.extended_silence_sec || 300;
 
             // Config path
@@ -616,7 +623,7 @@
             tts: {
                 engine: ttsEngineSelect.value,
                 voice: selectedVoiceName || voiceBtn.textContent,
-                rate: parseInt(document.getElementById('s-tts-rate').value, 10),
+                rate: parseInt(rateSlider.value, 10),
             },
             stt: {
                 model: document.getElementById('s-whisper-model').value,
@@ -625,7 +632,7 @@
             pacing: {
                 silence_base_ms: Math.round(parseFloat(document.getElementById('s-silence-base').value) * 1000),
                 silence_max_ms: Math.round(parseFloat(document.getElementById('s-silence-max').value) * 1000),
-                response_delay_ms: parseInt(document.getElementById('s-response-delay').value, 10),
+                response_delay_ms: Math.round(parseFloat(document.getElementById('s-response-delay').value) * 1000),
                 extended_silence_sec: parseInt(document.getElementById('s-silence-sec').value, 10),
             },
         };

@@ -1454,6 +1454,14 @@ body:has(.session-container) {
     user-select: none;
 }
 
+.voice-modal-speed-value {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    min-width: 4.5em;
+    text-align: right;
+}
+
 .voice-modal-footer input[type="range"] {
     flex: 1;
     height: 3px;
@@ -2158,9 +2166,14 @@ body::before {
 }
 
 .settings-section {
-    margin-bottom: var(--space-sm);
+    margin-top: var(--space-sm);
+    margin-bottom: var(--space-xs);
     padding-bottom: var(--space-xs);
     border-bottom: 1px solid var(--border);
+}
+
+.settings-section:first-of-type {
+    margin-top: 0;
 }
 
 .settings-section:last-of-type {
