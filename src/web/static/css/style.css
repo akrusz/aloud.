@@ -547,7 +547,7 @@ body {
     padding: 0.4rem 0.8rem;
 }
 
-textarea, select, input[type="text"] {
+textarea, select, input[type="text"], input[type="number"], input[type="password"] {
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -558,6 +558,10 @@ textarea, select, input[type="text"] {
     resize: vertical;
     transition: border-color var(--transition);
     width: 100%;
+}
+
+input[type="number"], input[type="password"] {
+    resize: none;
 }
 
 textarea:focus, select:focus, input:focus {
@@ -2173,7 +2177,18 @@ body::before {
 .settings-desc {
     color: var(--text-muted);
     font-size: 0.85rem;
-    margin-bottom: var(--space-md);
+    margin-bottom: 0;
+}
+
+.settings-section .form-group > label {
+    display: block;
+    margin-top: var(--space-md);
+}
+
+.settings-section > .form-group:first-of-type > label,
+.settings-section > .settings-desc + .form-group > label,
+.settings-section > .form-row:first-of-type .form-group > label {
+    margin-top: var(--space-xs);
 }
 
 .input-with-action {
