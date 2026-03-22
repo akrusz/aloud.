@@ -362,7 +362,7 @@
 
     function selectSettingsVoice(name) {
         selectedVoiceName = name;
-        voiceBtn.textContent = name;
+        voiceBtn.textContent = name + ' · ' + rateSlider.value + ' wpm';
 
         // Update visual state in modal
         var rows = voiceModalList.querySelectorAll('.voice-row');
@@ -397,9 +397,12 @@
     // Speed slider in voice modal
     var rateSlider = document.getElementById('s-tts-rate');
     var rateLabel = document.getElementById('s-tts-rate-label');
-    rateSlider.addEventListener('input', function() {
+    function updateRateDisplay() {
         rateLabel.textContent = rateSlider.value + ' wpm';
-    });
+        var voiceText = selectedVoiceName || 'Default';
+        voiceBtn.textContent = voiceText + ' · ' + rateSlider.value + ' wpm';
+    }
+    rateSlider.addEventListener('input', updateRateDisplay);
 
     // Voice modal events
     voiceBtn.addEventListener('click', openVoiceModal);
@@ -439,7 +442,7 @@
                     }
                     if (!found) {
                         selectedVoiceName = scoredVoices.length > 0 ? scoredVoices[0].name : '';
-                        voiceBtn.textContent = selectedVoiceName || 'Default';
+                        updateRateDisplay();
                     }
                 }
             })
@@ -595,6 +598,7 @@
             var rate = cfg.tts?.rate || 160;
             rateSlider.value = rate;
             rateLabel.textContent = rate + ' wpm';
+            updateRateDisplay();
 
             // Language
             var cfgLang = cfg.stt?.language || 'en';
