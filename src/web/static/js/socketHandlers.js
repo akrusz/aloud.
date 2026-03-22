@@ -3,7 +3,7 @@
 import { state, dom, socket } from './state.js';
 import { addMessage, addContinuation, showTyping, hideTyping, scrollToBottom, stopTimer, setStatus, showErrorToast } from './ui.js';
 import { speak, stopServerAudio } from './tts.js';
-import { handleTranscription } from './audio.js';
+import { handleTranscription, applySessionConfig } from './audio.js';
 import { notingState, stopCircle } from './noting.js';
 
 export function registerSocketHandlers(deactivateVoiceFn) {
@@ -18,6 +18,10 @@ export function registerSocketHandlers(deactivateVoiceFn) {
             console.log('Socket reconnected — re-registering session', state.sessionId);
             socket.emit('start_session', { session_id: state.sessionId });
         }
+    });
+
+    socket.on('session_config', function (cfg) {
+        applySessionConfig(cfg);
     });
 
     socket.on('session_history', function (data) {

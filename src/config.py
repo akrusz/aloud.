@@ -82,6 +82,8 @@ class PacingConfig:
     response_delay_ms: int = 2000
     min_speech_duration_ms: int = 500
     extended_silence_sec: int = 300
+    silence_base_ms: int = 3000   # client-side: pause before submitting speech
+    silence_max_ms: int = 7000    # client-side: max pause tolerance after long speech
 
 
 @dataclass
