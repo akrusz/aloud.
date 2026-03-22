@@ -203,13 +203,19 @@ def register_routes(app: Flask) -> None:
         default_text = _preview_text_for_voice(voice, app.server_tts)
         text = request.args.get("text", default_text)
 
-        # Temporarily switch voice, generate audio, then restore
+        # Temporarily switch voice and rate, generate audio, then restore
         original_voice = app.server_tts.voice
+        original_rate = getattr(app.server_tts, 'rate', None)
         app.server_tts.set_voice(voice)
+        rate = request.args.get("rate", type=int)
+        if rate and hasattr(app.server_tts, "set_rate"):
+            app.server_tts.set_rate(rate)
         try:
             audio = app.server_tts.speak_to_bytes(text)
         finally:
             app.server_tts.set_voice(original_voice)
+            if original_rate is not None and hasattr(app.server_tts, "set_rate"):
+                app.server_tts.set_rate(original_rate)
 
         if not audio:
             return Response(status=500)

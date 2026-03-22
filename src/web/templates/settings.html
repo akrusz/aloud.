@@ -371,7 +371,8 @@
 
     function previewVoice(name) {
         stopPreview();
-        var url = '/api/voices/preview?voice=' + encodeURIComponent(name);
+        var url = '/api/voices/preview?voice=' + encodeURIComponent(name)
+            + '&rate=' + rateSlider.value;
         if (name === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
         previewAudio = new Audio(url);
         previewAudio.play().catch(function() {});

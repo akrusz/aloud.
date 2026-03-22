@@ -1464,8 +1464,9 @@ body:has(.session-container) {
 
 .voice-modal-footer input[type="range"] {
     flex: 1;
-    height: 3px;
+    height: 8px;
     margin: 0;
+    border-radius: 4px;
 }
 
 .nav-end-link {
