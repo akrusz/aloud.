@@ -184,25 +184,41 @@
             <h2>Pacing</h2>
             <div class="form-row">
                 <div class="form-group form-group-half">
-                    <label for="s-silence-base">Pause Detection (s)</label>
-                    <input type="number" id="s-silence-base" min="1" max="15" step="0.5" value="3">
-                    <span class="form-hint">Pause before your speech is submitted</span>
+                    <label>Pause Detection (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-base" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-base" class="stepper-value" min="1" max="15" step="0.5" value="3">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-base" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Minimum pause before your speech is submitted</span>
                 </div>
                 <div class="form-group form-group-half">
-                    <label for="s-silence-max">Extended Pause (s)</label>
-                    <input type="number" id="s-silence-max" min="2" max="20" step="0.5" value="7">
-                    <span class="form-hint">Max pause tolerance after longer speech</span>
+                    <label>Extended Pause (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-max" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-max" class="stepper-value" min="2" max="20" step="0.5" value="7">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-max" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Maximum pause tolerance after longer speech</span>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group form-group-half">
-                    <label for="s-response-delay">Response Delay (s)</label>
-                    <input type="number" id="s-response-delay" min="0.5" max="10" step="0.5" value="2">
+                    <label>Response Delay (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-response-delay" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-response-delay" class="stepper-value" min="0.5" max="10" step="0.5" value="2">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-response-delay" aria-label="Increase">+</button>
+                    </div>
                     <span class="form-hint">Wait after transcription before LLM responds</span>
                 </div>
                 <div class="form-group form-group-half">
-                    <label for="s-silence-sec">Check-in After (s)</label>
-                    <input type="number" id="s-silence-sec" min="30" max="3600" step="30" value="300">
+                    <label>Check-in After (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-sec" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-sec" class="stepper-value" min="30" max="3600" step="30" value="300">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-sec" aria-label="Increase">+</button>
+                    </div>
                     <span class="form-hint">Extended silence before a gentle check-in</span>
                 </div>
             </div>
@@ -479,6 +495,24 @@
                 input.type = 'password';
                 btn.textContent = 'Show';
             }
+        });
+    });
+
+    // Stepper buttons
+    document.querySelectorAll('.stepper-inc, .stepper-dec').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var input = document.getElementById(btn.dataset.target);
+            var step = parseFloat(input.step) || 1;
+            var val = parseFloat(input.value) || 0;
+            var min = parseFloat(input.min);
+            var max = parseFloat(input.max);
+            if (btn.classList.contains('stepper-inc')) {
+                val = Math.min(val + step, max);
+            } else {
+                val = Math.max(val - step, min);
+            }
+            // Avoid floating point artifacts
+            input.value = parseFloat(val.toFixed(1));
         });
     });
 

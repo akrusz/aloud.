@@ -2199,6 +2199,29 @@ body::before {
     margin-top: var(--space-md);
 }
 
+.settings-section .stepper {
+    width: 100%;
+}
+
+.settings-section .stepper .stepper-value {
+    flex: 1;
+    border: none;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    text-align: center;
+    padding: 0.6rem 0;
+    margin: 0;
+    font-size: 0.9rem;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.settings-section .stepper-btn {
+    width: 2.2rem;
+    font-size: 1rem;
+}
+
 .settings-section > .form-group:first-of-type > label,
 .settings-section > .settings-desc + .form-group > label,
 .settings-section > .form-row:first-of-type .form-group > label {
