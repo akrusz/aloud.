@@ -9,7 +9,7 @@ from flask import Flask, render_template, request, jsonify, Response, redirect, 
 
 from .. import __version__
 from ..config import (
-    has_user_config, load_user_config, save_user_config,
+    has_user_config, save_user_config,
     config_to_dict, load_config, get_user_config_path,
 )
 from ..updater import check_for_updates, apply_update

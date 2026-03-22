@@ -1,7 +1,7 @@
 """Configuration loading and management."""
 
 import os
-from dataclasses import dataclass, field, fields, asdict
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
