@@ -296,7 +296,11 @@ def _check_github_releases() -> UpdateStatus:
 
         tag = data.get("tag_name", "")
         status.latest_version = tag.lstrip("v")
-        status.release_notes = data.get("body", "") or ""
+        notes = data.get("body", "") or ""
+        # Strip CI-appended install notes (not useful in-app)
+        if "<!-- install-notes -->" in notes:
+            notes = notes.split("<!-- install-notes -->")[0]
+        status.release_notes = notes.strip()
 
         if _version_newer(tag, __version__):
             status.available = True

@@ -37,8 +37,9 @@ jobs:
           append_body: true
           body: |
 
+            <!-- install-notes -->
             ---
-            **macOS note:** If macOS blocks the app on first launch, right-click (or Control-click) Glooow.app and choose **Open**.
+            **macOS note:** If macOS blocks the app on first launch, right-click (or Control-click) the app and choose **Open**.
 
   build-windows:
     runs-on: windows-latest
