@@ -2,6 +2,7 @@
 
 import math
 import os
+import platform
 import shutil
 import subprocess
 import time
@@ -17,6 +18,39 @@ from ..config import (
 )
 from ..tts import create_tts
 from ..updater import check_for_updates, apply_update, download_release
+
+# Ollama model tiers keyed by minimum RAM in GB
+OLLAMA_MODEL_TIERS = [
+    {"min_gb": 24, "model": "qwen3.5:35b-a3b", "label": "Best", "size": "~20GB"},
+    {"min_gb": 16, "model": "qwen3.5:9b", "label": "Better", "size": "~5.5GB"},
+    {"min_gb": 0, "model": "qwen3.5:4b", "label": "Good", "size": "~2.5GB"},
+]
+
+
+def _get_system_ram_gb() -> int | None:
+    """Return total system RAM in whole GB, or None if unknown."""
+    try:
+        if platform.system() == "Darwin":
+            out = subprocess.check_output(["sysctl", "-n", "hw.memsize"], text=True)
+            return int(out.strip()) // (1024 ** 3)
+        # Linux / other POSIX
+        pages = os.sysconf("SC_PHYS_PAGES")
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        if pages > 0 and page_size > 0:
+            return (pages * page_size) // (1024 ** 3)
+    except Exception:
+        pass
+    return None
+
+
+def _recommended_ollama_model(ram_gb: int | None) -> dict:
+    """Pick the best Ollama model tier for the given RAM."""
+    if ram_gb is None:
+        return OLLAMA_MODEL_TIERS[-1]  # default to smallest
+    for tier in OLLAMA_MODEL_TIERS:
+        if ram_gb >= tier["min_gb"]:
+            return tier
+    return OLLAMA_MODEL_TIERS[-1]
 
 
 def register_routes(app: Flask) -> None:
@@ -313,6 +347,23 @@ def register_routes(app: Flask) -> None:
         }
 
         # ollama — check if server is running and list pulled models
+        ram_gb = _get_system_ram_gb()
+        rec = _recommended_ollama_model(ram_gb)
+        rec_info = {
+            "ram_gb": ram_gb,
+            "recommended_model": rec["model"],
+            "recommended_label": rec["label"],
+            "recommended_size": rec["size"],
+            "tiers": [
+                {
+                    "model": t["model"], "label": t["label"],
+                    "size": t["size"], "min_gb": t["min_gb"],
+                    "fits": ram_gb is not None and ram_gb >= t["min_gb"],
+                }
+                for t in OLLAMA_MODEL_TIERS
+            ],
+        }
+
         ollama_url = app.meditation_config.llm.ollama_url or "http://localhost:11434"
         try:
             resp = httpx.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=2.0)
@@ -321,14 +372,16 @@ def register_routes(app: Flask) -> None:
             if models:
                 results["ollama"] = {
                     "available": True, "models": models, "hint": "",
+                    "recommendation": rec_info,
                 }
             else:
                 results["ollama"] = {
                     "available": False, "models": [],
                     "hint": (
                         "Ollama is running but has no models. "
-                        "Run: <code>ollama pull qwen3.5:4b</code>" + refresh
+                        f"Run: <code>ollama pull {rec['model']}</code>" + refresh
                     ),
+                    "recommendation": rec_info,
                 }
         except Exception:
             results["ollama"] = {
@@ -338,6 +391,7 @@ def register_routes(app: Flask) -> None:
                     "<a href='https://ollama.ai' target='_blank'>ollama.ai</a>, "
                     "start it, then:" + refresh
                 ),
+                "recommendation": rec_info,
             }
 
         return jsonify(results)

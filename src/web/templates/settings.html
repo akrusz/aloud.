@@ -92,6 +92,7 @@
             <div class="form-group api-key-group" id="s-ollama-group" style="display:none">
                 <label for="s-ollama-url">Ollama URL</label>
                 <input type="text" id="s-ollama-url" placeholder="http://localhost:11434">
+                <div id="s-ollama-recommendation" class="form-hint" style="margin-top:0.5rem"></div>
             </div>
 
             <div id="s-provider-status" class="provider-hint" style="display:none"></div>
@@ -705,17 +706,36 @@
                 .then(function(data) {
                     var info = data.ollama || {};
                     var models = info.models || [];
+                    var rec = info.recommendation || {};
                     modelSelect.innerHTML = '';
                     if (models.length === 0) {
                         modelSelect.innerHTML = '<option value="">No models available</option>';
-                        return;
+                    } else {
+                        // Build a set of tier models for labeling
+                        var tierLabels = {};
+                        (rec.tiers || []).forEach(function(t) {
+                            tierLabels[t.model] = t.label;
+                        });
+                        models.forEach(function(m) {
+                            var opt = document.createElement('option');
+                            opt.value = m;
+                            var label = tierLabels[m];
+                            opt.textContent = label ? m + ' (' + label + ')' : m;
+                            modelSelect.appendChild(opt);
+                        });
                     }
-                    models.forEach(function(m) {
-                        var opt = document.createElement('option');
-                        opt.value = m;
-                        opt.textContent = m;
-                        modelSelect.appendChild(opt);
-                    });
+                    // Show recommendation hint
+                    var recEl = document.getElementById('s-ollama-recommendation');
+                    if (recEl && rec.tiers && rec.ram_gb) {
+                        var parts = rec.tiers.map(function(t) {
+                            var tag = t.model === rec.recommended_model ? ' \u2190 recommended' : '';
+                            var fit = t.fits ? '' : ' (needs ' + t.min_gb + 'GB+ RAM)';
+                            return '<code>ollama pull ' + t.model + '</code> \u2014 ' + t.label + ' ' + t.size + fit + tag;
+                        });
+                        recEl.innerHTML = 'Your system has ' + rec.ram_gb + 'GB RAM. Suggested models:<br>' + parts.join('<br>');
+                    } else if (recEl) {
+                        recEl.innerHTML = '';
+                    }
                 })
                 .catch(function() {
                     modelSelect.innerHTML = '<option value="">Could not fetch models</option>';

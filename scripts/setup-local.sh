@@ -207,13 +207,46 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
         ok "Ollama already running"
     fi
 
+    # ── Detect RAM and recommend model tier ────────
+    if [ "$OS" = "Darwin" ]; then
+        RAM_BYTES=$(sysctl -n hw.memsize 2>/dev/null || echo 0)
+    else
+        RAM_BYTES=$(awk '/MemTotal/ {print $2 * 1024}' /proc/meminfo 2>/dev/null || echo 0)
+    fi
+    RAM_GB=$((RAM_BYTES / 1073741824))
+
+    # Pick default based on RAM
+    if [ "$RAM_GB" -ge 24 ]; then
+        OLLAMA_DEFAULT="3"
+    elif [ "$RAM_GB" -ge 16 ]; then
+        OLLAMA_DEFAULT="2"
+    else
+        OLLAMA_DEFAULT="1"
+    fi
+
     # ── Download a model ──────────────────────────
     echo ""
     echo "  Now let's download an AI model to run locally."
-    echo "  The default is $OLLAMA_MODEL (~2.5GB) — it works well on most"
-    echo "  computers with 8GB of RAM or more."
+    if [ "$RAM_GB" -gt 0 ]; then
+        echo "  Your system has ${RAM_GB}GB RAM."
+    fi
     echo ""
-    OLLAMA_MODEL=$(ask "Model" "$OLLAMA_MODEL")
+    echo "    1) qwen3.5:4b       — Good    (~2.5GB download, needs 8GB+ RAM)"
+    echo "    2) qwen3.5:9b       — Better  (~5.5GB download, needs 16GB+ RAM)"
+    echo "    3) qwen3.5:35b-a3b  — Best    (~20GB download, needs 24GB+ RAM)"
+    echo "    4) Other             — enter a custom model name"
+    echo ""
+    MODEL_CHOICE=$(ask "Choice" "$OLLAMA_DEFAULT")
+
+    case "$MODEL_CHOICE" in
+        1) OLLAMA_MODEL="qwen3.5:4b" ;;
+        2) OLLAMA_MODEL="qwen3.5:9b" ;;
+        3) OLLAMA_MODEL="qwen3.5:35b-a3b" ;;
+        4)
+            OLLAMA_MODEL=$(ask "Model name" "qwen3.5:4b")
+            ;;
+        *) OLLAMA_MODEL="qwen3.5:4b" ;;
+    esac
 
     if ollama list 2>/dev/null | grep -q "$(echo "$OLLAMA_MODEL" | cut -d: -f1)"; then
         ok "$OLLAMA_MODEL already downloaded"
