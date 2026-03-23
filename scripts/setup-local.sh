@@ -147,6 +147,21 @@ PROXY_URL="http://127.0.0.1:8317"
 OLLAMA_URL="http://localhost:11434"
 OLLAMA_MODEL="qwen3.5:4b"
 
+# ── Ollama model tiers ──────────────────────────
+# Edit these arrays when better models become available.
+# Keep them in sync with config/default.yaml → llm.ollama_tiers.
+TIER_MODELS=("qwen3.5:4b"       "qwen3.5:9b"       "qwen3.5:35b-a3b")
+TIER_LABELS=("Good"              "Better"            "Best")
+TIER_MIN_GB=(0                   16                  24)
+TIER_DOWNLOAD=("~2.5GB"          "~5.5GB"            "~20GB")
+TIER_DISK=("~2.5GB"              "~5.5GB"            "~20GB")
+TIER_RAM=("~5GB"                 "~9GB"              "~22GB")
+TIER_NOTES=(
+    "Fast on any hardware"
+    "Slower responses but noticeably higher quality"
+    "Large model but uses a clever trick to stay fast"
+)
+
 if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
     LLM_PROVIDER="ollama"
 
@@ -215,14 +230,13 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
     fi
     RAM_GB=$((RAM_BYTES / 1073741824))
 
-    # Pick default based on RAM
-    if [ "$RAM_GB" -ge 24 ]; then
-        OLLAMA_DEFAULT="3"
-    elif [ "$RAM_GB" -ge 16 ]; then
-        OLLAMA_DEFAULT="2"
-    else
-        OLLAMA_DEFAULT="1"
-    fi
+    # Pick default based on RAM (highest tier that fits)
+    OLLAMA_DEFAULT="1"
+    for i in $(seq 0 $((${#TIER_MODELS[@]} - 1))); do
+        if [ "$RAM_GB" -ge "${TIER_MIN_GB[$i]}" ]; then
+            OLLAMA_DEFAULT="$((i + 1))"
+        fi
+    done
 
     # ── Download a model ──────────────────────────
     echo ""
@@ -231,25 +245,24 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
         echo "  Your system has ${RAM_GB}GB RAM."
     fi
     echo ""
-    echo "    1) qwen3.5:4b       — Good    (~2.5GB download, ~5GB in memory)"
-    echo "                           Fast on any hardware"
-    echo "    2) qwen3.5:9b       — Better  (~5.5GB download, ~9GB in memory)"
-    echo "                           Slower responses but noticeably higher quality"
-    echo "    3) qwen3.5:35b-a3b  — Best    (~20GB download, ~22GB in memory)"
-    echo "                           Large model but uses a clever trick to stay fast"
-    echo "    4) Other             — enter a custom model name"
+    for i in $(seq 0 $((${#TIER_MODELS[@]} - 1))); do
+        NUM=$((i + 1))
+        printf "    %d) %-16s — %-7s (%s download, %s in memory)\n" \
+            "$NUM" "${TIER_MODELS[$i]}" "${TIER_LABELS[$i]}" "${TIER_DOWNLOAD[$i]}" "${TIER_RAM[$i]}"
+        printf "                           %s\n" "${TIER_NOTES[$i]}"
+    done
+    echo "    $((${#TIER_MODELS[@]} + 1))) Other             — enter a custom model name"
     echo ""
     MODEL_CHOICE=$(ask "Choice" "$OLLAMA_DEFAULT")
 
-    case "$MODEL_CHOICE" in
-        1) OLLAMA_MODEL="qwen3.5:4b" ;;
-        2) OLLAMA_MODEL="qwen3.5:9b" ;;
-        3) OLLAMA_MODEL="qwen3.5:35b-a3b" ;;
-        4)
-            OLLAMA_MODEL=$(ask "Model name" "qwen3.5:4b")
-            ;;
-        *) OLLAMA_MODEL="qwen3.5:4b" ;;
-    esac
+    OTHER_CHOICE=$((${#TIER_MODELS[@]} + 1))
+    if [ "$MODEL_CHOICE" -ge 1 ] 2>/dev/null && [ "$MODEL_CHOICE" -le "${#TIER_MODELS[@]}" ] 2>/dev/null; then
+        OLLAMA_MODEL="${TIER_MODELS[$((MODEL_CHOICE - 1))]}"
+    elif [ "$MODEL_CHOICE" = "$OTHER_CHOICE" ]; then
+        OLLAMA_MODEL=$(ask "Model name" "qwen3.5:4b")
+    else
+        OLLAMA_MODEL="${TIER_MODELS[0]}"
+    fi
 
     if ollama list 2>/dev/null | grep -q "$(echo "$OLLAMA_MODEL" | cut -d: -f1)"; then
         ok "$OLLAMA_MODEL already downloaded"
@@ -481,6 +494,21 @@ llm:
   # For Ollama
   ollama_url: $OLLAMA_URL
   ollama_model: $OLLAMA_MODEL
+
+  # Recommended Ollama model tiers (shown in settings UI and setup script).
+  # Edit this list when better models become available.
+  ollama_tiers:
+$(for i in $(seq 0 $((${#TIER_MODELS[@]} - 1))); do
+cat <<TIER
+    - model: "${TIER_MODELS[$i]}"
+      label: ${TIER_LABELS[$i]}
+      min_gb: ${TIER_MIN_GB[$i]}
+      download: "${TIER_DOWNLOAD[$i]}"
+      disk: "${TIER_DISK[$i]}"
+      ram: "${TIER_RAM[$i]}"
+      note: "${TIER_NOTES[$i]}"
+TIER
+done)
 
   context:
     strategy: full  # full, rolling

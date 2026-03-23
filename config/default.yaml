@@ -51,6 +51,31 @@ llm:
   ollama_url: http://localhost:11434
   ollama_model: qwen3.5:4b
 
+  # Recommended Ollama model tiers (shown in settings UI and setup script).
+  # Edit this list when better models become available.
+  ollama_tiers:
+    - model: "qwen3.5:35b-a3b"
+      label: Best
+      min_gb: 24
+      download: "~20GB"
+      disk: "~20GB"
+      ram: "~22GB"
+      note: "Large model but uses a clever trick to stay fast. Best quality by far"
+    - model: "qwen3.5:9b"
+      label: Better
+      min_gb: 16
+      download: "~5.5GB"
+      disk: "~5.5GB"
+      ram: "~9GB"
+      note: "Slower responses than 4B but noticeably higher quality"
+    - model: "qwen3.5:4b"
+      label: Good
+      min_gb: 0
+      download: "~2.5GB"
+      disk: "~2.5GB"
+      ram: "~5GB"
+      note: "Fast on any hardware"
+
   context:
     strategy: full  # full, rolling
     window_size: 10    # exchanges to keep (if rolling)

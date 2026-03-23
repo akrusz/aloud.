@@ -19,18 +19,7 @@ from ..config import (
 from ..tts import create_tts
 from ..updater import check_for_updates, apply_update, download_release
 
-# Ollama model tiers keyed by minimum RAM in GB
-OLLAMA_MODEL_TIERS = [
-    {"min_gb": 24, "model": "qwen3.5:35b-a3b", "label": "Best",
-     "download": "~20GB", "disk": "~20GB", "ram": "~22GB",
-     "note": "Large model but uses a clever trick to stay fast. Best quality by far"},
-    {"min_gb": 16, "model": "qwen3.5:9b", "label": "Better",
-     "download": "~5.5GB", "disk": "~5.5GB", "ram": "~9GB",
-     "note": "Slower responses than 4B but noticeably higher quality"},
-    {"min_gb": 0, "model": "qwen3.5:4b", "label": "Good",
-     "download": "~2.5GB", "disk": "~2.5GB", "ram": "~5GB",
-     "note": "Fast on any hardware"},
-]
+from ..config import DEFAULT_OLLAMA_TIERS
 
 
 def _get_system_ram_gb() -> int | None:
@@ -49,14 +38,14 @@ def _get_system_ram_gb() -> int | None:
     return None
 
 
-def _recommended_ollama_model(ram_gb: int | None) -> dict:
+def _recommended_ollama_model(ram_gb: int | None, tiers: list[dict]) -> dict:
     """Pick the best Ollama model tier for the given RAM."""
     if ram_gb is None:
-        return OLLAMA_MODEL_TIERS[-1]  # default to smallest
-    for tier in OLLAMA_MODEL_TIERS:
+        return tiers[-1]  # default to smallest
+    for tier in tiers:
         if ram_gb >= tier["min_gb"]:
             return tier
-    return OLLAMA_MODEL_TIERS[-1]
+    return tiers[-1]
 
 
 def register_routes(app: Flask) -> None:
@@ -353,8 +342,9 @@ def register_routes(app: Flask) -> None:
         }
 
         # ollama — check if server is running and list pulled models
+        tiers = app.meditation_config.llm.ollama_tiers or DEFAULT_OLLAMA_TIERS
         ram_gb = _get_system_ram_gb()
-        rec = _recommended_ollama_model(ram_gb)
+        rec = _recommended_ollama_model(ram_gb, tiers)
         rec_info = {
             "ram_gb": ram_gb,
             "recommended_model": rec["model"],
@@ -367,7 +357,7 @@ def register_routes(app: Flask) -> None:
                     "min_gb": t["min_gb"],
                     "fits": ram_gb is not None and ram_gb >= t["min_gb"],
                 }
-                for t in OLLAMA_MODEL_TIERS
+                for t in tiers
             ],
         }
 

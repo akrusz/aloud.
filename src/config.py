@@ -48,6 +48,19 @@ class TTSConfig:
     similarity_boost: float = 0.75
 
 
+DEFAULT_OLLAMA_TIERS: list[dict] = [
+    {"model": "qwen3.5:35b-a3b", "label": "Best", "min_gb": 24,
+     "download": "~20GB", "disk": "~20GB", "ram": "~22GB",
+     "note": "Large model but uses a clever trick to stay fast. Best quality by far"},
+    {"model": "qwen3.5:9b", "label": "Better", "min_gb": 16,
+     "download": "~5.5GB", "disk": "~5.5GB", "ram": "~9GB",
+     "note": "Slower responses than 4B but noticeably higher quality"},
+    {"model": "qwen3.5:4b", "label": "Good", "min_gb": 0,
+     "download": "~2.5GB", "disk": "~2.5GB", "ram": "~5GB",
+     "note": "Fast on any hardware"},
+]
+
+
 @dataclass
 class LLMConfig:
     provider: str = "claude_proxy"
@@ -55,6 +68,7 @@ class LLMConfig:
     proxy_url: str = "http://127.0.0.1:8317"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"
+    ollama_tiers: list[dict] = field(default_factory=lambda: DEFAULT_OLLAMA_TIERS)
     api_key: str | None = "glooow"  # default for claude_proxy; overridden by config file
     openai_base_url: str | None = None
     context_strategy: str = "full"
