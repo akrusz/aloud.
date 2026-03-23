@@ -292,9 +292,7 @@
         </div>
 
         <div class="settings-config-path" id="settings-config-path">
-            <span id="settings-config-path-text"></span>
-            <button type="button" class="btn-config-path" id="btn-copy-config-path" title="Copy path" style="display:none">Copy path</button>
-            <button type="button" class="btn-config-path" id="btn-open-config-folder" title="Open in file browser" style="display:none">Open folder</button>
+            <button type="button" class="btn-config-path" id="btn-open-config-folder" style="display:none">Open folder with config file and saved sessions</button>
         </div>
     </form>
 </div>
@@ -975,19 +973,10 @@
             document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
             document.getElementById('s-vibrancy').checked = cfg.web?.vibrancy || false;
 
-            // Config path
+            // Config folder button
             if (cfg._config_path) {
-                document.getElementById('settings-config-path-text').textContent = 'Config file: ' + cfg._config_path;
-                var copyBtn = document.getElementById('btn-copy-config-path');
                 var openBtn = document.getElementById('btn-open-config-folder');
-                copyBtn.style.display = '';
                 openBtn.style.display = '';
-                copyBtn.onclick = function() {
-                    navigator.clipboard.writeText(cfg._config_path).then(function() {
-                        copyBtn.textContent = 'Copied!';
-                        setTimeout(function() { copyBtn.textContent = 'Copy path'; }, 1500);
-                    });
-                };
                 openBtn.onclick = function() {
                     fetch('/api/open-config-folder', {method: 'POST'});
                 };
