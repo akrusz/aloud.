@@ -383,11 +383,9 @@ def register_routes(app: Flask) -> None:
                     n.split(":")[0] == tier_base and t["model"].split(":")[-1] in n
                     for n in models
                 )
-                # Use actual disk size if available
-                for name, size_str in model_sizes.items():
-                    if name == t["model"] or name.startswith(tier_base + ":"):
-                        t["actual_disk"] = size_str
-                        break
+                # Use actual disk size if available (exact match only)
+                if t["model"] in model_sizes:
+                    t["actual_disk"] = model_sizes[t["model"]]
 
             if models:
                 results["ollama"] = {
