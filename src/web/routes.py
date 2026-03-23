@@ -22,11 +22,14 @@ from ..updater import check_for_updates, apply_update, download_release
 # Ollama model tiers keyed by minimum RAM in GB
 OLLAMA_MODEL_TIERS = [
     {"min_gb": 24, "model": "qwen3.5:35b-a3b", "label": "Best",
-     "download": "~20GB", "disk": "~20GB"},
+     "download": "~20GB", "disk": "~20GB",
+     "note": "MoE model — only 3B params active per token, so it runs fast despite its size"},
     {"min_gb": 16, "model": "qwen3.5:9b", "label": "Better",
-     "download": "~5.5GB", "disk": "~5.5GB"},
+     "download": "~5.5GB", "disk": "~5.5GB",
+     "note": "Slower responses than 4B but noticeably higher quality"},
     {"min_gb": 0, "model": "qwen3.5:4b", "label": "Good",
-     "download": "~2.5GB", "disk": "~2.5GB"},
+     "download": "~2.5GB", "disk": "~2.5GB",
+     "note": "Fast on any hardware"},
 ]
 
 
@@ -360,6 +363,7 @@ def register_routes(app: Flask) -> None:
                 {
                     "model": t["model"], "label": t["label"],
                     "download": t["download"], "disk": t["disk"],
+                    "note": t.get("note", ""),
                     "min_gb": t["min_gb"],
                     "fits": ram_gb is not None and ram_gb >= t["min_gb"],
                 }

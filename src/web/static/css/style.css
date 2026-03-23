@@ -2571,6 +2571,13 @@ body::before {
     margin-top: 0.1rem;
 }
 
+.ollama-tier-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 0.1rem;
+}
+
 .ollama-rec-badge {
     font-size: 0.75rem;
     color: var(--accent);

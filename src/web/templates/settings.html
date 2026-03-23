@@ -808,6 +808,9 @@
                             html += '<div class="ollama-tier-info">';
                             html += '<strong>' + t.model + '</strong> — ' + t.label + recBadge;
                             html += '<div class="ollama-tier-size">' + sizeText + ramNote + '</div>';
+                            if (t.note) {
+                                html += '<div class="ollama-tier-note">' + t.note + '</div>';
+                            }
                             html += '</div>';
 
                             if (t.installed) {
