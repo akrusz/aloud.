@@ -828,7 +828,7 @@
                         rec.tiers.forEach(function(t) {
                             var isRec = t.model === rec.recommended_model;
                             var diskInfo = t.actual_disk ? t.actual_disk + ' on disk' : t.disk + ' on disk';
-                            var sizeText = t.download + ' download, ' + diskInfo;
+                            var sizeText = t.download + ' download, ' + diskInfo + ', ' + t.ram + ' in memory';
                             var ramNote = t.fits === false ? ' (needs ' + t.min_gb + 'GB+ RAM)' : '';
                             var recBadge = isRec ? ' <span class="ollama-rec-badge">recommended</span>' : '';
 
