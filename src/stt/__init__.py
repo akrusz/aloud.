@@ -2,5 +2,6 @@
 
 from .base import STTEngine, TranscriptionResult
 from .whisper import WhisperSTT
+from .whisper_cpp import WhisperCppSTT
 
-__all__ = ["STTEngine", "TranscriptionResult", "WhisperSTT"]
+__all__ = ["STTEngine", "TranscriptionResult", "WhisperSTT", "WhisperCppSTT"]

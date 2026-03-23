@@ -2,7 +2,15 @@
 __pycache__/
 sessions/
 .DS_Store
-.DS_Store
+
+# Virtual environments
+.venv/
+venv/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
 
 # Generated
 *.iconset
@@ -10,7 +18,14 @@ sessions/
 # Update cache
 .update-cache.json
 
+# Window geometry (user-specific, saved in config dir but just in case)
+window_geometry.json
+
 # Nix
 result
 result-*
 .direnv/
+*.startlock
+
+# Stray pip/uv output
+=*

@@ -3,10 +3,12 @@ pyaudio>=0.2.14
 sounddevice>=0.4.6
 webrtcvad>=2.0.10
 
-# STT - Whisper
-openai-whisper>=20231117
-# For Apple Silicon optimization, install mlx-whisper separately:
+# STT - whisper.cpp (no PyTorch dependency)
+pywhispercpp>=1.0
+# Optional: Apple Silicon optimization:
 # pip install mlx-whisper
+# Optional: original OpenAI Whisper (requires PyTorch):
+# pip install openai-whisper
 
 # LLM clients
 anthropic>=0.40.0
@@ -26,6 +28,7 @@ scipy>=1.10.0
 flask>=3.0.0
 flask-socketio>=5.3.0
 simple-websocket>=1.0.0
+pywebview>=5.0
 
 # Utilities
 pyyaml>=6.0.1

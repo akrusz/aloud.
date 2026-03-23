@@ -224,6 +224,45 @@
             </div>
         </section>
 
+        <!-- Display Section -->
+        <section class="settings-section">
+            <h2>Display</h2>
+            <div class="text-scale-row" id="text-scale-group">
+                <label>Text Size</label>
+                <div class="text-scale-control">
+                    <input type="range" id="s-text-scale" min="0.8" max="1.4" value="1" step="0.05">
+                    <span class="text-scale-value" id="s-text-scale-label">100%</span>
+                    <button type="button" class="btn btn-small btn-secondary" id="s-text-scale-apply" disabled>Apply</button>
+                    <button type="button" class="btn btn-small btn-secondary" id="s-text-scale-reset" disabled>Reset</button>
+                </div>
+                <div class="text-scale-preview" id="text-scale-preview">
+                    <div class="text-scale-preview-inner" id="text-scale-preview-inner">
+                        <p class="preview-heading">Heading Text</p>
+                        <p class="preview-body">This is how body text will look at this size.</p>
+                        <p class="preview-small">Smaller labels and hints look like this.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="s-window-mode">Window Mode</label>
+                <select id="s-window-mode">
+                    <option value="remember">Remember last size</option>
+                    <option value="fullscreen">Full screen</option>
+                    <option value="maximized">Maximized</option>
+                    <option value="narrow">Narrow</option>
+                </select>
+            </div>
+            <label class="checkbox-label">
+                <input type="checkbox" id="s-frameless">
+                <span>Frameless window</span>
+            </label>
+            <label class="checkbox-label" id="s-vibrancy-label" style="display:none">
+                <input type="checkbox" id="s-vibrancy">
+                <span>Vibrancy (translucent background)</span>
+            </label>
+            <span class="form-hint">Window options take effect on next launch</span>
+        </section>
+
         <!-- Save -->
         <div class="settings-actions">
             <button type="submit" class="btn btn-primary btn-begin">
@@ -260,6 +299,11 @@
 {% block scripts %}
 <script>
 (function() {
+    // Show vibrancy option only on macOS
+    if (navigator.platform && navigator.platform.indexOf('Mac') !== -1) {
+        document.getElementById('s-vibrancy-label').style.display = '';
+    }
+
     const firstRun = {{ 'true' if first_run else 'false' }};
     const form = document.getElementById('settings-form');
     const providerSelect = document.getElementById('s-provider');
@@ -272,6 +316,45 @@
     const voiceModal = document.getElementById('settings-voice-modal');
     const voiceModalList = document.getElementById('settings-voice-modal-list');
     const voiceModalClose = document.getElementById('settings-voice-modal-close');
+
+    // Text scale — preview + apply/reset
+    var textScaleSlider = document.getElementById('s-text-scale');
+    var textScaleLabel = document.getElementById('s-text-scale-label');
+    var textScaleApply = document.getElementById('s-text-scale-apply');
+    var textScaleReset = document.getElementById('s-text-scale-reset');
+    var textScalePreviewInner = document.getElementById('text-scale-preview-inner');
+    var textScaleApplied = parseFloat(textScaleSlider.value) || 1;
+    var textScaleLoaded = textScaleApplied;
+
+    function updateTextScaleButtons() {
+        var scale = parseFloat(textScaleSlider.value);
+        textScaleApply.disabled = (scale === textScaleApplied);
+        textScaleReset.disabled = (scale === textScaleLoaded);
+    }
+
+    textScaleSlider.addEventListener('input', function() {
+        var scale = parseFloat(textScaleSlider.value);
+        textScaleLabel.textContent = Math.round(scale * 100) + '%';
+        textScalePreviewInner.style.fontSize = (18 * scale) + 'px';
+        updateTextScaleButtons();
+    });
+
+    textScaleApply.addEventListener('click', function() {
+        var scale = parseFloat(textScaleSlider.value);
+        document.documentElement.style.setProperty('--text-scale', scale);
+        textScaleApplied = scale;
+        updateTextScaleButtons();
+        document.getElementById('text-scale-group').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    textScaleReset.addEventListener('click', function() {
+        textScaleSlider.value = textScaleLoaded;
+        textScaleLabel.textContent = Math.round(textScaleLoaded * 100) + '%';
+        textScalePreviewInner.style.fontSize = (18 * textScaleLoaded) + 'px';
+        document.documentElement.style.setProperty('--text-scale', textScaleLoaded);
+        textScaleApplied = textScaleLoaded;
+        updateTextScaleButtons();
+    });
 
     // Voice state
     let serverVoices = [];
@@ -616,6 +699,14 @@
             document.getElementById('s-response-delay').value = (cfg.pacing?.response_delay_ms || 2000) / 1000;
             document.getElementById('s-silence-sec').value = cfg.pacing?.extended_silence_sec || 300;
 
+            // Display
+            var textScale = cfg.web?.text_scale || 1;
+            document.getElementById('s-text-scale').value = textScale;
+            document.getElementById('s-text-scale-label').textContent = Math.round(textScale * 100) + '%';
+            document.getElementById('s-window-mode').value = cfg.web?.window_mode || 'remember';
+            document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
+            document.getElementById('s-vibrancy').checked = cfg.web?.vibrancy || false;
+
             // Config path
             if (cfg._config_path) {
                 configPathEl.textContent = 'Config file: ' + cfg._config_path;
@@ -673,6 +764,12 @@
                 silence_max_ms: Math.round(parseFloat(document.getElementById('s-silence-max').value) * 1000),
                 response_delay_ms: Math.round(parseFloat(document.getElementById('s-response-delay').value) * 1000),
                 extended_silence_sec: parseInt(document.getElementById('s-silence-sec').value, 10),
+            },
+            web: {
+                text_scale: parseFloat(document.getElementById('s-text-scale').value),
+                window_mode: document.getElementById('s-window-mode').value,
+                frameless: document.getElementById('s-frameless').checked,
+                vibrancy: document.getElementById('s-vibrancy').checked,
             },
         };
 

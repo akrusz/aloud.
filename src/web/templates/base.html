@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" style="--text-scale: {{ text_scale }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,8 +41,8 @@
     {% block head %}{% endblock %}
 </head>
 <body>
-    <nav class="nav">
-        <a href="/" class="nav-brand" title="v{{ glooow_version }}">Glooow</a>
+    <nav class="nav pywebview-drag-region">
+        <a href="#" class="nav-brand" id="aboutLink" title="v{{ glooow_version }}">Glooow</a>
         {% block nav_center %}{% endblock %}
         <div class="nav-links">
             {% block nav_items %}
@@ -50,11 +50,18 @@
             <a href="/history">History</a>
             <a href="/settings" {% if request.path == '/settings' %}class="nav-active"{% endif %}>Settings</a>
             {% endblock %}
-            <a href="#" class="nav-about-link" id="aboutLink">About</a>
             <button class="update-indicator" id="updateIndicator" title="Update available" aria-label="Check for updates" style="display:none">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
             <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"></button>
+            <button class="theme-toggle" id="fullscreenToggle" title="Toggle full screen" aria-label="Toggle full screen">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </button>
+            {% if frameless %}
+            <button class="theme-toggle window-close-btn" id="windowCloseBtn" title="Close window" aria-label="Close window">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            {% endif %}
         </div>
     </nav>
 
@@ -208,6 +215,33 @@
                     btn.disabled = false;
                 });
         });
+    })();
+    </script>
+    <script>
+    (function() {
+        var fsBtn = document.getElementById('fullscreenToggle');
+        fsBtn.addEventListener('click', function() {
+            fetch('/api/toggle-fullscreen', { method: 'POST' }).catch(function() {
+                // Fallback: try browser Fullscreen API
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(function() {});
+                } else {
+                    document.exitFullscreen().catch(function() {});
+                }
+            });
+        });
+    })();
+    </script>
+    <script>
+    (function() {
+        var closeBtn = document.getElementById('windowCloseBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                if (confirm('Close Glooow?')) {
+                    fetch('/api/close-window', { method: 'POST' });
+                }
+            });
+        }
     })();
     </script>
     <script>

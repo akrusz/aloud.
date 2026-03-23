@@ -72,8 +72,33 @@ def register_routes(app: Flask) -> None:
             # Reload config into the running app
             new_config = load_config()
             app.meditation_config = new_config
+            app.jinja_env.globals["text_scale"] = new_config.web.text_scale
 
             return jsonify({"saved": True, "path": str(path)})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/close-window", methods=["POST"])
+    def api_close_window():
+        """Close the pywebview window (shuts down the app)."""
+        window = getattr(app, "webview_window", None)
+        if not window:
+            return jsonify({"error": "Not running in desktop mode"}), 400
+        try:
+            window.destroy()
+            return jsonify({"ok": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/toggle-fullscreen", methods=["POST"])
+    def api_toggle_fullscreen():
+        """Toggle fullscreen mode in the pywebview window."""
+        window = getattr(app, "webview_window", None)
+        if not window:
+            return jsonify({"error": "Not running in desktop mode"}), 400
+        try:
+            window.toggle_fullscreen()
+            return jsonify({"ok": True})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 

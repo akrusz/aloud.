@@ -127,7 +127,9 @@ export function fetchServerVoices() {
 
 export function updateVoicePickerLabel() {
     if (state.preferredVoice) {
-        dom.voicePickerBtn.textContent = state.preferredVoice.name;
+        var label = state.preferredVoice.name;
+        if (state.ttsRate) label += ' \u00b7 ' + state.ttsRate + ' wpm';
+        dom.voicePickerBtn.textContent = label;
     } else {
         dom.voicePickerBtn.textContent = 'Voice';
     }
@@ -136,7 +138,6 @@ export function updateVoicePickerLabel() {
 export function openVoiceModal(deactivateVoiceFn) {
     deactivateVoiceFn();
 
-    dom.modalSpeedSlider.value = dom.speedSlider.value;
     dom.voiceModalList.innerHTML = '';
 
     // Group by tier

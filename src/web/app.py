@@ -19,9 +19,10 @@ from ..config import load_config, Config
 from ..updater import check_for_updates
 from ..facilitation.pacing import TurnDecision
 from ..logging.transcript import TranscriptLogger
-from ..stt.whisper import WhisperSTT
+from ..stt.whisper_cpp import WhisperCppSTT
 from ..log_config import configure_logging
 from ..tts import create_tts
+from ..frozen import is_frozen, get_resource_path
 from .auth import setup_auth
 from .routes import register_routes
 from .socketio_handlers import register_socketio_events
@@ -34,14 +35,23 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
     if config is None:
         config = load_config()
 
+    if is_frozen():
+        template_folder = str(get_resource_path("src/web/templates"))
+        static_folder = str(get_resource_path("src/web/static"))
+    else:
+        template_folder = str(Path(__file__).parent / "templates")
+        static_folder = str(Path(__file__).parent / "static")
+
     app = Flask(
         __name__,
-        template_folder=str(Path(__file__).parent / "templates"),
-        static_folder=str(Path(__file__).parent / "static"),
+        template_folder=template_folder,
+        static_folder=static_folder,
     )
     app.config["SECRET_KEY"] = os.environ.get("GLOOOW_SECRET_KEY", config.web.secret_key)
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     app.jinja_env.globals["glooow_version"] = __version__
+    app.jinja_env.globals["text_scale"] = config.web.text_scale
+    app.jinja_env.globals["frameless"] = config.web.frameless
 
     @app.after_request
     def _no_cache_js(response):
@@ -82,10 +92,9 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
         app.server_tts = None
 
     # Initialize Whisper STT — model loads in background so startup isn't blocked
-    app.whisper_stt = WhisperSTT(
+    app.whisper_stt = WhisperCppSTT(
         model=config.stt.model,
         language=config.stt.language,
-        device=config.stt.device,
     )
     app.whisper_model_ready = False
     app.whisper_lock = threading.Lock()
@@ -140,59 +149,203 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
 
     def _load_whisper():
         """Load Whisper model in background so startup isn't blocked."""
+        def _on_progress(phase, pct):
+            socketio.emit("stt_progress", {"phase": phase, "progress": pct})
+
+        app.whisper_stt.progress_callback = _on_progress
         try:
             app.whisper_stt._load_model()
             app.whisper_model_ready = True
+            socketio.emit("stt_ready", {})
             logger.info("Whisper model loaded")
         except Exception as e:
             logger.error("Failed to load Whisper model: %s", e)
+            socketio.emit("stt_error", {"error": str(e)})
 
     socketio.start_background_task(_load_whisper)
 
     return app, socketio
 
 
-def run_web(
-    config_path: str | None = None,
-    host: str | None = None,
-    port: int | None = None,
-    debug: bool = False,
-) -> None:
-    """Run the web application."""
-    configure_logging()
-    config = load_config(config_path)
-    host = host or config.web.host
-    port = port or config.web.port
+def _check_proxy(config: Config) -> bool:
+    """Check if the LLM proxy is reachable. Returns True if OK or not using proxy."""
+    if config.llm.provider != "claude_proxy":
+        return True
+    proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
+    headers = {}
+    if config.llm.api_key:
+        headers["X-Api-Key"] = config.llm.api_key
+    try:
+        resp = httpx.get(
+            f"{proxy_url.rstrip('/')}/v1/models",
+            headers=headers,
+            timeout=3.0,
+        )
+        if resp.status_code == 401:
+            print(f"\n  *** CLIProxyAPI at {proxy_url} rejected our API key ***")
+            print("  Check api-keys in ~/.cli-proxy-api/config.yaml")
+            print("  and llm.api_key in config/default.yaml\n")
+            return False
+    except (httpx.ConnectError, httpx.TimeoutException):
+        print(f"\n  *** CLIProxyAPI is not running at {proxy_url} ***")
+        print("  Start it with: CLIProxyAPI")
+        print("  Then restart this server.\n")
+        return False
+    return True
 
-    # Check if LLM proxy is reachable when using claude_proxy provider
-    if config.llm.provider == "claude_proxy":
-        proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
-        headers = {}
-        if config.llm.api_key:
-            headers["X-Api-Key"] = config.llm.api_key
+
+def _configure_cors(socketio, host: str, port: int) -> None:
+    """Set up CORS allowed origins for the SocketIO server."""
+    origins = {f"http://localhost:{port}", f"http://127.0.0.1:{port}"}
+    if host not in ("127.0.0.1", "localhost"):
+        origins.add(f"http://{host}:{port}")
+        import socket
         try:
-            resp = httpx.get(
-                f"{proxy_url.rstrip('/')}/v1/models",
-                headers=headers,
-                timeout=3.0,
+            local_ip = socket.gethostbyname(socket.gethostname())
+            origins.add(f"http://{local_ip}:{port}")
+        except socket.gaierror:
+            pass
+    socketio.server.cors_allowed_origins = list(origins)
+
+
+def _set_macos_app_name(name: str) -> None:
+    """Set the macOS Dock and Cmd+Tab display name (no-op on other platforms)."""
+    if sys.platform != "darwin":
+        return
+    try:
+        from Foundation import NSBundle
+        info = NSBundle.mainBundle().infoDictionary()
+        info["CFBundleName"] = name
+        info["CFBundleDisplayName"] = name
+    except Exception:
+        pass
+
+
+def _shutdown_all() -> None:
+    """Clean up child processes and close the launching terminal/shell."""
+    print("\n  Window closed. Shutting down...", flush=True)
+
+    # Suppress multiprocessing resource_tracker semaphore leak warnings
+    # (caused by os._exit bypassing normal cleanup)
+    import warnings
+    warnings.filterwarnings("ignore", "resource_tracker", UserWarning)
+    try:
+        from multiprocessing import resource_tracker
+        resource_tracker._resource_tracker._stop = lambda *a, **k: None  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+    # Kill child processes (TTS say commands, etc.) in our process group
+    try:
+        os.killpg(os.getpgid(os.getpid()), signal.SIGTERM)
+    except (OSError, ProcessLookupError):
+        pass
+
+    os._exit(0)
+
+
+def _get_geometry_path() -> Path:
+    """Return path to the saved window geometry file."""
+    from ..config import get_user_config_dir
+    return get_user_config_dir() / "window_geometry.json"
+
+
+def _load_geometry() -> dict | None:
+    """Load saved window position/size, or None if not saved."""
+    import json
+    path = _get_geometry_path()
+    if not path.exists():
+        return None
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _save_geometry(window) -> None:
+    """Save current window position/size for next launch."""
+    import json
+    try:
+        geo = {"x": window.x, "y": window.y,
+               "width": window.width, "height": window.height}
+        path = _get_geometry_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(geo, f)
+    except Exception:
+        pass
+
+
+def _run_webview(app, socketio, host: str, port: int, window_mode: str = "remember",
+                 frameless: bool = False, vibrancy: bool = False) -> None:
+    """Run with a native pywebview window. Flask serves in a background thread."""
+    import webview
+
+    _set_macos_app_name("Glooow")
+
+    url = f"http://localhost:{port}"
+
+    def _start_server():
+        _configure_cors(socketio, host, port)
+        socketio.run(app, host=host, port=port, allow_unsafe_werkzeug=True)
+
+    server_thread = threading.Thread(target=_start_server, daemon=True)
+    server_thread.start()
+
+    # Wait for the server to be ready
+    for _ in range(60):
+        try:
+            httpx.get(url, timeout=1)
+            break
+        except Exception:
+            time.sleep(0.25)
+
+    # Determine window parameters based on mode
+    win_kwargs = {
+        "frameless": frameless,
+        "easy_drag": False,
+        "vibrancy": vibrancy,
+    }
+
+    if window_mode == "fullscreen":
+        win_kwargs.update(width=910, height=820, fullscreen=True)
+    elif window_mode == "maximized":
+        win_kwargs.update(width=910, height=820, maximized=True)
+    elif window_mode == "narrow":
+        win_kwargs.update(width=910, height=820)
+    elif window_mode == "remember":
+        geo = _load_geometry()
+        if geo:
+            win_kwargs.update(
+                x=geo.get("x"), y=geo.get("y"),
+                width=geo.get("width", 910), height=geo.get("height", 820),
             )
-            if resp.status_code == 401:
-                print(f"\n  *** CLIProxyAPI at {proxy_url} rejected our API key ***")
-                print("  Check api-keys in ~/.cli-proxy-api/config.yaml")
-                print("  and llm.api_key in config/default.yaml\n")
-                return
-        except (httpx.ConnectError, httpx.TimeoutException):
-            print(f"\n  *** CLIProxyAPI is not running at {proxy_url} ***")
-            print("  Start it with: CLIProxyAPI")
-            print("  Then restart this server.\n")
-            return
+        else:
+            # First launch — maximized
+            win_kwargs.update(width=910, height=820, maximized=True)
+    else:
+        win_kwargs.update(width=910, height=820, maximized=True)
 
-    print(f"\n{'=' * 50}")
-    print(f"  Glooow v{__version__} — starting up...")
-    print(f"{'=' * 50}")
+    window = webview.create_window(
+        f"Glooow v{__version__}",
+        url,
+        **win_kwargs,
+    )
+    app.webview_window = window
 
-    app, socketio = create_app(config)
+    # webview.start() blocks until the window is closed (must be on main thread)
+    webview.start()
 
+    # Save geometry for "remember" mode before shutting down
+    if window_mode == "remember":
+        _save_geometry(window)
+
+    _shutdown_all()
+
+
+def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
+    """Run with browser UI and terminal keyboard shortcuts."""
     url = f"http://localhost:{port}"
     print(f"\n  Ready: {url}")
     print("  B = open browser · Q = quit\n")
@@ -209,7 +362,6 @@ def run_web(
                     time.sleep(0.5)
         threading.Thread(target=_auto_open_browser, daemon=True).start()
 
-    # Background thread: keyboard shortcuts while server runs
     _saved_termios = [None]
 
     def _restore_terminal():
@@ -259,19 +411,50 @@ def run_web(
 
         threading.Thread(target=_keyboard_listener, daemon=True).start()
 
-    # Ensure Ctrl+C actually exits — threading mode can swallow KeyboardInterrupt
     signal.signal(signal.SIGINT, _shutdown)
-
-    # Allow same-origin connections from localhost and the bound host
-    origins = {f"http://localhost:{port}", f"http://127.0.0.1:{port}"}
-    if host not in ("127.0.0.1", "localhost"):
-        origins.add(f"http://{host}:{port}")
-        import socket
-        try:
-            local_ip = socket.gethostbyname(socket.gethostname())
-            origins.add(f"http://{local_ip}:{port}")
-        except socket.gaierror:
-            pass
-    socketio.server.cors_allowed_origins = list(origins)
-
+    _configure_cors(socketio, host, port)
     socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
+
+
+def run_web(
+    config_path: str | None = None,
+    host: str | None = None,
+    port: int | None = None,
+    debug: bool = False,
+    browser: bool = False,
+) -> None:
+    """Run the web application.
+
+    By default, opens in a native window via pywebview.
+    Pass browser=True (or --browser on CLI) to use the system browser instead.
+    """
+    configure_logging()
+    config = load_config(config_path)
+    host = host or config.web.host
+    port = port or config.web.port
+
+    if not _check_proxy(config):
+        return
+
+    print(f"\n{'=' * 50}")
+    print(f"  Glooow v{__version__} — starting up...")
+    print(f"{'=' * 50}")
+
+    app, socketio = create_app(config)
+
+    # Decide whether to use pywebview or browser
+    use_webview = not browser
+    if use_webview:
+        try:
+            import webview  # noqa: F401
+        except ImportError:
+            logger.info("pywebview not installed, falling back to browser mode")
+            use_webview = False
+
+    if use_webview:
+        _run_webview(app, socketio, host, port,
+                     window_mode=config.web.window_mode,
+                     frameless=config.web.frameless,
+                     vibrancy=config.web.vibrancy)
+    else:
+        _run_browser(app, socketio, host, port, debug)

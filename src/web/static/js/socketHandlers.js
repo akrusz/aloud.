@@ -113,4 +113,23 @@ export function registerSocketHandlers(deactivateVoiceFn) {
     socket.on('transcription', function (data) {
         handleTranscription(data);
     });
+
+    // STT model download/loading progress
+    socket.on('stt_progress', function (data) {
+        var phase = data.phase || '';
+        var pct = Math.round((data.progress || 0) * 100);
+        if (phase === 'downloading') {
+            setStatus('Downloading speech model\u2026 ' + pct + '%');
+        } else if (phase === 'loading') {
+            setStatus('Loading speech model\u2026');
+        }
+    });
+
+    socket.on('stt_ready', function () {
+        setStatus('Ready');
+    });
+
+    socket.on('stt_error', function (data) {
+        showErrorToast('Speech model failed: ' + (data.error || 'unknown error'));
+    });
 }

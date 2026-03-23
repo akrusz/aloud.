@@ -115,6 +115,10 @@ class WebConfig:
     secret_key: str = "glooow-local"
     host: str = "0.0.0.0"
     port: int = 4649
+    window_mode: str = "remember"  # remember, fullscreen, maximized, narrow
+    frameless: bool = True
+    vibrancy: bool = False
+    text_scale: float = 1.0
 
 
 @dataclass
@@ -207,12 +211,20 @@ def load_config(path: str | Path | None = None) -> Config:
         Loaded configuration
     """
     if path is None:
+        from .frozen import is_frozen, get_resource_path
+
         # Try default locations (most specific first)
-        candidates = [
-            get_user_config_path(),
-            Path("config/default.yaml"),
-            Path("config.yaml"),
-        ]
+        if is_frozen():
+            candidates = [
+                get_user_config_path(),
+                get_resource_path("config/default.yaml"),
+            ]
+        else:
+            candidates = [
+                get_user_config_path(),
+                Path("config/default.yaml"),
+                Path("config.yaml"),
+            ]
         for candidate in candidates:
             if candidate.exists():
                 path = candidate

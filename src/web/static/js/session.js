@@ -2,7 +2,7 @@
    Imports all sub-modules, runs init(), wires DOM events. */
 
 import { state, dom, socket, initDOM } from './state.js';
-import { initVoices, openVoiceModal, closeVoiceModal, previewVoice, selectVoice } from './voice.js';
+import { initVoices, openVoiceModal, closeVoiceModal, previewVoice, selectVoice, updateVoicePickerLabel } from './voice.js';
 import { activateVoice, deactivateVoice, toggleVoice, toggleListenMode, initAudio } from './audio.js';
 import { speak, stopServerAudio } from './tts.js';
 import { registerSocketHandlers } from './socketHandlers.js';
@@ -97,22 +97,15 @@ function init() {
     // Restore saved speed
     var savedSpeed = localStorage.getItem('glooow-speed');
     if (savedSpeed) {
-        dom.speedSlider.value = savedSpeed;
         dom.modalSpeedSlider.value = savedSpeed;
         state.ttsRate = parseInt(savedSpeed);
     }
 
-    dom.speedSlider.addEventListener('input', function () {
-        state.ttsRate = parseInt(dom.speedSlider.value);
-        dom.modalSpeedSlider.value = dom.speedSlider.value;
-        localStorage.setItem('glooow-speed', dom.speedSlider.value);
-        socket.emit('set_tts_rate', { rate: state.ttsRate });
-    });
     dom.modalSpeedSlider.addEventListener('input', function () {
         state.ttsRate = parseInt(dom.modalSpeedSlider.value);
-        dom.speedSlider.value = dom.modalSpeedSlider.value;
         localStorage.setItem('glooow-speed', dom.modalSpeedSlider.value);
         socket.emit('set_tts_rate', { rate: state.ttsRate });
+        updateVoicePickerLabel();
     });
     dom.voicePickerBtn.addEventListener('click', function () { openVoiceModal(deactivateVoice); });
     dom.voiceModalClose.addEventListener('click', function () { closeVoiceModal(true, activateVoice); });

@@ -63,7 +63,7 @@
 }
 
 html {
-    font-size: 18px;
+    font-size: calc(18px * var(--text-scale, 1));
     -webkit-font-smoothing: antialiased;
 }
 
@@ -97,6 +97,8 @@ body {
     color: var(--accent);
     text-decoration: none;
     letter-spacing: 0.05em;
+    cursor: pointer;
+    justify-self: start;
 }
 
 .nav-links {
@@ -138,6 +140,11 @@ body {
 .theme-toggle:hover {
     border-color: var(--accent);
     color: var(--accent);
+}
+
+.window-close-btn:hover {
+    border-color: #e55;
+    color: #e55;
 }
 
 /* ---- Main ---- */
@@ -397,7 +404,7 @@ body {
 }
 
 .participant-field label {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
 }
 
@@ -518,7 +525,7 @@ body {
     accent-color: var(--accent);
 }
 .reactive-label {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-secondary);
     min-width: 2.5rem;
 }
@@ -538,7 +545,7 @@ body {
 }
 .participant-phrase-preview {
     padding: 0.3rem 0.5rem !important;
-    font-size: 0.75rem !important;
+    font-size: 0.85rem !important;
     line-height: 1;
 }
 
@@ -625,7 +632,7 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 50%;
     background: var(--accent-dim);
     color: var(--accent);
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     font-weight: 600;
 }
 
@@ -925,7 +932,7 @@ body:has(.session-container) {
 }
 
 .message-sender {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
     margin-bottom: 0.15rem;
     padding-left: 0.25rem;
@@ -980,7 +987,7 @@ body:has(.session-container) {
     gap: 1rem;
     padding: 0.75rem 0;
     color: var(--text-muted);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-style: italic;
 }
 
@@ -1168,7 +1175,7 @@ body:has(.session-container) {
     flex-shrink: 0;
     border: 1px solid var(--border);
     border-radius: 21px;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
     background: transparent;
     cursor: pointer;
@@ -1299,7 +1306,7 @@ body:has(.session-container) {
     font-family: var(--font);
     cursor: pointer;
     padding: 0;
-    max-width: 180px;
+    max-width: 260px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1376,7 +1383,7 @@ body:has(.session-container) {
 .voice-tier-label {
     position: sticky;
     top: 0;
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -1425,7 +1432,7 @@ body:has(.session-container) {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     font-family: var(--font);
     padding: 0.2rem 0.5rem;
     cursor: pointer;
@@ -1455,7 +1462,7 @@ body:has(.session-container) {
 }
 
 .voice-modal-speed-value {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
     white-space: nowrap;
     min-width: 4.5em;
@@ -2195,13 +2202,69 @@ body::before {
     margin-bottom: 0;
 }
 
+.text-scale-control {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.text-scale-control input[type="range"] {
+    flex: 1;
+    max-width: 200px;
+}
+
+.text-scale-value {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    min-width: 3em;
+}
+
+.text-scale-row {
+    position: relative;
+}
+
+.text-scale-preview {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 220px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-primary);
+}
+
+.text-scale-preview .preview-heading {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 0 0 0.3em;
+    color: var(--text-primary);
+}
+
+.text-scale-preview .preview-body {
+    font-size: 1em;
+    margin: 0 0 0.3em;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.text-scale-preview .preview-small {
+    font-size: 0.85em;
+    margin: 0;
+    color: var(--text-muted);
+}
+
 .settings-section .form-group > label {
     display: block;
     margin-top: var(--space-md);
 }
 
 .settings-section .stepper {
-    width: 100%;
+    max-width: 10rem;
+}
+
+.settings-section .checkbox-label {
+    margin-top: var(--space-sm);
 }
 
 .settings-section .stepper .stepper-value {
@@ -2241,7 +2304,7 @@ body::before {
 
 .form-hint {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
     margin-top: 0.25rem;
 }
@@ -2275,7 +2338,7 @@ body::before {
 
 .settings-config-path {
     margin-top: var(--space-md);
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
     word-break: break-all;
 }
