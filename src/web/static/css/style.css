@@ -862,6 +862,12 @@ option.provider-unavailable {
     font-size: 1rem;
     border-radius: var(--radius);
     margin-top: 0.5rem;
+    transition: opacity 0.2s;
+}
+
+.btn-begin:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 /* ============================================

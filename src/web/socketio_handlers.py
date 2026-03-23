@@ -130,7 +130,20 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
                 return
 
         emit("facilitator_typing", {"typing": True})
-        opener = asyncio.run(web_session.generate_opener())
+        try:
+            opener = asyncio.run(web_session.generate_opener())
+        except Exception as e:
+            logger.error("Failed to generate opener: %s", e)
+            emit("facilitator_typing", {"typing": False})
+            emit("error", {
+                "type": "llm",
+                "message": (
+                    "Could not reach the LLM provider. "
+                    "Check your provider and API key in Settings."
+                ),
+            })
+            return
+
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
             audio = app.server_tts.speak_to_bytes(opener)

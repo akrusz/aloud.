@@ -13,7 +13,9 @@ from .. import __version__
 from ..config import (
     has_user_config, save_user_config,
     config_to_dict, load_config, get_user_config_path,
+    sync_api_key_to_env,
 )
+from ..tts import create_tts
 from ..updater import check_for_updates, apply_update, download_release
 
 
@@ -75,6 +77,17 @@ def register_routes(app: Flask) -> None:
             new_config = load_config()
             app.meditation_config = new_config
             app.jinja_env.globals["text_scale"] = new_config.web.text_scale
+            sync_api_key_to_env(new_config)
+
+            # Recreate server TTS if the engine/voice/rate changed
+            try:
+                app.server_tts = create_tts(
+                    engine=new_config.tts.engine,
+                    voice=new_config.tts.voice,
+                    rate=new_config.tts.rate,
+                )
+            except Exception:
+                app.server_tts = None
 
             return jsonify({"saved": True, "path": str(path)})
         except Exception as e:

@@ -286,6 +286,27 @@ def load_config(path: str | Path | None = None) -> Config:
     return config
 
 
+def sync_api_key_to_env(config: Config) -> None:
+    """Set the environment variable for the configured provider's API key.
+
+    When users save API keys through the settings UI, they're stored in the
+    config file as ``llm.api_key``.  Provider availability checks and model
+    fetchers read ``os.environ``, so we bridge the gap here.
+    """
+    key = config.llm.api_key
+    if not key or key.startswith("${"):
+        return
+    env_map = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "venice": "VENICE_API_KEY",
+    }
+    env_var = env_map.get(config.llm.provider)
+    if env_var:
+        os.environ[env_var] = key
+
+
 def _update_dataclass(instance: Any, data: dict) -> Any:
     """Update dataclass instance from dictionary."""
     for key, value in data.items():

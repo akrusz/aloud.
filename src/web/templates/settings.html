@@ -727,6 +727,21 @@
             document.getElementById('s-proxy-url').value = cfg.llm?.proxy_url || 'http://127.0.0.1:8317';
             document.getElementById('s-ollama-url').value = cfg.llm?.ollama_url || 'http://localhost:11434';
 
+            // Show saved API key indicator for the configured provider
+            if (cfg.llm?.api_key && cfg.llm.api_key !== '***') {
+                var keyFieldMap = {
+                    anthropic: 's-anthropic-key',
+                    openai: 's-openai-key',
+                    openrouter: 's-openrouter-key',
+                    venice: 's-venice-key',
+                };
+                var fieldId = keyFieldMap[cfg.llm?.provider];
+                if (fieldId) {
+                    var input = document.getElementById(fieldId);
+                    input.placeholder = cfg.llm.api_key + ' (saved)';
+                }
+            }
+
             // TTS
             ttsEngineSelect.value = cfg.tts?.engine || 'macos';
             showGroupsFor(ttsEngineSelect, ttsKeyGroups);
@@ -880,6 +895,8 @@
                     savedEl.style.display = '';
                     setTimeout(function() { savedEl.style.display = 'none'; }, 3000);
                 }
+                // Refresh voice list in case TTS engine changed
+                fetchVoices();
             }
         })
         .catch(function(err) {

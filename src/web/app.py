@@ -15,7 +15,7 @@ from flask import Flask, request
 from flask_socketio import SocketIO
 
 from .. import __version__
-from ..config import load_config, Config
+from ..config import load_config, Config, sync_api_key_to_env
 from ..updater import check_for_updates
 from ..facilitation.pacing import TurnDecision
 from ..logging.transcript import TranscriptLogger
@@ -70,6 +70,8 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
     )
 
     app.meditation_config = config
+    sync_api_key_to_env(config)
+
     app.web_sessions = {}      # session_id → WebMeditationSession
     app.sid_to_session = {}    # socket sid → session_id
     app.session_to_sid = {}    # session_id → current socket sid
