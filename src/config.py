@@ -113,7 +113,7 @@ class WebConfig:
     """Web server configuration."""
 
     secret_key: str = "glooow-local"
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 4649
     window_mode: str = "remember"  # remember, fullscreen, maximized, small
     frameless: bool = True
