@@ -86,7 +86,7 @@ def register_routes(app: Flask) -> None:
         window = getattr(app, "webview_window", None)
         if not window:
             # Not in desktop mode — just shut down the server
-            import os, signal
+            import signal
             os.kill(os.getpid(), signal.SIGINT)
             return jsonify({"ok": True})
         try:
