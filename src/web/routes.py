@@ -377,7 +377,6 @@ def register_routes(app: Flask) -> None:
                         f"{gb:.1f}GB" if gb >= 1 else f"{size_bytes / (1024**2):.0f}MB"
                     )
             # Mark which tiers are already installed
-            pulled_set = {n.split(":")[0] for n in models}
             for t in rec_info["tiers"]:
                 tier_base = t["model"].split(":")[0]
                 t["installed"] = any(
