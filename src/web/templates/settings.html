@@ -306,11 +306,6 @@
 {% block scripts %}
 <script>
 (function() {
-    // Show vibrancy option only on macOS
-    if (navigator.platform && navigator.platform.indexOf('Mac') !== -1) {
-        document.getElementById('s-vibrancy-label').style.display = '';
-    }
-
     const firstRun = {{ 'true' if first_run else 'false' }};
     const form = document.getElementById('settings-form');
     const providerSelect = document.getElementById('s-provider');
