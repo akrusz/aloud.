@@ -459,6 +459,22 @@ def register_routes(app: Flask) -> None:
             "needs_restart": result.needs_restart,
         })
 
+    @app.route("/api/lan-info")
+    def api_lan_info():
+        """Return LAN connection info for sharing."""
+        import socket
+        port = app.meditation_config.web.port
+        https_port = getattr(app, "https_port", None)
+        try:
+            local_ip = socket.gethostbyname(socket.gethostname())
+        except socket.gaierror:
+            local_ip = None
+        return jsonify({
+            "ip": local_ip,
+            "port": port,
+            "https_port": https_port,
+        })
+
     @app.route("/api/sounds")
     def api_sounds():
         """Return short names of available sound effects in static/audio/."""

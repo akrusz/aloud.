@@ -13,7 +13,7 @@ cd "$PROJECT_DIR"
 APP_NAME="Glooow"
 APP_PATH="dist/$APP_NAME.app"
 VERSION=$(python3 -c "import re; print(re.search(r'__version__\s*=\s*\"(.+?)\"', open('src/__init__.py').read()).group(1))")
-DMG_NAME="$APP_NAME-$VERSION"
+DMG_NAME="$APP_NAME-${VERSION}-macOS"
 DMG_PATH="dist/$DMG_NAME.dmg"
 ICON_PATH="assets/glooow.icns"
 

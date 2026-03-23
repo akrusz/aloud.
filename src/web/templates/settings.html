@@ -248,14 +248,6 @@
                             <option value="small">Small</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="s-host">Network Access</label>
-                        <select id="s-host">
-                            <option value="127.0.0.1">Local only (127.0.0.1)</option>
-                            <option value="0.0.0.0">LAN access (0.0.0.0)</option>
-                        </select>
-                        <span class="form-hint">LAN access lets other devices on your network connect. Requires restart.</span>
-                    </div>
                     <label class="checkbox-label">
                         <input type="checkbox" id="s-frameless">
                         <span>Frameless window</span>
@@ -265,6 +257,15 @@
                         <span>Vibrancy (translucent background)</span>
                     </label>
                     <span class="form-hint">Window options take effect on next launch</span>
+                    <div class="form-group">
+                        <label for="s-host">Network Access</label>
+                        <select id="s-host">
+                            <option value="127.0.0.1">Local only (127.0.0.1)</option>
+                            <option value="0.0.0.0">LAN access (0.0.0.0)</option>
+                        </select>
+                        <span class="form-hint">LAN access lets other devices on your network connect. Requires restart.</span>
+                        <div id="s-lan-info" class="lan-info" style="display:none"></div>
+                    </div>
                 </div>
                 <div class="display-preview">
                     <div class="text-scale-preview" id="text-scale-preview">
@@ -626,6 +627,42 @@
         showGroupsFor(ttsEngineSelect, ttsKeyGroups);
     });
 
+    // LAN info display
+    var hostSelect = document.getElementById('s-host');
+    var lanInfo = document.getElementById('s-lan-info');
+
+    function updateLanInfo() {
+        if (hostSelect.value !== '0.0.0.0') {
+            lanInfo.style.display = 'none';
+            return;
+        }
+        fetch('/api/lan-info')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.ip) {
+                    lanInfo.style.display = 'none';
+                    return;
+                }
+                var url = data.https_port
+                    ? 'https://' + data.ip + ':' + data.https_port
+                    : 'http://' + data.ip + ':' + data.port;
+                lanInfo.innerHTML = 'Anyone on your local network can connect by using a web browser to visit <a href="#" class="lan-url">' + url + '</a>';
+                lanInfo.style.display = '';
+                lanInfo.querySelector('.lan-url').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(url).then(function() {
+                        var link = lanInfo.querySelector('.lan-url');
+                        var original = link.textContent;
+                        link.textContent = 'Copied!';
+                        setTimeout(function() { link.textContent = original; }, 1500);
+                    });
+                });
+            })
+            .catch(function() { lanInfo.style.display = 'none'; });
+    }
+
+    hostSelect.addEventListener('change', updateLanInfo);
+
     // Toggle password visibility
     document.querySelectorAll('.toggle-visibility').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -776,6 +813,7 @@
             document.getElementById('s-text-scale').value = textScale;
             document.getElementById('s-text-scale-label').textContent = Math.round(textScale * 100) + '%';
             document.getElementById('s-host').value = cfg.web?.host || '127.0.0.1';
+            updateLanInfo();
             document.getElementById('s-window-mode').value = cfg.web?.window_mode || 'remember';
             document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
             document.getElementById('s-vibrancy').checked = cfg.web?.vibrancy || false;

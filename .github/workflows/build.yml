@@ -76,7 +76,7 @@ jobs:
           DefaultDirName={autopf}\Glooow
           DefaultGroupName=Glooow
           OutputDir=dist
-          OutputBaseFilename=Glooow-$version
+          OutputBaseFilename=Glooow-$version-Windows
           Compression=lzma2
           SolidCompression=yes
           SetupIconFile=assets\glooow.ico
@@ -162,7 +162,7 @@ jobs:
           APPRUN
           chmod +x Glooow.AppDir/AppRun
 
-          ARCH=x86_64 ./appimagetool Glooow.AppDir "dist/Glooow-${VERSION}.AppImage"
+          ARCH=x86_64 ./appimagetool Glooow.AppDir "dist/Glooow-${VERSION}-Linux.AppImage"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
