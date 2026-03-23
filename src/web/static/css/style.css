@@ -2701,7 +2701,7 @@ body::before {
 }
 
 .btn-config-path {
-    padding: 0.2rem 0.6rem;
+    padding: 0.35rem 0.85rem;
     font-size: 0.875rem;
     border: 1px solid var(--text-muted);
     border-radius: 4px;
