@@ -696,6 +696,34 @@
         });
     });
 
+    // Remove a pulled Ollama model (with confirmation)
+    function removeOllamaModel(model, btn) {
+        if (!confirm('Remove ' + model + '?\n\nThis will delete the model from disk. You can re-download it later.')) {
+            return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'Removing...';
+        fetch('/api/ollama/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model: model}),
+        }).then(function(resp) {
+            return resp.json();
+        }).then(function(data) {
+            if (data.error) {
+                btn.textContent = 'Error';
+                btn.disabled = false;
+                alert('Failed to remove model: ' + data.error);
+            } else {
+                // Refresh the model list and tiers
+                fetchModels('ollama');
+            }
+        }).catch(function() {
+            btn.textContent = 'Error';
+            btn.disabled = false;
+        });
+    }
+
     // Pull an Ollama model with streaming progress
     function pullOllamaModel(model, btn) {
         var safeId = model.replace(/[:.]/g, '-');
@@ -814,7 +842,10 @@
                             html += '</div>';
 
                             if (t.installed) {
+                                html += '<div class="ollama-tier-actions">';
                                 html += '<span class="ollama-tier-installed">Installed</span>';
+                                html += '<button type="button" class="btn-ollama-remove" data-model="' + t.model + '">Remove</button>';
+                                html += '</div>';
                             } else {
                                 html += '<button type="button" class="btn-ollama-pull" data-model="' + t.model + '">Download</button>';
                             }
@@ -830,6 +861,10 @@
                         // Attach download handlers
                         recEl.querySelectorAll('.btn-ollama-pull').forEach(function(btn) {
                             btn.addEventListener('click', function() { pullOllamaModel(btn.dataset.model, btn); });
+                        });
+                        // Attach remove handlers
+                        recEl.querySelectorAll('.btn-ollama-remove').forEach(function(btn) {
+                            btn.addEventListener('click', function() { removeOllamaModel(btn.dataset.model, btn); });
                         });
                     } else if (recEl) {
                         recEl.innerHTML = '';

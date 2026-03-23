@@ -306,7 +306,7 @@ body {
 .setup-form {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 /* Form elements */
@@ -2357,7 +2357,7 @@ body::before {
 .settings-section {
     margin-top: var(--space-xs);
     margin-bottom: var(--space-xs);
-    padding-bottom: var(--space-lg);
+    padding-bottom: var(--space-md);
     border-bottom: 1px solid var(--border);
 }
 
@@ -2367,7 +2367,7 @@ body::before {
 
 .settings-section:last-of-type {
     border-bottom: none;
-    padding-bottom: var(--space-xs);
+    padding-bottom: 0;
 }
 
 .settings-section h2 {
@@ -2606,10 +2606,33 @@ body::before {
     cursor: default;
 }
 
+.ollama-tier-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
 .ollama-tier-installed {
     font-size: 0.875rem;
     color: var(--success, #4caf50);
     white-space: nowrap;
+}
+
+.btn-ollama-remove {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--text-muted);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-ollama-remove:hover {
+    border-color: var(--error, #e74c3c);
+    color: var(--error, #e74c3c);
 }
 
 .ollama-pull-progress {
@@ -2647,7 +2670,7 @@ body::before {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    margin-top: var(--space-md);
+    margin-top: var(--space-sm);
 }
 
 .settings-saved {

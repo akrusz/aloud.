@@ -23,7 +23,7 @@ from ..updater import check_for_updates, apply_update, download_release
 OLLAMA_MODEL_TIERS = [
     {"min_gb": 24, "model": "qwen3.5:35b-a3b", "label": "Best",
      "download": "~20GB", "disk": "~20GB",
-     "note": "Large model but uses a clever trick to stay fast — best quality by far"},
+     "note": "Large model but uses a clever trick to stay fast. Best quality by far"},
     {"min_gb": 16, "model": "qwen3.5:9b", "label": "Better",
      "download": "~5.5GB", "disk": "~5.5GB",
      "note": "Slower responses than 4B but noticeably higher quality"},
@@ -478,6 +478,30 @@ def register_routes(app: Flask) -> None:
             mimetype="application/x-ndjson",
             headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
         )
+
+    @app.route("/api/ollama/delete", methods=["POST"])
+    def api_ollama_delete():
+        """Delete a pulled Ollama model."""
+        data = request.get_json(silent=True) or {}
+        model = data.get("model", "").strip()
+        if not model:
+            return jsonify({"error": "model is required"}), 400
+
+        ollama_url = (
+            app.meditation_config.llm.ollama_url or "http://localhost:11434"
+        )
+        try:
+            resp = httpx.delete(
+                f"{ollama_url.rstrip('/')}/api/delete",
+                json={"model": model},
+                timeout=30.0,
+            )
+            resp.raise_for_status()
+            return jsonify({"ok": True})
+        except httpx.HTTPStatusError as exc:
+            return jsonify({"error": f"Ollama returned {exc.response.status_code}"}), 502
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 502
 
     @app.route("/api/sessions")
     def api_sessions():
