@@ -71,13 +71,39 @@ jobs:
           $ver = python -c "import re; print(re.search('__version__\s*=\s*\x22(.+?)\x22', (Get-Content src/__init__.py -Raw)).Groups[1].Value)"
           echo "version=$ver" >> $env:GITHUB_OUTPUT
 
-      - name: Package zip
-        run: Compress-Archive -Path dist\Glooow -DestinationPath "dist\Glooow-${{ steps.version.outputs.version }}-win.zip"
+      - name: Create installer
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          @"
+          [Setup]
+          AppName=Glooow
+          AppVersion=$version
+          AppPublisher=Glooow
+          DefaultDirName={autopf}\Glooow
+          DefaultGroupName=Glooow
+          OutputDir=dist
+          OutputBaseFilename=Glooow-$version
+          Compression=lzma2
+          SolidCompression=yes
+          SetupIconFile=assets\glooow.ico
+          UninstallDisplayIcon={app}\Glooow.exe
+
+          [Files]
+          Source: "dist\Glooow\*"; DestDir: "{app}"; Flags: recursesubdirs
+
+          [Icons]
+          Name: "{group}\Glooow"; Filename: "{app}\Glooow.exe"
+          Name: "{autodesktop}\Glooow"; Filename: "{app}\Glooow.exe"
+
+          [Run]
+          Filename: "{app}\Glooow.exe"; Description: "Launch Glooow"; Flags: postinstall nowait
+          "@ | Out-File -Encoding UTF8 glooow-installer.iss
+          iscc glooow-installer.iss
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Glooow-*-win.zip
+          files: dist/Glooow-*.exe
 
   build-linux:
     runs-on: ubuntu-22.04

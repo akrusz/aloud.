@@ -2,7 +2,7 @@
 
 your voice is an overpowered and underrated tool for meditation and inner work.
 
-**glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it runs as a native desktop app and uses an LLM to guide you, whisper.cpp for speech recognition, and your mic for voice input.
+**glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses an LLM to guide you, whisper.cpp for speech recognition, and your mic for voice input.
 
 works on macOS, Linux, and Windows. bring your own LLM — claude subscription via CLIProxyAPI, anthropic API key, openai, openrouter for cheap non-claude models (deepseek, kimi), venice.ai for privacy, or run fully local with ollama.
 
@@ -20,95 +20,23 @@ instead of fixed styles, you mix and match **attention focuses** (body, emotions
 
 ## getting started
 
-### macOS desktop app
+### download the app
 
-download the DMG from [releases](https://github.com/akrusz/glooow/releases), drag Glooow to Applications, and double-click. that's it — no terminal, no Python install needed.
+grab the latest release for your platform from [releases](https://github.com/akrusz/glooow/releases):
 
-the app runs in a native window with a frameless design. all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch.
+| platform | download |
+|----------|----------|
+| **macOS** | `Glooow-x.x.x.dmg` — open the DMG, drag Glooow to Applications |
+| **Windows** | `Glooow-x.x.x.exe` — run the installer |
+| **Linux** | `Glooow-x.x.x.AppImage` — `chmod +x`, double-click or run from terminal |
 
-### easy setup (macOS / Linux)
-
-if you prefer running from source:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.sh | bash
-```
-
-this clones the repo to `~/glooow`, installs everything, and puts a launcher on your Desktop. works on both macOS and Linux. run it again to update or uninstall.
-
-### easy setup (Windows)
-
-```powershell
-irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.ps1 | iex
-```
-
-this clones the repo to `~\glooow`, installs dependencies, and puts a shortcut on your Desktop. run it again to update or uninstall.
-
-### double-click launchers
-
-if you already cloned the repo, you can skip the terminal entirely:
-
-| file | what it does |
-|------|--------------|
-| **Setup-Mac.command** / **Setup-Windows.bat** / **Setup-Linux.desktop** | runs the setup wizard |
-| **Start-Mac.command** / **Start-Windows.bat** / **Start-Linux.desktop** | starts the server and opens your browser |
-
-### manual setup
-
-you need:
-- python 3.10+
-- [uv](https://docs.astral.sh/uv/) for package management (the setup script will offer to install it if missing)
-- a mic
-- an LLM provider (see below)
-
-then:
-
-```bash
-git clone https://github.com/akrusz/glooow.git
-cd glooow
-./scripts/setup-local.sh        # walks you through setup — deps, LLM provider, whisper model
-./scripts/start.sh              # starts the server (and CLIProxyAPI if needed)
-```
-
-on windows, use `.\scripts\start.ps1` instead of `./scripts/start.sh`. if you need to install uv: `irm https://astral.sh/uv/install.ps1 | iex`
-
-### running the server
-
-```bash
-./scripts/start.sh           # full launcher: auto-starts CLIProxyAPI, shows config banner
-./scripts/start-server.sh    # lightweight: just runs the server, nothing else
-uv run python -m src.web     # direct, same as start-server.sh
-uv run python -m src.web --browser  # open in browser instead of native window
-```
-
-once running, the server listens on port 4649 (よろしく):
-
-| key | action |
-|-----|--------|
-| **B** or **Space** | open in browser |
-| **Q** or **Ctrl+C** | quit |
-
-### browser access
-
-glooow also works in your browser. pass `--browser` to open it there instead of the native window, or just visit `http://localhost:4649` while the server is running. this is useful on Windows, Linux, or if you want to access it from another device on your LAN.
+no terminal, no Python install needed. all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
 
 ### platform notes
 
-- **macOS**: the desktop app bundles everything. when running from source, TTS uses the `say` command with access to all system voices.
-- **windows**: for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis. Chrome and Firefox only have the basic system voices.
-- **linux**: for server-side TTS, install piper-tts (`uv pip install piper-tts`) and set `tts.engine: piper`. otherwise TTS falls back to browser speechSynthesis.
-
-### nix
-
-if you have nix with flakes enabled:
-
-```bash
-git clone https://github.com/akrusz/glooow.git
-cd glooow
-nix develop -c python -m src.web
-```
-
-the flake automatically sets up all dependencies including portaudio, ffmpeg, and python packages. the dev shell creates `config/default.yaml` if it doesn't exist.
+- **macOS**: TTS uses the `say` command with access to all system voices. the app runs in a native frameless window.
+- **windows**: for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis.
+- **linux**: for server-side TTS, install piper-tts and set `tts.engine: piper` in settings. otherwise TTS falls back to browser speechSynthesis.
 
 ## how it works
 
@@ -214,16 +142,50 @@ quick-start presets pre-fill the focus/vibe checkboxes, then you can adjust anyt
 - the ember controls add floating particles. each level doubles the count and increases the size.
 - click the voice name in the controls bar to open a voice picker — voices are grouped by quality tier with inline previews.
 
-## building the desktop app
+## running from source
 
-to build the macOS app and DMG installer from source:
+for development or if you prefer not to use the app:
 
 ```bash
-scripts/generate-icon.sh           # generate .icns from favicon.svg
-scripts/build-dmg.sh               # builds .app, signs it, creates DMG
+git clone https://github.com/akrusz/glooow.git
+cd glooow
+uv pip install -r requirements.txt
+uv run python -m src.web              # native window
+uv run python -m src.web --browser    # open in browser instead
 ```
 
-requires `librsvg` and `create-dmg` (`brew install librsvg create-dmg`).
+requires python 3.10+ and [uv](https://docs.astral.sh/uv/). once running, the server listens on port 4649 (よろしく). press **B** to open browser, **Q** to quit.
+
+### setup scripts
+
+the `scripts/` directory has helpers for getting set up and running from source:
+
+| script | what it does |
+|--------|--------------|
+| `scripts/setup.sh` | one-line setup for macOS/Linux (clones repo, installs deps, creates Desktop launcher) |
+| `scripts/setup.ps1` | one-line setup for Windows |
+| `scripts/setup-local.sh` | interactive setup wizard (deps, LLM provider, whisper model) |
+| `scripts/start.sh` | full launcher — auto-starts CLIProxyAPI, shows config banner |
+| `scripts/start.ps1` | full launcher for Windows |
+| `scripts/start-server.sh` | lightweight launcher — just runs the server |
+
+there are also double-click launchers in `scripts/` (`Start-Mac.command`, `Start-Windows.bat`, `Start-Linux.desktop` and their Setup equivalents) if you want to skip the terminal entirely.
+
+### nix
+
+if you have nix with flakes enabled:
+
+```bash
+git clone https://github.com/akrusz/glooow.git
+cd glooow
+nix develop -c python -m src.web
+```
+
+the flake automatically sets up all dependencies including portaudio, ffmpeg, and python packages. the dev shell creates `config/default.yaml` if it doesn't exist.
+
+## building
+
+release builds are automated via GitHub Actions — creating a release tagged `vX.X.X` triggers builds for all three platforms and attaches the artifacts. see [docs/building.md](docs/building.md) for manual build instructions.
 
 ## project layout
 
@@ -239,17 +201,8 @@ src/
   frozen.py         PyInstaller bundle path resolution
   config.py         dataclass config with OS-native config directory
 config/             default.yaml
-scripts/
-  setup-local.sh    setup / reconfigure / uninstall (interactive)
-  setup.sh          one-line setup (macOS/linux)
-  setup.ps1         one-line setup (windows)
-  start.sh          full launcher (macOS/linux)
-  start-server.sh   lightweight launcher
-  start.ps1         full launcher (windows)
-  generate-icon.sh  generate .icns from favicon.svg
-  build-dmg.sh      build .app + DMG installer
-assets/             app icon (.icns)
+scripts/            setup, launchers, build scripts
+assets/             app icons
 glooow.spec         PyInstaller build spec
-docs/
-  glooow-screen.png screenshot
+docs/               screenshot, build guide
 ```
