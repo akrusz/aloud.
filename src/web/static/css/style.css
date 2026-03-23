@@ -2584,26 +2584,42 @@ body::before {
     margin-left: 0.25rem;
 }
 
-.btn-ollama-pull {
-    padding: 0.3rem 0.75rem;
+.btn-ollama {
+    padding: 0.35rem 0.85rem;
+    min-width: 5.5rem;
     font-size: 0.875rem;
-    border: 1px solid var(--accent);
+    border: 1px solid;
     border-radius: 4px;
     background: transparent;
-    color: var(--accent);
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.2s, color 0.2s;
+    text-align: center;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btn-ollama:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.btn-ollama-pull {
+    border-color: var(--success, #5a9e6f);
+    color: var(--success, #5a9e6f);
 }
 
 .btn-ollama-pull:hover:not(:disabled) {
-    background: var(--accent);
+    background: var(--success, #5a9e6f);
     color: #fff;
 }
 
-.btn-ollama-pull:disabled {
-    opacity: 0.6;
-    cursor: default;
+.btn-ollama-remove {
+    border-color: #c06060;
+    color: #c06060;
+}
+
+.btn-ollama-remove:hover:not(:disabled) {
+    background: #c06060;
+    color: #fff;
 }
 
 .ollama-tier-actions {
@@ -2615,24 +2631,8 @@ body::before {
 
 .ollama-tier-installed {
     font-size: 0.875rem;
-    color: var(--success, #4caf50);
+    color: var(--success, #5a9e6f);
     white-space: nowrap;
-}
-
-.btn-ollama-remove {
-    padding: 0.2rem 0.5rem;
-    font-size: 0.875rem;
-    border: 1px solid var(--text-muted);
-    border-radius: 4px;
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-}
-
-.btn-ollama-remove:hover {
-    border-color: var(--error, #e74c3c);
-    color: var(--error, #e74c3c);
 }
 
 .ollama-pull-progress {

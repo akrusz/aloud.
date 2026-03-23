@@ -844,10 +844,10 @@
                             if (t.installed) {
                                 html += '<div class="ollama-tier-actions">';
                                 html += '<span class="ollama-tier-installed">Installed</span>';
-                                html += '<button type="button" class="btn-ollama-remove" data-model="' + t.model + '">Remove</button>';
+                                html += '<button type="button" class="btn-ollama btn-ollama-remove" data-model="' + t.model + '">Remove</button>';
                                 html += '</div>';
                             } else {
-                                html += '<button type="button" class="btn-ollama-pull" data-model="' + t.model + '">Download</button>';
+                                html += '<button type="button" class="btn-ollama btn-ollama-pull" data-model="' + t.model + '">Download</button>';
                             }
                             html += '<div class="ollama-pull-progress" id="pull-progress-' + t.model.replace(/[:.]/g, '-') + '" style="display:none">';
                             html += '<div class="ollama-pull-bar"><div class="ollama-pull-bar-fill"></div></div>';
