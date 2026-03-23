@@ -24,7 +24,7 @@
         <!-- LLM Provider Section -->
         <section class="settings-section">
             <h2>LLM Provider</h2>
-            <p class="settings-desc">Choose how glooow connects to a language model. You need at least one provider configured.</p>
+            <p class="settings-desc">Choose how glooow connects to a language model. Most functions need AI.</p>
 
             <div class="form-row">
                 <div class="form-group form-group-half">
@@ -584,7 +584,7 @@
                 if (data.running) {
                     statusEl.innerHTML = '<span style="color:var(--success)">Connected</span>';
                 } else if (data.installed) {
-                    statusEl.innerHTML = '<span style="color:var(--text-muted)">Installed but not running </span>'
+                    statusEl.innerHTML = '<span style="color:var(--text-muted)">Installed but not running: </span>'
                         + '<a href="#" onclick="startProxyFromSettings(); return false" '
                         + 'class="btn btn-small btn-primary" '
                         + 'style="padding:0.15rem 0.6rem; font-size:0.875rem">Start</a>';

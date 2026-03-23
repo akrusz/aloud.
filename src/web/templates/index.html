@@ -402,6 +402,13 @@
             return;
         }
 
+        // Don't bother fetching if we already know the provider is unavailable
+        const info = providerStatus[provider];
+        if (info && !info.available) {
+            modelSelect.innerHTML = '<option value="">Set up provider to load models</option>';
+            return;
+        }
+
         // Ollama models come from /api/providers, not /api/models
         if (provider === 'ollama') {
             modelSelect.innerHTML = '<option value="">No models available</option>';

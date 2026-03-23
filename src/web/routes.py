@@ -231,7 +231,7 @@ def register_routes(app: Flask) -> None:
         results = {}
 
         refresh = ' <a href="#" onclick="refreshProviders(); return false">Refresh</a>'
-        proxy_binary = shutil.which("CLIProxyAPI")
+        proxy_binary = _find_cli_proxy()
 
         # claude_proxy — check if CLIProxyAPI is reachable
         proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
