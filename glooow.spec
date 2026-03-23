@@ -2,6 +2,7 @@
 """PyInstaller spec for Glooow desktop app."""
 
 import re
+import sys
 from PyInstaller.utils.hooks import collect_submodules
 
 # Read version from source so the bundle stays in sync
@@ -10,6 +11,14 @@ _version_match = re.search(
     open("src/__init__.py").read(),
 )
 APP_VERSION = _version_match.group(1) if _version_match else "0.0.0"
+
+# Platform-appropriate icon
+if sys.platform == "darwin":
+    _icon = "assets/glooow.icns"
+elif sys.platform == "win32":
+    _icon = "assets/glooow.ico"
+else:
+    _icon = None  # Linux doesn't embed icons in the binary
 
 block_cipher = None
 
@@ -61,6 +70,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
+    icon=_icon,
     target_arch=None,
 )
 
@@ -74,17 +84,19 @@ coll = COLLECT(
     name='Glooow',
 )
 
-app = BUNDLE(
-    coll,
-    name='Glooow.app',
-    icon='assets/glooow.icns',
-    bundle_identifier='com.glooow.app',
-    codesign_identity='-',  # ad-hoc sign (required for native libs on macOS)
-    info_plist={
-        'NSMicrophoneUsageDescription':
-            'Glooow needs microphone access for voice-based meditation sessions.',
-        'CFBundleShortVersionString': APP_VERSION,
-        'CFBundleDisplayName': 'Glooow',
-        'NSHighResolutionCapable': True,
-    },
-)
+# macOS app bundle (ignored on other platforms)
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name='Glooow.app',
+        icon='assets/glooow.icns',
+        bundle_identifier='com.glooow.app',
+        codesign_identity='-',  # ad-hoc sign (required for native libs on macOS)
+        info_plist={
+            'NSMicrophoneUsageDescription':
+                'Glooow needs microphone access for voice-based meditation sessions.',
+            'CFBundleShortVersionString': APP_VERSION,
+            'CFBundleDisplayName': 'Glooow',
+            'NSHighResolutionCapable': True,
+        },
+    )
