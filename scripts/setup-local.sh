@@ -231,9 +231,9 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
         echo "  Your system has ${RAM_GB}GB RAM."
     fi
     echo ""
-    echo "    1) qwen3.5:4b       — Good    (~2.5GB download, needs 8GB+ RAM)"
-    echo "    2) qwen3.5:9b       — Better  (~5.5GB download, needs 16GB+ RAM)"
-    echo "    3) qwen3.5:35b-a3b  — Best    (~20GB download, needs 24GB+ RAM)"
+    echo "    1) qwen3.5:4b       — Good    (~2.5GB download / ~2.5GB on disk, needs 8GB+ RAM)"
+    echo "    2) qwen3.5:9b       — Better  (~5.5GB download / ~5.5GB on disk, needs 16GB+ RAM)"
+    echo "    3) qwen3.5:35b-a3b  — Best    (~20GB download / ~20GB on disk, needs 24GB+ RAM)"
     echo "    4) Other             — enter a custom model name"
     echo ""
     MODEL_CHOICE=$(ask "Choice" "$OLLAMA_DEFAULT")

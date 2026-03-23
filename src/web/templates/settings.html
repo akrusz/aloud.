@@ -696,6 +696,71 @@
         });
     });
 
+    // Pull an Ollama model with streaming progress
+    function pullOllamaModel(model, btn) {
+        var safeId = model.replace(/[:.]/g, '-');
+        var progressEl = document.getElementById('pull-progress-' + safeId);
+        var barFill = progressEl ? progressEl.querySelector('.ollama-pull-bar-fill') : null;
+        var statusEl = progressEl ? progressEl.querySelector('.ollama-pull-status') : null;
+
+        btn.disabled = true;
+        btn.textContent = 'Downloading...';
+        if (progressEl) progressEl.style.display = '';
+
+        fetch('/api/ollama/pull', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model: model}),
+        }).then(function(resp) {
+            var reader = resp.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+
+            function read() {
+                reader.read().then(function(result) {
+                    if (result.done) {
+                        btn.textContent = 'Done';
+                        if (statusEl) statusEl.textContent = 'Complete';
+                        if (barFill) barFill.style.width = '100%';
+                        // Refresh model list after pull
+                        setTimeout(function() { fetchModels('ollama'); }, 500);
+                        return;
+                    }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop(); // keep incomplete line
+                    lines.forEach(function(line) {
+                        if (!line.trim()) return;
+                        try {
+                            var obj = JSON.parse(line);
+                            if (obj.status === 'error') {
+                                btn.textContent = 'Error';
+                                btn.disabled = false;
+                                if (statusEl) statusEl.textContent = obj.error || 'Pull failed';
+                                return;
+                            }
+                            if (obj.total && obj.completed != null) {
+                                var pct = Math.round((obj.completed / obj.total) * 100);
+                                if (barFill) barFill.style.width = pct + '%';
+                                var dlMB = (obj.completed / (1024 * 1024)).toFixed(0);
+                                var totalMB = (obj.total / (1024 * 1024)).toFixed(0);
+                                if (statusEl) statusEl.textContent = dlMB + ' / ' + totalMB + ' MB';
+                            } else if (obj.status) {
+                                if (statusEl) statusEl.textContent = obj.status;
+                            }
+                        } catch (e) {}
+                    });
+                    read();
+                });
+            }
+            read();
+        }).catch(function(err) {
+            btn.textContent = 'Error';
+            btn.disabled = false;
+            if (statusEl) statusEl.textContent = 'Connection failed';
+        });
+    }
+
     // Fetch models for a provider
     function fetchModels(provider) {
         modelSelect.innerHTML = '<option value="">Loading...</option>';
@@ -724,15 +789,45 @@
                             modelSelect.appendChild(opt);
                         });
                     }
-                    // Show recommendation hint
+                    // Show recommendation with download buttons
                     var recEl = document.getElementById('s-ollama-recommendation');
-                    if (recEl && rec.tiers && rec.ram_gb) {
-                        var parts = rec.tiers.map(function(t) {
-                            var tag = t.model === rec.recommended_model ? ' \u2190 recommended' : '';
-                            var fit = t.fits ? '' : ' (needs ' + t.min_gb + 'GB+ RAM)';
-                            return '<code>ollama pull ' + t.model + '</code> \u2014 ' + t.label + ' ' + t.size + fit + tag;
+                    if (recEl && rec.tiers) {
+                        var html = '';
+                        if (rec.ram_gb) {
+                            html += '<div style="margin-bottom:0.5rem">Your system has ' + rec.ram_gb + 'GB RAM.</div>';
+                        }
+                        html += '<div class="ollama-tiers">';
+                        rec.tiers.forEach(function(t) {
+                            var isRec = t.model === rec.recommended_model;
+                            var diskInfo = t.actual_disk ? t.actual_disk + ' on disk' : t.disk + ' on disk';
+                            var sizeText = t.download + ' download, ' + diskInfo;
+                            var ramNote = t.fits === false ? ' (needs ' + t.min_gb + 'GB+ RAM)' : '';
+                            var recBadge = isRec ? ' <span class="ollama-rec-badge">recommended</span>' : '';
+
+                            html += '<div class="ollama-tier-row' + (isRec ? ' ollama-tier-recommended' : '') + '">';
+                            html += '<div class="ollama-tier-info">';
+                            html += '<strong>' + t.model + '</strong> — ' + t.label + recBadge;
+                            html += '<div class="ollama-tier-size">' + sizeText + ramNote + '</div>';
+                            html += '</div>';
+
+                            if (t.installed) {
+                                html += '<span class="ollama-tier-installed">Installed</span>';
+                            } else {
+                                html += '<button type="button" class="btn-ollama-pull" data-model="' + t.model + '">Download</button>';
+                            }
+                            html += '<div class="ollama-pull-progress" id="pull-progress-' + t.model.replace(/[:.]/g, '-') + '" style="display:none">';
+                            html += '<div class="ollama-pull-bar"><div class="ollama-pull-bar-fill"></div></div>';
+                            html += '<span class="ollama-pull-status"></span>';
+                            html += '</div>';
+                            html += '</div>';
                         });
-                        recEl.innerHTML = 'Your system has ' + rec.ram_gb + 'GB RAM. Suggested models:<br>' + parts.join('<br>');
+                        html += '</div>';
+                        recEl.innerHTML = html;
+
+                        // Attach download handlers
+                        recEl.querySelectorAll('.btn-ollama-pull').forEach(function(btn) {
+                            btn.addEventListener('click', function() { pullOllamaModel(btn.dataset.model, btn); });
+                        });
                     } else if (recEl) {
                         recEl.innerHTML = '';
                     }

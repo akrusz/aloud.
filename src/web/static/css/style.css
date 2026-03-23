@@ -2536,6 +2536,106 @@ body::before {
     color: var(--accent);
 }
 
+/* Ollama model tier rows */
+
+.ollama-tiers {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.ollama-tier-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    flex-wrap: wrap;
+}
+
+.ollama-tier-recommended {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ollama-tier-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ollama-tier-size {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+}
+
+.ollama-rec-badge {
+    font-size: 0.75rem;
+    color: var(--accent);
+    margin-left: 0.25rem;
+}
+
+.btn-ollama-pull {
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+}
+
+.btn-ollama-pull:hover:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+}
+
+.btn-ollama-pull:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.ollama-tier-installed {
+    font-size: 0.8rem;
+    color: var(--success, #4caf50);
+    white-space: nowrap;
+}
+
+.ollama-pull-progress {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.ollama-pull-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ollama-pull-bar-fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.ollama-pull-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    min-width: 5rem;
+}
+
 .settings-actions {
     display: flex;
     align-items: center;

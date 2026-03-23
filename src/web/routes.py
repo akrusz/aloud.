@@ -21,9 +21,12 @@ from ..updater import check_for_updates, apply_update, download_release
 
 # Ollama model tiers keyed by minimum RAM in GB
 OLLAMA_MODEL_TIERS = [
-    {"min_gb": 24, "model": "qwen3.5:35b-a3b", "label": "Best", "size": "~20GB"},
-    {"min_gb": 16, "model": "qwen3.5:9b", "label": "Better", "size": "~5.5GB"},
-    {"min_gb": 0, "model": "qwen3.5:4b", "label": "Good", "size": "~2.5GB"},
+    {"min_gb": 24, "model": "qwen3.5:35b-a3b", "label": "Best",
+     "download": "~20GB", "disk": "~20GB"},
+    {"min_gb": 16, "model": "qwen3.5:9b", "label": "Better",
+     "download": "~5.5GB", "disk": "~5.5GB"},
+    {"min_gb": 0, "model": "qwen3.5:4b", "label": "Good",
+     "download": "~2.5GB", "disk": "~2.5GB"},
 ]
 
 
@@ -353,11 +356,11 @@ def register_routes(app: Flask) -> None:
             "ram_gb": ram_gb,
             "recommended_model": rec["model"],
             "recommended_label": rec["label"],
-            "recommended_size": rec["size"],
             "tiers": [
                 {
                     "model": t["model"], "label": t["label"],
-                    "size": t["size"], "min_gb": t["min_gb"],
+                    "download": t["download"], "disk": t["disk"],
+                    "min_gb": t["min_gb"],
                     "fits": ram_gb is not None and ram_gb >= t["min_gb"],
                 }
                 for t in OLLAMA_MODEL_TIERS
@@ -368,10 +371,35 @@ def register_routes(app: Flask) -> None:
         try:
             resp = httpx.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=2.0)
             resp.raise_for_status()
-            models = [m["name"] for m in resp.json().get("models", [])]
+            raw_models = resp.json().get("models", [])
+            models = [m["name"] for m in raw_models]
+            # Build a name→disk-size map for pulled models
+            model_sizes = {}
+            for m in raw_models:
+                size_bytes = m.get("size", 0)
+                if size_bytes > 0:
+                    gb = size_bytes / (1024 ** 3)
+                    model_sizes[m["name"]] = (
+                        f"{gb:.1f}GB" if gb >= 1 else f"{size_bytes / (1024**2):.0f}MB"
+                    )
+            # Mark which tiers are already installed
+            pulled_set = {n.split(":")[0] for n in models}
+            for t in rec_info["tiers"]:
+                tier_base = t["model"].split(":")[0]
+                t["installed"] = any(
+                    n.split(":")[0] == tier_base and t["model"].split(":")[-1] in n
+                    for n in models
+                )
+                # Use actual disk size if available
+                for name, size_str in model_sizes.items():
+                    if name == t["model"] or name.startswith(tier_base + ":"):
+                        t["actual_disk"] = size_str
+                        break
+
             if models:
                 results["ollama"] = {
                     "available": True, "models": models, "hint": "",
+                    "model_sizes": model_sizes,
                     "recommendation": rec_info,
                 }
             else:
@@ -379,7 +407,8 @@ def register_routes(app: Flask) -> None:
                     "available": False, "models": [],
                     "hint": (
                         "Ollama is running but has no models. "
-                        f"Run: <code>ollama pull {rec['model']}</code>" + refresh
+                        "Download one below, or run: "
+                        f"<code>ollama pull {rec['model']}</code>" + refresh
                     ),
                     "recommendation": rec_info,
                 }
@@ -395,6 +424,56 @@ def register_routes(app: Flask) -> None:
             }
 
         return jsonify(results)
+
+    @app.route("/api/ollama/pull", methods=["POST"])
+    def api_ollama_pull():
+        """Stream an Ollama model pull, proxying progress from Ollama's API."""
+        import json as _json
+
+        data = request.get_json(silent=True) or {}
+        model = data.get("model", "").strip()
+        if not model:
+            return jsonify({"error": "model is required"}), 400
+
+        ollama_url = (
+            app.meditation_config.llm.ollama_url or "http://localhost:11434"
+        )
+
+        def generate():
+            try:
+                with httpx.stream(
+                    "POST",
+                    f"{ollama_url.rstrip('/')}/api/pull",
+                    json={"model": model, "stream": True},
+                    timeout=httpx.Timeout(10.0, read=600.0),
+                ) as resp:
+                    resp.raise_for_status()
+                    for line in resp.iter_lines():
+                        if not line:
+                            continue
+                        obj = _json.loads(line)
+                        # Forward a simplified progress object
+                        out = {"status": obj.get("status", "")}
+                        if "total" in obj and "completed" in obj:
+                            out["total"] = obj["total"]
+                            out["completed"] = obj["completed"]
+                        yield _json.dumps(out) + "\n"
+            except httpx.HTTPStatusError as exc:
+                yield _json.dumps({
+                    "status": "error",
+                    "error": f"Ollama returned {exc.response.status_code}",
+                }) + "\n"
+            except Exception as exc:
+                yield _json.dumps({
+                    "status": "error",
+                    "error": str(exc),
+                }) + "\n"
+
+        return Response(
+            generate(),
+            mimetype="application/x-ndjson",
+            headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+        )
 
     @app.route("/api/sessions")
     def api_sessions():
