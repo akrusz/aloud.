@@ -225,21 +225,29 @@ def create_stt(
     model: str = "small",
     language: str = "en",
     device: str = "auto",
-) -> WhisperSTT:
-    """Factory function to create STT engine."""
-    if engine == "whisper":
-        return WhisperSTT(
-            model=model,  # type: ignore
-            language=language,
-            device=device,
-            use_mlx=False,
-        )
-    elif engine == "mlx-whisper":
+):
+    """Factory function to create STT engine.
+
+    Engines:
+        "whisper" — pywhispercpp (whisper.cpp, no torch, default)
+        "mlx-whisper" — MLX-optimized for Apple Silicon
+        "whisper-legacy" — openai-whisper (requires torch)
+    """
+    if engine == "mlx-whisper":
         return WhisperSTT(
             model=model,  # type: ignore
             language=language,
             device=device,
             use_mlx=True,
         )
+    elif engine == "whisper-legacy":
+        return WhisperSTT(
+            model=model,  # type: ignore
+            language=language,
+            device=device,
+            use_mlx=False,
+        )
     else:
-        raise ValueError(f"Unknown STT engine: {engine}")
+        # Default: whisper.cpp via pywhispercpp (no torch)
+        from .whisper_cpp import WhisperCppSTT
+        return WhisperCppSTT(model=model, language=language)

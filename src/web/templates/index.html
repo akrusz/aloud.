@@ -381,36 +381,7 @@
     applyPreset('pleasant_play');
 
     // ---- Provider / Model ----
-    // Fallback models used when the live API is unavailable
-    const fallbackModels = {
-        claude_proxy: [
-            { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-            { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-            { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
-        ],
-        anthropic: [
-            { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-            { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-            { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
-        ],
-        openai: [
-            { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-            { value: 'gpt-5.4', label: 'GPT-5.4' },
-            { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-        ],
-        openrouter: [
-            { value: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2' },
-            { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B' },
-            { value: 'deepseek/deepseek-r1', label: 'DeepSeek R1' },
-        ],
-        venice: [
-            { value: 'llama-3.3-70b', label: 'Llama 3.3 70B' },
-            { value: 'deepseek-ai-DeepSeek-R1', label: 'DeepSeek R1' },
-        ],
-        ollama: [],  // populated from /api/providers
-    };
-    // Cache for dynamically fetched models
-    const liveModels = {};
+    const liveModels = {};  // cache for fetched model lists
 
     const providerSelect = document.getElementById('provider');
     const modelSelect = document.getElementById('model');
@@ -423,63 +394,136 @@
         ).join('');
     }
 
-    function updateModelOptions() {
-        const provider = providerSelect.value;
-        updateProviderHint();
-
+    function fetchAndShowModels(provider) {
         // If we already fetched live models for this provider, use them
         if (liveModels[provider]) {
             renderModelOptions(liveModels[provider]);
             return;
         }
 
-        // Show fallback immediately so the dropdown isn't empty
-        const fb = fallbackModels[provider] || [];
-        renderModelOptions(fb);
+        // Ollama models come from /api/providers, not /api/models
+        if (provider === 'ollama') {
+            modelSelect.innerHTML = '<option value="">No models available</option>';
+            return;
+        }
 
-        // Fetch live models in the background (skip ollama — handled by /api/providers)
-        if (provider === 'ollama') return;
+        modelSelect.innerHTML = '<option value="">Loading models...</option>';
+
         fetch('/api/models/' + provider)
             .then(r => r.json())
             .then(models => {
                 if (models && models.length) {
                     liveModels[provider] = models;
-                    // Only update if the user hasn't switched providers
                     if (providerSelect.value === provider) {
                         renderModelOptions(models);
                     }
+                } else if (providerSelect.value === provider) {
+                    modelSelect.innerHTML = '<option value="">No models available</option>';
                 }
             })
-            .catch(() => {});  // keep fallback on error
+            .catch(() => {
+                if (providerSelect.value === provider) {
+                    modelSelect.innerHTML = '<option value="">Could not reach provider</option>';
+                }
+            });
+    }
+
+    function updateModelOptions() {
+        const provider = providerSelect.value;
+        updateProviderHint();
+        fetchAndShowModels(provider);
     }
 
     function updateProviderHint() {
         const key = providerSelect.value;
         const info = providerStatus[key];
         if (info && !info.available) {
-            providerHint.textContent = info.hint;
+            providerHint.innerHTML = info.hint;
             providerHint.style.display = '';
         } else {
             providerHint.style.display = 'none';
         }
     }
 
+    function refreshProviders() {
+        fetch('/api/providers')
+            .then(r => r.json())
+            .then(data => {
+                providerStatus = data;
+                if (data.ollama && data.ollama.models && data.ollama.models.length) {
+                    liveModels.ollama = data.ollama.models.map(name => ({
+                        value: name,
+                        label: name.replace(/:latest$/, ''),
+                    }));
+                }
+                applyProviderAvailability();
+                // Clear cached models so they're re-fetched (except ollama, which comes from /api/providers)
+                var current = providerSelect.value;
+                if (current !== 'ollama') delete liveModels[current];
+                updateModelOptions();
+            })
+            .catch(() => {});
+    }
+
+    function startProxy() {
+        modelSelect.innerHTML = '<option value="">Starting CLIProxyAPI...</option>';
+        providerHint.style.display = 'none';
+        providerSelect.value = 'claude_proxy';
+        fetch('/api/proxy/start', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    // Mark claude_proxy as available without re-sorting the dropdown
+                    providerStatus.claude_proxy = { available: true, installed: true, hint: '' };
+                    // Clean up the marker
+                    for (const opt of providerSelect.options) {
+                        if (opt.value === 'claude_proxy') {
+                            opt.textContent = opt.textContent.replace(/ [\u2718\u2731]$/, '');
+                            opt.classList.remove('provider-unavailable');
+                            break;
+                        }
+                    }
+                    providerHint.style.display = 'none';
+                    // Fetch models for claude_proxy
+                    delete liveModels.claude_proxy;
+                    fetchAndShowModels('claude_proxy');
+                } else {
+                    providerHint.innerHTML = data.message;
+                    providerHint.style.display = '';
+                    modelSelect.innerHTML = '<option value="">No models available</option>';
+                }
+            })
+            .catch(() => {
+                providerHint.innerHTML = 'Failed to start CLIProxyAPI.';
+                providerHint.style.display = '';
+                modelSelect.innerHTML = '<option value="">No models available</option>';
+            });
+    }
+
     function applyProviderAvailability() {
-        const available = [];
-        const unavailable = [];
+        const available = [];   // fully working
+        const startable = [];   // installed but not running (e.g. CLIProxyAPI)
+        const unavailable = []; // not configured at all
         for (const opt of providerSelect.options) {
             const info = providerStatus[opt.value];
+            // Strip any existing markers
+            opt.textContent = opt.textContent.replace(/ [\u2718\u2731]$/, '');
+            opt.classList.remove('provider-unavailable');
             if (info && !info.available) {
-                opt.classList.add('provider-unavailable');
-                opt.textContent = opt.textContent.replace(/ \u2718$/, '') + ' \u2718';
-                unavailable.push(opt);
+                if (info.installed) {
+                    // Installed but not running — sortable with available, subtle marker
+                    opt.textContent += ' \u2731';  // ✱
+                    available.push(opt);
+                } else {
+                    opt.classList.add('provider-unavailable');
+                    opt.textContent += ' \u2718';  // ✘
+                    unavailable.push(opt);
+                }
             } else {
-                opt.classList.remove('provider-unavailable');
-                opt.textContent = opt.textContent.replace(/ \u2718$/, '');
                 available.push(opt);
             }
         }
-        // Sort available providers to the top
+        // Sort: available/startable first, then unavailable
         for (const opt of [...available, ...unavailable]) {
             providerSelect.appendChild(opt);
         }
@@ -490,26 +534,13 @@
         updateProviderHint();
     }
 
-    // Fetch provider availability from backend
-    fetch('/api/providers')
-        .then(r => r.json())
-        .then(data => {
-            providerStatus = data;
-            // Populate ollama models from server response
-            if (data.ollama && data.ollama.models && data.ollama.models.length) {
-                fallbackModels.ollama = data.ollama.models.map(name => ({
-                    value: name,
-                    label: name.replace(/:latest$/, ''),
-                }));
-                liveModels.ollama = fallbackModels.ollama;
-            }
-            applyProviderAvailability();
-            updateModelOptions();  // refresh in case ollama is selected
-        })
-        .catch(() => {});  // silently degrade
+    // Expose for inline onclick in provider hints
+    window.refreshProviders = refreshProviders;
+    window.startProxy = startProxy;
 
+    // Initial load
+    refreshProviders();
     providerSelect.addEventListener('change', updateModelOptions);
-    updateModelOptions();
 
     // ---- Helpers ----
     function stripVoiceQualifier(name) {

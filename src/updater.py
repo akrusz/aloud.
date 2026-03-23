@@ -87,6 +87,9 @@ def check_for_updates(force: bool = False) -> UpdateStatus:
     Uses git if available, falls back to GitHub API.
     Results are cached for 1 hour unless force=True.
     """
+    from .frozen import is_frozen
+    if is_frozen():
+        return UpdateStatus(error="Updates not available in desktop app")
     if not force:
         cached = _load_cache()
         if cached is not None:

@@ -5,12 +5,24 @@ import { state, dom, socket } from './state.js';
 import { stopServerAudio, speak, TTS_COOLDOWN_MS } from './tts.js';
 import { setStatus } from './ui.js';
 import { notingState } from './noting.js';
+import { updateVoicePickerLabel } from './voice.js';
 
 // ---- VAD constants ----
 
 export var SILENCE_THRESHOLD = 0.015; // RMS level below which counts as silence
 export var SILENCE_DURATION = 3000;   // ms of silence before auto-submitting (base)
 export var SILENCE_DURATION_MAX = 7000; // ms — cap for adaptive silence tolerance
+
+// Allow server to override silence timing and TTS rate via session_config event
+export function applySessionConfig(cfg) {
+    if (cfg.silence_base_ms != null) SILENCE_DURATION = cfg.silence_base_ms;
+    if (cfg.silence_max_ms != null) SILENCE_DURATION_MAX = cfg.silence_max_ms;
+    if (cfg.tts_rate != null) {
+        state.ttsRate = cfg.tts_rate;
+        if (dom.modalSpeedSlider) dom.modalSpeedSlider.value = cfg.tts_rate;
+        updateVoicePickerLabel();
+    }
+}
 export var SILENCE_RAMP_RATE = 0.12;  // extra silence ms per ms of speech (ramps from base to max)
 export var PRE_BUFFER_CHUNKS = 20;    // ~2s of audio to keep before speech onset
 export var MIN_SPEECH_DURATION = 500; // ms — reject sounds shorter than this

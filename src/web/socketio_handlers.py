@@ -77,6 +77,13 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         app.session_to_sid[session_id] = sid
         logger.info("New session %s… for sid=%s…", session_id[:12], sid[:8])
 
+        # Send pacing config and TTS settings to the client
+        emit("session_config", {
+            "silence_base_ms": config.pacing.silence_base_ms,
+            "silence_max_ms": config.pacing.silence_max_ms,
+            "tts_rate": config.tts.rate,
+        })
+
         # Restore voice name so easter egg persona works from the first message
         voice_name = data.get("voice_name")
         if voice_name:

@@ -1,0 +1,887 @@
+{% extends "base.html" %}
+
+{% block title %}{% if first_run %}Welcome to Glooow{% else %}Settings{% endif %} — Glooow{% endblock %}
+
+{% block nav_center %}
+<div class="nav-session-info">
+    <div class="orb orb-idle orb-nav"></div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="setup-container">
+    {% if first_run %}
+    <div class="settings-welcome">
+        <h1>Welcome to Glooow</h1>
+        <p>Let's set up your meditation facilitator. You'll need at least one LLM provider configured to get started.</p>
+    </div>
+    {% else %}
+    <h1 class="settings-title">Settings</h1>
+    {% endif %}
+
+    <form id="settings-form" class="setup-form">
+
+        <!-- LLM Provider Section -->
+        <section class="settings-section">
+            <h2>LLM Provider</h2>
+            <p class="settings-desc">Choose how Glooow connects to a language model. You need at least one provider configured.</p>
+
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="s-provider">Default Provider</label>
+                    <select id="s-provider" name="provider">
+                        <option value="claude_proxy">Anthropic (Subscription / CLIProxyAPI)</option>
+                        <option value="anthropic">Anthropic (API Key)</option>
+                        <option value="openai">OpenAI (API Key)</option>
+                        <option value="openrouter">OpenRouter (API Key)</option>
+                        <option value="venice">Venice.ai (API Key)</option>
+                        <option value="ollama">Ollama (Local)</option>
+                    </select>
+                </div>
+                <div class="form-group form-group-half" id="s-model-group">
+                    <label for="s-model">Default Model</label>
+                    <select id="s-model" name="model">
+                        <option value="">Loading models...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- API Key fields — shown/hidden per provider -->
+            <div class="form-group api-key-group" id="s-anthropic-key-group" style="display:none">
+                <label for="s-anthropic-key">Anthropic API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-anthropic-key" placeholder="sk-ant-..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+                <span class="form-hint">From <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></span>
+            </div>
+
+            <div class="form-group api-key-group" id="s-openai-key-group" style="display:none">
+                <label for="s-openai-key">OpenAI API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-openai-key" placeholder="sk-..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+                <span class="form-hint">From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a></span>
+            </div>
+
+            <div class="form-group api-key-group" id="s-openrouter-key-group" style="display:none">
+                <label for="s-openrouter-key">OpenRouter API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-openrouter-key" placeholder="sk-or-..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+                <span class="form-hint">From <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a></span>
+            </div>
+
+            <div class="form-group api-key-group" id="s-venice-key-group" style="display:none">
+                <label for="s-venice-key">Venice API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-venice-key" placeholder="..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+            </div>
+
+            <div class="form-group api-key-group" id="s-proxy-group" style="display:none">
+                <label for="s-proxy-url">Proxy URL</label>
+                <input type="text" id="s-proxy-url" placeholder="http://127.0.0.1:8317">
+                <span class="form-hint">Default: http://127.0.0.1:8317 — only change this if you've configured CLIProxyAPI on a different address</span>
+                <div id="s-proxy-status" class="proxy-status" style="margin-top:0.5rem"></div>
+            </div>
+
+            <div class="form-group api-key-group" id="s-ollama-group" style="display:none">
+                <label for="s-ollama-url">Ollama URL</label>
+                <input type="text" id="s-ollama-url" placeholder="http://localhost:11434">
+            </div>
+
+            <div id="s-provider-status" class="provider-hint" style="display:none"></div>
+        </section>
+
+        <!-- Language & Speech Recognition -->
+        <section class="settings-section">
+            <h2>Language & Speech Recognition</h2>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="s-language">Language</label>
+                    <select id="s-language" name="language">
+                        <option value="en">English</option>
+                        <option value="es">Espa&#241;ol</option>
+                        <option value="fr">Fran&#231;ais</option>
+                        <option value="de">Deutsch</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Portugu&#234;s</option>
+                        <option value="nl">Nederlands</option>
+                        <option value="pl">Polski</option>
+                        <option value="ru">&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</option>
+                        <option value="uk">&#1059;&#1082;&#1088;&#1072;&#1111;&#1085;&#1089;&#1100;&#1082;&#1072;</option>
+                        <option value="ja">&#26085;&#26412;&#35486;</option>
+                        <option value="zh">&#20013;&#25991;</option>
+                        <option value="ko">&#54620;&#44397;&#50612;</option>
+                        <option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option>
+                        <option value="hi">&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</option>
+                        <option value="tr">T&#252;rk&#231;e</option>
+                        <option value="vi">Ti&#7871;ng Vi&#7879;t</option>
+                        <option value="th">&#3616;&#3634;&#3625;&#3634;&#3652;&#3607;&#3618;</option>
+                        <option value="sv">Svenska</option>
+                        <option value="da">Dansk</option>
+                        <option value="no">Norsk</option>
+                        <option value="fi">Suomi</option>
+                        <option value="el">&#917;&#955;&#955;&#951;&#957;&#953;&#954;&#940;</option>
+                        <option value="he">&#1506;&#1489;&#1512;&#1497;&#1514;</option>
+                        <option value="cs">&#268;e&#353;tina</option>
+                        <option value="ro">Rom&#226;n&#259;</option>
+                        <option value="hu">Magyar</option>
+                        <option value="id">Bahasa Indonesia</option>
+                        <option value="ms">Bahasa Melayu</option>
+                        <option value="ca">Catal&#224;</option>
+                    </select>
+                    <span class="form-hint">Affects speech recognition, voices, and previews</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label for="s-whisper-model">Whisper Model</label>
+                    <select id="s-whisper-model" name="whisper_model">
+                        <option value="tiny">Tiny (fastest)</option>
+                        <option value="base">Base</option>
+                        <option value="small">Small (recommended)</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large (most accurate)</option>
+                    </select>
+                    <span class="form-hint">Larger = more accurate but slower. Requires restart.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- TTS Section -->
+        <section class="settings-section">
+            <h2>Text-to-Speech</h2>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="s-tts-engine">TTS Engine</label>
+                    <select id="s-tts-engine" name="tts_engine">
+                        <option value="macos">macOS (built-in 'say')</option>
+                        <option value="browser">Browser (speechSynthesis)</option>
+                        <option value="elevenlabs">ElevenLabs (API)</option>
+                        <option value="piper">Piper (local neural TTS)</option>
+                        <option value="parakeet">Parakeet (local neural TTS)</option>
+                    </select>
+                </div>
+                <div class="form-group form-group-half">
+                    <label>Default Voice</label>
+                    <button type="button" id="s-voice-btn" class="setup-voice-btn">Default</button>
+                </div>
+            </div>
+
+            <div class="form-group api-key-group" id="s-elevenlabs-key-group" style="display:none">
+                <label for="s-elevenlabs-key">ElevenLabs API Key</label>
+                <div class="input-with-action">
+                    <input type="password" id="s-elevenlabs-key" placeholder="..." autocomplete="off">
+                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pacing Section -->
+        <section class="settings-section">
+            <h2>Pacing</h2>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label>Pause Detection (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-base" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-base" class="stepper-value" min="1" max="15" step="0.5" value="3">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-base" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Minimum pause before your speech is submitted</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label>Extended Pause (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-max" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-max" class="stepper-value" min="2" max="20" step="0.5" value="7">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-max" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Maximum pause tolerance after longer speech</span>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label>Response Delay (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-response-delay" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-response-delay" class="stepper-value" min="0.5" max="10" step="0.5" value="2">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-response-delay" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Wait after transcription before LLM responds</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label>Check-in After (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-sec" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-sec" class="stepper-value" min="30" max="3600" step="30" value="300">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-sec" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Extended silence before a gentle check-in</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Display Section -->
+        <section class="settings-section">
+            <h2>Display</h2>
+            <div class="display-layout" id="text-scale-group">
+                <div class="display-controls">
+                    <div class="form-group">
+                        <label>Text Size</label>
+                        <div class="text-scale-control">
+                            <input type="range" id="s-text-scale" min="0.8" max="1.4" value="1" step="0.05">
+                            <span class="text-scale-value" id="s-text-scale-label">100%</span>
+                            <button type="button" class="btn btn-small btn-secondary" id="s-text-scale-apply" disabled>Preview</button>
+                            <button type="button" class="btn btn-small btn-secondary" id="s-text-scale-reset" disabled>Reset</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="s-window-mode">Window Mode</label>
+                        <select id="s-window-mode">
+                            <option value="remember">Remember last size</option>
+                            <option value="fullscreen">Full screen</option>
+                            <option value="maximized">Maximized</option>
+                            <option value="small">Small</option>
+                        </select>
+                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="s-frameless">
+                        <span>Frameless window</span>
+                    </label>
+                    <label class="checkbox-label" id="s-vibrancy-label" style="display:none">
+                        <input type="checkbox" id="s-vibrancy">
+                        <span>Vibrancy (translucent background)</span>
+                    </label>
+                    <span class="form-hint">Window options take effect on next launch</span>
+                </div>
+                <div class="display-preview">
+                    <div class="text-scale-preview" id="text-scale-preview">
+                        <div class="text-scale-preview-inner" id="text-scale-preview-inner">
+                            <p class="preview-heading">Heading Text</p>
+                            <p class="preview-body">This is how body text will look at this size.</p>
+                            <p class="preview-small">Smaller labels and hints look like this.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Save -->
+        <div class="settings-actions">
+            <button type="submit" class="btn btn-primary btn-begin">
+                {% if first_run %}Save & Start{% else %}Save Settings{% endif %}
+            </button>
+            {% if not first_run %}
+            <span class="settings-saved" id="settings-saved" style="display:none">Saved</span>
+            {% endif %}
+            <div id="settings-error" class="settings-error" style="display:none"></div>
+        </div>
+
+        <div class="settings-config-path" id="settings-config-path"></div>
+    </form>
+</div>
+
+<!-- Voice Picker Modal -->
+<div class="voice-modal-overlay" id="settings-voice-modal" style="display: none;">
+    <div class="voice-modal">
+        <div class="voice-modal-header">
+            <span class="voice-modal-title">Choose Default Voice</span>
+            <button type="button" class="voice-modal-close" id="settings-voice-modal-close">&times;</button>
+        </div>
+        <div class="voice-modal-list" id="settings-voice-modal-list">
+        </div>
+        <div class="voice-modal-footer">
+            <label class="voice-modal-speed-label" for="s-tts-rate">Speed</label>
+            <input type="range" id="s-tts-rate" min="60" max="240" value="120" step="10">
+            <span class="voice-modal-speed-value" id="s-tts-rate-label">160 wpm</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    // Show vibrancy option only on macOS
+    if (navigator.platform && navigator.platform.indexOf('Mac') !== -1) {
+        document.getElementById('s-vibrancy-label').style.display = '';
+    }
+
+    const firstRun = {{ 'true' if first_run else 'false' }};
+    const form = document.getElementById('settings-form');
+    const providerSelect = document.getElementById('s-provider');
+    const modelSelect = document.getElementById('s-model');
+    const ttsEngineSelect = document.getElementById('s-tts-engine');
+    const savedEl = document.getElementById('settings-saved');
+    const errorEl = document.getElementById('settings-error');
+    const configPathEl = document.getElementById('settings-config-path');
+    const voiceBtn = document.getElementById('s-voice-btn');
+    const voiceModal = document.getElementById('settings-voice-modal');
+    const voiceModalList = document.getElementById('settings-voice-modal-list');
+    const voiceModalClose = document.getElementById('settings-voice-modal-close');
+
+    // Text scale — preview + reset
+    var textScaleSlider = document.getElementById('s-text-scale');
+    var textScaleLabel = document.getElementById('s-text-scale-label');
+    var textScalePreviewBtn = document.getElementById('s-text-scale-apply');
+    var textScaleReset = document.getElementById('s-text-scale-reset');
+    var textScalePreviewInner = document.getElementById('text-scale-preview-inner');
+    var textScalePreviewed = parseFloat(textScaleSlider.value) || 1;
+    var textScaleLoaded = textScalePreviewed;
+
+    function updateTextScaleButtons() {
+        var scale = parseFloat(textScaleSlider.value);
+        textScalePreviewBtn.disabled = (scale === textScalePreviewed);
+        textScaleReset.disabled = (scale === textScaleLoaded);
+    }
+
+    textScaleSlider.addEventListener('input', function() {
+        var scale = parseFloat(textScaleSlider.value);
+        textScaleLabel.textContent = Math.round(scale * 100) + '%';
+        textScalePreviewInner.style.fontSize = (18 * scale) + 'px';
+        updateTextScaleButtons();
+    });
+
+    textScalePreviewBtn.addEventListener('click', function() {
+        var scale = parseFloat(textScaleSlider.value);
+        document.documentElement.style.setProperty('--text-scale', scale);
+        textScalePreviewed = scale;
+        updateTextScaleButtons();
+        document.getElementById('text-scale-group').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    textScaleReset.addEventListener('click', function() {
+        textScaleSlider.value = textScaleLoaded;
+        textScaleLabel.textContent = Math.round(textScaleLoaded * 100) + '%';
+        textScalePreviewInner.style.fontSize = (18 * textScaleLoaded) + 'px';
+        document.documentElement.style.setProperty('--text-scale', textScaleLoaded);
+        textScalePreviewed = textScaleLoaded;
+        updateTextScaleButtons();
+    });
+
+    // Voice state
+    let serverVoices = [];
+    let scoredVoices = [];
+    let selectedVoiceName = '';
+    let previewAudio = null;
+
+    const QUALITY_VOICES_RE = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
+    const TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
+
+    function scoreVoiceName(name) {
+        if (/Premium/i.test(name)) return 3;
+        if (/Enhanced|Online|Natural/i.test(name)) return 2;
+        if (/^Google/i.test(name)) return 1;
+        var baseName = name.replace(/\s*\(.*\)$/, '');
+        if (QUALITY_VOICES_RE.test(baseName)) return 1;
+        return 0;
+    }
+
+    function buildVoiceList() {
+        scoredVoices = [];
+        for (var i = 0; i < serverVoices.length; i++) {
+            var sv = serverVoices[i];
+            scoredVoices.push({ name: sv.name, lang: sv.lang, score: scoreVoiceName(sv.name) });
+        }
+        scoredVoices.sort(function(a, b) {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.name.localeCompare(b.name);
+        });
+    }
+
+    function openVoiceModal() {
+        voiceModalList.innerHTML = '';
+        if (scoredVoices.length === 0) {
+            voiceModalList.innerHTML = '<div class="voice-tier-label">No server voices available</div>';
+            voiceModal.style.display = 'flex';
+            return;
+        }
+
+        // Group by tier
+        var tiers = {};
+        for (var i = 0; i < scoredVoices.length; i++) {
+            var s = scoredVoices[i].score;
+            if (!tiers[s]) tiers[s] = [];
+            tiers[s].push(scoredVoices[i]);
+        }
+
+        [3, 2, 1, 0].forEach(function(tier) {
+            var items = tiers[tier];
+            if (!items || items.length === 0) return;
+
+            var label = document.createElement('div');
+            label.className = 'voice-tier-label';
+            label.textContent = TIER_LABELS[tier];
+            voiceModalList.appendChild(label);
+
+            items.forEach(function(entry) {
+                var row = document.createElement('div');
+                row.className = 'voice-row';
+                if (entry.name === selectedVoiceName) row.classList.add('selected');
+                row.dataset.voiceName = entry.name;
+
+                var nameSpan = document.createElement('span');
+                nameSpan.className = 'voice-row-name';
+                nameSpan.textContent = entry.name;
+                row.appendChild(nameSpan);
+
+                if (entry.name === selectedVoiceName) {
+                    var check = document.createElement('span');
+                    check.className = 'voice-row-check';
+                    check.textContent = '\u2713';
+                    row.appendChild(check);
+                }
+
+                var previewBtn = document.createElement('button');
+                previewBtn.type = 'button';
+                previewBtn.className = 'voice-row-preview';
+                previewBtn.textContent = 'Preview';
+                previewBtn.dataset.voiceName = entry.name;
+                row.appendChild(previewBtn);
+
+                voiceModalList.appendChild(row);
+            });
+        });
+
+        voiceModal.style.display = 'flex';
+    }
+
+    function selectSettingsVoice(name) {
+        selectedVoiceName = name;
+        voiceBtn.textContent = name + ' · ' + rateSlider.value + ' wpm';
+
+        // Update visual state in modal
+        var rows = voiceModalList.querySelectorAll('.voice-row');
+        rows.forEach(function(row) {
+            var isSelected = row.dataset.voiceName === name;
+            row.classList.toggle('selected', isSelected);
+            var existingCheck = row.querySelector('.voice-row-check');
+            if (isSelected && !existingCheck) {
+                var check = document.createElement('span');
+                check.className = 'voice-row-check';
+                check.textContent = '\u2713';
+                row.insertBefore(check, row.querySelector('.voice-row-preview'));
+            } else if (!isSelected && existingCheck) {
+                existingCheck.remove();
+            }
+        });
+    }
+
+    function stopPreview() {
+        if (previewAudio) { previewAudio.pause(); previewAudio = null; }
+    }
+
+    function previewVoice(name) {
+        stopPreview();
+        var url = '/api/voices/preview?voice=' + encodeURIComponent(name)
+            + '&rate=' + rateSlider.value;
+        if (name === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
+        previewAudio = new Audio(url);
+        previewAudio.play().catch(function() {});
+    }
+
+    // Speed slider in voice modal
+    var rateSlider = document.getElementById('s-tts-rate');
+    var rateLabel = document.getElementById('s-tts-rate-label');
+    function updateRateDisplay() {
+        rateLabel.textContent = rateSlider.value + ' wpm';
+        var voiceText = selectedVoiceName || 'Default';
+        voiceBtn.textContent = voiceText + ' · ' + rateSlider.value + ' wpm';
+    }
+    rateSlider.addEventListener('input', updateRateDisplay);
+
+    // Voice modal events
+    voiceBtn.addEventListener('click', openVoiceModal);
+    voiceModalClose.addEventListener('click', function() {
+        stopPreview();
+        voiceModal.style.display = 'none';
+    });
+    voiceModal.addEventListener('click', function(e) {
+        if (e.target === voiceModal) { stopPreview(); voiceModal.style.display = 'none'; }
+    });
+    voiceModalList.addEventListener('click', function(e) {
+        var previewBtn = e.target.closest('.voice-row-preview');
+        if (previewBtn) {
+            e.stopPropagation();
+            previewVoice(previewBtn.dataset.voiceName);
+            return;
+        }
+        var row = e.target.closest('.voice-row');
+        if (row) {
+            selectSettingsVoice(row.dataset.voiceName);
+        }
+    });
+
+    // Fetch server voices filtered by selected language
+    function fetchVoices() {
+        var lang = document.getElementById('s-language').value || 'en';
+        fetch('/api/voices?lang=' + encodeURIComponent(lang))
+            .then(function(r) { return r.json(); })
+            .then(function(voices) {
+                serverVoices = voices;
+                buildVoiceList();
+                // If current voice isn't in the filtered list, clear selection
+                if (selectedVoiceName) {
+                    var found = false;
+                    for (var i = 0; i < scoredVoices.length; i++) {
+                        if (scoredVoices[i].name === selectedVoiceName) { found = true; break; }
+                    }
+                    if (!found) {
+                        selectedVoiceName = scoredVoices.length > 0 ? scoredVoices[0].name : '';
+                        updateRateDisplay();
+                    }
+                }
+            })
+            .catch(function() {});
+    }
+
+    fetchVoices();
+
+    // Refresh voices when language changes
+    document.getElementById('s-language').addEventListener('change', fetchVoices);
+
+    // Map provider to which API key group to show
+    const providerKeyGroups = {
+        claude_proxy: ['s-proxy-group'],
+        anthropic: ['s-anthropic-key-group'],
+        openai: ['s-openai-key-group'],
+        openrouter: ['s-openrouter-key-group'],
+        venice: ['s-venice-key-group'],
+        ollama: ['s-ollama-group'],
+    };
+
+    const ttsKeyGroups = {
+        elevenlabs: ['s-elevenlabs-key-group'],
+    };
+
+    function showGroupsFor(select, groupMap) {
+        var section = select.closest('.settings-section');
+        section.querySelectorAll('.api-key-group').forEach(function(el) { el.style.display = 'none'; });
+        var groups = groupMap[select.value] || [];
+        groups.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
+    }
+
+    function checkProxyStatus() {
+        var statusEl = document.getElementById('s-proxy-status');
+        if (providerSelect.value !== 'claude_proxy') {
+            statusEl.innerHTML = '';
+            return;
+        }
+        statusEl.innerHTML = '<span style="color:var(--text-muted)">Checking...</span>';
+        fetch('/api/proxy/status')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.running) {
+                    statusEl.innerHTML = '<span style="color:var(--success)">Connected</span>';
+                } else if (data.installed) {
+                    statusEl.innerHTML = '<span style="color:var(--text-muted)">Installed but not running </span>'
+                        + '<a href="#" onclick="startProxyFromSettings(); return false" '
+                        + 'class="btn btn-small btn-primary" '
+                        + 'style="padding:0.15rem 0.6rem; font-size:0.875rem">Start</a>';
+                } else {
+                    statusEl.innerHTML = '<span style="color:var(--text-muted)">Not installed — '
+                        + '<a href="https://github.com/router-for-me/CLIProxyAPI" target="_blank" rel="noopener">get CLIProxyAPI</a></span>';
+                }
+            })
+            .catch(function() {
+                statusEl.innerHTML = '';
+            });
+    }
+
+    window.startProxyFromSettings = function() {
+        var statusEl = document.getElementById('s-proxy-status');
+        statusEl.innerHTML = '<span style="color:var(--text-muted)">Starting...</span>';
+        fetch('/api/proxy/start', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok) {
+                    checkProxyStatus();
+                    fetchModels('claude_proxy');
+                } else {
+                    statusEl.innerHTML = '<span style="color:var(--danger)">' + data.message + '</span>';
+                }
+            })
+            .catch(function() {
+                statusEl.innerHTML = '<span style="color:var(--danger)">Failed to start</span>';
+            });
+    };
+
+    providerSelect.addEventListener('change', function() {
+        showGroupsFor(providerSelect, providerKeyGroups);
+        fetchModels(providerSelect.value);
+        checkProxyStatus();
+    });
+
+    ttsEngineSelect.addEventListener('change', function() {
+        showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+    });
+
+    // Toggle password visibility
+    document.querySelectorAll('.toggle-visibility').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var input = btn.parentElement.querySelector('input');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                btn.textContent = 'Show';
+            }
+        });
+    });
+
+    // Stepper buttons
+    document.querySelectorAll('.stepper-inc, .stepper-dec').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var input = document.getElementById(btn.dataset.target);
+            var step = parseFloat(input.step) || 1;
+            var val = parseFloat(input.value) || 0;
+            var min = parseFloat(input.min);
+            var max = parseFloat(input.max);
+            if (btn.classList.contains('stepper-inc')) {
+                val = Math.min(val + step, max);
+            } else {
+                val = Math.max(val - step, min);
+            }
+            // Avoid floating point artifacts
+            input.value = parseFloat(val.toFixed(1));
+        });
+    });
+
+    // Fetch models for a provider
+    function fetchModels(provider) {
+        modelSelect.innerHTML = '<option value="">Loading...</option>';
+
+        if (provider === 'ollama') {
+            fetch('/api/providers')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var info = data.ollama || {};
+                    var models = info.models || [];
+                    modelSelect.innerHTML = '';
+                    if (models.length === 0) {
+                        modelSelect.innerHTML = '<option value="">No models available</option>';
+                        return;
+                    }
+                    models.forEach(function(m) {
+                        var opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        modelSelect.appendChild(opt);
+                    });
+                })
+                .catch(function() {
+                    modelSelect.innerHTML = '<option value="">Could not fetch models</option>';
+                });
+            return;
+        }
+
+        fetch('/api/models/' + provider)
+            .then(function(r) { return r.json(); })
+            .then(function(models) {
+                modelSelect.innerHTML = '';
+                if (!models.length) {
+                    modelSelect.innerHTML = '<option value="">No models available</option>';
+                    return;
+                }
+                models.forEach(function(m) {
+                    var opt = document.createElement('option');
+                    opt.value = m.value;
+                    opt.textContent = m.label;
+                    modelSelect.appendChild(opt);
+                });
+            })
+            .catch(function() {
+                modelSelect.innerHTML = '<option value="">Could not fetch models</option>';
+            });
+    }
+
+    // Default language to system locale
+    var langSelect = document.getElementById('s-language');
+    var systemLang = (navigator.language || 'en').split(/[-_]/)[0];
+    // Try to select system language, fall back to 'en'
+    var systemLangOption = langSelect.querySelector('option[value="' + systemLang + '"]');
+    if (systemLangOption) {
+        langSelect.value = systemLang;
+    }
+
+    // Load current config and populate form
+    fetch('/api/config')
+        .then(function(r) { return r.json(); })
+        .then(function(cfg) {
+            // LLM
+            providerSelect.value = cfg.llm?.provider || 'claude_proxy';
+            showGroupsFor(providerSelect, providerKeyGroups);
+            checkProxyStatus();
+
+            document.getElementById('s-proxy-url').value = cfg.llm?.proxy_url || 'http://127.0.0.1:8317';
+            document.getElementById('s-ollama-url').value = cfg.llm?.ollama_url || 'http://localhost:11434';
+
+            // TTS
+            ttsEngineSelect.value = cfg.tts?.engine || 'macos';
+            showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+            var voiceName = cfg.tts?.voice || '';
+            if (voiceName) {
+                selectedVoiceName = voiceName;
+                voiceBtn.textContent = voiceName;
+            }
+            var rate = cfg.tts?.rate || 160;
+            rateSlider.value = rate;
+            rateLabel.textContent = rate + ' wpm';
+            updateRateDisplay();
+
+            // Language
+            var cfgLang = cfg.stt?.language || 'en';
+            if (langSelect.querySelector('option[value="' + cfgLang + '"]')) {
+                langSelect.value = cfgLang;
+            }
+            fetchVoices();
+
+            // STT
+            document.getElementById('s-whisper-model').value = cfg.stt?.model || 'small';
+
+            // Pacing
+            document.getElementById('s-silence-base').value = (cfg.pacing?.silence_base_ms || 3000) / 1000;
+            document.getElementById('s-silence-max').value = (cfg.pacing?.silence_max_ms || 7000) / 1000;
+            document.getElementById('s-response-delay').value = (cfg.pacing?.response_delay_ms || 2000) / 1000;
+            document.getElementById('s-silence-sec').value = cfg.pacing?.extended_silence_sec || 300;
+
+            // Display
+            var textScale = cfg.web?.text_scale || 1;
+            document.getElementById('s-text-scale').value = textScale;
+            document.getElementById('s-text-scale-label').textContent = Math.round(textScale * 100) + '%';
+            document.getElementById('s-window-mode').value = cfg.web?.window_mode || 'remember';
+            document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
+            document.getElementById('s-vibrancy').checked = cfg.web?.vibrancy || false;
+
+            // Config path
+            if (cfg._config_path) {
+                configPathEl.textContent = 'Config file: ' + cfg._config_path;
+            }
+
+            // Fetch models for current provider, then select the saved model
+            fetchModels(providerSelect.value);
+            var targetModel = providerSelect.value === 'ollama'
+                ? (cfg.llm?.ollama_model || '')
+                : (cfg.llm?.model || '');
+
+            // Wait for models to load, then select
+            if (targetModel) {
+                var attempts = 0;
+                var selectModel = setInterval(function() {
+                    for (var i = 0; i < modelSelect.options.length; i++) {
+                        if (modelSelect.options[i].value === targetModel) {
+                            modelSelect.value = targetModel;
+                            clearInterval(selectModel);
+                            return;
+                        }
+                    }
+                    attempts++;
+                    if (attempts >= 20) clearInterval(selectModel);
+                }, 200);
+            }
+        })
+        .catch(function(err) {
+            console.error('Failed to load config:', err);
+        });
+
+    // Save
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        errorEl.style.display = 'none';
+
+        var provider = providerSelect.value;
+        var data = {
+            llm: {
+                provider: provider,
+                proxy_url: document.getElementById('s-proxy-url').value,
+                ollama_url: document.getElementById('s-ollama-url').value,
+            },
+            tts: {
+                engine: ttsEngineSelect.value,
+                voice: selectedVoiceName || voiceBtn.textContent,
+                rate: parseInt(rateSlider.value, 10),
+            },
+            stt: {
+                model: document.getElementById('s-whisper-model').value,
+                language: langSelect.value,
+            },
+            pacing: {
+                silence_base_ms: Math.round(parseFloat(document.getElementById('s-silence-base').value) * 1000),
+                silence_max_ms: Math.round(parseFloat(document.getElementById('s-silence-max').value) * 1000),
+                response_delay_ms: Math.round(parseFloat(document.getElementById('s-response-delay').value) * 1000),
+                extended_silence_sec: parseInt(document.getElementById('s-silence-sec').value, 10),
+            },
+            web: {
+                text_scale: parseFloat(document.getElementById('s-text-scale').value),
+                window_mode: document.getElementById('s-window-mode').value,
+                frameless: document.getElementById('s-frameless').checked,
+                vibrancy: document.getElementById('s-vibrancy').checked,
+            },
+        };
+
+        // Set model field based on provider
+        var modelVal = modelSelect.value;
+        if (modelVal) {
+            if (provider === 'ollama') {
+                data.llm.ollama_model = modelVal;
+            } else {
+                data.llm.model = modelVal;
+            }
+        }
+
+        // API keys — only include if filled
+        var keyFields = {
+            anthropic: 's-anthropic-key',
+            openai: 's-openai-key',
+            openrouter: 's-openrouter-key',
+            venice: 's-venice-key',
+        };
+
+        // Map current provider's key to llm.api_key
+        var currentKeyField = keyFields[provider];
+        if (currentKeyField) {
+            var val = document.getElementById(currentKeyField).value.trim();
+            if (val) data.llm.api_key = val;
+        }
+
+        // ElevenLabs API key
+        var elKey = document.getElementById('s-elevenlabs-key').value.trim();
+        if (elKey) data.tts.api_key = elKey;
+
+        fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+            if (result.error) {
+                errorEl.textContent = result.error;
+                errorEl.style.display = '';
+                return;
+            }
+            if (firstRun) {
+                window.location.href = '/';
+            } else {
+                if (savedEl) {
+                    savedEl.style.display = '';
+                    setTimeout(function() { savedEl.style.display = 'none'; }, 3000);
+                }
+            }
+        })
+        .catch(function(err) {
+            errorEl.textContent = 'Failed to save: ' + err.message;
+            errorEl.style.display = '';
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -11,7 +11,7 @@ from . import __version__
 from .config import load_config, Config
 from .audio.input import AudioInput
 from .audio.vad import VoiceActivityDetector, VADConfig, VADResult, SpeechState
-from .stt.whisper import WhisperSTT
+from .stt.whisper_cpp import WhisperCppSTT
 from .tts import create_tts
 from .llm.ollama import create_llm_provider
 from .llm.base import Message
@@ -60,10 +60,9 @@ class MeditationFacilitator:
 
     def _init_stt(self) -> None:
         """Initialize speech-to-text."""
-        self.stt = WhisperSTT(
+        self.stt = WhisperCppSTT(
             model=self.config.stt.model,
             language=self.config.stt.language,
-            device=self.config.stt.device,
         )
 
     def _init_tts(self) -> None:

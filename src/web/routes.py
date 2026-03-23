@@ -2,12 +2,18 @@
 
 import math
 import os
+import shutil
+import subprocess
 import time
 
 import httpx
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, redirect, url_for
 
 from .. import __version__
+from ..config import (
+    has_user_config, save_user_config,
+    config_to_dict, load_config, get_user_config_path,
+)
 from ..updater import check_for_updates, apply_update
 
 
@@ -16,6 +22,9 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/")
     def index():
+        # First-run: redirect to settings if no user config exists
+        if not has_user_config():
+            return redirect(url_for("settings_page"))
         return render_template("index.html")
 
     @app.route("/session")
@@ -26,10 +35,172 @@ def register_routes(app: Flask) -> None:
     def history_page():
         return render_template("history.html")
 
+    @app.route("/settings")
+    def settings_page():
+        first_run = not has_user_config()
+        return render_template("settings.html", first_run=first_run)
+
+    @app.route("/api/config", methods=["GET"])
+    def api_config_get():
+        """Return the current merged configuration (with API keys masked)."""
+        cfg = config_to_dict(app.meditation_config)
+        # Mask sensitive fields
+        if cfg.get("llm", {}).get("api_key"):
+            key = cfg["llm"]["api_key"]
+            if len(key) > 8:
+                cfg["llm"]["api_key"] = key[:4] + "..." + key[-4:]
+            else:
+                cfg["llm"]["api_key"] = "***"
+        if cfg.get("tts", {}).get("api_key"):
+            key = cfg["tts"]["api_key"]
+            if len(key) > 8:
+                cfg["tts"]["api_key"] = key[:4] + "..." + key[-4:]
+            else:
+                cfg["tts"]["api_key"] = "***"
+        cfg["_has_user_config"] = has_user_config()
+        cfg["_config_path"] = str(get_user_config_path())
+        return jsonify(cfg)
+
+    @app.route("/api/config", methods=["POST"])
+    def api_config_save():
+        """Save user configuration overrides."""
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        try:
+            path = save_user_config(data)
+
+            # Reload config into the running app
+            new_config = load_config()
+            app.meditation_config = new_config
+            app.jinja_env.globals["text_scale"] = new_config.web.text_scale
+
+            return jsonify({"saved": True, "path": str(path)})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/close-window", methods=["POST"])
+    def api_close_window():
+        """Close the pywebview window (shuts down the app)."""
+        window = getattr(app, "webview_window", None)
+        if not window:
+            # Not in desktop mode — just shut down the server
+            import os, signal
+            os.kill(os.getpid(), signal.SIGINT)
+            return jsonify({"ok": True})
+        try:
+            window.destroy()
+            return jsonify({"ok": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/toggle-fullscreen", methods=["POST"])
+    def api_toggle_fullscreen():
+        """Toggle fullscreen mode in the pywebview window."""
+        window = getattr(app, "webview_window", None)
+        if not window:
+            return jsonify({"error": "Not running in desktop mode"}), 400
+        try:
+            window.toggle_fullscreen()
+            return jsonify({"ok": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/proxy/status")
+    def api_proxy_status():
+        """Check if CLIProxyAPI is installed and/or running."""
+        binary = shutil.which("CLIProxyAPI")
+        installed = binary is not None
+
+        running = False
+        proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
+        headers = {}
+        if app.meditation_config.llm.api_key:
+            headers["X-Api-Key"] = app.meditation_config.llm.api_key
+        try:
+            resp = httpx.get(
+                f"{proxy_url.rstrip('/')}/v1/models",
+                headers=headers,
+                timeout=2.0,
+            )
+            running = resp.status_code == 200
+        except Exception:
+            pass
+
+        return jsonify({
+            "installed": installed,
+            "running": running,
+            "path": binary,
+        })
+
+    @app.route("/api/proxy/start", methods=["POST"])
+    def api_proxy_start():
+        """Start CLIProxyAPI if installed and not already running."""
+        binary = shutil.which("CLIProxyAPI")
+        if not binary:
+            return jsonify({"ok": False, "message": "CLIProxyAPI not found on this system"}), 404
+
+        # Check if already running
+        proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
+        headers = {}
+        if app.meditation_config.llm.api_key:
+            headers["X-Api-Key"] = app.meditation_config.llm.api_key
+        try:
+            resp = httpx.get(
+                f"{proxy_url.rstrip('/')}/v1/models",
+                headers=headers,
+                timeout=2.0,
+            )
+            if resp.status_code == 200:
+                return jsonify({"ok": True, "message": "Already running"})
+        except Exception:
+            pass
+
+        # Start as a child process — cleaned up when Glooow exits via atexit
+        try:
+            import atexit
+
+            proc = subprocess.Popen(
+                [binary],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            app.proxy_process = proc
+
+            def _cleanup_proxy():
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=3)
+                    except Exception:
+                        proc.kill()
+
+            atexit.register(_cleanup_proxy)
+            # Wait briefly for it to come up
+            for _ in range(10):
+                time.sleep(0.5)
+                try:
+                    resp = httpx.get(
+                        f"{proxy_url.rstrip('/')}/v1/models",
+                        headers=headers,
+                        timeout=1.0,
+                    )
+                    if resp.status_code == 200:
+                        return jsonify({"ok": True, "message": "Started"})
+                except Exception:
+                    continue
+            return jsonify({"ok": False, "message": "Started but not responding yet — try refreshing in a moment"})
+        except Exception as e:
+            return jsonify({"ok": False, "message": str(e)}), 500
+
     @app.route("/api/providers")
     def api_providers():
         """Return provider availability based on env vars / proxy reachability."""
         results = {}
+
+        refresh = ' <a href="#" onclick="refreshProviders(); return false">Refresh</a>'
+        proxy_binary = shutil.which("CLIProxyAPI")
 
         # claude_proxy — check if CLIProxyAPI is reachable
         proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
@@ -42,38 +213,72 @@ def register_routes(app: Flask) -> None:
                 headers=headers,
                 timeout=2.0,
             )
-            results["claude_proxy"] = {
-                "available": resp.status_code == 200,
-                "hint": "Start CLIProxyAPI, then reload this page" if resp.status_code != 200 else "",
-            }
+            if resp.status_code == 200:
+                results["claude_proxy"] = {"available": True, "installed": True, "hint": ""}
+            else:
+                results["claude_proxy"] = {
+                    "available": False, "installed": bool(proxy_binary),
+                    "hint": (
+                        "CLIProxyAPI rejected the connection. Check your config in "
+                        "<code>~/.cli-proxy-api/config.yaml</code>." + refresh
+                    ),
+                }
         except Exception:
-            results["claude_proxy"] = {
-                "available": False,
-                "hint": "Start CLIProxyAPI, then reload this page",
-            }
+            if proxy_binary:
+                start_btn = (
+                    ' <a href="#" onclick="startProxy(); return false" '
+                    'class="btn btn-small btn-primary" '
+                    'style="display:inline-block; margin-left:0.5rem; padding:0.15rem 0.6rem; '
+                    'font-size:0.875rem; vertical-align:baseline">Start</a>'
+                )
+                results["claude_proxy"] = {
+                    "available": False, "installed": True,
+                    "hint": "CLIProxyAPI is installed but not running." + start_btn,
+                }
+            else:
+                results["claude_proxy"] = {
+                    "available": False, "installed": False,
+                    "hint": (
+                        "Requires <a href='https://github.com/router-for-me/CLIProxyAPI' "
+                        "target='_blank'>CLIProxyAPI</a>. "
+                        "Install it, start it, then:" + refresh
+                    ),
+                }
 
         # anthropic — needs ANTHROPIC_API_KEY
         results["anthropic"] = {
             "available": bool(os.environ.get("ANTHROPIC_API_KEY")),
-            "hint": "Set the ANTHROPIC_API_KEY environment variable",
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>ANTHROPIC_API_KEY</code> in your environment."
+            ),
         }
 
         # openai — needs OPENAI_API_KEY
         results["openai"] = {
             "available": bool(os.environ.get("OPENAI_API_KEY")),
-            "hint": "Set the OPENAI_API_KEY environment variable",
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>OPENAI_API_KEY</code> in your environment."
+            ),
         }
 
         # openrouter — needs OPENROUTER_API_KEY
         results["openrouter"] = {
             "available": bool(os.environ.get("OPENROUTER_API_KEY")),
-            "hint": "Set the OPENROUTER_API_KEY environment variable",
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>OPENROUTER_API_KEY</code> in your environment."
+            ),
         }
 
         # venice — needs VENICE_API_KEY
         results["venice"] = {
             "available": bool(os.environ.get("VENICE_API_KEY")),
-            "hint": "Set the VENICE_API_KEY environment variable",
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>VENICE_API_KEY</code> in your environment."
+            ),
         }
 
         # ollama — check if server is running and list pulled models
@@ -82,16 +287,26 @@ def register_routes(app: Flask) -> None:
             resp = httpx.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=2.0)
             resp.raise_for_status()
             models = [m["name"] for m in resp.json().get("models", [])]
-            results["ollama"] = {
-                "available": len(models) > 0,
-                "models": models,
-                "hint": "No models pulled. Run: ollama pull qwen3.5:4b" if not models else "",
-            }
+            if models:
+                results["ollama"] = {
+                    "available": True, "models": models, "hint": "",
+                }
+            else:
+                results["ollama"] = {
+                    "available": False, "models": [],
+                    "hint": (
+                        "Ollama is running but has no models. "
+                        "Run: <code>ollama pull qwen3.5:4b</code>" + refresh
+                    ),
+                }
         except Exception:
             results["ollama"] = {
-                "available": False,
-                "models": [],
-                "hint": "Ollama is not running. Install from ollama.ai and start it",
+                "available": False, "models": [],
+                "hint": (
+                    "Ollama is not running. Install from "
+                    "<a href='https://ollama.ai' target='_blank'>ollama.ai</a>, "
+                    "start it, then:" + refresh
+                ),
             }
 
         return jsonify(results)
@@ -127,10 +342,20 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/api/voices")
     def api_voices():
-        """Return voices available to the server-side TTS engine."""
-        if app.server_tts and hasattr(app.server_tts, "list_voices"):
-            return jsonify(app.server_tts.list_voices())
-        return jsonify([])
+        """Return voices available to the server-side TTS engine.
+
+        Optional query param ?lang=en filters to voices matching that language prefix.
+        """
+        if not app.server_tts or not hasattr(app.server_tts, "list_voices"):
+            return jsonify([])
+        voices = app.server_tts.list_voices()
+        lang_filter = request.args.get("lang")
+        if lang_filter:
+            voices = [
+                v for v in voices
+                if v.get("lang", "").split("_")[0] == lang_filter
+            ]
+        return jsonify(voices)
 
     @app.route("/api/voices/preview")
     def api_voice_preview():
@@ -139,15 +364,22 @@ def register_routes(app: Flask) -> None:
         if not voice or not app.server_tts or not hasattr(app.server_tts, "speak_to_bytes"):
             return Response(status=404)
 
-        text = request.args.get("text", "Welcome to glow. I'll be your guide.")
+        default_text = _preview_text_for_voice(voice, app.server_tts)
+        text = request.args.get("text", default_text)
 
-        # Temporarily switch voice, generate audio, then restore
+        # Temporarily switch voice and rate, generate audio, then restore
         original_voice = app.server_tts.voice
+        original_rate = getattr(app.server_tts, 'rate', None)
         app.server_tts.set_voice(voice)
+        rate = request.args.get("rate", type=int)
+        if rate and hasattr(app.server_tts, "set_rate"):
+            app.server_tts.set_rate(rate)
         try:
             audio = app.server_tts.speak_to_bytes(text)
         finally:
             app.server_tts.set_voice(original_voice)
+            if original_rate is not None and hasattr(app.server_tts, "set_rate"):
+                app.server_tts.set_rate(original_rate)
 
         if not audio:
             return Response(status=500)
@@ -196,6 +428,53 @@ def register_routes(app: Flask) -> None:
         """Fetch available models from a provider's API."""
         models = _fetch_provider_models(provider, app.meditation_config)
         return jsonify(models)
+
+
+# ---- Localized preview text ----
+
+_PREVIEW_TEXTS = {
+    "en": "Welcome to Glow. I'll be your guide.",
+    "es": "Bienvenido a Glow. Seré tu guía.",
+    "fr": "Bienvenue sur Glow. Je serai votre guide.",
+    "de": "Willkommen bei Glow. Ich werde dein Begleiter sein.",
+    "it": "Benvenuto su Glow. Sarò la tua guida.",
+    "pt": "Bem-vindo ao Glow. Eu serei o seu guia.",
+    "nl": "Welkom bij Glow. Ik zal je gids zijn.",
+    "pl": "Witaj w Glow. Będę twoim przewodnikiem.",
+    "ru": "Добро пожаловать в Glow. Я буду вашим проводником.",
+    "uk": "Ласкаво просимо до Glow. Я буду вашим провідником.",
+    "ja": "グロウへようこそ。私があなたのガイドです。",
+    "zh": "欢迎来到Glow。我将是你的向导。",
+    "ko": "글로우에 오신 것을 환영합니다. 제가 안내해 드리겠습니다.",
+    "ar": "مرحباً بك في غلوو. سأكون دليلك.",
+    "hi": "ग्लूव में आपका स्वागत है। मैं आपका मार्गदर्शक रहूँगा।",
+    "tr": "Glow'a hoş geldiniz. Rehberiniz ben olacağım.",
+    "vi": "Chào mừng bạn đến với Glow. Tôi sẽ là hướng dẫn viên của bạn.",
+    "th": "ยินดีต้อนรับสู่ Glow ฉันจะเป็นผู้นำทางของคุณ",
+    "sv": "Välkommen till Glow. Jag kommer att vara din guide.",
+    "da": "Velkommen til Glow. Jeg vil være din guide.",
+    "no": "Velkommen til Glow. Jeg vil være din guide.",
+    "fi": "Tervetuloa Glowiin. Minä olen oppaasi.",
+    "el": "Καλώς ήρθατε στο Glow. Θα είμαι ο οδηγός σας.",
+    "he": "ברוכים הבאים ל-Glow. אני אהיה המדריך שלכם.",
+    "cs": "Vítejte v Glow. Budu vaším průvodcem.",
+    "ro": "Bun venit la Glow. Voi fi ghidul tău.",
+    "hu": "Üdvözöljük a Glow-ban. Én leszek a kísérője.",
+    "id": "Selamat datang di Glow. Saya akan menjadi pemandu Anda.",
+    "ms": "Selamat datang ke Glow. Saya akan menjadi pemandu anda.",
+    "ca": "Benvingut a Glow. Seré el teu guia.",
+}
+
+
+def _preview_text_for_voice(voice_name: str, tts) -> str:
+    """Return a preview sentence in the voice's language."""
+    # Look up the voice's language from the TTS engine
+    if hasattr(tts, "list_voices"):
+        for v in tts.list_voices():
+            if v.get("name") == voice_name:
+                lang_code = v.get("lang", "en_US").split("_")[0]
+                return _PREVIEW_TEXTS.get(lang_code, _PREVIEW_TEXTS["en"])
+    return _PREVIEW_TEXTS["en"]
 
 
 # ---- Dynamic model fetching ----

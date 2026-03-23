@@ -11,7 +11,6 @@ export const dom = {
     endBtn: null,
     newSessionBtn: null,
     historyBtn: null,
-    speedSlider: null,
     voicePickerBtn: null,
     voiceModal: null,
     voiceModalList: null,
@@ -41,7 +40,6 @@ export function initDOM() {
     dom.endBtn = document.getElementById('end-btn');
     dom.newSessionBtn = document.getElementById('new-session-btn');
     dom.historyBtn = document.getElementById('history-btn');
-    dom.speedSlider = document.getElementById('speed-slider');
     dom.voicePickerBtn = document.getElementById('voice-picker-btn');
     dom.voiceModal = document.getElementById('voice-modal');
     dom.voiceModalList = document.getElementById('voice-modal-list');

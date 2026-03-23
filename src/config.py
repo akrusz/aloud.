@@ -1,11 +1,15 @@
 """Configuration loading and management."""
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
 import yaml
+from platformdirs import user_config_dir
+
+APP_NAME = "Glooow"
+APP_AUTHOR = "Glooow"
 
 
 @dataclass
@@ -78,6 +82,8 @@ class PacingConfig:
     response_delay_ms: int = 2000
     min_speech_duration_ms: int = 500
     extended_silence_sec: int = 300
+    silence_base_ms: int = 3000   # client-side: pause before submitting speech
+    silence_max_ms: int = 7000    # client-side: max pause tolerance after long speech
 
 
 @dataclass
@@ -109,6 +115,10 @@ class WebConfig:
     secret_key: str = "glooow-local"
     host: str = "0.0.0.0"
     port: int = 4649
+    window_mode: str = "remember"  # remember, fullscreen, maximized, small
+    frameless: bool = True
+    vibrancy: bool = False
+    text_scale: float = 1.0
 
 
 @dataclass
@@ -126,6 +136,71 @@ class Config:
     auth: AuthConfig = field(default_factory=AuthConfig)
 
 
+def get_user_config_dir() -> Path:
+    """Return the OS-appropriate config directory for Glooow.
+
+    - macOS:  ~/Library/Application Support/Glooow
+    - Windows: %APPDATA%/Glooow/Glooow
+    - Linux:  ~/.config/Glooow
+    """
+    return Path(user_config_dir(APP_NAME, APP_AUTHOR))
+
+
+def get_user_config_path() -> Path:
+    """Return the path to the user's config file."""
+    return get_user_config_dir() / "config.yaml"
+
+
+def has_user_config() -> bool:
+    """Check whether a user config file exists."""
+    return get_user_config_path().is_file()
+
+
+def save_user_config(data: dict) -> Path:
+    """Save user configuration overrides to the OS config directory.
+
+    Only saves non-default values. Returns the path written to.
+    """
+    path = get_user_config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Merge with existing user config if present
+    existing = {}
+    if path.is_file():
+        with open(path) as f:
+            existing = yaml.safe_load(f) or {}
+
+    _deep_merge(existing, data)
+
+    with open(path, "w") as f:
+        yaml.dump(existing, f, default_flow_style=False, sort_keys=False)
+
+    return path
+
+
+def load_user_config() -> dict:
+    """Load the user config file as a raw dict. Returns {} if not found."""
+    path = get_user_config_path()
+    if not path.is_file():
+        return {}
+    with open(path) as f:
+        return yaml.safe_load(f) or {}
+
+
+def config_to_dict(config: Config) -> dict:
+    """Convert a Config dataclass tree to a plain dict."""
+    return asdict(config)
+
+
+def _deep_merge(base: dict, override: dict) -> None:
+    """Merge override into base in-place, recursing into nested dicts."""
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+
 def load_config(path: str | Path | None = None) -> Config:
     """Load configuration from YAML file.
 
@@ -135,13 +210,21 @@ def load_config(path: str | Path | None = None) -> Config:
     Returns:
         Loaded configuration
     """
+    from .frozen import is_frozen, get_resource_path
+
     if path is None:
-        # Try default locations
-        candidates = [
-            Path("config/default.yaml"),
-            Path("config.yaml"),
-            Path.home() / ".config" / "somatic-facilitator" / "config.yaml",
-        ]
+        # Try default locations (most specific first)
+        if is_frozen():
+            candidates = [
+                get_user_config_path(),
+                get_resource_path("config/default.yaml"),
+            ]
+        else:
+            candidates = [
+                get_user_config_path(),
+                Path("config/default.yaml"),
+                Path("config.yaml"),
+            ]
         for candidate in candidates:
             if candidate.exists():
                 path = candidate
@@ -183,6 +266,13 @@ def load_config(path: str | Path | None = None) -> Config:
             config.web = _update_dataclass(WebConfig(), data["web"])
         if "auth" in data:
             config.auth = _update_dataclass(AuthConfig(), data["auth"])
+
+    # In frozen mode, resolve relative save_directory against user data dir
+    # (Finder launches with cwd=/ which is read-only)
+    if is_frozen() and not Path(config.session.save_directory).is_absolute():
+        config.session.save_directory = str(
+            get_user_config_dir() / config.session.save_directory
+        )
 
     # Handle environment variable substitution for API keys
     if config.llm.api_key and config.llm.api_key.startswith("${"):
