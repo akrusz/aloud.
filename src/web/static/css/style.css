@@ -2694,4 +2694,25 @@ body::before {
     font-size: 0.875rem;
     color: var(--text-muted);
     word-break: break-all;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-config-path {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--text-muted);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-config-path:hover {
+    border-color: var(--accent);
+    color: var(--accent);
 }

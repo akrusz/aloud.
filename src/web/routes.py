@@ -490,6 +490,23 @@ def register_routes(app: Flask) -> None:
         except Exception as exc:
             return jsonify({"error": str(exc)}), 502
 
+    @app.route("/api/open-config-folder", methods=["POST"])
+    def api_open_config_folder():
+        """Open the config file's parent folder in the system file browser."""
+        from ..config import get_user_config_path
+        folder = str(get_user_config_path().parent)
+        system = platform.system()
+        try:
+            if system == "Darwin":
+                subprocess.Popen(["open", folder])
+            elif system == "Windows":
+                subprocess.Popen(["explorer", folder])
+            else:
+                subprocess.Popen(["xdg-open", folder])
+            return jsonify({"ok": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
     @app.route("/api/sessions")
     def api_sessions():
         sessions = app.transcript_logger.list_sessions()
