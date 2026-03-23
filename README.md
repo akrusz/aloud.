@@ -28,9 +28,9 @@ grab the latest release for your platform from [releases](https://github.com/akr
 
 | platform | download |
 |----------|----------|
-| **macOS** | `Glooow-x.x.x.dmg` — open the DMG, drag Glooow to Applications |
-| **Windows** | `Glooow-x.x.x.exe` — run the installer |
-| **Linux** | `Glooow-x.x.x.AppImage` — `chmod +x`, double-click or run from terminal |
+| **macOS** | `Glooow-x.x.x-macOS.dmg` — open the DMG, drag Glooow to Applications |
+| **Windows** | `Glooow-x.x.x-Windows.exe` — run the installer |
+| **Linux** | `Glooow-x.x.x-Linux.AppImage` — `chmod +x`, double-click or run from terminal |
 
 no terminal, no Python install needed. all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
 
