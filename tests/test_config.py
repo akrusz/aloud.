@@ -25,7 +25,7 @@ class TestDefaults:
         assert config.pacing.response_delay_ms == 2000
         assert config.session.auto_save is True
         assert config.web.port == 4649
-        assert config.web.host == "0.0.0.0"
+        assert config.web.host == "127.0.0.1"
 
     def test_pacing_config_defaults(self):
         config = PacingConfig()
@@ -36,7 +36,7 @@ class TestDefaults:
     def test_web_config_defaults(self):
         config = WebConfig()
         assert config.secret_key == "glooow-local"
-        assert config.host == "0.0.0.0"
+        assert config.host == "127.0.0.1"
         assert config.port == 4649
 
 

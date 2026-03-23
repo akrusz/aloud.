@@ -46,8 +46,8 @@
         {% block nav_center %}{% endblock %}
         <div class="nav-links">
             {% block nav_items %}
-            {% if request.path != '/' %}<a href="/">New Session</a>{% endif %}
-            <a href="/history">History</a>
+            <a href="/" {% if request.path == '/' %}class="nav-active"{% endif %}>New Session</a>
+            <a href="/history" {% if request.path == '/history' %}class="nav-active"{% endif %}>History</a>
             <a href="/settings" {% if request.path == '/settings' %}class="nav-active"{% endif %}>Settings</a>
             {% endblock %}
             <button class="update-indicator" id="updateIndicator" title="Update available" aria-label="Check for updates" style="display:none">
@@ -172,23 +172,46 @@
         function _showUpdateModal() {
             if (!_updateData) return;
             var info = document.getElementById('updateInfo');
-            info.textContent = _updateData.commits_behind + ' new commit' +
-                (_updateData.commits_behind !== 1 ? 's' : '') + ' available';
-
             var commits = document.getElementById('updateCommits');
+            var btn = document.getElementById('updateNowBtn');
             commits.innerHTML = '';
-            if (_updateData.commit_messages && _updateData.commit_messages.length) {
-                var ul = document.createElement('ul');
-                _updateData.commit_messages.forEach(function(msg) {
-                    var li = document.createElement('li');
-                    li.textContent = msg;
-                    ul.appendChild(li);
-                });
-                commits.appendChild(ul);
+
+            if (_updateData.is_release) {
+                info.textContent = 'Version ' + _updateData.latest_version + ' is available'
+                    + ' (you have ' + _updateData.current_version + ')';
+
+                if (_updateData.release_notes) {
+                    var notes = document.createElement('div');
+                    notes.className = 'update-release-notes';
+                    notes.textContent = _updateData.release_notes;
+                    commits.appendChild(notes);
+                }
+                if (_updateData.download_size) {
+                    var size = document.createElement('div');
+                    size.className = 'update-download-size';
+                    var mb = (_updateData.download_size / 1024 / 1024).toFixed(1);
+                    size.textContent = 'Download size: ' + mb + ' MB';
+                    commits.appendChild(size);
+                }
+                btn.textContent = 'Download Update';
+            } else {
+                info.textContent = _updateData.commits_behind + ' new commit' +
+                    (_updateData.commits_behind !== 1 ? 's' : '') + ' available';
+
+                if (_updateData.commit_messages && _updateData.commit_messages.length) {
+                    var ul = document.createElement('ul');
+                    _updateData.commit_messages.forEach(function(msg) {
+                        var li = document.createElement('li');
+                        li.textContent = msg;
+                        ul.appendChild(li);
+                    });
+                    commits.appendChild(ul);
+                }
+                btn.textContent = 'Update Now';
             }
 
             document.getElementById('updateStatus').innerHTML = '';
-            document.getElementById('updateNowBtn').disabled = false;
+            btn.disabled = false;
             modal.style.display = '';
         }
         window._glooowShowUpdateModal = _showUpdateModal;
@@ -205,12 +228,23 @@
         document.getElementById('updateNowBtn').addEventListener('click', function() {
             var btn = this;
             var status = document.getElementById('updateStatus');
+            var isRelease = _updateData && _updateData.is_release;
+            var defaultLabel = isRelease ? 'Download Update' : 'Update Now';
             btn.disabled = true;
-            btn.textContent = 'Updating...';
+            btn.textContent = isRelease ? 'Downloading...' : 'Updating...';
             status.innerHTML = '';
             status.className = 'update-status';
 
-            fetch('/api/update/apply', { method: 'POST' })
+            var fetchOpts = { method: 'POST' };
+            if (isRelease) {
+                fetchOpts.headers = { 'Content-Type': 'application/json' };
+                fetchOpts.body = JSON.stringify({
+                    download_url: _updateData.download_url,
+                    asset_name: _updateData.asset_name,
+                });
+            }
+
+            fetch('/api/update/apply', fetchOpts)
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     if (data.success) {
@@ -221,14 +255,14 @@
                     } else {
                         status.textContent = data.message;
                         status.classList.add('update-error');
-                        btn.textContent = 'Update Now';
+                        btn.textContent = defaultLabel;
                         btn.disabled = false;
                     }
                 })
                 .catch(function() {
                     status.textContent = 'Update failed. Check your connection.';
                     status.classList.add('update-error');
-                    btn.textContent = 'Update Now';
+                    btn.textContent = defaultLabel;
                     btn.disabled = false;
                 });
         });

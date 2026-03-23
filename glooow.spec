@@ -1,7 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec for Glooow desktop app."""
 
+import re
 from PyInstaller.utils.hooks import collect_submodules
+
+# Read version from source so the bundle stays in sync
+_version_match = re.search(
+    r'__version__\s*=\s*"(.+?)"',
+    open("src/__init__.py").read(),
+)
+APP_VERSION = _version_match.group(1) if _version_match else "0.0.0"
 
 block_cipher = None
 
@@ -75,7 +83,7 @@ app = BUNDLE(
     info_plist={
         'NSMicrophoneUsageDescription':
             'Glooow needs microphone access for voice-based meditation sessions.',
-        'CFBundleShortVersionString': '0.9.1',
+        'CFBundleShortVersionString': APP_VERSION,
         'CFBundleDisplayName': 'Glooow',
         'NSHighResolutionCapable': True,
     },

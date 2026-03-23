@@ -45,7 +45,7 @@
     --accent: #b06828;
     --accent-hover: #9a5820;
     --accent-dim: rgba(176, 104, 40, 0.10);
-    --accent-glow: rgba(176, 104, 40, 0.20);
+    --accent-glow: rgba(246, 174, 90, 0.40);
     --warm: #a88030;
     --warm-dim: rgba(168, 128, 48, 0.10);
     --border: #d4c8b8;
@@ -102,6 +102,17 @@ body {
     letter-spacing: 0.05em;
     cursor: pointer;
     justify-self: start;
+    transition: text-shadow 0.3s ease;
+}
+
+.nav-brand:hover {
+    text-shadow: 0 0 8px var(--accent-glow), 0 0 20px var(--accent-glow);
+    animation: brand-pulse 1s ease-in;
+}
+
+@keyframes brand-pulse {
+    0%, 100% { text-shadow: 0 0 8px var(--accent-glow), 0 0 20px var(--accent-glow); }
+    50% { text-shadow: 0 0 12px var(--accent-glow), 0 0 30px var(--accent-glow), 0 0 45px var(--accent-dim); }
 }
 
 .nav-links {
@@ -117,10 +128,17 @@ body {
     text-decoration: none;
     font-size: 0.875rem;
     transition: color var(--transition);
+    padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
 }
 
 .nav-links a:hover {
     color: var(--text-primary);
+}
+
+.nav-links a.nav-active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
 }
 
 .theme-toggle {
@@ -816,6 +834,10 @@ input[type="range"]::-moz-range-thumb {
 .provider-hint a {
     color: var(--accent);
     text-decoration: none;
+}
+
+.provider-hint a.btn-primary {
+    color: #fff;
 }
 
 .provider-hint a:hover {
@@ -2120,6 +2142,23 @@ body::before {
     color: var(--danger);
 }
 
+.update-release-notes {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background: var(--bg-input);
+    border-radius: calc(var(--radius) / 2);
+    margin-bottom: 0.5rem;
+}
+
+.update-download-size {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
 .update-modal-footer {
     display: flex;
     align-items: center;
@@ -2405,8 +2444,4 @@ body::before {
     font-size: 0.875rem;
     color: var(--text-muted);
     word-break: break-all;
-}
-
-.nav-active {
-    color: var(--accent) !important;
 }

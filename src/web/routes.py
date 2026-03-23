@@ -14,7 +14,7 @@ from ..config import (
     has_user_config, save_user_config,
     config_to_dict, load_config, get_user_config_path,
 )
-from ..updater import check_for_updates, apply_update
+from ..updater import check_for_updates, apply_update, download_release
 
 
 def register_routes(app: Flask) -> None:
@@ -107,10 +107,28 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    def _find_cli_proxy() -> str | None:
+        """Find CLIProxyAPI, searching beyond the app bundle's limited PATH."""
+        binary = shutil.which("CLIProxyAPI")
+        if binary:
+            return binary
+        # macOS app bundles have a minimal PATH — ask the user's login shell
+        try:
+            result = subprocess.run(
+                ["/bin/zsh", "-lc", "which CLIProxyAPI"],
+                capture_output=True, text=True, timeout=5,
+            )
+            path = result.stdout.strip()
+            if result.returncode == 0 and path and os.path.isfile(path):
+                return path
+        except Exception:
+            pass
+        return None
+
     @app.route("/api/proxy/status")
     def api_proxy_status():
         """Check if CLIProxyAPI is installed and/or running."""
-        binary = shutil.which("CLIProxyAPI")
+        binary = _find_cli_proxy()
         installed = binary is not None
 
         running = False
@@ -137,7 +155,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/proxy/start", methods=["POST"])
     def api_proxy_start():
         """Start CLIProxyAPI if installed and not already running."""
-        binary = shutil.which("CLIProxyAPI")
+        binary = _find_cli_proxy()
         if not binary:
             return jsonify({"ok": False, "message": "CLIProxyAPI not found on this system"}), 404
 
@@ -398,11 +416,26 @@ def register_routes(app: Flask) -> None:
             "error": status.error,
             "is_git": status.is_git,
             "version": __version__,
+            "is_release": status.is_release,
+            "current_version": status.current_version,
+            "latest_version": status.latest_version,
+            "release_notes": status.release_notes,
+            "download_url": status.download_url,
+            "download_size": status.download_size,
+            "asset_name": status.asset_name,
         })
 
     @app.route("/api/update/apply", methods=["POST"])
     def api_update_apply():
-        result = apply_update()
+        data = request.get_json(silent=True) or {}
+        url = data.get("download_url", "")
+        name = data.get("asset_name", "")
+
+        if url:
+            result = download_release(url, name)
+        else:
+            result = apply_update()
+
         return jsonify({
             "success": result.success,
             "message": result.message,

@@ -1,19 +1,28 @@
 """Update checking and self-update for Glooow."""
 
 import json
+import os
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
 
-# Cache file lives in the project root
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_CACHE_FILE = _PROJECT_ROOT / ".update-cache.json"
 _CACHE_TTL = 300  # 5 minutes
 
 GITHUB_REPO = "akrusz/glooow"
+
+
+def _get_cache_file() -> Path:
+    """Return the cache file path — writable location for both dev and frozen."""
+    from .frozen import is_frozen
+    if is_frozen():
+        from .config import get_user_config_dir
+        return get_user_config_dir() / ".update-cache.json"
+    return _PROJECT_ROOT / ".update-cache.json"
 
 
 @dataclass
@@ -25,6 +34,14 @@ class UpdateStatus:
     remote_sha: str = ""
     error: str = ""
     is_git: bool = True
+    # Release-based update fields (frozen/packaged apps)
+    is_release: bool = False
+    current_version: str = ""
+    latest_version: str = ""
+    release_notes: str = ""
+    download_url: str = ""
+    download_size: int = 0
+    asset_name: str = ""
 
 
 @dataclass
@@ -33,6 +50,37 @@ class UpdateResult:
     message: str = ""
     needs_restart: bool = False
 
+
+# ---------------------------------------------------------------------------
+# Version helpers
+# ---------------------------------------------------------------------------
+
+def _parse_version(v: str) -> tuple[int, ...]:
+    """Parse 'v1.2.3' or '1.2.3' into (1, 2, 3)."""
+    return tuple(int(x) for x in v.lstrip("v").split("."))
+
+
+def _version_newer(remote: str, local: str) -> bool:
+    """Return True if remote version is strictly greater than local."""
+    try:
+        return _parse_version(remote) > _parse_version(local)
+    except (ValueError, AttributeError):
+        return False
+
+
+def _get_platform_asset_ext() -> str:
+    """Return the expected asset file extension for this platform."""
+    if sys.platform == "darwin":
+        return ".dmg"
+    elif sys.platform == "win32":
+        return ".exe"
+    else:
+        return ".AppImage"
+
+
+# ---------------------------------------------------------------------------
+# Git helpers
+# ---------------------------------------------------------------------------
 
 def _is_git_repo() -> bool:
     return (_PROJECT_ROOT / ".git").exists()
@@ -48,10 +96,15 @@ def _run_git(*args: str, timeout: int = 30) -> subprocess.CompletedProcess:
     )
 
 
+# ---------------------------------------------------------------------------
+# Cache
+# ---------------------------------------------------------------------------
+
 def _load_cache() -> dict | None:
     try:
-        if _CACHE_FILE.exists():
-            data = json.loads(_CACHE_FILE.read_text())
+        cache_file = _get_cache_file()
+        if cache_file.exists():
+            data = json.loads(cache_file.read_text())
             if time.time() - data.get("ts", 0) < _CACHE_TTL:
                 return data
     except Exception:
@@ -61,7 +114,9 @@ def _load_cache() -> dict | None:
 
 def _save_cache(status: UpdateStatus) -> None:
     try:
-        _CACHE_FILE.write_text(json.dumps({
+        cache_file = _get_cache_file()
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps({
             "ts": time.time(),
             "available": status.available,
             "commits_behind": status.commits_behind,
@@ -69,6 +124,13 @@ def _save_cache(status: UpdateStatus) -> None:
             "current_sha": status.current_sha,
             "remote_sha": status.remote_sha,
             "is_git": status.is_git,
+            "is_release": status.is_release,
+            "current_version": status.current_version,
+            "latest_version": status.latest_version,
+            "release_notes": status.release_notes,
+            "download_url": status.download_url,
+            "download_size": status.download_size,
+            "asset_name": status.asset_name,
         }))
     except Exception:
         pass
@@ -76,20 +138,24 @@ def _save_cache(status: UpdateStatus) -> None:
 
 def _clear_cache() -> None:
     try:
-        _CACHE_FILE.unlink(missing_ok=True)
+        _get_cache_file().unlink(missing_ok=True)
     except Exception:
         pass
 
 
+# ---------------------------------------------------------------------------
+# Update check
+# ---------------------------------------------------------------------------
+
 def check_for_updates(force: bool = False) -> UpdateStatus:
     """Check if updates are available.
 
-    Uses git if available, falls back to GitHub API.
-    Results are cached for 1 hour unless force=True.
+    Uses git if available, GitHub Releases for frozen apps,
+    falls back to GitHub API for non-git installs.
+    Results are cached for 5 minutes unless force=True.
     """
     from .frozen import is_frozen
-    if is_frozen():
-        return UpdateStatus(error="Updates not available in desktop app")
+
     if not force:
         cached = _load_cache()
         if cached is not None:
@@ -100,9 +166,18 @@ def check_for_updates(force: bool = False) -> UpdateStatus:
                 current_sha=cached.get("current_sha", ""),
                 remote_sha=cached.get("remote_sha", ""),
                 is_git=cached.get("is_git", True),
+                is_release=cached.get("is_release", False),
+                current_version=cached.get("current_version", ""),
+                latest_version=cached.get("latest_version", ""),
+                release_notes=cached.get("release_notes", ""),
+                download_url=cached.get("download_url", ""),
+                download_size=cached.get("download_size", 0),
+                asset_name=cached.get("asset_name", ""),
             )
 
-    if _is_git_repo():
+    if is_frozen():
+        status = _check_github_releases()
+    elif _is_git_repo():
         status = _check_git()
     else:
         status = _check_github_api()
@@ -110,6 +185,10 @@ def check_for_updates(force: bool = False) -> UpdateStatus:
     _save_cache(status)
     return status
 
+
+# ---------------------------------------------------------------------------
+# Check strategies
+# ---------------------------------------------------------------------------
 
 def _git_or_error(
     status: UpdateStatus, *args: str, error_msg: str, **kwargs,
@@ -199,6 +278,52 @@ def _check_github_api() -> UpdateStatus:
     return status
 
 
+def _check_github_releases() -> UpdateStatus:
+    """Check for updates via GitHub Releases (frozen/packaged apps)."""
+    from . import __version__
+    status = UpdateStatus(
+        is_git=False, is_release=True, current_version=__version__,
+    )
+
+    try:
+        resp = httpx.get(
+            f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest",
+            headers={"Accept": "application/vnd.github.v3+json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        tag = data.get("tag_name", "")
+        status.latest_version = tag.lstrip("v")
+        status.release_notes = data.get("body", "") or ""
+
+        if _version_newer(tag, __version__):
+            status.available = True
+
+            # Find the platform-appropriate asset by extension
+            ext = _get_platform_asset_ext()
+            for asset in data.get("assets", []):
+                if asset["name"].endswith(ext):
+                    status.download_url = asset["browser_download_url"]
+                    status.download_size = asset.get("size", 0)
+                    status.asset_name = asset["name"]
+                    break
+
+            if not status.download_url:
+                status.error = "No installer found for this platform"
+                status.available = False
+
+    except Exception as e:
+        status.error = f"Could not check for updates: {e}"
+
+    return status
+
+
+# ---------------------------------------------------------------------------
+# Apply updates
+# ---------------------------------------------------------------------------
+
 def apply_update() -> UpdateResult:
     """Pull the latest version and update dependencies."""
     if not _is_git_repo():
@@ -257,3 +382,43 @@ def apply_update() -> UpdateResult:
         message="Updated successfully. Restart Glooow to use the new version.",
         needs_restart=True,
     )
+
+
+def download_release(download_url: str, asset_name: str) -> UpdateResult:
+    """Download a release asset and open it for the user to install."""
+    import tempfile
+
+    if not download_url:
+        return UpdateResult(success=False, message="No download URL available.")
+
+    try:
+        download_dir = Path(tempfile.gettempdir()) / "glooow-updates"
+        download_dir.mkdir(exist_ok=True)
+        dest = download_dir / asset_name
+
+        with httpx.stream("GET", download_url, follow_redirects=True, timeout=120) as resp:
+            resp.raise_for_status()
+            with open(dest, "wb") as f:
+                for chunk in resp.iter_bytes(chunk_size=8192):
+                    f.write(chunk)
+
+        # Open the installer
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", str(dest)])
+        elif sys.platform == "win32":
+            os.startfile(str(dest))
+        else:
+            # Linux: make executable and open containing folder
+            dest.chmod(0o755)
+            subprocess.Popen(["xdg-open", str(dest.parent)])
+
+        _clear_cache()
+
+        return UpdateResult(
+            success=True,
+            message="Download complete. The installer has been opened. "
+                    "Close Glooow, then install the new version.",
+            needs_restart=True,
+        )
+    except Exception as e:
+        return UpdateResult(success=False, message=f"Download failed: {e}")

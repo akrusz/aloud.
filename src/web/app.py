@@ -148,7 +148,10 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
         try:
             status = check_for_updates()
             if status.available:
-                logger.info("Update available (%d commit(s) behind)", status.commits_behind)
+                if status.is_release:
+                    logger.info("Update available: v%s → v%s", status.current_version, status.latest_version)
+                else:
+                    logger.info("Update available (%d commit(s) behind)", status.commits_behind)
         except Exception:
             pass
 
@@ -387,6 +390,10 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
             _save_geometry(window)
         window.events.closing += _on_closing
 
+    # Ensure cleanup when the window closes (Cmd+W on macOS closes the window
+    # but the NSApplication stays alive, so webview.start() never returns).
+    window.events.closed += lambda: _shutdown_all(app)
+
     # webview.start() blocks until the window is closed (must be on main thread)
     # private_mode=False persists WebKit data (mic permissions, localStorage)
     # storage_path keeps it in the app's config directory
@@ -427,7 +434,12 @@ def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
             except Exception:
                 pass
 
+    _shutting_down = [False]
+
     def _shutdown(*_):
+        if _shutting_down[0]:
+            return
+        _shutting_down[0] = True
         _restore_terminal()
         _stop_proxy(app)
         print("\n  Shutting down...", flush=True)

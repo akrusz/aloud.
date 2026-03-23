@@ -248,6 +248,14 @@
                             <option value="small">Small</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="s-host">Network Access</label>
+                        <select id="s-host">
+                            <option value="127.0.0.1">Local only (127.0.0.1)</option>
+                            <option value="0.0.0.0">LAN access (0.0.0.0)</option>
+                        </select>
+                        <span class="form-hint">LAN access lets other devices on your network connect. Requires restart.</span>
+                    </div>
                     <label class="checkbox-label">
                         <input type="checkbox" id="s-frameless">
                         <span>Frameless window</span>
@@ -752,6 +760,7 @@
             var textScale = cfg.web?.text_scale || 1;
             document.getElementById('s-text-scale').value = textScale;
             document.getElementById('s-text-scale-label').textContent = Math.round(textScale * 100) + '%';
+            document.getElementById('s-host').value = cfg.web?.host || '127.0.0.1';
             document.getElementById('s-window-mode').value = cfg.web?.window_mode || 'remember';
             document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
             document.getElementById('s-vibrancy').checked = cfg.web?.vibrancy || false;
@@ -815,6 +824,7 @@
                 extended_silence_sec: parseInt(document.getElementById('s-silence-sec').value, 10),
             },
             web: {
+                host: document.getElementById('s-host').value,
                 text_scale: parseFloat(document.getElementById('s-text-scale').value),
                 window_mode: document.getElementById('s-window-mode').value,
                 frameless: document.getElementById('s-frameless').checked,
