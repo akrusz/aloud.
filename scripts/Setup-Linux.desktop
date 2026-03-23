@@ -2,7 +2,7 @@
 Type=Application
 Name=Setup Glooow
 Comment=Run the Glooow setup
-Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")" && ./scripts/setup-local.sh; echo ""; echo "  Done! Double-click Start-Linux.desktop to launch."; echo "  Press Enter to close..."; read'
+Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")/.." && ./scripts/setup-local.sh; echo ""; echo "  Done! Double-click Start-Linux.desktop to launch."; echo "  Press Enter to close..."; read'
 Terminal=true
 Icon=utilities-terminal
 Categories=Utility;

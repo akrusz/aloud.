@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0\.."
 powershell -ExecutionPolicy Bypass -File scripts\setup-local.ps1
 echo.
 echo   Done! Double-click Start-Windows.bat to launch.

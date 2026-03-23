@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Glooow{% endblock %}</title>
+    <title>{% block title %}glooow{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,7 +42,7 @@
 </head>
 <body>
     <nav class="nav pywebview-drag-region">
-        <a href="#" class="nav-brand" id="aboutLink" title="About Glooow (v{{ glooow_version }})">Glooow</a>
+        <a href="#" class="nav-brand" id="aboutLink" title="About glooow (v{{ glooow_version }})">glooow</a>
         {% block nav_center %}{% endblock %}
         <div class="nav-links">
             {% block nav_items %}
@@ -77,7 +77,7 @@
                 <button class="voice-modal-close" id="aboutClose">&times;</button>
             </div>
             <div class="about-modal-body">
-                <div class="about-app-name">Glooow</div>
+                <div class="about-app-name">glooow</div>
                 <div class="about-version">v{{ glooow_version }}</div>
                 <div class="about-author">By Alex Krusz</div>
                 <div class="about-links">
@@ -288,7 +288,7 @@
         var closeBtn = document.getElementById('windowCloseBtn');
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
-                if (confirm('Close Glooow?')) {
+                if (confirm('Close glooow?')) {
                     fetch('/api/close-window', { method: 'POST' });
                 }
             });

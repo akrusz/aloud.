@@ -379,7 +379,7 @@ def apply_update() -> UpdateResult:
 
     return UpdateResult(
         success=True,
-        message="Updated successfully. Restart Glooow to use the new version.",
+        message="Updated successfully. Restart glooow to use the new version.",
         needs_restart=True,
     )
 
@@ -417,7 +417,7 @@ def download_release(download_url: str, asset_name: str) -> UpdateResult:
         return UpdateResult(
             success=True,
             message="Download complete. The installer has been opened. "
-                    "Close Glooow, then install the new version.",
+                    "Close glooow, then install the new version.",
             needs_restart=True,
         )
     except Exception as e:

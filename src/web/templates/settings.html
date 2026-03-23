@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{% if first_run %}Welcome to Glooow{% else %}Settings{% endif %} — Glooow{% endblock %}
+{% block title %}{% if first_run %}Welcome to glooow{% else %}Settings{% endif %} — glooow{% endblock %}
 
 {% block nav_center %}
 <div class="nav-session-info">
@@ -12,7 +12,7 @@
 <div class="setup-container">
     {% if first_run %}
     <div class="settings-welcome">
-        <h1>Welcome to Glooow</h1>
+        <h1>Welcome to glooow</h1>
         <p>Let's set up your meditation facilitator. You'll need at least one LLM provider configured to get started.</p>
     </div>
     {% else %}
@@ -24,7 +24,7 @@
         <!-- LLM Provider Section -->
         <section class="settings-section">
             <h2>LLM Provider</h2>
-            <p class="settings-desc">Choose how Glooow connects to a language model. You need at least one provider configured.</p>
+            <p class="settings-desc">Choose how glooow connects to a language model. You need at least one provider configured.</p>
 
             <div class="form-row">
                 <div class="form-group form-group-half">

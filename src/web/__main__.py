@@ -11,7 +11,7 @@ elif __name__ == "__main__":
     from .app import run_web
 
     import argparse
-    parser = argparse.ArgumentParser(description="Glooow meditation facilitator")
+    parser = argparse.ArgumentParser(description="glooow meditation facilitator")
     parser.add_argument("--browser", action="store_true",
                         help="Open in system browser instead of native window")
     parser.add_argument("--host", type=str, default=None)

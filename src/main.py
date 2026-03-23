@@ -425,7 +425,7 @@ def main():
     parser.add_argument(
         "--update",
         action="store_true",
-        help="Update Glooow to the latest version",
+        help="Update glooow to the latest version",
     )
 
     args = parser.parse_args()
@@ -433,7 +433,7 @@ def main():
     # Handle update commands (no config/audio needed)
     if args.check_update:
         from .updater import check_for_updates
-        print(f"Glooow v{__version__}")
+        print(f"glooow v{__version__}")
         status = check_for_updates(force=True)
         if status.error:
             print(f"Error: {status.error}")
@@ -447,7 +447,7 @@ def main():
 
     if args.update:
         from .updater import apply_update
-        print(f"Glooow v{__version__} — updating...")
+        print(f"glooow v{__version__} — updating...")
         result = apply_update()
         print(result.message)
         return

@@ -331,7 +331,7 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
     """Run with a native pywebview window. Flask serves in a background thread."""
     import webview
 
-    _set_macos_app_name("Glooow")
+    _set_macos_app_name("glooow")
     _grant_media_permissions()
 
     url = f"http://localhost:{port}"
@@ -378,7 +378,7 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
         win_kwargs.update(width=910, height=820, maximized=True)
 
     window = webview.create_window(
-        f"Glooow v{__version__}",
+        f"glooow v{__version__}",
         url,
         **win_kwargs,
     )
@@ -504,7 +504,7 @@ def run_web(
         return
 
     print(f"\n{'=' * 50}")
-    print(f"  Glooow v{__version__} — starting up...")
+    print(f"  glooow v{__version__} — starting up...")
     print(f"{'=' * 50}")
 
     app, socketio = create_app(config)

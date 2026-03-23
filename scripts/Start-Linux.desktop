@@ -2,7 +2,7 @@
 Type=Application
 Name=Start Glooow
 Comment=Launch the Glooow meditation facilitator
-Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")" && ./scripts/start.sh --open'
+Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")/.." && ./scripts/start.sh --open'
 Terminal=true
 Icon=utilities-terminal
 Categories=Utility;
