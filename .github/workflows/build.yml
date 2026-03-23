@@ -22,10 +22,10 @@ jobs:
 
       - name: Install dependencies
         run: |
+          brew install portaudio create-dmg
           pip install uv
           uv pip install --system -r requirements.txt
           uv pip install --system pyinstaller
-          brew install create-dmg
 
       - name: Build app and DMG
         run: scripts/build-dmg.sh
@@ -68,7 +68,7 @@ jobs:
       - name: Get version
         id: version
         run: |
-          $ver = python -c "import re; print(re.search('__version__\s*=\s*\x22(.+?)\x22', (Get-Content src/__init__.py -Raw)).Groups[1].Value)"
+          $ver = python -c "import re; print(re.search(r'__version__\s*=\s*\x22(.+?)\x22', open('src/__init__.py').read()).group(1))"
           echo "version=$ver" >> $env:GITHUB_OUTPUT
 
       - name: Create installer
