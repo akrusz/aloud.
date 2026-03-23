@@ -16,6 +16,8 @@ glooow has two modes: exploration and noting.
 
 instead of fixed styles, you mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want.
 
+in my personal experience, this sort of exploration has been useful in experiencing jhana states if approached with enough openheartedness.
+
 **noting**: you specify what virtual participants you'd like, if any — AIs, fixed phrases, or sound effects. then starting with you, each participant notes a sensation in their "awareness" (ideally 1–2 words) or plays their fixed phrase or sound. if there are no other participants, it'll just briefly introduce the method and then record what you note.
 
 ## getting started
