@@ -151,6 +151,9 @@ class TranscriptLogger:
                 mt = data.get("meditation_type")
                 if mt:
                     entry["meditation_type"] = mt
+                cid = data.get("client_id")
+                if cid:
+                    entry["client_id"] = cid
                 sessions.append(entry)
             except (json.JSONDecodeError, IOError):
                 continue

@@ -199,15 +199,24 @@ def _check_proxy(config: Config) -> bool:
     return True
 
 
-def _configure_cors(socketio, host: str, port: int) -> None:
+def _configure_cors(socketio, host: str, port: int, https_port: int | None = None) -> None:
     """Set up CORS allowed origins for the SocketIO server."""
     origins = {f"http://localhost:{port}", f"http://127.0.0.1:{port}"}
+    if https_port:
+        origins.update({
+            f"https://localhost:{https_port}",
+            f"https://127.0.0.1:{https_port}",
+        })
     if host not in ("127.0.0.1", "localhost"):
         origins.add(f"http://{host}:{port}")
+        if https_port:
+            origins.add(f"https://{host}:{https_port}")
         import socket
         try:
             local_ip = socket.gethostbyname(socket.gethostname())
             origins.add(f"http://{local_ip}:{port}")
+            if https_port:
+                origins.add(f"https://{local_ip}:{https_port}")
         except socket.gaierror:
             pass
     socketio.server.cors_allowed_origins = list(origins)
@@ -405,10 +414,72 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
     _shutdown_all(app)
 
 
+def _start_https_server(app, host: str, port: int, cert_pair: tuple[str, str]) -> bool:
+    """Start an HTTPS server alongside the main HTTP server for LAN clients.
+
+    Returns True if the server started successfully.
+    """
+    import ssl
+    from werkzeug.serving import make_server
+
+    cert_path, key_path = cert_pair
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(cert_path, key_path)
+
+    try:
+        server = make_server(host, port, app, ssl_context=ctx, threaded=True)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        return True
+    except OSError as e:
+        logger.warning("Could not start HTTPS server on port %d: %s", port, e)
+        return False
+
+
 def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
     """Run with browser UI and terminal keyboard shortcuts."""
     url = f"http://localhost:{port}"
+    is_lan = host not in ("127.0.0.1", "localhost")
+    https_port = None
+
+    # LAN mode: start an HTTPS server so remote browsers can use the mic
+    if is_lan:
+        import socket as _sock
+        from flask import render_template as _rt
+        from .cert import ensure_cert
+        from ..config import get_user_config_dir
+
+        try:
+            local_ip = _sock.gethostbyname(_sock.gethostname())
+        except _sock.gaierror:
+            local_ip = host
+
+        cert_pair = ensure_cert(get_user_config_dir() / "certs", local_ip)
+        if cert_pair:
+            https_port = port + 1
+            if _start_https_server(app, host, https_port, cert_pair):
+                app.https_port = https_port
+
+                # Redirect non-localhost HTTP requests to the setup page
+                @app.before_request
+                def _lan_https_redirect():
+                    if (request.remote_addr not in ("127.0.0.1", "::1")
+                            and not request.is_secure
+                            and not request.path.startswith("/static/")):
+                        req_host = request.host.split(":")[0]
+                        https_url = f"https://{req_host}:{https_port}"
+                        return _rt("lan_setup.html", https_url=https_url)
+            else:
+                https_port = None
+
     print(f"\n  Ready: {url}")
+    if https_port:
+        import socket as _sock
+        try:
+            local_ip = _sock.gethostbyname(_sock.gethostname())
+        except _sock.gaierror:
+            local_ip = host
+        print(f"  LAN:   http://{local_ip}:{port}  (will guide users to HTTPS)")
+        print(f"         https://{local_ip}:{https_port}  (mic-enabled)")
     print("  B = open browser · Q = quit\n")
 
     if os.environ.get("GLOOOW_AUTO_OPEN") == "1":
@@ -479,7 +550,7 @@ def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
         threading.Thread(target=_keyboard_listener, daemon=True).start()
 
     signal.signal(signal.SIGINT, _shutdown)
-    _configure_cors(socketio, host, port)
+    _configure_cors(socketio, host, port, https_port)
     socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
 
 

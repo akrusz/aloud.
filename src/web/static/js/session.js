@@ -56,6 +56,12 @@ function init() {
     // Generate a stable session ID that survives socket reconnections
     state.sessionId = 'ses-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     params.session_id = state.sessionId;
+
+    // Persistent client ID so LAN users only see their own history
+    if (!localStorage.getItem('glooow-client-id')) {
+        localStorage.setItem('glooow-client-id', 'cl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
+    }
+    params.client_id = localStorage.getItem('glooow-client-id');
     params.tts = dom.ttsToggle.classList.contains('active');
 
     // Event listeners

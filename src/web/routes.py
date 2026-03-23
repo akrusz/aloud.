@@ -332,6 +332,10 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/sessions")
     def api_sessions():
         sessions = app.transcript_logger.list_sessions()
+        # Filter to this client's sessions (LAN privacy)
+        client_id = request.args.get("client_id")
+        if client_id:
+            sessions = [s for s in sessions if s.get("client_id") == client_id]
         page = request.args.get("page", 1, type=int)
         limit = request.args.get("limit", 20, type=int)
         limit = max(1, min(limit, 100))

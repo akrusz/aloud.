@@ -72,6 +72,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
 
         if not session_id:
             session_id = sid  # fallback
+        web_session.client_id = data.get("client_id")
         app.web_sessions[session_id] = web_session
         app.sid_to_session[sid] = session_id
         app.session_to_sid[session_id] = sid
@@ -221,6 +222,8 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             session_data["summary"] = summary
         if web_session.meditation_type != "exploration":
             session_data["meditation_type"] = web_session.meditation_type
+        if getattr(web_session, "client_id", None):
+            session_data["client_id"] = web_session.client_id
         saved_id = None
         if session_data and app.meditation_config.session.auto_save:
             if hasattr(web_session, 'continued_from'):

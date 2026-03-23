@@ -11,9 +11,11 @@
     var emptyEl = document.getElementById('empty-state');
     var loadMoreBtn = document.getElementById('load-more');
 
+    var clientId = localStorage.getItem('glooow-client-id') || '';
+
     function loadPage() {
         currentPage++;
-        fetch('/api/sessions?page=' + currentPage + '&limit=' + LIMIT)
+        fetch('/api/sessions?page=' + currentPage + '&limit=' + LIMIT + '&client_id=' + encodeURIComponent(clientId))
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 totalPages = data.pages;
