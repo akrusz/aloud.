@@ -73,8 +73,15 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
     app.web_sessions = {}      # session_id → WebMeditationSession
     app.sid_to_session = {}    # socket sid → session_id
     app.session_to_sid = {}    # session_id → current socket sid
+
+    # Resolve relative save_directory in frozen mode (Finder cwd is /)
+    save_dir = config.session.save_directory
+    if is_frozen() and not Path(save_dir).is_absolute():
+        from ..config import get_user_config_dir
+        save_dir = str(get_user_config_dir() / save_dir)
+
     app.transcript_logger = TranscriptLogger(
-        save_directory=config.session.save_directory,
+        save_directory=save_dir,
         include_timestamps=config.session.include_timestamps,
     )
 
@@ -258,7 +265,11 @@ def _load_geometry() -> dict | None:
         return None
     try:
         with open(path) as f:
-            return json.load(f)
+            geo = json.load(f)
+        # Reject if width/height are missing or null
+        if not geo.get("width") or not geo.get("height"):
+            return None
+        return geo
     except Exception:
         return None
 
@@ -312,7 +323,7 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
         win_kwargs.update(width=910, height=820, fullscreen=True)
     elif window_mode == "maximized":
         win_kwargs.update(width=910, height=820, maximized=True)
-    elif window_mode == "narrow":
+    elif window_mode == "small":
         win_kwargs.update(width=910, height=820)
     elif window_mode == "remember":
         geo = _load_geometry()
@@ -334,13 +345,14 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
     )
     app.webview_window = window
 
+    # Save geometry when the window is about to close (while properties are still valid)
+    if window_mode == "remember":
+        def _on_closing():
+            _save_geometry(window)
+        window.events.closing += _on_closing
+
     # webview.start() blocks until the window is closed (must be on main thread)
     webview.start()
-
-    # Save geometry for "remember" mode before shutting down
-    if window_mode == "remember":
-        _save_geometry(window)
-
     _shutdown_all()
 
 

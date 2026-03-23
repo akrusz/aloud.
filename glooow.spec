@@ -69,13 +69,13 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='Glooow.app',
-    icon=None,
+    icon='assets/glooow.icns',
     bundle_identifier='com.glooow.app',
     codesign_identity='-',  # ad-hoc sign (required for native libs on macOS)
     info_plist={
         'NSMicrophoneUsageDescription':
             'Glooow needs microphone access for voice-based meditation sessions.',
-        'CFBundleShortVersionString': '0.1.0',
+        'CFBundleShortVersionString': '0.9.0',
         'CFBundleDisplayName': 'Glooow',
         'NSHighResolutionCapable': True,
     },

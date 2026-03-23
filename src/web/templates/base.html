@@ -42,7 +42,7 @@
 </head>
 <body>
     <nav class="nav pywebview-drag-region">
-        <a href="#" class="nav-brand" id="aboutLink" title="v{{ glooow_version }}">Glooow</a>
+        <a href="#" class="nav-brand" id="aboutLink" title="About Glooow (v{{ glooow_version }})">Glooow</a>
         {% block nav_center %}{% endblock %}
         <div class="nav-links">
             {% block nav_items %}
@@ -79,7 +79,15 @@
             <div class="about-modal-body">
                 <div class="about-app-name">Glooow</div>
                 <div class="about-version">v{{ glooow_version }}</div>
-                <div class="about-author">By <a href="https://krusz.net" target="_blank" rel="noopener">Alex Krusz</a></div>
+                <div class="about-author">By Alex Krusz</div>
+                <div class="about-links">
+                    <a href="https://krusz.net" target="_blank" rel="noopener">krusz.net</a>
+                    <a href="https://github.com/akrusz" target="_blank" rel="noopener">GitHub</a>
+                </div>
+                <div class="about-links about-donate">
+                    donate: <span class="about-eth" title="Click to copy">krusz.eth</span>
+                    <a href="https://venmo.com/Alex-Krusz" target="_blank" rel="noopener">Venmo</a>
+                </div>
             </div>
         </div>
     </div>
@@ -123,6 +131,15 @@
         aboutModal.addEventListener('click', function(e) {
             if (e.target === aboutModal) aboutModal.style.display = 'none';
         });
+        var ethEl = document.querySelector('.about-eth');
+        if (ethEl) {
+            ethEl.addEventListener('click', function() {
+                navigator.clipboard.writeText('krusz.eth').then(function() {
+                    ethEl.textContent = 'copied!';
+                    setTimeout(function() { ethEl.textContent = 'krusz.eth'; }, 1500);
+                });
+            });
+        }
 
         // Check for updates on page load
         fetch('/api/update/check')

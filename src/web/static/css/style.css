@@ -88,6 +88,9 @@ body {
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .nav-brand {
@@ -1970,14 +1973,37 @@ body::before {
 .about-author {
     font-size: 0.9rem;
     color: var(--text-secondary);
+    margin-bottom: 0.75rem;
 }
 
-.about-author a {
+.about-links {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+}
+
+.about-donate {
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.about-links a {
     color: var(--accent);
     text-decoration: none;
 }
 
-.about-author a:hover {
+.about-links a:hover {
+    text-decoration: underline;
+}
+
+.about-eth {
+    color: var(--accent);
+    cursor: pointer;
+}
+
+.about-eth:hover {
     text-decoration: underline;
 }
 
@@ -2219,15 +2245,37 @@ body::before {
     min-width: 3em;
 }
 
-.text-scale-row {
-    position: relative;
+.display-layout {
+    display: flex;
+    gap: var(--space-lg);
+}
+
+.display-controls {
+    flex: 0 0 60%;
+    min-width: 0;
+}
+
+.display-controls .form-group {
+    margin-top: var(--space-sm);
+}
+
+.display-controls .form-group:first-child {
+    margin-top: 0;
+}
+
+.display-controls select {
+    max-width: 220px;
+}
+
+.display-preview {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    padding-top: var(--space-sm);
 }
 
 .text-scale-preview {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 220px;
+    width: 100%;
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: var(--space-sm) var(--space-md);

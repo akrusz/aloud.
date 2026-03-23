@@ -115,7 +115,7 @@ class WebConfig:
     secret_key: str = "glooow-local"
     host: str = "0.0.0.0"
     port: int = 4649
-    window_mode: str = "remember"  # remember, fullscreen, maximized, narrow
+    window_mode: str = "remember"  # remember, fullscreen, maximized, small
     frameless: bool = True
     vibrancy: bool = False
     text_scale: float = 1.0
@@ -210,9 +210,9 @@ def load_config(path: str | Path | None = None) -> Config:
     Returns:
         Loaded configuration
     """
-    if path is None:
-        from .frozen import is_frozen, get_resource_path
+    from .frozen import is_frozen, get_resource_path
 
+    if path is None:
         # Try default locations (most specific first)
         if is_frozen():
             candidates = [
@@ -266,6 +266,13 @@ def load_config(path: str | Path | None = None) -> Config:
             config.web = _update_dataclass(WebConfig(), data["web"])
         if "auth" in data:
             config.auth = _update_dataclass(AuthConfig(), data["auth"])
+
+    # In frozen mode, resolve relative save_directory against user data dir
+    # (Finder launches with cwd=/ which is read-only)
+    if is_frozen() and not Path(config.session.save_directory).is_absolute():
+        config.session.save_directory = str(
+            get_user_config_dir() / config.session.save_directory
+        )
 
     # Handle environment variable substitution for API keys
     if config.llm.api_key and config.llm.api_key.startswith("${"):

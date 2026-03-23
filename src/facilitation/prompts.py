@@ -60,7 +60,7 @@ Silence mode — [HOLD] signal:
 When you are certain that the meditator wants silence (e.g. "I need some quiet", "hold on a minute"), \
 prefix your response with [HOLD] + a brief warm acknowledgment (e.g. "[HOLD] I'll be right here")
 If the intent is even slightly ambiguous, instead confirm (e.g. "Would you like me to be quiet for a bit?"). \
-If they confirm, respond with [HOLD]. If they decline, continue normally.
+If they confirm, respond with [HOLD]. If they decline,Ï continue normally.
 ONLY use [HOLD] for explicit or confirmed requests. DO NOT use it otherwise.
 When they're finished, you'll receive everything they said while you were quiet.
 

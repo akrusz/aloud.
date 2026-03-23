@@ -12,7 +12,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 SVG="$PROJECT_DIR/src/web/static/favicon.svg"
 ICONSET="$PROJECT_DIR/glooow.iconset"
-ICNS="$PROJECT_DIR/Glooow.app/Contents/Resources/glooow.icns"
+ICNS="$PROJECT_DIR/assets/glooow.icns"
 
 if ! command -v rsvg-convert &>/dev/null; then
     echo "Error: rsvg-convert not found. Install with: brew install librsvg"
@@ -35,5 +35,12 @@ done
 
 iconutil -c icns "$ICONSET" -o "$ICNS"
 rm -rf "$ICONSET"
+
+# Also copy to the manual Glooow.app bundle if it exists
+MANUAL_APP="$PROJECT_DIR/Glooow.app/Contents/Resources"
+if [ -d "$MANUAL_APP" ]; then
+    cp "$ICNS" "$MANUAL_APP/glooow.icns"
+    echo "Also copied to: $MANUAL_APP/glooow.icns"
+fi
 
 echo "Generated: $ICNS"
