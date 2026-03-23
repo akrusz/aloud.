@@ -56,18 +56,6 @@ jobs:
           uv pip install --system -r requirements.txt
           uv pip install --system pyinstaller
 
-      - name: Generate icon
-        run: |
-          pip install Pillow
-          python -c "
-          from PIL import Image
-          import struct, io
-          # Convert favicon SVG fallback: create a simple icon from the PNG if available,
-          # otherwise create a placeholder .ico
-          img = Image.new('RGBA', (256, 256), (212, 135, 58, 255))
-          img.save('assets/glooow.ico', format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)])
-          "
-
       - name: Build
         run: pyinstaller glooow.spec --noconfirm
 
@@ -144,15 +132,6 @@ jobs:
         run: |
           VERSION=$(python3 -c "import re; print(re.search(r'__version__\s*=\s*\"(.+?)\"', open('src/__init__.py').read()).group(1))")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Generate icon
-        run: |
-          pip install Pillow
-          python3 -c "
-          from PIL import Image
-          img = Image.new('RGBA', (256, 256), (212, 135, 58, 255))
-          img.save('assets/glooow.png')
-          "
 
       - name: Package AppImage
         run: |
