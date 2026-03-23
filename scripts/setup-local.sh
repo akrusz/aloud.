@@ -236,7 +236,7 @@ if [ "$LLM_CHOICE" = "1" ] || [ "$LLM_CHOICE" = "" ]; then
     echo "    2) qwen3.5:9b       — Better  (~5.5GB, needs 16GB+ RAM)"
     echo "                           Slower responses but noticeably higher quality"
     echo "    3) qwen3.5:35b-a3b  — Best    (~20GB, needs 24GB+ RAM)"
-    echo "                           MoE: only 3B active params, so runs fast despite size"
+    echo "                           Large model but uses a clever trick to stay fast"
     echo "    4) Other             — enter a custom model name"
     echo ""
     MODEL_CHOICE=$(ask "Choice" "$OLLAMA_DEFAULT")

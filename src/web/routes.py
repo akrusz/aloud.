@@ -23,7 +23,7 @@ from ..updater import check_for_updates, apply_update, download_release
 OLLAMA_MODEL_TIERS = [
     {"min_gb": 24, "model": "qwen3.5:35b-a3b", "label": "Best",
      "download": "~20GB", "disk": "~20GB",
-     "note": "MoE model — only 3B params active per token, so it runs fast despite its size"},
+     "note": "Large model but uses a clever trick to stay fast — best quality by far"},
     {"min_gb": 16, "model": "qwen3.5:9b", "label": "Better",
      "download": "~5.5GB", "disk": "~5.5GB",
      "note": "Slower responses than 4B but noticeably higher quality"},

@@ -2566,27 +2566,27 @@ body::before {
 }
 
 .ollama-tier-size {
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     margin-top: 0.1rem;
 }
 
 .ollama-tier-note {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     font-style: italic;
     margin-top: 0.1rem;
 }
 
 .ollama-rec-badge {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--accent);
     margin-left: 0.25rem;
 }
 
 .btn-ollama-pull {
     padding: 0.3rem 0.75rem;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     border: 1px solid var(--accent);
     border-radius: 4px;
     background: transparent;
@@ -2607,7 +2607,7 @@ body::before {
 }
 
 .ollama-tier-installed {
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     color: var(--success, #4caf50);
     white-space: nowrap;
 }
@@ -2637,7 +2637,7 @@ body::before {
 }
 
 .ollama-pull-status {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     white-space: nowrap;
     min-width: 5rem;
