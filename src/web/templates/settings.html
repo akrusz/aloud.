@@ -86,6 +86,7 @@
                 <label for="s-proxy-url">Proxy URL</label>
                 <input type="text" id="s-proxy-url" placeholder="http://127.0.0.1:8317">
                 <span class="form-hint">Default: http://127.0.0.1:8317 — only change this if you've configured CLIProxyAPI on a different address</span>
+                <div id="s-proxy-status" class="proxy-status" style="margin-top:0.5rem"></div>
             </div>
 
             <div class="form-group api-key-group" id="s-ollama-group" style="display:none">
@@ -567,9 +568,55 @@
         });
     }
 
+    function checkProxyStatus() {
+        var statusEl = document.getElementById('s-proxy-status');
+        if (providerSelect.value !== 'claude_proxy') {
+            statusEl.innerHTML = '';
+            return;
+        }
+        statusEl.innerHTML = '<span style="color:var(--text-muted)">Checking...</span>';
+        fetch('/api/proxy/status')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.running) {
+                    statusEl.innerHTML = '<span style="color:var(--success)">Connected</span>';
+                } else if (data.installed) {
+                    statusEl.innerHTML = '<span style="color:var(--text-muted)">Installed but not running </span>'
+                        + '<a href="#" onclick="startProxyFromSettings(); return false" '
+                        + 'class="btn btn-small btn-primary" '
+                        + 'style="padding:0.15rem 0.6rem; font-size:0.875rem">Start</a>';
+                } else {
+                    statusEl.innerHTML = '<span style="color:var(--text-muted)">Not installed — '
+                        + '<a href="https://github.com/router-for-me/CLIProxyAPI" target="_blank" rel="noopener">get CLIProxyAPI</a></span>';
+                }
+            })
+            .catch(function() {
+                statusEl.innerHTML = '';
+            });
+    }
+
+    window.startProxyFromSettings = function() {
+        var statusEl = document.getElementById('s-proxy-status');
+        statusEl.innerHTML = '<span style="color:var(--text-muted)">Starting...</span>';
+        fetch('/api/proxy/start', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok) {
+                    checkProxyStatus();
+                    fetchModels('claude_proxy');
+                } else {
+                    statusEl.innerHTML = '<span style="color:var(--danger)">' + data.message + '</span>';
+                }
+            })
+            .catch(function() {
+                statusEl.innerHTML = '<span style="color:var(--danger)">Failed to start</span>';
+            });
+    };
+
     providerSelect.addEventListener('change', function() {
         showGroupsFor(providerSelect, providerKeyGroups);
         fetchModels(providerSelect.value);
+        checkProxyStatus();
     });
 
     ttsEngineSelect.addEventListener('change', function() {
@@ -672,6 +719,7 @@
             // LLM
             providerSelect.value = cfg.llm?.provider || 'claude_proxy';
             showGroupsFor(providerSelect, providerKeyGroups);
+            checkProxyStatus();
 
             document.getElementById('s-proxy-url').value = cfg.llm?.proxy_url || 'http://127.0.0.1:8317';
             document.getElementById('s-ollama-url').value = cfg.llm?.ollama_url || 'http://localhost:11434';

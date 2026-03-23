@@ -235,18 +235,25 @@ function init() {
         };
     });
 
-    // Ember level controls
+    // Ember level controls — persist to localStorage
+    var savedEmbers = localStorage.getItem('glooow-embers');
+    if (savedEmbers !== null) state.emberLevel = parseInt(savedEmbers) || 0;
+
+    function setAndSaveEmberLevel(level) {
+        setEmberLevel(level);
+        localStorage.setItem('glooow-embers', level);
+    }
     document.getElementById('ember-minus').addEventListener('click', function () {
-        setEmberLevel(Math.max(0, state.emberLevel - 1));
+        setAndSaveEmberLevel(Math.max(0, state.emberLevel - 1));
     });
     document.getElementById('ember-plus').addEventListener('click', function () {
-        setEmberLevel(Math.min(4, state.emberLevel + 1));
+        setAndSaveEmberLevel(Math.min(4, state.emberLevel + 1));
     });
     dom.emberBlocks.addEventListener('click', function (e) {
         var block = e.target.closest('.ember-block');
         if (!block) return;
         var clicked = parseInt(block.dataset.level);
-        setEmberLevel(clicked === state.emberLevel ? 0 : clicked);
+        setAndSaveEmberLevel(clicked === state.emberLevel ? 0 : clicked);
     });
 
     // ---- Kasina drag + click-outside ----

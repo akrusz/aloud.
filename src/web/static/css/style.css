@@ -10,7 +10,7 @@
     --bg-input: #281f16;
     --text-primary: #f5efe6;
     --text-secondary: #c4b49e;
-    --text-muted: #9e8e7a;
+    --text-muted: #b0a090;
     --accent: #d4873a;
     --accent-dim: rgba(212, 135, 58, 0.15);
     --accent-glow: rgba(212, 135, 58, 0.3);
@@ -41,7 +41,7 @@
     --bg-input: #fffcf8;
     --text-primary: #221d19;
     --text-secondary: #5c5248;
-    --text-muted: #766a5e;
+    --text-muted: #685c50;
     --accent: #b06828;
     --accent-hover: #9a5820;
     --accent-dim: rgba(176, 104, 40, 0.10);
@@ -225,7 +225,7 @@ body {
 
 .btn-small {
     padding: 0.3rem 0.8rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 /* ============================================
@@ -311,7 +311,7 @@ body {
 .optional {
     font-weight: 400;
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .form-row {
@@ -368,7 +368,7 @@ body {
 }
 
 .participant-label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-secondary);
 }
@@ -407,14 +407,14 @@ body {
 }
 
 .participant-field label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
 }
 
 .participant-field select,
 .participant-field input[type="text"],
 .participant-field input[type="number"] {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     padding: 0.4rem 1.6rem 0.4rem 0.6rem;
 }
 .participant-field input[type="text"],
@@ -450,7 +450,7 @@ body {
     text-align: center;
     padding: 0.4rem 0;
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     -moz-appearance: textfield;
     appearance: textfield;
 }
@@ -463,7 +463,7 @@ body {
     background: transparent;
     border: none;
     color: var(--text-primary);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     width: 1.6rem;
     padding: 0;
     cursor: pointer;
@@ -484,7 +484,7 @@ body {
     min-width: 9rem;
 }
 .participant-voice-btn {
-    font-size: 0.85rem !important;
+    font-size: 0.875rem !important;
     padding: 0.4rem 0.6rem !important;
     width: 100%;
     text-align: left;
@@ -494,7 +494,7 @@ body {
     display: flex !important;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.85rem !important;
+    font-size: 0.875rem !important;
     cursor: pointer;
     white-space: nowrap;
     padding-bottom: 0.4rem;
@@ -528,12 +528,12 @@ body {
     accent-color: var(--accent);
 }
 .reactive-label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
     min-width: 2.5rem;
 }
 .sound-pick-btn {
-    font-size: 0.85rem !important;
+    font-size: 0.875rem !important;
     padding: 0.4rem 0.6rem !important;
     background: var(--bg-input);
 }
@@ -548,12 +548,12 @@ body {
 }
 .participant-phrase-preview {
     padding: 0.3rem 0.5rem !important;
-    font-size: 0.85rem !important;
+    font-size: 0.875rem !important;
     line-height: 1;
 }
 
 .btn-small {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     padding: 0.4rem 0.8rem;
 }
 
@@ -635,14 +635,14 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 50%;
     background: var(--accent-dim);
     color: var(--accent);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
 }
 
 .range-labels {
     display: flex;
     justify-content: space-between;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     margin-top: 0.25rem;
 }
@@ -710,7 +710,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .style-desc {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
 }
 
@@ -764,7 +764,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .modifier-desc {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
 }
 
@@ -804,13 +804,29 @@ input[type="range"]::-moz-range-thumb {
 /* Provider availability hint */
 
 .provider-hint {
-    font-size: 0.85rem;
-    color: var(--danger);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
     padding: 0.5rem 0.75rem;
-    background: rgba(192, 80, 62, 0.08);
-    border: 1px solid rgba(192, 80, 62, 0.2);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     margin-top: -0.75rem;
+}
+
+.provider-hint a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.provider-hint a:hover {
+    text-decoration: underline;
+}
+
+.provider-hint code {
+    font-size: 0.85rem;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
 }
 
 option.provider-unavailable {
@@ -891,7 +907,7 @@ body:has(.session-container) {
 }
 
 .session-timer {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     line-height: 42px;
@@ -935,7 +951,7 @@ body:has(.session-container) {
 }
 
 .message-sender {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     margin-bottom: 0.15rem;
     padding-left: 0.25rem;
@@ -990,7 +1006,7 @@ body:has(.session-container) {
     gap: 1rem;
     padding: 0.75rem 0;
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-style: italic;
 }
 
@@ -1178,7 +1194,7 @@ body:has(.session-container) {
     flex-shrink: 0;
     border: 1px solid var(--border);
     border-radius: 21px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     background: transparent;
     cursor: pointer;
@@ -1210,7 +1226,7 @@ body:has(.session-container) {
     align-items: center;
     gap: 0.4rem;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
 }
 
@@ -1228,7 +1244,7 @@ body:has(.session-container) {
     display: flex;
     align-items: center;
     gap: 0.3rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
 }
 
@@ -1283,7 +1299,7 @@ body:has(.session-container) {
 }
 
 .speed-label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     white-space: nowrap;
     user-select: none;
@@ -1305,7 +1321,7 @@ body:has(.session-container) {
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-family: var(--font);
     cursor: pointer;
     padding: 0;
@@ -1386,7 +1402,7 @@ body:has(.session-container) {
 .voice-tier-label {
     position: sticky;
     top: 0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -1426,7 +1442,7 @@ body:has(.session-container) {
 
 .voice-row-check {
     color: var(--accent);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     flex-shrink: 0;
 }
 
@@ -1435,7 +1451,7 @@ body:has(.session-container) {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-family: var(--font);
     padding: 0.2rem 0.5rem;
     cursor: pointer;
@@ -1458,14 +1474,14 @@ body:has(.session-container) {
 }
 
 .voice-modal-speed-label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     white-space: nowrap;
     user-select: none;
 }
 
 .voice-modal-speed-value {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     white-space: nowrap;
     min-width: 4.5em;
@@ -1765,7 +1781,7 @@ body::before {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.85rem 1rem;
+    padding: 0.875rem 1rem;
     cursor: pointer;
     transition: background var(--transition);
 }
@@ -1786,12 +1802,12 @@ body::before {
 }
 
 .session-meta {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
 }
 
 .session-summary {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-secondary, var(--text-muted));
     font-style: italic;
 }
@@ -1826,7 +1842,7 @@ body::before {
 
 .transcript-role {
     font-weight: 500;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.15rem;
@@ -1854,7 +1870,7 @@ body::before {
 
 .loading-text {
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-style: italic;
 }
 
@@ -1965,7 +1981,7 @@ body::before {
 }
 
 .about-version {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     margin-bottom: 0.75rem;
 }
@@ -1981,7 +1997,7 @@ body::before {
     gap: 0.75rem;
     justify-content: center;
     flex-wrap: wrap;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .about-donate {
@@ -2075,7 +2091,7 @@ body::before {
 }
 
 .update-commits li {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
     padding: 0.3rem 0;
     border-bottom: 1px solid var(--border);
@@ -2091,7 +2107,7 @@ body::before {
 }
 
 .update-status {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     padding: 0;
     margin-top: 0.5rem;
 }
@@ -2224,7 +2240,7 @@ body::before {
 
 .settings-desc {
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     margin-bottom: 0;
 }
 
@@ -2241,7 +2257,7 @@ body::before {
 
 .text-scale-value {
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     min-width: 3em;
 }
 
@@ -2352,13 +2368,13 @@ body::before {
 
 .form-hint {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     margin-top: 0.25rem;
 }
 
 .form-hint a {
-    color: var(--accent-dim);
+    color: var(--accent);
 }
 
 .settings-actions {
@@ -2386,7 +2402,7 @@ body::before {
 
 .settings-config-path {
     margin-top: var(--space-md);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     word-break: break-all;
 }

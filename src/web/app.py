@@ -175,7 +175,7 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
 
 
 def _check_proxy(config: Config) -> bool:
-    """Check if the LLM proxy is reachable. Returns True if OK or not using proxy."""
+    """Check if the LLM proxy is reachable. Warns but never blocks startup."""
     if config.llm.provider != "claude_proxy":
         return True
     proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
@@ -189,15 +189,10 @@ def _check_proxy(config: Config) -> bool:
             timeout=3.0,
         )
         if resp.status_code == 401:
-            print(f"\n  *** CLIProxyAPI at {proxy_url} rejected our API key ***")
-            print("  Check api-keys in ~/.cli-proxy-api/config.yaml")
-            print("  and llm.api_key in config/default.yaml\n")
-            return False
+            logger.info("CLIProxyAPI rejected API key — check ~/.cli-proxy-api/config.yaml")
+            return True
     except (httpx.ConnectError, httpx.TimeoutException):
-        print(f"\n  *** CLIProxyAPI is not running at {proxy_url} ***")
-        print("  Start it with: CLIProxyAPI")
-        print("  Then restart this server.\n")
-        return False
+        logger.info("CLIProxyAPI not running at %s — can be started from Settings", proxy_url)
     return True
 
 
@@ -228,26 +223,34 @@ def _set_macos_app_name(name: str) -> None:
         pass
 
 
-def _shutdown_all() -> None:
-    """Clean up child processes and close the launching terminal/shell."""
+def _stop_proxy(app) -> None:
+    """Terminate CLIProxyAPI if we started it."""
+    proc = getattr(app, "proxy_process", None)
+    if proc and proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=3)
+        except Exception:
+            proc.kill()
+
+
+def _shutdown_all(flask_app=None) -> None:
+    """Clean up child processes and exit."""
     print("\n  Window closed. Shutting down...", flush=True)
 
-    # Suppress multiprocessing resource_tracker semaphore leak warnings
-    # (caused by os._exit bypassing normal cleanup)
-    import warnings
-    warnings.filterwarnings("ignore", "resource_tracker", UserWarning)
-    try:
-        from multiprocessing import resource_tracker
-        resource_tracker._resource_tracker._stop = lambda *a, **k: None  # type: ignore[attr-defined]
-    except Exception:
-        pass
+    # Kill CLIProxyAPI immediately if we started it
+    if flask_app:
+        proc = getattr(flask_app, "proxy_process", None)
+        if proc and proc.poll() is None:
+            try:
+                proc.kill()
+                proc.wait(timeout=1)
+            except Exception:
+                pass
 
-    # Kill child processes (TTS say commands, etc.) in our process group
-    try:
-        os.killpg(os.getpgid(os.getpid()), signal.SIGTERM)
-    except (OSError, ProcessLookupError):
-        pass
-
+    # Force exit — os._exit bypasses all cleanup, atexit, threads, etc.
+    # This is intentional: the Flask server thread would otherwise keep
+    # the process alive indefinitely after the window closes.
     os._exit(0)
 
 
@@ -288,12 +291,45 @@ def _save_geometry(window) -> None:
         pass
 
 
+def _grant_media_permissions() -> None:
+    """Patch pywebview's WKWebView delegate to auto-grant microphone access.
+
+    WKWebView requires a WKUIDelegate method to handle getUserMedia requests.
+    pywebview doesn't implement it, so WebKit prompts (or denies) every time.
+    This adds the method to auto-grant audio/video capture.
+    """
+    if sys.platform != "darwin":
+        return
+    try:
+        import objc
+        import WebKit
+        from webview.platforms.cocoa import BrowserView
+
+        BrowserDelegate = BrowserView.BrowserDelegate
+
+        sel = b"webView:requestMediaCapturePermissionForOrigin:initiatedByFrame:type:decisionHandler:"
+
+        def _auto_grant_media(self, webview, origin, frame, _type, handler):
+            handler(WebKit.WKPermissionDecisionGrant)
+
+        typed_method = objc.selector(
+            _auto_grant_media,
+            selector=sel,
+            signature=b"v@:@@@q@?",
+        )
+        objc.classAddMethod(BrowserDelegate, sel, typed_method)
+        logger.info("Patched WKWebView to auto-grant microphone access")
+    except Exception as e:
+        logger.warning("Could not patch media permissions: %s", e)
+
+
 def _run_webview(app, socketio, host: str, port: int, window_mode: str = "remember",
                  frameless: bool = False, vibrancy: bool = False) -> None:
     """Run with a native pywebview window. Flask serves in a background thread."""
     import webview
 
     _set_macos_app_name("Glooow")
+    _grant_media_permissions()
 
     url = f"http://localhost:{port}"
 
@@ -352,8 +388,14 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
         window.events.closing += _on_closing
 
     # webview.start() blocks until the window is closed (must be on main thread)
-    webview.start()
-    _shutdown_all()
+    # private_mode=False persists WebKit data (mic permissions, localStorage)
+    # storage_path keeps it in the app's config directory
+    from ..config import get_user_config_dir
+    webview.start(
+        private_mode=False,
+        storage_path=str(get_user_config_dir() / "webview"),
+    )
+    _shutdown_all(app)
 
 
 def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
@@ -387,6 +429,7 @@ def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
 
     def _shutdown(*_):
         _restore_terminal()
+        _stop_proxy(app)
         print("\n  Shutting down...", flush=True)
         sys.exit(0)
 

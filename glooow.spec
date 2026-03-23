@@ -75,7 +75,7 @@ app = BUNDLE(
     info_plist={
         'NSMicrophoneUsageDescription':
             'Glooow needs microphone access for voice-based meditation sessions.',
-        'CFBundleShortVersionString': '0.9.0',
+        'CFBundleShortVersionString': '0.9.1',
         'CFBundleDisplayName': 'Glooow',
         'NSHighResolutionCapable': True,
     },

@@ -2,6 +2,8 @@
 
 import math
 import os
+import shutil
+import subprocess
 import time
 
 import httpx
@@ -83,7 +85,10 @@ def register_routes(app: Flask) -> None:
         """Close the pywebview window (shuts down the app)."""
         window = getattr(app, "webview_window", None)
         if not window:
-            return jsonify({"error": "Not running in desktop mode"}), 400
+            # Not in desktop mode — just shut down the server
+            import os, signal
+            os.kill(os.getpid(), signal.SIGINT)
+            return jsonify({"ok": True})
         try:
             window.destroy()
             return jsonify({"ok": True})
@@ -102,10 +107,100 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/proxy/status")
+    def api_proxy_status():
+        """Check if CLIProxyAPI is installed and/or running."""
+        binary = shutil.which("CLIProxyAPI")
+        installed = binary is not None
+
+        running = False
+        proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
+        headers = {}
+        if app.meditation_config.llm.api_key:
+            headers["X-Api-Key"] = app.meditation_config.llm.api_key
+        try:
+            resp = httpx.get(
+                f"{proxy_url.rstrip('/')}/v1/models",
+                headers=headers,
+                timeout=2.0,
+            )
+            running = resp.status_code == 200
+        except Exception:
+            pass
+
+        return jsonify({
+            "installed": installed,
+            "running": running,
+            "path": binary,
+        })
+
+    @app.route("/api/proxy/start", methods=["POST"])
+    def api_proxy_start():
+        """Start CLIProxyAPI if installed and not already running."""
+        binary = shutil.which("CLIProxyAPI")
+        if not binary:
+            return jsonify({"ok": False, "message": "CLIProxyAPI not found on this system"}), 404
+
+        # Check if already running
+        proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
+        headers = {}
+        if app.meditation_config.llm.api_key:
+            headers["X-Api-Key"] = app.meditation_config.llm.api_key
+        try:
+            resp = httpx.get(
+                f"{proxy_url.rstrip('/')}/v1/models",
+                headers=headers,
+                timeout=2.0,
+            )
+            if resp.status_code == 200:
+                return jsonify({"ok": True, "message": "Already running"})
+        except Exception:
+            pass
+
+        # Start as a child process — cleaned up when Glooow exits via atexit
+        try:
+            import atexit
+
+            proc = subprocess.Popen(
+                [binary],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            app.proxy_process = proc
+
+            def _cleanup_proxy():
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=3)
+                    except Exception:
+                        proc.kill()
+
+            atexit.register(_cleanup_proxy)
+            # Wait briefly for it to come up
+            for _ in range(10):
+                time.sleep(0.5)
+                try:
+                    resp = httpx.get(
+                        f"{proxy_url.rstrip('/')}/v1/models",
+                        headers=headers,
+                        timeout=1.0,
+                    )
+                    if resp.status_code == 200:
+                        return jsonify({"ok": True, "message": "Started"})
+                except Exception:
+                    continue
+            return jsonify({"ok": False, "message": "Started but not responding yet — try refreshing in a moment"})
+        except Exception as e:
+            return jsonify({"ok": False, "message": str(e)}), 500
+
     @app.route("/api/providers")
     def api_providers():
         """Return provider availability based on env vars / proxy reachability."""
         results = {}
+
+        refresh = ' <a href="#" onclick="refreshProviders(); return false">Refresh</a>'
+        proxy_binary = shutil.which("CLIProxyAPI")
 
         # claude_proxy — check if CLIProxyAPI is reachable
         proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
@@ -118,38 +213,72 @@ def register_routes(app: Flask) -> None:
                 headers=headers,
                 timeout=2.0,
             )
-            results["claude_proxy"] = {
-                "available": resp.status_code == 200,
-                "hint": "Start CLIProxyAPI, then reload this page" if resp.status_code != 200 else "",
-            }
+            if resp.status_code == 200:
+                results["claude_proxy"] = {"available": True, "installed": True, "hint": ""}
+            else:
+                results["claude_proxy"] = {
+                    "available": False, "installed": bool(proxy_binary),
+                    "hint": (
+                        "CLIProxyAPI rejected the connection. Check your config in "
+                        "<code>~/.cli-proxy-api/config.yaml</code>." + refresh
+                    ),
+                }
         except Exception:
-            results["claude_proxy"] = {
-                "available": False,
-                "hint": "Start CLIProxyAPI, then reload this page",
-            }
+            if proxy_binary:
+                start_btn = (
+                    ' <a href="#" onclick="startProxy(); return false" '
+                    'class="btn btn-small btn-primary" '
+                    'style="display:inline-block; margin-left:0.5rem; padding:0.15rem 0.6rem; '
+                    'font-size:0.875rem; vertical-align:baseline">Start</a>'
+                )
+                results["claude_proxy"] = {
+                    "available": False, "installed": True,
+                    "hint": "CLIProxyAPI is installed but not running." + start_btn,
+                }
+            else:
+                results["claude_proxy"] = {
+                    "available": False, "installed": False,
+                    "hint": (
+                        "Requires <a href='https://github.com/router-for-me/CLIProxyAPI' "
+                        "target='_blank'>CLIProxyAPI</a>. "
+                        "Install it, start it, then:" + refresh
+                    ),
+                }
 
         # anthropic — needs ANTHROPIC_API_KEY
         results["anthropic"] = {
             "available": bool(os.environ.get("ANTHROPIC_API_KEY")),
-            "hint": "Set the ANTHROPIC_API_KEY environment variable",
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>ANTHROPIC_API_KEY</code> in your environment."
+            ),
         }
 
         # openai — needs OPENAI_API_KEY
         results["openai"] = {
             "available": bool(os.environ.get("OPENAI_API_KEY")),
-            "hint": "Set the OPENAI_API_KEY environment variable",
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>OPENAI_API_KEY</code> in your environment."
+            ),
         }
 
         # openrouter — needs OPENROUTER_API_KEY
         results["openrouter"] = {
             "available": bool(os.environ.get("OPENROUTER_API_KEY")),
-            "hint": "Set the OPENROUTER_API_KEY environment variable",
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>OPENROUTER_API_KEY</code> in your environment."
+            ),
         }
 
         # venice — needs VENICE_API_KEY
         results["venice"] = {
             "available": bool(os.environ.get("VENICE_API_KEY")),
-            "hint": "Set the VENICE_API_KEY environment variable",
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>VENICE_API_KEY</code> in your environment."
+            ),
         }
 
         # ollama — check if server is running and list pulled models
@@ -158,16 +287,26 @@ def register_routes(app: Flask) -> None:
             resp = httpx.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=2.0)
             resp.raise_for_status()
             models = [m["name"] for m in resp.json().get("models", [])]
-            results["ollama"] = {
-                "available": len(models) > 0,
-                "models": models,
-                "hint": "No models pulled. Run: ollama pull qwen3.5:4b" if not models else "",
-            }
+            if models:
+                results["ollama"] = {
+                    "available": True, "models": models, "hint": "",
+                }
+            else:
+                results["ollama"] = {
+                    "available": False, "models": [],
+                    "hint": (
+                        "Ollama is running but has no models. "
+                        "Run: <code>ollama pull qwen3.5:4b</code>" + refresh
+                    ),
+                }
         except Exception:
             results["ollama"] = {
-                "available": False,
-                "models": [],
-                "hint": "Ollama is not running. Install from ollama.ai and start it",
+                "available": False, "models": [],
+                "hint": (
+                    "Ollama is not running. Install from "
+                    "<a href='https://ollama.ai' target='_blank'>ollama.ai</a>, "
+                    "start it, then:" + refresh
+                ),
             }
 
         return jsonify(results)
