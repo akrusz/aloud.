@@ -507,7 +507,8 @@ def run_web(
     By default, opens in a native window via pywebview.
     Pass browser=True (or --browser on CLI) to use the system browser instead.
     """
-    configure_logging()
+    import logging as _logging
+    configure_logging(level=_logging.DEBUG if debug else _logging.WARNING)
     config = load_config(config_path)
     host = host or config.web.host
     port = port or config.web.port
