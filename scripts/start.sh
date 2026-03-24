@@ -269,17 +269,21 @@ fi
 # ── Read config values ───────────────────────────
 
 # Extract key values from YAML (simple grep — avoids needing yq)
-LLM_PROVIDER=$(grep '^\s*provider:' "$CONFIG_FILE" | head -1 | sed 's/.*provider:\s*//' | sed 's/\s*#.*//')
-LLM_MODEL=$(grep '^\s*model:' "$CONFIG_FILE" | head -1 | sed 's/.*model:\s*//' | sed 's/\s*#.*//')
-OLLAMA_MODEL=$(grep '^\s*ollama_model:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_model:\s*//' | sed 's/\s*#.*//')
-TTS_ENGINE=$(grep '^\s*engine:' "$CONFIG_FILE" | head -2 | tail -1 | sed 's/.*engine:\s*//' | sed 's/\s*#.*//')
-PROXY_URL=$(grep '^\s*proxy_url:' "$CONFIG_FILE" | head -1 | sed 's/.*proxy_url:\s*//' | sed 's/\s*#.*//')
-OLLAMA_URL=$(grep '^\s*ollama_url:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_url:\s*//' | sed 's/\s*#.*//')
+# The trailing sed trims leading/trailing whitespace from values.
+LLM_PROVIDER=$(grep '^\s*provider:' "$CONFIG_FILE" | head -1 | sed 's/.*provider:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+LLM_MODEL=$(grep '^\s*model:' "$CONFIG_FILE" | head -1 | sed 's/.*model:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+OLLAMA_MODEL=$(grep '^\s*ollama_model:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_model:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+TTS_ENGINE=$(grep '^\s*engine:' "$CONFIG_FILE" | head -2 | tail -1 | sed 's/.*engine:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+PROXY_URL=$(grep '^\s*proxy_url:' "$CONFIG_FILE" | head -1 | sed 's/.*proxy_url:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+OLLAMA_URL=$(grep '^\s*ollama_url:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_url:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
 
 # ── Cleanup on exit ─────────────────────────────
 
+CLEANED_UP=0
 cleanup() {
+    [ "$CLEANED_UP" = "1" ] && return
+    CLEANED_UP=1
     echo ""
     info "Shutting down..."
     if [ -n "$PROXY_PID" ]; then
@@ -302,9 +306,8 @@ trap cleanup EXIT INT TERM
 if [ "${QUIET:-}" != "1" ]; then
     echo ""
     echo "  ╔══════════════════════════════════════╗"
-    echo "  ║       Glooow                         ║"
+    echo "  ║              glooow                  ║"
     echo "  ╚══════════════════════════════════════╝"
-    echo ""
     if [ "$LLM_PROVIDER" = "ollama" ] && [ -n "$OLLAMA_MODEL" ]; then
         DISPLAY_MODEL="$OLLAMA_MODEL"
     else
@@ -319,19 +322,24 @@ fi
 # ── Auto-start CLIProxyAPI if needed ─────────────
 
 if [ "$LLM_PROVIDER" = "claude_proxy" ]; then
-    # Extract port from proxy_url
+    # Extract port and API key for health checks
     PROXY_PORT=$(echo "$PROXY_URL" | grep -oE ':[0-9]+$' | tr -d ':')
     PROXY_PORT="${PROXY_PORT:-8317}"
+    PROXY_API_KEY=$(grep '^\s*api_key:' "$CONFIG_FILE" | head -1 | sed 's/.*api_key:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    PROXY_CURL_OPTS=(-sf)
+    if [ -n "$PROXY_API_KEY" ] && [[ ! "$PROXY_API_KEY" =~ ^\$ ]]; then
+        PROXY_CURL_OPTS+=(-H "X-Api-Key: $PROXY_API_KEY")
+    fi
 
-    if curl -sf "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
+    if curl "${PROXY_CURL_OPTS[@]}" "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
         ok "CLIProxyAPI already running on port $PROXY_PORT"
     elif command -v CLIProxyAPI &>/dev/null; then
         info "Starting CLIProxyAPI on port $PROXY_PORT..."
-        CLIProxyAPI &
+        CLIProxyAPI >/dev/null 2>&1 &
         PROXY_PID=$!
 
         for i in $(seq 1 20); do
-            if curl -sf "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
+            if curl "${PROXY_CURL_OPTS[@]}" "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
                 ok "CLIProxyAPI ready (pid $PROXY_PID)"
                 break
             fi
@@ -369,8 +377,5 @@ if [ "$LLM_PROVIDER" = "ollama" ]; then
 fi
 
 # ── Launch the web app ───────────────────────────
-
-info "Starting Glooow web server..."
-echo ""
 
 GLOOOW_AUTO_OPEN="${AUTO_OPEN}" uv run python -m src.web

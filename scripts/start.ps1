@@ -241,9 +241,8 @@ try {
 
     Write-Host ""
     Write-Host "  +======================================+"
-    Write-Host "  |       Glooow                         |"
+    Write-Host "  |              glooow                  |"
     Write-Host "  +======================================+"
-    Write-Host ""
     Info "LLM:    $LlmProvider ($LlmModel)"
     Info "TTS:    $TtsEngine"
     Info "Config: $ConfigFile"
@@ -252,15 +251,20 @@ try {
     # ── Auto-start CLIProxyAPI if needed ─────────────
 
     if ($LlmProvider -eq "claude_proxy") {
-        # Extract port from proxy_url
+        # Extract port and API key for health checks
         $ProxyPort = "8317"
         if ($ProxyUrl -match ':(\d+)$') {
             $ProxyPort = $Matches[1]
         }
+        $ProxyApiKey = if ($ConfigContent -match '(?m)^\s*api_key:\s*(.+?)(\s*#.*)?$') { $Matches[1].Trim() } else { "" }
+        $ProxyHeaders = @{}
+        if ($ProxyApiKey -and -not $ProxyApiKey.StartsWith('$')) {
+            $ProxyHeaders["X-Api-Key"] = $ProxyApiKey
+        }
 
         $ProxyRunning = $false
         try {
-            $null = Invoke-RestMethod -Uri "http://127.0.0.1:${ProxyPort}/v1/models" -TimeoutSec 2
+            $null = Invoke-RestMethod -Uri "http://127.0.0.1:${ProxyPort}/v1/models" -Headers $ProxyHeaders -TimeoutSec 2
             $ProxyRunning = $true
         } catch {}
 
@@ -275,7 +279,7 @@ try {
                 $Ready = $false
                 for ($i = 1; $i -le 20; $i++) {
                     try {
-                        $null = Invoke-RestMethod -Uri "http://127.0.0.1:${ProxyPort}/v1/models" -TimeoutSec 1
+                        $null = Invoke-RestMethod -Uri "http://127.0.0.1:${ProxyPort}/v1/models" -Headers $ProxyHeaders -TimeoutSec 1
                         Ok "CLIProxyAPI ready (pid $($ProxyProcess.Id))"
                         $Ready = $true
                         break
@@ -322,9 +326,6 @@ try {
     }
 
     # ── Launch the web app ───────────────────────────
-
-    Info "Starting Glooow web server..."
-    Write-Host ""
 
     if ($AutoOpen) { $env:GLOOOW_AUTO_OPEN = "1" }
     uv run python -m src.web

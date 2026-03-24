@@ -515,10 +515,7 @@ def run_web(
     host = host or config.web.host
     port = port or config.web.port
 
-    print(f"\n{'=' * 50}")
-    print(f"  glooow v{__version__} — starting up...")
-    print(f"  http://localhost:{port}")
-    print(f"{'=' * 50}")
+    print(f"\n  http://localhost:{port}  (Ctrl+C to quit)")
 
     app, socketio = create_app(config)
 
