@@ -282,9 +282,9 @@ def load_config(path: str | Path | None = None) -> Config:
         if "auth" in data:
             config.auth = _update_dataclass(AuthConfig(), data["auth"])
 
-    # In frozen mode, resolve relative save_directory against user data dir
-    # (Finder launches with cwd=/ which is read-only)
-    if is_frozen() and not Path(config.session.save_directory).is_absolute():
+    # Resolve relative save_directory against the user config dir so sessions
+    # always live alongside the config file (not in a random cwd).
+    if not Path(config.session.save_directory).is_absolute():
         config.session.save_directory = str(
             get_user_config_dir() / config.session.save_directory
         )

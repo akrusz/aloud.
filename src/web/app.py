@@ -105,14 +105,9 @@ def _init_session_state(app: Flask) -> None:
 
 
 def _init_transcript_logger(app: Flask, config: Config) -> None:
-    """Set up the transcript logger, resolving paths for frozen mode."""
-    save_dir = config.session.save_directory
-    if is_frozen() and not Path(save_dir).is_absolute():
-        from ..config import get_user_config_dir
-        save_dir = str(get_user_config_dir() / save_dir)
-
+    """Set up the transcript logger."""
     app.transcript_logger = TranscriptLogger(
-        save_directory=save_dir,
+        save_directory=config.session.save_directory,
         include_timestamps=config.session.include_timestamps,
     )
 
