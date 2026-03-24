@@ -37,36 +37,14 @@ function sendText(text) {
     socket.emit('user_message', { text: text });
 }
 
-// ---- Initialize ----
+// ---- Sub-initializers ----
 
-function init() {
-    initDOM();
-
-    // Wire audio module's sendText callback
-    initAudio(sendText);
-
-    // Voice system (fetch server voices, browser voiceschanged)
-    initVoices();
-
-    // Socket event handlers
-    registerSocketHandlers(deactivateVoice);
-
-    const params = JSON.parse(sessionStorage.getItem('sessionParams') || '{}');
-
-    // Generate a stable session ID that survives socket reconnections
-    state.sessionId = 'ses-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    params.session_id = state.sessionId;
-
-    // Persistent client ID so LAN users only see their own history
-    if (!localStorage.getItem('glooow-client-id')) {
-        localStorage.setItem('glooow-client-id', 'cl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
-    }
-    params.client_id = localStorage.getItem('glooow-client-id');
-    params.tts = dom.ttsToggle.classList.contains('active');
-
-    // Event listeners
+function initSessionControls(params) {
+    // Voice and listen buttons
     dom.voiceBtn.addEventListener('click', toggleVoice);
     dom.listenBtn.addEventListener('click', toggleListenMode);
+
+    // TTS toggle
     dom.ttsToggle.addEventListener('click', function () {
         dom.ttsToggle.classList.toggle('active');
         if (!dom.ttsToggle.classList.contains('active')) {
@@ -75,27 +53,33 @@ function init() {
             state.ttsSpeaking = false;
         }
     });
+
+    // End session button
     dom.endBtn.addEventListener('click', function (e) {
         e.preventDefault();
         endSession(deactivateVoice);
     });
+
+    // New session navigation
     dom.newSessionBtn.addEventListener('click', function (e) {
         e.preventDefault();
         if (!state.sessionActive) { window.location.href = '/'; return; }
         socket.emit('prefetch_summary');
         showConfirm('Start a new session? This will end your current session.', function () {
             state.pendingNavigation = '/';
-            dom.savingOverlay.style.display = 'flex';
+            dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
         });
     });
+
+    // History navigation
     dom.historyBtn.addEventListener('click', function (e) {
         e.preventDefault();
         if (!state.sessionActive) { window.location.href = '/history'; return; }
         socket.emit('prefetch_summary');
         showConfirm('Leave session to view history? This will end your current session.', function () {
             state.pendingNavigation = '/history';
-            dom.savingOverlay.style.display = 'flex';
+            dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
         });
     });
@@ -115,6 +99,8 @@ function init() {
         if (dom.modalSpeedLabel) dom.modalSpeedLabel.textContent = state.ttsRate + ' wpm';
         updateVoicePickerLabel();
     });
+
+    // Voice picker modal
     dom.voicePickerBtn.addEventListener('click', function () { openVoiceModal(deactivateVoice); });
     dom.voiceModalClose.addEventListener('click', function () { closeVoiceModal(true, activateVoice); });
     dom.voiceModal.addEventListener('click', function (e) {
@@ -136,6 +122,21 @@ function init() {
         }
     });
 
+    // Confirm dialog buttons
+    dom.confirmYes.addEventListener('click', function () {
+        dom.confirmOverlay.classList.add('hidden');
+        if (state.pendingConfirmAction) {
+            var action = state.pendingConfirmAction;
+            state.pendingConfirmAction = null;
+            action();
+        }
+    });
+    dom.confirmNo.addEventListener('click', function () {
+        hideConfirm();
+    });
+}
+
+function initKasinaMode() {
     // Click orb in nav bar to enter kasina mode
     dom.orbEl.addEventListener('click', function (e) {
         if (!dom.kasinaToggle.checked && !state.orbDragging) {
@@ -145,6 +146,7 @@ function init() {
         }
     });
 
+    // FLIP animation for kasina toggle
     dom.kasinaToggle.addEventListener('change', function () {
         // Capture current visual state while CSS animations are still running
         var cs = getComputedStyle(dom.orbEl);
@@ -241,27 +243,6 @@ function init() {
                 anim.cancel();
             });
         };
-    });
-
-    // Ember level controls — persist to localStorage
-    var savedEmbers = localStorage.getItem('glooow-embers');
-    if (savedEmbers !== null) state.emberLevel = parseInt(savedEmbers) || 0;
-
-    function setAndSaveEmberLevel(level) {
-        setEmberLevel(level);
-        localStorage.setItem('glooow-embers', level);
-    }
-    document.getElementById('ember-minus').addEventListener('click', function () {
-        setAndSaveEmberLevel(Math.max(0, state.emberLevel - 1));
-    });
-    document.getElementById('ember-plus').addEventListener('click', function () {
-        setAndSaveEmberLevel(Math.min(4, state.emberLevel + 1));
-    });
-    dom.emberBlocks.addEventListener('click', function (e) {
-        var block = e.target.closest('.ember-block');
-        if (!block) return;
-        var clicked = parseInt(block.dataset.level);
-        setAndSaveEmberLevel(clicked === state.emberLevel ? 0 : clicked);
     });
 
     // ---- Kasina drag + click-outside ----
@@ -371,22 +352,102 @@ function init() {
         dom.kasinaToggle.checked = false;
         dom.kasinaToggle.dispatchEvent(new Event('change'));
     });
+}
+
+function initEmbers() {
+    // Restore saved ember level from localStorage
+    var savedEmbers = localStorage.getItem('glooow-embers');
+    if (savedEmbers !== null) state.emberLevel = parseInt(savedEmbers) || 0;
+
+    function setAndSaveEmberLevel(level) {
+        setEmberLevel(level);
+        localStorage.setItem('glooow-embers', level);
+    }
+    document.getElementById('ember-minus').addEventListener('click', function () {
+        setAndSaveEmberLevel(Math.max(0, state.emberLevel - 1));
+    });
+    document.getElementById('ember-plus').addEventListener('click', function () {
+        setAndSaveEmberLevel(Math.min(4, state.emberLevel + 1));
+    });
+    dom.emberBlocks.addEventListener('click', function (e) {
+        var block = e.target.closest('.ember-block');
+        if (!block) return;
+        var clicked = parseInt(block.dataset.level);
+        setAndSaveEmberLevel(clicked === state.emberLevel ? 0 : clicked);
+    });
 
     // Initialize embers at default level
     setEmberLevel(state.emberLevel);
+}
 
-    // Confirm dialog buttons
-    dom.confirmYes.addEventListener('click', function () {
-        dom.confirmOverlay.style.display = 'none';
-        if (state.pendingConfirmAction) {
-            var action = state.pendingConfirmAction;
-            state.pendingConfirmAction = null;
-            action();
+function initNotingMode(params) {
+    var isNoting = params.meditation_type === 'noting';
+    if (!isNoting) return;
+
+    initNoting(params.participants || [], params.userTurnCue || false, sendText, params.userTurnCueSound || null);
+
+    // Start the circle after the opener TTS finishes playing.
+    // We register a one-shot callback (state.onTtsDone) that fires
+    // when TTS playback completes — no polling needed.
+    var circleStarted = false;
+
+    function onOpenerDone() {
+        if (circleStarted) return;
+        circleStarted = true;
+        setTimeout(function () { startCircle(); }, 1500);
+    }
+
+    // Set the callback BEFORE the facilitator_message arrives so it's
+    // in place whether speak() runs immediately or speech is queued.
+    state.onTtsDone = onOpenerDone;
+
+    // Safety: if TTS never fires (toggle off, broken synth, no audio),
+    // start the circle after 15s.  But if TTS is actively playing
+    // (server LLM + TTS generation can push the opener arrival past
+    // the 15s mark), rely on the onTtsDone event callback instead.
+    setTimeout(function () {
+        if (state.ttsSpeaking || state.serverAudioPlaying) {
+            // TTS is still playing — onTtsDone will start the circle.
+            // Re-arm in case the callback was consumed by an earlier event.
+            if (!state.onTtsDone) state.onTtsDone = onOpenerDone;
+            return;
         }
-    });
-    dom.confirmNo.addEventListener('click', function () {
-        hideConfirm();
-    });
+        onOpenerDone();
+    }, 15000);
+}
+
+// ---- Initialize ----
+
+function init() {
+    initDOM();
+
+    // Wire audio module's sendText callback
+    initAudio(sendText);
+
+    // Voice system (fetch server voices, browser voiceschanged)
+    initVoices();
+
+    // Socket event handlers
+    registerSocketHandlers(deactivateVoice);
+
+    // Build session params
+    const params = JSON.parse(sessionStorage.getItem('sessionParams') || '{}');
+
+    // Generate a stable session ID that survives socket reconnections
+    state.sessionId = 'ses-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    params.session_id = state.sessionId;
+
+    // Persistent client ID so LAN users only see their own history
+    if (!localStorage.getItem('glooow-client-id')) {
+        localStorage.setItem('glooow-client-id', 'cl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
+    }
+    params.client_id = localStorage.getItem('glooow-client-id');
+    params.tts = dom.ttsToggle.classList.contains('active');
+
+    // Wire up UI controls
+    initSessionControls(params);
+    initKasinaMode();
+    initEmbers();
 
     // Pass saved voice so the server knows the voice from the first message
     var savedVoice = localStorage.getItem('glooow-voice');
@@ -399,7 +460,7 @@ function init() {
     window._glooowSessionActive = true;
     window._glooowConfirmEnd = function() {
         showConfirm('End session to install update?', function () {
-            dom.savingOverlay.style.display = 'flex';
+            dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
             window._glooowPendingUpdate = true;
         });
@@ -412,39 +473,7 @@ function init() {
     sessionStorage.removeItem('continueFromSummary');
 
     // Initialize noting mode if applicable
-    var isNoting = params.meditation_type === 'noting';
-    if (isNoting) {
-        initNoting(params.participants || [], params.userTurnCue || false, sendText, params.userTurnCueSound || null);
-
-        // Start the circle after the opener TTS finishes playing.
-        // We register a one-shot callback (state.onTtsDone) that fires
-        // when TTS playback completes — no polling needed.
-        var circleStarted = false;
-
-        function onOpenerDone() {
-            if (circleStarted) return;
-            circleStarted = true;
-            setTimeout(function () { startCircle(); }, 1500);
-        }
-
-        // Set the callback BEFORE the facilitator_message arrives so it's
-        // in place whether speak() runs immediately or speech is queued.
-        state.onTtsDone = onOpenerDone;
-
-        // Safety: if TTS never fires (toggle off, broken synth, no audio),
-        // start the circle after 15s.  But if TTS is actively playing
-        // (server LLM + TTS generation can push the opener arrival past
-        // the 15s mark), rely on the onTtsDone event callback instead.
-        setTimeout(function () {
-            if (state.ttsSpeaking || state.serverAudioPlaying) {
-                // TTS is still playing — onTtsDone will start the circle.
-                // Re-arm in case the callback was consumed by an earlier event.
-                if (!state.onTtsDone) state.onTtsDone = onOpenerDone;
-                return;
-            }
-            onOpenerDone();
-        }, 15000);
-    }
+    initNotingMode(params);
 
     // Auto-activate voice
     activateVoice();

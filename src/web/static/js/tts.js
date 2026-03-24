@@ -1,6 +1,7 @@
 /* tts.js — browser speechSynthesis TTS and server audio playback */
 
 import { state, dom, socket } from './state.js';
+import { decodeAndPlay, setAudioPlaying } from './audio-utils.js';
 
 export var TTS_COOLDOWN_MS = 800;    // ignore mic for this long after TTS ends
 
@@ -54,29 +55,13 @@ export function playServerAudio(audioBytes, fallbackText) {
     stopServerAudio();
     if (state.synth) state.synth.cancel();
 
-    // audioBytes may be an ArrayBuffer or a binary blob from Socket.IO
-    var buffer = audioBytes instanceof ArrayBuffer ? audioBytes : audioBytes.buffer || audioBytes;
-
-    state.ttsSpeaking = true;
-    state.serverAudioPlaying = true;
-
-    state.audioContext.decodeAudioData(buffer.slice(0), function (decoded) {
-        state.serverAudioSource = state.audioContext.createBufferSource();
-        state.serverAudioSource.buffer = decoded;
-        state.serverAudioSource.connect(state.audioContext.destination);
-        state.serverAudioSource.onended = function () {
-            state.serverAudioPlaying = false;
-            state.serverAudioSource = null;
-            setTimeout(function () {
-                state.ttsSpeaking = false;
-                if (state.onTtsDone) { var cb = state.onTtsDone; state.onTtsDone = null; cb(); }
-            }, TTS_COOLDOWN_MS);
-        };
-        state.serverAudioSource.start(0);
+    decodeAndPlay(audioBytes, function () {
+        setTimeout(function () {
+            state.ttsSpeaking = false;
+            if (state.onTtsDone) { var cb = state.onTtsDone; state.onTtsDone = null; cb(); }
+        }, TTS_COOLDOWN_MS);
     }, function (err) {
         console.warn('Server audio decode failed, falling back to browser TTS:', err);
-        state.serverAudioPlaying = false;
-        state.ttsSpeaking = false;
         if (fallbackText) speakBrowser(fallbackText);
     });
 }

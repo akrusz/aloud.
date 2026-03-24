@@ -1,6 +1,7 @@
 """Update checking and self-update for Glooow."""
 
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -9,6 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CACHE_TTL = 300  # 5 minutes
@@ -107,8 +110,8 @@ def _load_cache() -> dict | None:
             data = json.loads(cache_file.read_text())
             if time.time() - data.get("ts", 0) < _CACHE_TTL:
                 return data
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to load update cache: %s", e)
     return None
 
 
@@ -132,15 +135,15 @@ def _save_cache(status: UpdateStatus) -> None:
             "download_size": status.download_size,
             "asset_name": status.asset_name,
         }))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to save update cache: %s", e)
 
 
 def _clear_cache() -> None:
     try:
         _get_cache_file().unlink(missing_ok=True)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to clear update cache: %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -376,8 +379,8 @@ def apply_update() -> UpdateResult:
             text=True,
             timeout=120,
         )
-    except Exception:
-        pass  # Non-fatal — deps may already be up to date
+    except Exception as e:
+        logger.debug("Dependency update skipped: %s", e)  # Non-fatal — deps may already be up to date
 
     _clear_cache()
 

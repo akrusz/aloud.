@@ -22,7 +22,7 @@
                 var sessions = data.sessions || [];
 
                 if (currentPage === 1 && sessions.length === 0) {
-                    emptyEl.style.display = '';
+                    emptyEl.classList.remove('hidden');
                     return;
                 }
 
@@ -30,7 +30,7 @@
                     listEl.appendChild(createSessionItem(s));
                 });
 
-                loadMoreBtn.style.display = currentPage < totalPages ? '' : 'none';
+                loadMoreBtn.classList.toggle('hidden', currentPage >= totalPages);
             })
             .catch(function () {});
     }
@@ -92,7 +92,7 @@
         var body = document.createElement('div');
         body.className = 'session-item-body';
         body.id = 'body-' + s.session_id;
-        body.style.display = 'none';
+        body.classList.add('hidden');
 
         var transcript = document.createElement('div');
         transcript.className = 'session-transcript';
@@ -131,10 +131,10 @@
 
         if (isOpen) {
             item.classList.remove('open');
-            body.style.display = 'none';
+            body.classList.add('hidden');
         } else {
             item.classList.add('open');
-            body.style.display = 'block';
+            body.classList.remove('hidden');
 
             if (!loaded[sessionId]) {
                 loadTranscript(sessionId);

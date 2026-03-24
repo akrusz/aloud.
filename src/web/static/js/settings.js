@@ -1,0 +1,957 @@
+// Settings page — extracted from inline <script> in settings.html
+
+const firstRun = document.getElementById('settings-data').dataset.firstRun === 'true';
+const form = document.getElementById('settings-form');
+const providerSelect = document.getElementById('s-provider');
+const modelSelect = document.getElementById('s-model');
+const ttsEngineSelect = document.getElementById('s-tts-engine');
+const savedEl = document.getElementById('settings-saved');
+const errorEl = document.getElementById('settings-error');
+const configPathEl = document.getElementById('settings-config-path');
+const voiceBtn = document.getElementById('s-voice-btn');
+const voiceModal = document.getElementById('settings-voice-modal');
+const voiceModalList = document.getElementById('settings-voice-modal-list');
+const voiceModalClose = document.getElementById('settings-voice-modal-close');
+
+// Text scale — preview + reset
+const textScaleSlider = document.getElementById('s-text-scale');
+const textScaleLabel = document.getElementById('s-text-scale-label');
+const textScalePreviewBtn = document.getElementById('s-text-scale-apply');
+const textScaleReset = document.getElementById('s-text-scale-reset');
+const textScalePreviewInner = document.getElementById('text-scale-preview-inner');
+let textScalePreviewed = parseFloat(textScaleSlider.value) || 1;
+let textScaleLoaded = textScalePreviewed;
+
+function updateTextScaleButtons() {
+    const scale = parseFloat(textScaleSlider.value);
+    textScalePreviewBtn.disabled = (scale === textScalePreviewed);
+    textScaleReset.disabled = (scale === textScaleLoaded);
+}
+
+textScaleSlider.addEventListener('input', function() {
+    const scale = parseFloat(textScaleSlider.value);
+    textScaleLabel.textContent = Math.round(scale * 100) + '%';
+    textScalePreviewInner.style.fontSize = (18 * scale) + 'px';
+    updateTextScaleButtons();
+});
+
+textScalePreviewBtn.addEventListener('click', function() {
+    const scale = parseFloat(textScaleSlider.value);
+    document.documentElement.style.setProperty('--text-scale', scale);
+    textScalePreviewed = scale;
+    updateTextScaleButtons();
+    document.getElementById('text-scale-group').scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+textScaleReset.addEventListener('click', function() {
+    textScaleSlider.value = textScaleLoaded;
+    textScaleLabel.textContent = Math.round(textScaleLoaded * 100) + '%';
+    textScalePreviewInner.style.fontSize = (18 * textScaleLoaded) + 'px';
+    document.documentElement.style.setProperty('--text-scale', textScaleLoaded);
+    textScalePreviewed = textScaleLoaded;
+    updateTextScaleButtons();
+});
+
+// Voice state
+let serverVoices = [];
+let scoredVoices = [];
+let selectedVoiceName = '';
+let previewAudio = null;
+
+const QUALITY_VOICES_RE = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
+const TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
+
+function scoreVoiceName(name) {
+    if (/Premium/i.test(name)) return 3;
+    if (/Enhanced|Online|Natural/i.test(name)) return 2;
+    if (/^Google/i.test(name)) return 1;
+    const baseName = name.replace(/\s*\(.*\)$/, '');
+    if (QUALITY_VOICES_RE.test(baseName)) return 1;
+    return 0;
+}
+
+function buildVoiceList() {
+    scoredVoices = [];
+    for (let i = 0; i < serverVoices.length; i++) {
+        const sv = serverVoices[i];
+        scoredVoices.push({ name: sv.name, lang: sv.lang, score: scoreVoiceName(sv.name) });
+    }
+    scoredVoices.sort(function(a, b) {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.name.localeCompare(b.name);
+    });
+}
+
+function openVoiceModal() {
+    voiceModalList.innerHTML = '';
+    if (scoredVoices.length === 0) {
+        voiceModalList.innerHTML = '<div class="voice-tier-label">No server voices available</div>';
+        voiceModal.classList.remove('hidden');
+        return;
+    }
+
+    // Group by tier
+    const tiers = {};
+    for (let i = 0; i < scoredVoices.length; i++) {
+        const s = scoredVoices[i].score;
+        if (!tiers[s]) tiers[s] = [];
+        tiers[s].push(scoredVoices[i]);
+    }
+
+    [3, 2, 1, 0].forEach(function(tier) {
+        const items = tiers[tier];
+        if (!items || items.length === 0) return;
+
+        const label = document.createElement('div');
+        label.className = 'voice-tier-label';
+        label.textContent = TIER_LABELS[tier];
+        voiceModalList.appendChild(label);
+
+        items.forEach(function(entry) {
+            const row = document.createElement('div');
+            row.className = 'voice-row';
+            if (entry.name === selectedVoiceName) row.classList.add('selected');
+            row.dataset.voiceName = entry.name;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'voice-row-name';
+            nameSpan.textContent = entry.name;
+            row.appendChild(nameSpan);
+
+            if (entry.name === selectedVoiceName) {
+                const check = document.createElement('span');
+                check.className = 'voice-row-check';
+                check.textContent = '\u2713';
+                row.appendChild(check);
+            }
+
+            const previewBtn = document.createElement('button');
+            previewBtn.type = 'button';
+            previewBtn.className = 'voice-row-preview';
+            previewBtn.textContent = 'Preview';
+            previewBtn.dataset.voiceName = entry.name;
+            row.appendChild(previewBtn);
+
+            voiceModalList.appendChild(row);
+        });
+    });
+
+    voiceModal.classList.remove('hidden');
+}
+
+function selectSettingsVoice(name) {
+    selectedVoiceName = name;
+    voiceBtn.textContent = name + ' \u00b7 ' + rateSlider.value + ' wpm';
+
+    // Update visual state in modal
+    const rows = voiceModalList.querySelectorAll('.voice-row');
+    rows.forEach(function(row) {
+        const isSelected = row.dataset.voiceName === name;
+        row.classList.toggle('selected', isSelected);
+        const existingCheck = row.querySelector('.voice-row-check');
+        if (isSelected && !existingCheck) {
+            const check = document.createElement('span');
+            check.className = 'voice-row-check';
+            check.textContent = '\u2713';
+            row.insertBefore(check, row.querySelector('.voice-row-preview'));
+        } else if (!isSelected && existingCheck) {
+            existingCheck.remove();
+        }
+    });
+}
+
+function stopPreview() {
+    if (previewAudio) { previewAudio.pause(); previewAudio = null; }
+}
+
+function previewVoice(name) {
+    stopPreview();
+    let url = '/api/voices/preview?voice=' + encodeURIComponent(name)
+        + '&rate=' + rateSlider.value;
+    if (name === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
+    previewAudio = new Audio(url);
+    previewAudio.play().catch(function() {});
+}
+
+// Speed slider in voice modal
+const rateSlider = document.getElementById('s-tts-rate');
+const rateLabel = document.getElementById('s-tts-rate-label');
+function updateRateDisplay() {
+    rateLabel.textContent = rateSlider.value + ' wpm';
+    const voiceText = selectedVoiceName || 'Default';
+    voiceBtn.textContent = voiceText + ' \u00b7 ' + rateSlider.value + ' wpm';
+}
+rateSlider.addEventListener('input', updateRateDisplay);
+
+// Voice modal events
+voiceBtn.addEventListener('click', openVoiceModal);
+voiceModalClose.addEventListener('click', function() {
+    stopPreview();
+    voiceModal.classList.add('hidden');
+});
+voiceModal.addEventListener('click', function(e) {
+    if (e.target === voiceModal) { stopPreview(); voiceModal.classList.add('hidden'); }
+});
+voiceModalList.addEventListener('click', function(e) {
+    const previewBtn = e.target.closest('.voice-row-preview');
+    if (previewBtn) {
+        e.stopPropagation();
+        previewVoice(previewBtn.dataset.voiceName);
+        return;
+    }
+    const row = e.target.closest('.voice-row');
+    if (row) {
+        selectSettingsVoice(row.dataset.voiceName);
+    }
+});
+
+// Fetch server voices filtered by selected language
+function fetchVoices() {
+    const lang = document.getElementById('s-language').value || 'en';
+    fetch('/api/voices?lang=' + encodeURIComponent(lang))
+        .then(function(r) { return r.json(); })
+        .then(function(voices) {
+            serverVoices = voices;
+            buildVoiceList();
+            // If current voice isn't in the filtered list, clear selection
+            if (selectedVoiceName) {
+                let found = false;
+                for (let i = 0; i < scoredVoices.length; i++) {
+                    if (scoredVoices[i].name === selectedVoiceName) { found = true; break; }
+                }
+                if (!found) {
+                    selectedVoiceName = scoredVoices.length > 0 ? scoredVoices[0].name : '';
+                    updateRateDisplay();
+                }
+            }
+        })
+        .catch(function() {});
+}
+
+fetchVoices();
+
+// Refresh voices when language changes
+document.getElementById('s-language').addEventListener('change', fetchVoices);
+
+// Map provider to which API key group to show
+const providerKeyGroups = {
+    claude_proxy: ['s-proxy-group'],
+    anthropic: ['s-anthropic-key-group'],
+    openai: ['s-openai-key-group'],
+    openrouter: ['s-openrouter-key-group'],
+    venice: ['s-venice-key-group'],
+    ollama: ['s-ollama-group'],
+};
+
+const ttsKeyGroups = {
+    elevenlabs: ['s-elevenlabs-key-group'],
+};
+
+function showGroupsFor(select, groupMap) {
+    const section = select.closest('.settings-section');
+    section.querySelectorAll('.api-key-group').forEach(function(el) { el.classList.add('hidden'); });
+    const groups = groupMap[select.value] || [];
+    groups.forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('hidden');
+    });
+}
+
+function checkProxyStatus() {
+    const statusEl = document.getElementById('s-proxy-status');
+    const installEl = document.getElementById('s-proxy-install');
+    const proxyRow = statusEl.closest('.form-row');
+    if (providerSelect.value !== 'claude_proxy') {
+        statusEl.innerHTML = '';
+        if (proxyRow) proxyRow.classList.add('hidden');
+        if (installEl) installEl.classList.add('hidden');
+        return;
+    }
+    if (proxyRow) proxyRow.classList.remove('hidden');
+    statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Checking...</span>';
+    fetch('/api/proxy/status')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.running) {
+                statusEl.innerHTML = 'Proxy Status: <span style="color:var(--success)">Connected</span>';
+                if (installEl) installEl.classList.add('hidden');
+            } else if (data.installed) {
+                statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Not running </span>'
+                    + '<a href="#" onclick="window.startProxyFromSettings(); return false" '
+                    + 'class="btn btn-small btn-primary" '
+                    + 'style="padding:0.15rem 0.6rem; font-size:0.875rem">Start</a>';
+                if (installEl) installEl.classList.add('hidden');
+            } else {
+                statusEl.innerHTML = '';
+                if (installEl) installEl.classList.remove('hidden');
+            }
+        })
+        .catch(function() {
+            statusEl.innerHTML = '';
+        });
+}
+
+window.startProxyFromSettings = function() {
+    const statusEl = document.getElementById('s-proxy-status');
+    statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Starting...</span>';
+    fetch('/api/proxy/start', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                checkProxyStatus();
+                fetchModels('claude_proxy');
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--danger)">' + data.message + '</span>';
+            }
+        })
+        .catch(function() {
+            statusEl.innerHTML = '<span style="color:var(--danger)">Failed to start</span>';
+        });
+};
+
+// Shared tool install function (CLIProxyAPI, Ollama)
+function installTool(tool, btn) {
+    const progressEl = document.getElementById('install-progress-' + tool);
+    const statusEl = progressEl ? progressEl.querySelector('.tool-install-status') : null;
+    const barFill = progressEl ? progressEl.querySelector('.tool-install-bar-fill') : null;
+    const doneEl = document.getElementById('install-done-' + tool);
+    const rowEl = btn.closest('.tool-install-row');
+
+    btn.disabled = true;
+    btn.textContent = 'Installing...';
+    if (progressEl) progressEl.classList.remove('hidden');
+
+    if (barFill) barFill.classList.add('indeterminate');
+
+    fetch('/api/install/' + tool, { method: 'POST' })
+        .then(function(resp) {
+            if (!resp.ok) {
+                return resp.json().then(function(data) {
+                    if (data.download_url) {
+                        window.open(data.download_url, '_blank');
+                    }
+                    throw new Error(data.error || 'Install failed');
+                });
+            }
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let hadError = false;
+
+            function read() {
+                reader.read().then(function(result) {
+                    if (result.done) {
+                        if (barFill) { barFill.classList.remove('indeterminate'); barFill.style.width = '100%'; }
+                        if (!hadError) {
+                            if (rowEl) rowEl.classList.add('hidden');
+                            if (progressEl) progressEl.classList.add('hidden');
+                            if (doneEl) doneEl.classList.remove('hidden');
+                        }
+                        // Refresh status
+                        refreshSettingsProviders();
+                        if (tool === 'cliproxyapi') checkProxyStatus();
+                        if (tool === 'ollama') fetchModels('ollama');
+                        return;
+                    }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    lines.forEach(function(line) {
+                        if (!line.trim()) return;
+                        try {
+                            const obj = JSON.parse(line);
+                            if (obj.status === 'error') {
+                                hadError = true;
+                                btn.textContent = 'Retry';
+                                btn.disabled = false;
+                                if (barFill) barFill.classList.remove('indeterminate');
+                                if (statusEl) statusEl.textContent = obj.error || 'Install failed';
+                                return;
+                            }
+                            if (statusEl && obj.status && obj.status !== 'done') {
+                                statusEl.textContent = obj.status;
+                            }
+                        } catch (e) {}
+                    });
+                    read();
+                });
+            }
+            read();
+        })
+        .catch(function(err) {
+            btn.textContent = 'Retry';
+            btn.disabled = false;
+            if (statusEl) statusEl.textContent = err.message || 'Install failed';
+            if (barFill) barFill.classList.remove('indeterminate');
+        });
+}
+
+document.getElementById('btn-install-cliproxyapi').addEventListener('click', function() {
+    installTool('cliproxyapi', this);
+});
+document.getElementById('btn-install-ollama').addEventListener('click', function() {
+    installTool('ollama', this);
+});
+
+// Fetch system info to show/hide install buttons
+fetch('/api/system-info')
+    .then(function(r) { return r.json(); })
+    .then(function(info) {
+        if (!info.tools.ollama.installed) {
+            document.getElementById('s-ollama-install').classList.remove('hidden');
+        }
+        // CLIProxyAPI install visibility is handled by checkProxyStatus()
+        if (info.platform === 'windows') {
+            const btns = document.querySelectorAll('.btn-tool-install');
+            btns.forEach(function(btn) { btn.textContent = 'Download'; });
+        }
+    })
+    .catch(function() {});
+
+let settingsProviderStatus = {};
+const providerStatusEl = document.getElementById('s-provider-status');
+
+function applySettingsProviderAvailability() {
+    for (let i = 0; i < providerSelect.options.length; i++) {
+        const opt = providerSelect.options[i];
+        const info = settingsProviderStatus[opt.value];
+        // Strip existing markers
+        opt.textContent = opt.textContent.replace(/ [\u2718\u2731]$/, '');
+        opt.classList.remove('provider-unavailable');
+        if (info && !info.available) {
+            if (info.installed) {
+                opt.textContent += ' \u2731';  // *
+            } else {
+                opt.classList.add('provider-unavailable');
+                opt.textContent += ' \u2718';  // X
+            }
+        }
+    }
+    updateSettingsProviderHint();
+}
+
+const providerKeyInfo = {
+    anthropic: { env: 'ANTHROPIC_API_KEY', url: 'https://console.anthropic.com/settings/keys', label: 'console.anthropic.com' },
+    openai: { env: 'OPENAI_API_KEY', url: 'https://platform.openai.com/api-keys', label: 'platform.openai.com' },
+    openrouter: { env: 'OPENROUTER_API_KEY', url: 'https://openrouter.ai/keys', label: 'openrouter.ai' },
+    venice: { env: 'VENICE_API_KEY', url: 'https://venice.ai/settings/api', label: 'venice.ai' }
+};
+
+function updateSettingsProviderHint() {
+    const key = providerSelect.value;
+    const info = settingsProviderStatus[key];
+    if (info && !info.available && key !== 'claude_proxy' && key !== 'ollama') {
+        const ki = providerKeyInfo[key];
+        if (ki) {
+            providerStatusEl.innerHTML =
+                'Add your API key above or set <code>' + ki.env + '</code> in your environment. ' +
+                'See <a href="' + ki.url + '" target="_blank" rel="noopener">' + ki.label + '</a> for more.';
+        } else {
+            providerStatusEl.innerHTML = info.hint || '';
+        }
+        providerStatusEl.classList.remove('hidden');
+    } else {
+        providerStatusEl.classList.add('hidden');
+    }
+}
+
+function refreshSettingsProviders() {
+    fetch('/api/providers')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            settingsProviderStatus = data;
+            applySettingsProviderAvailability();
+        })
+        .catch(function() {});
+}
+
+providerSelect.addEventListener('change', function() {
+    showGroupsFor(providerSelect, providerKeyGroups);
+    fetchModels(providerSelect.value);
+    checkProxyStatus();
+    updateSettingsProviderHint();
+});
+
+document.getElementById('s-proxy-url-reset').addEventListener('click', function() {
+    document.getElementById('s-proxy-url').value = 'http://127.0.0.1:8317';
+});
+
+ttsEngineSelect.addEventListener('change', function() {
+    showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+});
+
+// LAN info display
+const hostSelect = document.getElementById('s-host');
+const lanInfo = document.getElementById('s-lan-info');
+
+function updateLanInfo() {
+    if (hostSelect.value !== '0.0.0.0') {
+        lanInfo.classList.add('hidden');
+        return;
+    }
+    fetch('/api/lan-info')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.ip) {
+                lanInfo.classList.add('hidden');
+                return;
+            }
+            const url = data.https_port
+                ? 'https://' + data.ip + ':' + data.https_port
+                : 'http://' + data.ip + ':' + data.port;
+            lanInfo.innerHTML = 'Anyone on your local network can connect by using a web browser to visit <a href="#" class="lan-url">' + url + '</a>';
+            lanInfo.classList.remove('hidden');
+            lanInfo.querySelector('.lan-url').addEventListener('click', function(e) {
+                e.preventDefault();
+                navigator.clipboard.writeText(url).then(function() {
+                    const link = lanInfo.querySelector('.lan-url');
+                    const original = link.textContent;
+                    link.textContent = 'Copied!';
+                    setTimeout(function() { link.textContent = original; }, 1500);
+                });
+            });
+        })
+        .catch(function() { lanInfo.classList.add('hidden'); });
+}
+
+hostSelect.addEventListener('change', updateLanInfo);
+
+// Toggle password visibility
+document.querySelectorAll('.toggle-visibility').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const input = btn.parentElement.querySelector('input');
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = 'Hide';
+        } else {
+            input.type = 'password';
+            btn.textContent = 'Show';
+        }
+    });
+});
+
+// Stepper buttons
+document.querySelectorAll('.stepper-inc, .stepper-dec').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const input = document.getElementById(btn.dataset.target);
+        const step = parseFloat(input.step) || 1;
+        let val = parseFloat(input.value) || 0;
+        const min = parseFloat(input.min);
+        const max = parseFloat(input.max);
+        if (btn.classList.contains('stepper-inc')) {
+            val = Math.min(val + step, max);
+        } else {
+            val = Math.max(val - step, min);
+        }
+        // Avoid floating point artifacts
+        input.value = parseFloat(val.toFixed(1));
+    });
+});
+
+// Remove a pulled Ollama model (with confirmation)
+function removeOllamaModel(model, btn) {
+    if (!confirm('Remove ' + model + '?\n\nThis will delete the model from disk. You can re-download it later.')) {
+        return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Removing...';
+    fetch('/api/ollama/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({model: model}),
+    }).then(function(resp) {
+        return resp.json();
+    }).then(function(data) {
+        if (data.error) {
+            btn.textContent = 'Error';
+            btn.disabled = false;
+            alert('Failed to remove model: ' + data.error);
+        } else {
+            // Refresh the model list and tiers
+            fetchModels('ollama');
+        }
+    }).catch(function() {
+        btn.textContent = 'Error';
+        btn.disabled = false;
+    });
+}
+
+// Pull an Ollama model with streaming progress
+function pullOllamaModel(model, btn) {
+    const safeId = model.replace(/[:.]/g, '-');
+    const progressEl = document.getElementById('pull-progress-' + safeId);
+    const barFill = progressEl ? progressEl.querySelector('.ollama-pull-bar-fill') : null;
+    const statusEl = progressEl ? progressEl.querySelector('.ollama-pull-status') : null;
+
+    btn.disabled = true;
+    btn.textContent = 'Downloading...';
+    if (progressEl) progressEl.classList.remove('hidden');
+
+    fetch('/api/ollama/pull', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({model: model}),
+    }).then(function(resp) {
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        function read() {
+            reader.read().then(function(result) {
+                if (result.done) {
+                    btn.textContent = 'Done';
+                    if (statusEl) statusEl.textContent = 'Complete';
+                    if (barFill) barFill.style.width = '100%';
+                    // Refresh model list after pull
+                    setTimeout(function() { fetchModels('ollama'); }, 500);
+                    return;
+                }
+                buffer += decoder.decode(result.value, {stream: true});
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // keep incomplete line
+                lines.forEach(function(line) {
+                    if (!line.trim()) return;
+                    try {
+                        const obj = JSON.parse(line);
+                        if (obj.status === 'error') {
+                            btn.textContent = 'Error';
+                            btn.disabled = false;
+                            if (statusEl) statusEl.textContent = obj.error || 'Pull failed';
+                            return;
+                        }
+                        if (obj.total && obj.completed != null) {
+                            const pct = Math.round((obj.completed / obj.total) * 100);
+                            if (barFill) barFill.style.width = pct + '%';
+                            const dlMB = (obj.completed / (1024 * 1024)).toFixed(0);
+                            const totalMB = (obj.total / (1024 * 1024)).toFixed(0);
+                            if (statusEl) statusEl.textContent = dlMB + ' / ' + totalMB + ' MB';
+                        } else if (obj.status) {
+                            if (statusEl) statusEl.textContent = obj.status;
+                        }
+                    } catch (e) {}
+                });
+                read();
+            });
+        }
+        read();
+    }).catch(function(err) {
+        btn.textContent = 'Error';
+        btn.disabled = false;
+        if (statusEl) statusEl.textContent = 'Connection failed';
+    });
+}
+
+// Fetch models for a provider
+function fetchModels(provider) {
+    modelSelect.innerHTML = '<option value="">Loading...</option>';
+
+    if (provider === 'ollama') {
+        fetch('/api/providers')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                const info = data.ollama || {};
+                const models = info.models || [];
+                const rec = info.recommendation || {};
+                modelSelect.innerHTML = '';
+                if (models.length === 0) {
+                    modelSelect.innerHTML = '<option value="">No models available</option>';
+                } else {
+                    // Build a set of tier models for labeling
+                    const tierLabels = {};
+                    (rec.tiers || []).forEach(function(t) {
+                        tierLabels[t.model] = t.label;
+                    });
+                    models.forEach(function(m) {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        const label = tierLabels[m];
+                        opt.textContent = label ? m + ' (' + label + ')' : m;
+                        modelSelect.appendChild(opt);
+                    });
+                }
+                // Show recommendation with download buttons
+                const recEl = document.getElementById('s-ollama-recommendation');
+                if (recEl && rec.tiers) {
+                    let html = '';
+                    if (rec.ram_gb) {
+                        html += '<div style="margin-bottom:0.5rem">Your system has ' + rec.ram_gb + 'GB RAM.</div>';
+                    }
+                    html += '<div class="ollama-tiers">';
+                    rec.tiers.forEach(function(t) {
+                        const isRec = t.model === rec.recommended_model;
+                        const diskInfo = t.actual_disk ? t.actual_disk + ' on disk' : t.disk + ' on disk';
+                        const sizeText = t.download + ' download, ' + diskInfo + ', ' + t.ram + ' in memory';
+                        const ramNote = t.fits === false ? ' (needs ' + t.min_gb + 'GB+ RAM)' : '';
+                        const recBadge = isRec ? ' <span class="ollama-rec-badge">recommended</span>' : '';
+
+                        html += '<div class="ollama-tier-row' + (isRec ? ' ollama-tier-recommended' : '') + '">';
+                        html += '<div class="ollama-tier-info">';
+                        html += '<strong>' + t.model + '</strong> — ' + t.label + recBadge;
+                        html += '<div class="ollama-tier-size">' + sizeText + ramNote + '</div>';
+                        if (t.note) {
+                            html += '<div class="ollama-tier-note">' + t.note + '</div>';
+                        }
+                        html += '</div>';
+
+                        if (t.installed) {
+                            html += '<div class="ollama-tier-actions">';
+                            html += '<span class="ollama-tier-installed">Installed</span>';
+                            html += '<button type="button" class="btn-ollama btn-ollama-remove" data-model="' + t.model + '">Remove</button>';
+                            html += '</div>';
+                        } else {
+                            html += '<button type="button" class="btn-ollama btn-ollama-pull" data-model="' + t.model + '">Download</button>';
+                        }
+                        html += '<div class="ollama-pull-progress hidden" id="pull-progress-' + t.model.replace(/[:.]/g, '-') + '">';
+                        html += '<div class="ollama-pull-bar"><div class="ollama-pull-bar-fill"></div></div>';
+                        html += '<span class="ollama-pull-status"></span>';
+                        html += '</div>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                    recEl.innerHTML = html;
+
+                    // Attach download handlers
+                    recEl.querySelectorAll('.btn-ollama-pull').forEach(function(btn) {
+                        btn.addEventListener('click', function() { pullOllamaModel(btn.dataset.model, btn); });
+                    });
+                    // Attach remove handlers
+                    recEl.querySelectorAll('.btn-ollama-remove').forEach(function(btn) {
+                        btn.addEventListener('click', function() { removeOllamaModel(btn.dataset.model, btn); });
+                    });
+                } else if (recEl) {
+                    recEl.innerHTML = '';
+                }
+            })
+            .catch(function() {
+                modelSelect.innerHTML = '<option value="">Could not fetch models</option>';
+            });
+        return;
+    }
+
+    fetch('/api/models/' + provider)
+        .then(function(r) { return r.json(); })
+        .then(function(models) {
+            modelSelect.innerHTML = '';
+            if (!models.length) {
+                modelSelect.innerHTML = '<option value="">No models available</option>';
+                return;
+            }
+            models.forEach(function(m) {
+                const opt = document.createElement('option');
+                opt.value = m.value;
+                opt.textContent = m.label;
+                modelSelect.appendChild(opt);
+            });
+        })
+        .catch(function() {
+            modelSelect.innerHTML = '<option value="">Could not fetch models</option>';
+        });
+}
+
+// Default language to system locale
+const langSelect = document.getElementById('s-language');
+const systemLang = (navigator.language || 'en').split(/[-_]/)[0];
+// Try to select system language, fall back to 'en'
+const systemLangOption = langSelect.querySelector('option[value="' + systemLang + '"]');
+if (systemLangOption) {
+    langSelect.value = systemLang;
+}
+
+// Load current config and populate form
+fetch('/api/config')
+    .then(function(r) { return r.json(); })
+    .then(function(cfg) {
+        // LLM
+        providerSelect.value = cfg.llm?.provider || 'claude_proxy';
+        showGroupsFor(providerSelect, providerKeyGroups);
+        checkProxyStatus();
+
+        document.getElementById('s-proxy-url').value = cfg.llm?.proxy_url || 'http://127.0.0.1:8317';
+        document.getElementById('s-ollama-url').value = cfg.llm?.ollama_url || 'http://localhost:11434';
+
+        // Show saved API key indicator for the configured provider
+        if (cfg.llm?.api_key && cfg.llm.api_key !== '***') {
+            const keyFieldMap = {
+                anthropic: 's-anthropic-key',
+                openai: 's-openai-key',
+                openrouter: 's-openrouter-key',
+                venice: 's-venice-key',
+            };
+            const fieldId = keyFieldMap[cfg.llm?.provider];
+            if (fieldId) {
+                const input = document.getElementById(fieldId);
+                input.placeholder = cfg.llm.api_key + ' (saved)';
+            }
+        }
+
+        // TTS
+        ttsEngineSelect.value = cfg.tts?.engine || 'macos';
+        showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+        const voiceName = cfg.tts?.voice || '';
+        if (voiceName) {
+            selectedVoiceName = voiceName;
+            voiceBtn.textContent = voiceName;
+        }
+        const rate = cfg.tts?.rate || 160;
+        rateSlider.value = rate;
+        rateLabel.textContent = rate + ' wpm';
+        updateRateDisplay();
+
+        // Language
+        const cfgLang = cfg.stt?.language || 'en';
+        if (langSelect.querySelector('option[value="' + cfgLang + '"]')) {
+            langSelect.value = cfgLang;
+        }
+        fetchVoices();
+
+        // STT
+        document.getElementById('s-whisper-model').value = cfg.stt?.model || 'small';
+
+        // Pacing
+        document.getElementById('s-silence-base').value = (cfg.pacing?.silence_base_ms || 3000) / 1000;
+        document.getElementById('s-silence-max').value = (cfg.pacing?.silence_max_ms || 7000) / 1000;
+        document.getElementById('s-response-delay').value = (cfg.pacing?.response_delay_ms || 2000) / 1000;
+        document.getElementById('s-silence-sec').value = cfg.pacing?.extended_silence_sec || 300;
+
+        // Display
+        const textScale = cfg.web?.text_scale || 1;
+        document.getElementById('s-text-scale').value = textScale;
+        document.getElementById('s-text-scale-label').textContent = Math.round(textScale * 100) + '%';
+        document.getElementById('s-host').value = cfg.web?.host || '127.0.0.1';
+        updateLanInfo();
+        document.getElementById('s-window-mode').value = cfg.web?.window_mode || 'remember';
+        document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
+        document.getElementById('s-vibrancy').checked = cfg.web?.vibrancy || false;
+        document.getElementById('s-auto-start-proxy').checked = cfg.web?.auto_start_proxy !== false;
+
+        // Config folder button
+        if (cfg._config_path) {
+            const openBtn = document.getElementById('btn-open-config-folder');
+            openBtn.classList.remove('hidden');
+            openBtn.onclick = function() {
+                fetch('/api/open-config-folder', {method: 'POST'});
+            };
+        }
+
+        // Fetch provider availability, then models for current provider
+        refreshSettingsProviders();
+        fetchModels(providerSelect.value);
+        const targetModel = providerSelect.value === 'ollama'
+            ? (cfg.llm?.ollama_model || '')
+            : (cfg.llm?.model || '');
+
+        // Wait for models to load, then select
+        if (targetModel) {
+            let attempts = 0;
+            const selectModel = setInterval(function() {
+                for (let i = 0; i < modelSelect.options.length; i++) {
+                    if (modelSelect.options[i].value === targetModel) {
+                        modelSelect.value = targetModel;
+                        clearInterval(selectModel);
+                        return;
+                    }
+                }
+                attempts++;
+                if (attempts >= 20) clearInterval(selectModel);
+            }, 200);
+        }
+    })
+    .catch(function(err) {
+        console.error('Failed to load config:', err);
+    });
+
+// Save
+form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    errorEl.classList.add('hidden');
+
+    const provider = providerSelect.value;
+    const data = {
+        llm: {
+            provider: provider,
+            proxy_url: document.getElementById('s-proxy-url').value,
+            ollama_url: document.getElementById('s-ollama-url').value,
+        },
+        tts: {
+            engine: ttsEngineSelect.value,
+            voice: selectedVoiceName || voiceBtn.textContent,
+            rate: parseInt(rateSlider.value, 10),
+        },
+        stt: {
+            model: document.getElementById('s-whisper-model').value,
+            language: langSelect.value,
+        },
+        pacing: {
+            silence_base_ms: Math.round(parseFloat(document.getElementById('s-silence-base').value) * 1000),
+            silence_max_ms: Math.round(parseFloat(document.getElementById('s-silence-max').value) * 1000),
+            response_delay_ms: Math.round(parseFloat(document.getElementById('s-response-delay').value) * 1000),
+            extended_silence_sec: parseInt(document.getElementById('s-silence-sec').value, 10),
+        },
+        web: {
+            host: document.getElementById('s-host').value,
+            text_scale: parseFloat(document.getElementById('s-text-scale').value),
+            window_mode: document.getElementById('s-window-mode').value,
+            frameless: document.getElementById('s-frameless').checked,
+            vibrancy: document.getElementById('s-vibrancy').checked,
+            auto_start_proxy: document.getElementById('s-auto-start-proxy').checked,
+        },
+    };
+
+    // Set model field based on provider
+    const modelVal = modelSelect.value;
+    if (modelVal) {
+        if (provider === 'ollama') {
+            data.llm.ollama_model = modelVal;
+        } else {
+            data.llm.model = modelVal;
+        }
+    }
+
+    // API keys — only include if filled
+    const keyFields = {
+        anthropic: 's-anthropic-key',
+        openai: 's-openai-key',
+        openrouter: 's-openrouter-key',
+        venice: 's-venice-key',
+    };
+
+    // Map current provider's key to llm.api_key
+    const currentKeyField = keyFields[provider];
+    if (currentKeyField) {
+        const val = document.getElementById(currentKeyField).value.trim();
+        if (val) data.llm.api_key = val;
+    }
+
+    // ElevenLabs API key
+    const elKey = document.getElementById('s-elevenlabs-key').value.trim();
+    if (elKey) data.tts.api_key = elKey;
+
+    fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(result) {
+        if (result.error) {
+            errorEl.textContent = result.error;
+            errorEl.classList.remove('hidden');
+            return;
+        }
+        if (firstRun) {
+            window.location.href = '/';
+        } else {
+            if (savedEl) {
+                savedEl.classList.remove('hidden');
+                setTimeout(function() { savedEl.classList.add('hidden'); }, 3000);
+            }
+            // Refresh voice list in case TTS engine changed
+            fetchVoices();
+        }
+    })
+    .catch(function(err) {
+        errorEl.textContent = 'Failed to save: ' + err.message;
+        errorEl.classList.remove('hidden');
+    });
+});

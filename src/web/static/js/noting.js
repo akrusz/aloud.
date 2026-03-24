@@ -7,6 +7,7 @@
 import { state, dom, socket } from './state.js';
 import { addMessage } from './ui.js';
 import { playServerAudio, speakBrowser, stopServerAudio } from './tts.js';
+import { decodeAndPlay, setAudioPlaying } from './audio-utils.js';
 
 var notingState = {
     active: false,
@@ -333,25 +334,10 @@ function handleNotingAudio(data) {
 function playAudioThenAdvance(audioBytes, fallbackText) {
     stopServerAudio();
 
-    var buffer = audioBytes instanceof ArrayBuffer ? audioBytes : audioBytes.buffer || audioBytes;
-
-    state.ttsSpeaking = true;
-    state.serverAudioPlaying = true;
-
-    state.audioContext.decodeAudioData(buffer.slice(0), function (decoded) {
-        state.serverAudioSource = state.audioContext.createBufferSource();
-        state.serverAudioSource.buffer = decoded;
-        state.serverAudioSource.connect(state.audioContext.destination);
-        state.serverAudioSource.onended = function () {
-            state.serverAudioPlaying = false;
-            state.serverAudioSource = null;
-            state.ttsSpeaking = false;
-            scheduleNextTurn(300);
-        };
-        state.serverAudioSource.start(0);
-    }, function () {
-        state.serverAudioPlaying = false;
+    decodeAndPlay(audioBytes, function () {
         state.ttsSpeaking = false;
+        scheduleNextTurn(300);
+    }, function () {
         if (fallbackText) speakBrowser(fallbackText);
         scheduleNextTurn(2000);
     });
@@ -454,15 +440,13 @@ function playSound(name, onEnded) {
 function playSoundBuffer(ctx, buffer, onEnded) {
     // Signal the VAD so the mic ignores this playback (prevents the
     // mic from picking up the sound and transcribing it as user speech).
-    state.ttsSpeaking = true;
-    state.serverAudioPlaying = true;
+    setAudioPlaying(true);
 
     var source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
     source.onended = function () {
-        state.serverAudioPlaying = false;
-        state.ttsSpeaking = false;
+        setAudioPlaying(false);
         if (onEnded) onEnded();
     };
     source.start(0);
@@ -473,8 +457,7 @@ function playSynthChime(onEnded) {
     if (!ctx) { if (onEnded) onEnded(); return; }
 
     // Signal the VAD so the mic ignores this playback
-    state.ttsSpeaking = true;
-    state.serverAudioPlaying = true;
+    setAudioPlaying(true);
 
     // Simple two-tone ascending chime (~200ms)
     var now = ctx.currentTime;
@@ -490,8 +473,7 @@ function playSynthChime(onEnded) {
     osc.start(now);
     osc.stop(now + 0.2);
     osc.onended = function () {
-        state.serverAudioPlaying = false;
-        state.ttsSpeaking = false;
+        setAudioPlaying(false);
         if (onEnded) onEnded();
     };
 }

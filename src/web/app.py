@@ -4,7 +4,6 @@ import atexit
 import logging
 import os
 import signal
-import subprocess
 import sys
 import threading
 import time
@@ -17,15 +16,13 @@ from flask_socketio import SocketIO
 
 from .. import __version__
 from ..config import load_config, Config, sync_api_key_to_env
-from ..updater import check_for_updates
-from ..facilitation.pacing import TurnDecision
 from ..logging.transcript import TranscriptLogger
 from ..stt.whisper_cpp import WhisperCppSTT
 from ..log_config import configure_logging
 from ..tts import create_tts
 from ..frozen import is_frozen, get_resource_path
-from .routes import find_cli_proxy
 from .auth import setup_auth
+from .background import start_background_tasks
 from .routes import register_routes
 from .socketio_handlers import register_socketio_events
 
@@ -37,6 +34,29 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
     if config is None:
         config = load_config()
 
+    app = _create_flask_app(config)
+    socketio = _create_socketio(app)
+
+    app.meditation_config = config
+    sync_api_key_to_env(config)
+
+    _init_session_state(app)
+    _init_transcript_logger(app, config)
+    _init_tts(app, config)
+    _init_whisper(app, config)
+
+    register_routes(app)
+    if config.auth.enabled:
+        setup_auth(app, config.auth.password)
+    register_socketio_events(socketio, app)
+
+    start_background_tasks(app, socketio, config)
+
+    return app, socketio
+
+
+def _create_flask_app(config: Config) -> Flask:
+    """Create the Flask app with template/static folders, config, and Jinja globals."""
     if is_frozen():
         template_folder = str(get_resource_path("src/web/templates"))
         static_folder = str(get_resource_path("src/web/static"))
@@ -64,21 +84,28 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
             response.headers['Expires'] = '0'
         return response
 
-    socketio = SocketIO(
+    return app
+
+
+def _create_socketio(app: Flask) -> SocketIO:
+    """Create the SocketIO instance with threading async mode."""
+    return SocketIO(
         app,
         async_mode="threading",
         cors_allowed_origins=[],  # same-origin only; populated at startup
         max_http_buffer_size=10 * 1024 * 1024,  # 10MB — ~2.5min of 16kHz float32 audio
     )
 
-    app.meditation_config = config
-    sync_api_key_to_env(config)
 
-    app.web_sessions = {}      # session_id → WebMeditationSession
-    app.sid_to_session = {}    # socket sid → session_id
-    app.session_to_sid = {}    # session_id → current socket sid
+def _init_session_state(app: Flask) -> None:
+    """Initialize session tracking dictionaries on the app."""
+    app.web_sessions = {}      # session_id -> WebMeditationSession
+    app.sid_to_session = {}    # socket sid -> session_id
+    app.session_to_sid = {}    # session_id -> current socket sid
 
-    # Resolve relative save_directory in frozen mode (Finder cwd is /)
+
+def _init_transcript_logger(app: Flask, config: Config) -> None:
+    """Set up the transcript logger, resolving paths for frozen mode."""
     save_dir = config.session.save_directory
     if is_frozen() and not Path(save_dir).is_absolute():
         from ..config import get_user_config_dir
@@ -89,9 +116,12 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
         include_timestamps=config.session.include_timestamps,
     )
 
-    # Initialize server-side TTS for high-quality audio.
-    # On platforms without a server-side engine (e.g. Linux without piper),
-    # create_tts may raise — fall back to None and let the browser handle TTS.
+
+def _init_tts(app: Flask, config: Config) -> None:
+    """Initialize server-side TTS engine, falling back to None on failure.
+
+    When server TTS is None, the browser speechSynthesis API handles TTS instead.
+    """
     try:
         app.server_tts = create_tts(
             engine=config.tts.engine,
@@ -102,149 +132,15 @@ def create_app(config: Config | None = None) -> tuple[Flask, SocketIO]:
         logger.warning("Server-side TTS unavailable (%s), using browser speechSynthesis", e)
         app.server_tts = None
 
-    # Initialize Whisper STT — model loads in background so startup isn't blocked
+
+def _init_whisper(app: Flask, config: Config) -> None:
+    """Create the Whisper STT instance (model loads later in a background task)."""
     app.whisper_stt = WhisperCppSTT(
         model=config.stt.model,
         language=config.stt.language,
     )
     app.whisper_model_ready = False
     app.whisper_lock = threading.Lock()
-
-    register_routes(app)
-    if config.auth.enabled:
-        setup_auth(app, config.auth.password)
-    register_socketio_events(socketio, app)
-
-    def _check_in_loop():
-        """Background loop that checks for extended silence and sends check-ins."""
-        while True:
-            socketio.sleep(10)  # check every 10 seconds
-            for session_id, web_session in list(app.web_sessions.items()):
-                if web_session.client_muted:
-                    continue
-                if web_session.meditation_type == "noting":
-                    continue
-                decision = web_session.pacing.should_respond()
-                if decision == TurnDecision.CHECK_IN:
-                    sid = app.session_to_sid.get(session_id)
-                    if not sid:
-                        continue
-                    check_in = web_session.prompts.get_check_in_prompt()
-                    web_session.session.add_assistant_message(check_in)
-                    if web_session.in_silence_mode:
-                        web_session.in_silence_mode = False
-                        web_session.pacing.exit_silence_mode()
-                        socketio.emit("silence_mode", {"active": False}, to=sid)
-                    audio = None
-                    if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
-                        audio = app.server_tts.speak_to_bytes(check_in)
-                    socketio.emit("facilitator_message", {
-                        "text": check_in,
-                        "type": "response",
-                        "audio": audio,
-                    }, to=sid)
-                    web_session.pacing.on_response_end()
-
-    socketio.start_background_task(_check_in_loop)
-
-    def _startup_update_check():
-        """Background startup check — log if update available."""
-        try:
-            status = check_for_updates()
-            if status.available:
-                if status.is_release:
-                    logger.info("Update available: v%s → v%s", status.current_version, status.latest_version)
-                else:
-                    logger.info("Update available (%d commit(s) behind)", status.commits_behind)
-        except Exception:
-            pass
-
-    socketio.start_background_task(_startup_update_check)
-    socketio.start_background_task(_auto_start_proxy, app, config)
-
-    def _load_whisper():
-        """Load Whisper model in background so startup isn't blocked."""
-        def _on_progress(phase, pct):
-            socketio.emit("stt_progress", {"phase": phase, "progress": pct})
-
-        app.whisper_stt.progress_callback = _on_progress
-        try:
-            app.whisper_stt._load_model()
-            app.whisper_model_ready = True
-            socketio.emit("stt_ready", {})
-            logger.info("Whisper model loaded")
-        except Exception as e:
-            logger.error("Failed to load Whisper model: %s", e)
-            socketio.emit("stt_error", {"error": str(e)})
-
-    socketio.start_background_task(_load_whisper)
-
-    return app, socketio
-
-
-def _auto_start_proxy(app, config: Config) -> None:
-    """Auto-start CLIProxyAPI if configured, installed, and not already running."""
-    if not config.web.auto_start_proxy:
-        return
-
-    binary = find_cli_proxy()
-    if not binary:
-        return
-
-    proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
-    headers = {}
-    if config.llm.api_key:
-        headers["X-Api-Key"] = config.llm.api_key
-
-    # Check if already running
-    try:
-        resp = httpx.get(
-            f"{proxy_url.rstrip('/')}/v1/models",
-            headers=headers,
-            timeout=2.0,
-        )
-        if resp.status_code == 200:
-            logger.info("CLIProxyAPI already running")
-            return
-    except Exception:
-        pass
-
-    # Start it
-    try:
-        proc = subprocess.Popen(
-            [binary],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        app.proxy_process = proc
-
-        def _cleanup():
-            if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=3)
-                except Exception:
-                    proc.kill()
-
-        atexit.register(_cleanup)
-
-        # Wait briefly for it to come up
-        for _ in range(10):
-            time.sleep(0.5)
-            try:
-                resp = httpx.get(
-                    f"{proxy_url.rstrip('/')}/v1/models",
-                    headers=headers,
-                    timeout=1.0,
-                )
-                if resp.status_code == 200:
-                    logger.info("Auto-started CLIProxyAPI (pid=%d)", proc.pid)
-                    return
-            except Exception:
-                continue
-        logger.info("Auto-started CLIProxyAPI (pid=%d) — not responding yet", proc.pid)
-    except Exception as e:
-        logger.warning("Failed to auto-start CLIProxyAPI: %s", e)
 
 
 def _configure_cors(socketio, host: str, port: int, https_port: int | None = None) -> None:
@@ -279,8 +175,8 @@ def _set_macos_app_name(name: str) -> None:
         info = NSBundle.mainBundle().infoDictionary()
         info["CFBundleName"] = name
         info["CFBundleDisplayName"] = name
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Could not set macOS app name: %s", e)
 
 
 def _stop_proxy(app) -> None:
@@ -290,7 +186,8 @@ def _stop_proxy(app) -> None:
         proc.terminate()
         try:
             proc.wait(timeout=3)
-        except Exception:
+        except Exception as e:
+            logger.debug("Proxy did not exit gracefully, killing: %s", e)
             proc.kill()
 
 
@@ -333,7 +230,8 @@ def _load_geometry() -> dict | None:
         if not geo.get("width") or not geo.get("height"):
             return None
         return geo
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to load window geometry: %s", e)
         return None
 
 
@@ -347,8 +245,8 @@ def _save_geometry(window) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
             json.dump(geo, f)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to save window geometry: %s", e)
 
 
 def _grant_media_permissions() -> None:
@@ -550,8 +448,8 @@ def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
             try:
                 import termios as _t
                 _t.tcsetattr(fd, _t.TCSADRAIN, old)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to restore terminal settings: %s", e)
 
     _shutting_down = [False]
 

@@ -1,10 +1,13 @@
 """Voice Activity Detection (VAD)."""
 
+import logging
 import time
 from dataclasses import dataclass
 from enum import Enum, auto
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class SpeechState(Enum):
@@ -227,8 +230,8 @@ class WebRTCVAD:
                     if self._vad.is_speech(frame, self.sample_rate):
                         is_speech = True
                         break
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("WebRTC VAD frame processing error: %s", e)
 
         # State machine (same as energy-based)
         if is_speech:

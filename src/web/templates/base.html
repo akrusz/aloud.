@@ -50,7 +50,7 @@
             <a href="/history" {% if request.path == '/history' %}class="nav-active"{% endif %}>History</a>
             <a href="/settings" {% if request.path == '/settings' %}class="nav-active"{% endif %}>Settings</a>
             {% endblock %}
-            <button class="update-indicator" id="updateIndicator" title="Update available" aria-label="Check for updates" style="display:none">
+            <button class="update-indicator hidden" id="updateIndicator" title="Update available" aria-label="Check for updates">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
             <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"></button>
@@ -70,7 +70,7 @@
     </main>
 
     <!-- About Modal -->
-    <div class="about-modal-overlay" id="aboutModal" style="display:none">
+    <div class="about-modal-overlay hidden" id="aboutModal">
         <div class="about-modal">
             <div class="about-modal-header">
                 <span class="about-modal-title">About</span>
@@ -93,7 +93,7 @@
     </div>
 
     <!-- Update Modal -->
-    <div class="update-modal-overlay" id="updateModal" style="display:none">
+    <div class="update-modal-overlay hidden" id="updateModal">
         <div class="update-modal">
             <div class="update-modal-header">
                 <span class="update-modal-title">Update Available</span>
@@ -123,13 +123,13 @@
         // About modal
         document.getElementById('aboutLink').addEventListener('click', function(e) {
             e.preventDefault();
-            aboutModal.style.display = '';
+            aboutModal.classList.remove('hidden');
         });
         document.getElementById('aboutClose').addEventListener('click', function() {
-            aboutModal.style.display = 'none';
+            aboutModal.classList.add('hidden');
         });
         aboutModal.addEventListener('click', function(e) {
-            if (e.target === aboutModal) aboutModal.style.display = 'none';
+            if (e.target === aboutModal) aboutModal.classList.add('hidden');
         });
         var ethEl = document.querySelector('.about-eth');
         if (ethEl) {
@@ -147,7 +147,7 @@
             .then(function(data) {
                 _updateData = data;
                 if (data.available) {
-                    indicator.style.display = '';
+                    indicator.classList.remove('hidden');
                     indicator.classList.add('has-update');
                     // Pulse for ~10 seconds then stop
                     setTimeout(function() {
@@ -212,12 +212,12 @@
 
             document.getElementById('updateStatus').innerHTML = '';
             btn.disabled = false;
-            modal.style.display = '';
+            modal.classList.remove('hidden');
         }
         window._glooowShowUpdateModal = _showUpdateModal;
 
         // Close modal
-        function closeModal() { modal.style.display = 'none'; }
+        function closeModal() { modal.classList.add('hidden'); }
         document.getElementById('updateModalClose').addEventListener('click', closeModal);
         document.getElementById('updateLaterBtn').addEventListener('click', closeModal);
         modal.addEventListener('click', function(e) {
@@ -251,7 +251,7 @@
                         status.textContent = data.message;
                         status.classList.add('update-success');
                         btn.textContent = 'Done';
-                        indicator.style.display = 'none';
+                        indicator.classList.add('hidden');
                     } else {
                         status.textContent = data.message;
                         status.classList.add('update-error');
@@ -271,9 +271,24 @@
     <script>
     (function() {
         var fsBtn = document.getElementById('fullscreenToggle');
+        var isDesktop = false;
+        var desktopExpanded = false;
+        var expandSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+        var contractSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+        function updateIcon() {
+            var expanded = isDesktop ? desktopExpanded : !!document.fullscreenElement;
+            fsBtn.innerHTML = expanded ? contractSvg : expandSvg;
+        }
+        updateIcon();
+        document.addEventListener('fullscreenchange', updateIcon);
         fsBtn.addEventListener('click', function() {
-            fetch('/api/toggle-fullscreen', { method: 'POST' }).catch(function() {
-                // Fallback: try browser Fullscreen API
+            fetch('/api/toggle-fullscreen', { method: 'POST' }).then(function(r) {
+                if (r.ok) {
+                    isDesktop = true;
+                    desktopExpanded = !desktopExpanded;
+                    updateIcon();
+                }
+            }).catch(function() {
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen().catch(function() {});
                 } else {

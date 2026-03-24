@@ -97,16 +97,14 @@ export function toggleListenMode() {
             socket.emit('user_message', { text: '(silence)' });
         }
         setStatus("Speak naturally, or say 'mute' to turn off mic");
-        var orb = document.getElementById('orb');
-        if (orb) orb.classList.remove('orb-holding');
+        if (dom.orbEl) dom.orbEl.classList.remove('orb-holding');
     } else {
         // Enter holding-space mode locally
         state.inSilenceMode = true;
         state.silenceBuffer = [];
         dom.listenBtn.classList.add('active');
         setStatus("Holding space\u2026 say something like \u2018I\u2019m ready\u2019 to resume");
-        var orb = document.getElementById('orb');
-        if (orb && !dom.kasinaToggle.checked) orb.classList.add('orb-holding');
+        if (dom.orbEl && !dom.kasinaToggle.checked) dom.orbEl.classList.add('orb-holding');
     }
 }
 
@@ -130,8 +128,7 @@ export function activateVoice() {
         state.voiceActive = true;
         dom.voiceBtn.classList.add('active');
         socket.emit('voice_mute', { muted: false });
-        var orb = document.getElementById('orb');
-        if (orb) orb.classList.remove('orb-muted');
+        if (dom.orbEl) dom.orbEl.classList.remove('orb-muted');
 
         // Speak any opener that was queued before mic permission was granted
         if (state.queuedSpeech && dom.ttsToggle.classList.contains('active')) {
@@ -499,8 +496,7 @@ export function deactivateVoice() {
     setStatus('Microphone off. Click mic to resume.');
 
     socket.emit('voice_mute', { muted: true });
-    var orb = document.getElementById('orb');
-    if (orb) orb.classList.add('orb-muted');
+    if (dom.orbEl) dom.orbEl.classList.add('orb-muted');
     stopServerAudio();
     state.pendingTranscriptions = 0;
     if (state.scriptProcessor) { state.scriptProcessor.disconnect(); state.scriptProcessor = null; }

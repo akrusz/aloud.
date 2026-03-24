@@ -185,11 +185,11 @@ export function showErrorToast(message) {
 export function showConfirm(message, onConfirm) {
     dom.confirmText.textContent = message;
     state.pendingConfirmAction = onConfirm;
-    dom.confirmOverlay.style.display = 'flex';
+    dom.confirmOverlay.classList.remove('hidden');
 }
 
 export function hideConfirm() {
-    dom.confirmOverlay.style.display = 'none';
+    dom.confirmOverlay.classList.add('hidden');
     state.pendingConfirmAction = null;
 }
 
@@ -198,7 +198,7 @@ export function hideConfirm() {
 export function endSession(deactivateVoiceFn) {
     if (!state.sessionActive) return;
     showConfirm('End this session?', function () {
-        dom.savingOverlay.style.display = 'flex';
+        dom.savingOverlay.classList.remove('hidden');
         doEndSession(deactivateVoiceFn);
     });
 }

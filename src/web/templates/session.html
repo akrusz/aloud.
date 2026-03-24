@@ -1,3 +1,4 @@
+{% from '_voice_modal.html' import picker_modal %}
 {% extends "base.html" %}
 
 {% block title %}Session - glooow{% endblock %}
@@ -79,24 +80,11 @@
 
 <div class="ember-container" id="ember-container"></div>
 
-<div class="voice-modal-overlay" id="voice-modal" style="display: none;">
-    <div class="voice-modal">
-        <div class="voice-modal-header">
-            <span class="voice-modal-title">Choose Voice</span>
-            <button type="button" class="voice-modal-close" id="voice-modal-close">&times;</button>
-        </div>
-        <div class="voice-modal-list" id="voice-modal-list">
-            <!-- populated by JS -->
-        </div>
-        <div class="voice-modal-footer">
-            <label class="voice-modal-speed-label" for="modal-speed-slider">Speed</label>
-            <input type="range" id="modal-speed-slider" min="60" max="240" value="120" step="10">
-            <span class="voice-modal-speed-value" id="modal-speed-label">110 wpm</span>
-        </div>
-    </div>
-</div>
+{{ picker_modal("voice-modal", "voice-modal-close", "voice-modal-list",
+    speed_slider_id="modal-speed-slider", speed_label_id="modal-speed-label",
+    speed_text="110 wpm") }}
 
-<div class="session-ended-overlay" id="session-confirm" style="display: none;">
+<div class="session-ended-overlay hidden" id="session-confirm">
     <div class="session-ended-content">
         <div class="orb orb-idle"></div>
         <p id="confirm-text"></p>
@@ -107,14 +95,14 @@
     </div>
 </div>
 
-<div class="session-ended-overlay" id="session-saving" style="display: none;">
+<div class="session-ended-overlay hidden" id="session-saving">
     <div class="session-ended-content">
         <div class="orb orb-idle"></div>
         <p>Saving session&hellip;</p>
     </div>
 </div>
 
-<div class="session-ended-overlay" id="session-ended" style="display: none;">
+<div class="session-ended-overlay hidden" id="session-ended">
     <div class="session-ended-content">
         <div class="orb orb-idle"></div>
         <div class="session-ended-actions">

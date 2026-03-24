@@ -8,6 +8,8 @@
     --bg-secondary: #1a1410;
     --bg-card: #221a13;
     --bg-input: #281f16;
+    --bg-surface: #2e2419;
+    --bg-tertiary: #1e1710;
     --text-primary: #f5efe6;
     --text-secondary: #c4b49e;
     --text-muted: #b0a090;
@@ -39,6 +41,8 @@
     --bg-secondary: #eae3d8;
     --bg-card: #dfd6c8;
     --bg-input: #fffcf8;
+    --bg-surface: #ffffff;
+    --bg-tertiary: #e5ddd0;
     --text-primary: #221d19;
     --text-secondary: #5c5248;
     --text-muted: #685c50;
@@ -55,6 +59,9 @@
     --user-bg: rgba(168, 128, 48, 0.06);
     --overlay-bg: rgba(245, 240, 232, 0.95);
 }
+
+/* ---- Utility ---- */
+.hidden { display: none !important; }
 
 *, *::before, *::after {
     box-sizing: border-box;
@@ -242,7 +249,7 @@ body {
 }
 
 .btn-small {
-    padding: 0.3rem 0.8rem;
+    padding: 0.4rem 0.8rem;
     font-size: 0.875rem;
 }
 
@@ -601,11 +608,6 @@ body {
     padding: 0.3rem 0.5rem !important;
     font-size: 0.875rem !important;
     line-height: 1;
-}
-
-.btn-small {
-    font-size: 0.875rem;
-    padding: 0.4rem 0.8rem;
 }
 
 textarea, select, input[type="text"], input[type="number"], input[type="password"] {

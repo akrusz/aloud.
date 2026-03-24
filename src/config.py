@@ -32,7 +32,7 @@ class STTConfig:
 @dataclass
 class TTSConfig:
     engine: str = "macos"
-    voice: str = "Samantha"
+    voice: str = "Zoe (Premium)"
     rate: int = 120
 
     # Parakeet options

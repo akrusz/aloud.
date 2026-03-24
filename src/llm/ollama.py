@@ -140,6 +140,78 @@ class OllamaProvider(BaseLLMProvider):
             self._client = None
 
 
+# ---------------------------------------------------------------------------
+# Provider registry — maps provider names to their configuration.
+#
+# Each entry contains:
+#   module:        relative import path for the provider class
+#   class_name:    class to import from that module
+#   default_model: used when the caller doesn't specify a model
+#   kwargs_fn:     callable(factory_args) -> dict of constructor kwargs
+#
+# kwargs_fn receives the full set of factory keyword arguments so each
+# provider can pick the ones it needs and apply its own defaults.
+# ---------------------------------------------------------------------------
+
+PROVIDERS: dict[str, dict] = {
+    "claude_proxy": {
+        "module": ".claude_proxy",
+        "class_name": "ClaudeProxyProvider",
+        "default_model": "claude-sonnet-4-6",
+        "kwargs_fn": lambda a: {
+            "proxy_url": a["proxy_url"] or "http://127.0.0.1:8317",
+            "api_key": a["api_key"],
+        },
+    },
+    "anthropic": {
+        "module": ".anthropic",
+        "class_name": "AnthropicProvider",
+        "default_model": "claude-sonnet-4-6",
+        "kwargs_fn": lambda a: {
+            "api_key": a["api_key"],
+        },
+    },
+    "openai": {
+        "module": ".openai",
+        "class_name": "OpenAIProvider",
+        "default_model": "gpt-5.4-mini",
+        "kwargs_fn": lambda a: {
+            "api_key": a["api_key"],
+            "base_url": a["base_url"],
+        },
+    },
+    "openrouter": {
+        "module": ".openai",
+        "class_name": "OpenAIProvider",
+        "default_model": "deepseek/deepseek-v3.2",
+        "kwargs_fn": lambda a: {
+            "api_key": a["api_key"],
+            "base_url": "https://openrouter.ai/api/v1",
+            "env_key": "OPENROUTER_API_KEY",
+        },
+    },
+    "venice": {
+        "module": ".openai",
+        "class_name": "OpenAIProvider",
+        "default_model": "llama-3.3-70b",
+        "kwargs_fn": lambda a: {
+            "api_key": a["api_key"],
+            "base_url": "https://api.venice.ai/api/v1",
+            "env_key": "VENICE_API_KEY",
+            "extra_body": {"venice_parameters": {"include_venice_system_prompt": False}},
+        },
+    },
+    "ollama": {
+        "module": None,  # OllamaProvider is defined in this file
+        "class_name": "OllamaProvider",
+        "default_model": "qwen3.5:4b",
+        "kwargs_fn": lambda a: {
+            "base_url": a["ollama_url"] or "http://localhost:11434",
+        },
+    },
+}
+
+
 def create_llm_provider(
     provider: str,
     model: str | None = None,
@@ -163,52 +235,28 @@ def create_llm_provider(
     Returns:
         LLM provider instance
     """
-    from .claude_proxy import ClaudeProxyProvider
-    from .anthropic import AnthropicProvider
-    from .openai import OpenAIProvider
+    import importlib
 
-    if provider == "claude_proxy":
-        return ClaudeProxyProvider(
-            proxy_url=proxy_url or "http://127.0.0.1:8317",
-            model=model or "claude-sonnet-4-6",
-            api_key=api_key,
-            max_tokens=max_tokens,
-        )
-    elif provider == "anthropic":
-        return AnthropicProvider(
-            api_key=api_key,
-            model=model or "claude-sonnet-4-6",
-            max_tokens=max_tokens,
-        )
-    elif provider == "openai":
-        return OpenAIProvider(
-            api_key=api_key,
-            model=model or "gpt-5.4-mini",
-            max_tokens=max_tokens,
-            base_url=base_url,
-        )
-    elif provider == "openrouter":
-        return OpenAIProvider(
-            api_key=api_key,
-            model=model or "deepseek/deepseek-v3.2",
-            max_tokens=max_tokens,
-            base_url="https://openrouter.ai/api/v1",
-            env_key="OPENROUTER_API_KEY",
-        )
-    elif provider == "venice":
-        return OpenAIProvider(
-            api_key=api_key,
-            model=model or "llama-3.3-70b",
-            max_tokens=max_tokens,
-            base_url="https://api.venice.ai/api/v1",
-            env_key="VENICE_API_KEY",
-            extra_body={"venice_parameters": {"include_venice_system_prompt": False}},
-        )
-    elif provider == "ollama":
-        return OllamaProvider(
-            base_url=ollama_url or "http://localhost:11434",
-            model=model or "qwen3.5:4b",
-            max_tokens=max_tokens,
-        )
-    else:
+    cfg = PROVIDERS.get(provider)
+    if cfg is None:
         raise ValueError(f"Unknown LLM provider: {provider}")
+
+    # Resolve the provider class via lazy import (or from this module)
+    if cfg["module"] is not None:
+        mod = importlib.import_module(cfg["module"], package=__package__)
+        cls = getattr(mod, cfg["class_name"])
+    else:
+        cls = globals()[cfg["class_name"]]
+
+    # Build kwargs: start with provider-specific ones, then add common ones
+    factory_args = {
+        "proxy_url": proxy_url,
+        "ollama_url": ollama_url,
+        "api_key": api_key,
+        "base_url": base_url,
+    }
+    kwargs = cfg["kwargs_fn"](factory_args)
+    kwargs["model"] = model or cfg["default_model"]
+    kwargs["max_tokens"] = max_tokens
+
+    return cls(**kwargs)

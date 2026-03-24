@@ -192,11 +192,11 @@ export function openVoiceModal(deactivateVoiceFn) {
         }
     }
 
-    dom.voiceModal.style.display = 'flex';
+    dom.voiceModal.classList.remove('hidden');
 }
 
 export function closeVoiceModal(restoreMic, activateVoiceFn) {
-    dom.voiceModal.style.display = 'none';
+    dom.voiceModal.classList.add('hidden');
     stopPreview();
     if (restoreMic) {
         activateVoiceFn();

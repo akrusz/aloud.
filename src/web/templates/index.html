@@ -1,3 +1,4 @@
+{% from '_voice_modal.html' import picker_modal %}
 {% extends "base.html" %}
 
 {% block title %}glooow{% endblock %}
@@ -17,7 +18,7 @@
         </div>
     </div>
 
-    <div id="continue-banner" class="continue-banner" style="display:none">
+    <div id="continue-banner" class="continue-banner hidden">
         <span id="continue-banner-text">Continuing from a previous session</span>
         <button type="button" class="continue-banner-close" id="continue-cancel">&times;</button>
     </div>
@@ -203,7 +204,7 @@
             </details>
         </div>
 
-        <div class="tab-panel" id="noting-panel" style="display:none">
+        <div class="tab-panel hidden" id="noting-panel">
             <div class="form-group">
                 <label>Participants</label>
                 <div id="participant-list"></div>
@@ -238,39 +239,18 @@
                 </select>
             </div>
         </div>
-        <div id="provider-hint" class="provider-hint" style="display:none"></div>
+        <div id="provider-hint" class="provider-hint hidden"></div>
 
         <button type="submit" class="btn btn-primary btn-begin">
             Begin Session
         </button>
     </form>
 
-    <div class="voice-modal-overlay" id="setup-voice-modal" style="display: none;">
-        <div class="voice-modal">
-            <div class="voice-modal-header">
-                <span class="voice-modal-title">Choose Voice</span>
-                <button type="button" class="voice-modal-close" id="setup-voice-modal-close">&times;</button>
-            </div>
-            <div class="voice-modal-list" id="setup-voice-modal-list">
-            </div>
-            <div class="voice-modal-footer">
-                <label class="voice-modal-speed-label" for="setup-speed-slider">Speed</label>
-                <input type="range" id="setup-speed-slider" min="60" max="240" value="120" step="10">
-                <span class="voice-modal-speed-value" id="setup-speed-label">120 wpm</span>
-            </div>
-        </div>
-    </div>
+    {{ picker_modal("setup-voice-modal", "setup-voice-modal-close", "setup-voice-modal-list",
+        speed_slider_id="setup-speed-slider", speed_label_id="setup-speed-label") }}
 
-    <div class="voice-modal-overlay" id="sound-modal" style="display: none;">
-        <div class="voice-modal">
-            <div class="voice-modal-header">
-                <span class="voice-modal-title">Choose Sound</span>
-                <button type="button" class="voice-modal-close" id="sound-modal-close">&times;</button>
-            </div>
-            <div class="voice-modal-list" id="sound-modal-list">
-            </div>
-        </div>
-    </div>
+    {{ picker_modal("sound-modal", "sound-modal-close", "sound-modal-list",
+        title="Choose Sound") }}
 </div>
 {% endblock %}
 
@@ -285,8 +265,8 @@
         document.querySelectorAll('.tab-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.tab === tab);
         });
-        document.getElementById('exploration-panel').style.display = tab === 'exploration' ? '' : 'none';
-        document.getElementById('noting-panel').style.display = tab === 'noting' ? '' : 'none';
+        document.getElementById('exploration-panel').classList.toggle('hidden', tab !== 'exploration');
+        document.getElementById('noting-panel').classList.toggle('hidden', tab !== 'noting');
         if (typeof updateBeginButton === 'function') updateBeginButton();
     }
 
@@ -460,9 +440,9 @@
         const info = providerStatus[key];
         if (info && !info.available) {
             providerHint.innerHTML = info.hint;
-            providerHint.style.display = '';
+            providerHint.classList.remove('hidden');
         } else {
-            providerHint.style.display = 'none';
+            providerHint.classList.add('hidden');
         }
     }
 
@@ -519,7 +499,7 @@
 
     function startProxy() {
         modelSelect.innerHTML = '<option value="">Starting CLIProxyAPI...</option>';
-        providerHint.style.display = 'none';
+        providerHint.classList.add('hidden');
         providerSelect.value = 'claude_proxy';
         fetch('/api/proxy/start', { method: 'POST' })
             .then(r => r.json())
@@ -535,19 +515,19 @@
                             break;
                         }
                     }
-                    providerHint.style.display = 'none';
+                    providerHint.classList.add('hidden');
                     // Fetch models for claude_proxy
                     delete liveModels.claude_proxy;
                     fetchAndShowModels('claude_proxy');
                 } else {
                     providerHint.innerHTML = data.message;
-                    providerHint.style.display = '';
+                    providerHint.classList.remove('hidden');
                     modelSelect.innerHTML = '<option value="">No models available</option>';
                 }
             })
             .catch(() => {
                 providerHint.innerHTML = 'Failed to start CLIProxyAPI.';
-                providerHint.style.display = '';
+                providerHint.classList.remove('hidden');
                 modelSelect.innerHTML = '<option value="">No models available</option>';
             });
     }
@@ -736,17 +716,17 @@
 
     setupVoiceBtn.addEventListener('click', () => {
         renderVoiceModal();
-        setupVoiceModal.style.display = 'flex';
+        setupVoiceModal.classList.remove('hidden');
     });
 
     setupVoiceModalClose.addEventListener('click', () => {
-        setupVoiceModal.style.display = 'none';
+        setupVoiceModal.classList.add('hidden');
         stopVoicePreview();
     });
 
     setupVoiceModal.addEventListener('click', (e) => {
         if (e.target === setupVoiceModal) {
-            setupVoiceModal.style.display = 'none';
+            setupVoiceModal.classList.add('hidden');
             stopVoicePreview();
         }
     });
@@ -841,7 +821,7 @@
                         <option value="fixed">Fixed</option>
                     </select>
                 </div>
-                <div class="participant-field participant-delay-field" style="display:none">
+                <div class="participant-field participant-delay-field hidden">
                     <label>Seconds</label>
                     <div class="stepper">
                         <button type="button" class="stepper-btn stepper-dec" aria-label="Decrease">&minus;</button>
@@ -856,14 +836,14 @@
                         <span class="reactive-label">Low</span>
                     </div>
                 </div>
-                <div class="participant-field participant-phrase-field" style="display:none">
+                <div class="participant-field participant-phrase-field hidden">
                     <label>Phrase</label>
                     <div class="phrase-input-wrap">
                         <input type="text" class="participant-phrase" placeholder="e.g. breathing" maxlength="30">
                         <button type="button" class="participant-phrase-preview btn btn-secondary btn-small" title="Preview phrase">&#9654;</button>
                     </div>
                 </div>
-                <div class="participant-field participant-sound-field" style="display:none">
+                <div class="participant-field participant-sound-field hidden">
                     <label>Sound</label>
                     <button type="button" class="btn btn-secondary btn-small participant-sound-btn sound-pick-btn" data-sound="crow">Crow</button>
                 </div>
@@ -891,10 +871,10 @@
 
         typeSelect.addEventListener('change', () => {
             const t = typeSelect.value;
-            voiceField.style.display = t === 'sound' ? 'none' : '';
-            reactiveField.style.display = t === 'llm' ? '' : 'none';
-            phraseField.style.display = t === 'fixed' ? '' : 'none';
-            soundField.style.display = t === 'sound' ? '' : 'none';
+            voiceField.classList.toggle('hidden', t === 'sound');
+            reactiveField.classList.toggle('hidden', t !== 'llm');
+            phraseField.classList.toggle('hidden', t !== 'fixed');
+            soundField.classList.toggle('hidden', t !== 'sound');
             updateLabel();
             updateBeginButton();
         });
@@ -911,7 +891,7 @@
         const timingSelect = row.querySelector('.participant-timing');
         const delayField = row.querySelector('.participant-delay-field');
         timingSelect.addEventListener('change', () => {
-            delayField.style.display = timingSelect.value === 'fixed' ? '' : 'none';
+            delayField.classList.toggle('hidden', timingSelect.value !== 'fixed');
         });
 
         // Stepper buttons for delay field
@@ -987,7 +967,7 @@
     }
 
     function updateAddButton() {
-        addParticipantBtn.style.display = participantCount >= MAX_PARTICIPANTS ? 'none' : '';
+        addParticipantBtn.classList.toggle('hidden', participantCount >= MAX_PARTICIPANTS);
     }
 
     function addParticipant() {
@@ -1049,7 +1029,7 @@
             soundModalList.appendChild(row);
         });
 
-        soundModal.style.display = 'flex';
+        soundModal.classList.remove('hidden');
     }
 
     function stopSoundPreview() {
@@ -1057,7 +1037,7 @@
     }
 
     function closeSoundModal() {
-        soundModal.style.display = 'none';
+        soundModal.classList.add('hidden');
         stopSoundPreview();
         soundModalCallback = null;
     }
@@ -1161,7 +1141,7 @@
             });
         }
 
-        setupVoiceModal.style.display = 'flex';
+        setupVoiceModal.classList.remove('hidden');
 
         // Temporarily override click handler for selection
         const handler = (e) => {
@@ -1171,7 +1151,7 @@
             const row = e.target.closest('.voice-row');
             if (!row) return;
             onSelect(row.dataset.voiceName);
-            setupVoiceModal.style.display = 'none';
+            setupVoiceModal.classList.add('hidden');
             stopVoicePreview();
             setupVoiceModalList.removeEventListener('click', handler, true);
         };
@@ -1214,11 +1194,11 @@
                 ? 'Continuing from session on ' + dateMatch[1]
                 : 'Continuing from a previous session';
         }
-        banner.style.display = '';
+        banner.classList.remove('hidden');
         document.getElementById('continue-cancel').addEventListener('click', () => {
             sessionStorage.removeItem('continueFrom');
             sessionStorage.removeItem('continueFromSummary');
-            banner.style.display = 'none';
+            banner.classList.add('hidden');
         });
     }
 

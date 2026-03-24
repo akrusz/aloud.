@@ -5,6 +5,7 @@ from typing import Literal
 
 import numpy as np
 
+from ..audio.resample import resample_audio
 from .base import TranscriptionResult
 
 logger = logging.getLogger(__name__)
@@ -118,7 +119,7 @@ class WhisperSTT:
 
         # Resample if needed (Whisper expects 16kHz)
         if sample_rate != 16000:
-            audio = self._resample(audio, sample_rate, 16000)
+            audio = resample_audio(audio, sample_rate, 16000)
 
         duration = len(audio) / 16000.0
 
@@ -200,24 +201,6 @@ class WhisperSTT:
                 confidence=None,
                 duration=None,
             )
-
-    def _resample(
-        self,
-        audio: np.ndarray,
-        orig_sr: int,
-        target_sr: int,
-    ) -> np.ndarray:
-        """Resample audio to target sample rate."""
-        try:
-            import librosa
-
-            return librosa.resample(audio, orig_sr=orig_sr, target_sr=target_sr)
-        except ImportError:
-            # Simple linear interpolation fallback
-            ratio = target_sr / orig_sr
-            new_length = int(len(audio) * ratio)
-            indices = np.linspace(0, len(audio) - 1, new_length)
-            return np.interp(indices, np.arange(len(audio)), audio).astype(np.float32)
 
 
 def create_stt(

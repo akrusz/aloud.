@@ -101,8 +101,8 @@ class MacOSTTS:
             if tmp:
                 try:
                     Path(tmp.name).unlink(missing_ok=True)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to clean up temp audio file: %s", e)
 
     def stop(self) -> None:
         """Stop any current speech."""
@@ -120,8 +120,8 @@ class MacOSTTS:
                 ["pkill", "-9", "say"],
                 capture_output=True,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to pkill say processes: %s", e)
 
     def is_speaking(self) -> bool:
         """Check if currently speaking.

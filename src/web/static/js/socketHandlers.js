@@ -61,7 +61,7 @@ export function registerSocketHandlers(deactivateVoiceFn) {
         // If update was pending, show update modal after session ends
         if (window._glooowPendingUpdate) {
             window._glooowPendingUpdate = false;
-            dom.savingOverlay.style.display = 'none';
+            dom.savingOverlay.classList.add('hidden');
             if (window._glooowShowUpdateModal) {
                 window._glooowShowUpdateModal();
                 return;
@@ -76,21 +76,20 @@ export function registerSocketHandlers(deactivateVoiceFn) {
             return;
         }
 
-        dom.endedOverlay.style.display = 'flex';
+        dom.endedOverlay.classList.remove('hidden');
     });
 
     socket.on('silence_mode', function (data) {
-        var orb = document.getElementById('orb');
         state.inSilenceMode = data.active;
         dom.listenBtn.classList.toggle('active', data.active);
         if (data.active) {
             state.silenceBuffer = [];
             setStatus("Holding space\u2026 say something like \u2018I\u2019m ready\u2019 to resume");
-            if (orb && !dom.kasinaToggle.checked) orb.classList.add('orb-holding');
+            if (dom.orbEl && !dom.kasinaToggle.checked) dom.orbEl.classList.add('orb-holding');
         } else {
             state.silenceBuffer = [];
             setStatus("Speak naturally, or say 'mute' to turn off mic");
-            if (orb) orb.classList.remove('orb-holding');
+            if (dom.orbEl) dom.orbEl.classList.remove('orb-holding');
         }
     });
 
