@@ -509,6 +509,8 @@ def run_web(
     """
     import logging as _logging
     configure_logging(level=_logging.DEBUG if debug else _logging.WARNING)
+    if not debug:
+        _logging.getLogger("werkzeug").setLevel(_logging.WARNING)
     config = load_config(config_path)
     host = host or config.web.host
     port = port or config.web.port
