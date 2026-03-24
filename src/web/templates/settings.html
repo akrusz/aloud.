@@ -80,13 +80,23 @@
             </div>
 
             <div class="form-group api-key-group" id="s-proxy-group" style="display:none">
-                <label for="s-proxy-url">Proxy URL</label>
+                <label for="s-proxy-url">CLIProxyAPI URL</label>
                 <div class="input-with-action">
                     <input type="text" id="s-proxy-url" placeholder="http://127.0.0.1:8317">
                     <button type="button" class="btn btn-small btn-secondary" id="s-proxy-url-reset" title="Reset to default">Reset</button>
                 </div>
                 <span class="form-hint">Only change this if you've configured CLIProxyAPI on a different address</span>
-                <div id="s-proxy-status" class="proxy-status" style="margin-top:0.5rem"></div>
+                <div class="form-row" style="margin-top:0.5rem; align-items:center">
+                    <div class="form-group form-group-half" style="margin:0">
+                        <label class="checkbox-label" style="margin:0">
+                            <input type="checkbox" id="s-auto-start-proxy" checked>
+                            <span>Auto-start on launch</span>
+                        </label>
+                    </div>
+                    <div class="form-group form-group-half" style="margin:0">
+                        <span id="s-proxy-status"></span>
+                    </div>
+                </div>
                 <div id="s-proxy-install" style="display:none">
                     <div class="tool-install-row" id="s-proxy-install-row">
                         <div class="tool-install-info">
@@ -295,10 +305,6 @@
                     <label class="checkbox-label" id="s-vibrancy-label" style="display:none">
                         <input type="checkbox" id="s-vibrancy">
                         <span>Vibrancy (translucent background)</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="s-auto-start-proxy" checked>
-                        <span>Auto-start CLIProxyAPI on launch</span>
                     </label>
                     <span class="form-hint">Window options take effect on next launch</span>
                     <div class="form-group">
@@ -621,20 +627,23 @@
     function checkProxyStatus() {
         var statusEl = document.getElementById('s-proxy-status');
         var installEl = document.getElementById('s-proxy-install');
+        var proxyRow = statusEl.closest('.form-row');
         if (providerSelect.value !== 'claude_proxy') {
             statusEl.innerHTML = '';
+            if (proxyRow) proxyRow.style.display = 'none';
             if (installEl) installEl.style.display = 'none';
             return;
         }
-        statusEl.innerHTML = '<span style="color:var(--text-muted)">Checking...</span>';
+        if (proxyRow) proxyRow.style.display = '';
+        statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Checking...</span>';
         fetch('/api/proxy/status')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.running) {
-                    statusEl.innerHTML = '<span style="color:var(--success)">Connected</span>';
+                    statusEl.innerHTML = 'Proxy Status: <span style="color:var(--success)">Connected</span>';
                     if (installEl) installEl.style.display = 'none';
                 } else if (data.installed) {
-                    statusEl.innerHTML = '<span style="color:var(--text-muted)">Installed but not running: </span>'
+                    statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Not running </span>'
                         + '<a href="#" onclick="startProxyFromSettings(); return false" '
                         + 'class="btn btn-small btn-primary" '
                         + 'style="padding:0.15rem 0.6rem; font-size:0.875rem">Start</a>';
@@ -651,7 +660,7 @@
 
     window.startProxyFromSettings = function() {
         var statusEl = document.getElementById('s-proxy-status');
-        statusEl.innerHTML = '<span style="color:var(--text-muted)">Starting...</span>';
+        statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Starting...</span>';
         fetch('/api/proxy/start', { method: 'POST' })
             .then(function(r) { return r.json(); })
             .then(function(data) {
