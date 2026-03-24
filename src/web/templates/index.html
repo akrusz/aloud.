@@ -388,7 +388,7 @@
     const providerSelect = document.getElementById('provider');
     const modelSelect = document.getElementById('model');
     const providerHint = document.getElementById('provider-hint');
-    let providerStatus = {};  // populated by /api/providers
+    var providerStatus = {};  // populated by /api/providers (var so applyTab can safely reference it before this line)
 
     function renderModelOptions(models) {
         if (!models || !models.length) {
