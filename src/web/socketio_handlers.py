@@ -12,6 +12,8 @@ from .meditation_session import WebMeditationSession, _migrate_style
 
 logger = logging.getLogger(__name__)
 
+_NO_AI_SUMMARY = "No summary \u2014 no AI provider was used this session."
+
 
 def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
     """Register WebSocket event handlers."""
@@ -211,7 +213,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
             return
 
         if web_session._llm_instance is None:
-            web_session._cached_summary = "No summary — no AI provider was used this session."
+            web_session._cached_summary = _NO_AI_SUMMARY
             return
 
         try:
@@ -235,7 +237,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         if hasattr(web_session, '_cached_summary'):
             summary = web_session._cached_summary
         elif web_session._llm_instance is None:
-            summary = "No summary — no AI provider was used this session."
+            summary = _NO_AI_SUMMARY
         else:
             summary = ""
             try:

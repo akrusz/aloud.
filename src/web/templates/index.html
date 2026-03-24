@@ -253,6 +253,11 @@
             </div>
             <div class="voice-modal-list" id="setup-voice-modal-list">
             </div>
+            <div class="voice-modal-footer">
+                <label class="voice-modal-speed-label" for="setup-speed-slider">Speed</label>
+                <input type="range" id="setup-speed-slider" min="60" max="240" value="120" step="10">
+                <span class="voice-modal-speed-value" id="setup-speed-label">120 wpm</span>
+            </div>
         </div>
     </div>
 
@@ -765,6 +770,20 @@
         localStorage.setItem('glooow-voice', selectedVoiceName);
         updateVoiceBtnLabel();
         renderVoiceModal();
+    });
+
+    // Speed slider in setup voice modal
+    const setupSpeedSlider = document.getElementById('setup-speed-slider');
+    const setupSpeedLabel = document.getElementById('setup-speed-label');
+    const savedSpeed = localStorage.getItem('glooow-speed');
+    if (savedSpeed) {
+        setupSpeedSlider.value = savedSpeed;
+        setupSpeedLabel.textContent = savedSpeed + ' wpm';
+    }
+    setupSpeedSlider.addEventListener('input', () => {
+        const rate = setupSpeedSlider.value;
+        localStorage.setItem('glooow-speed', rate);
+        setupSpeedLabel.textContent = rate + ' wpm';
     });
 
     // Fetch server voices and build the list
