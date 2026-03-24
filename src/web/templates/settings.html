@@ -620,10 +620,55 @@
             });
     };
 
+    var settingsProviderStatus = {};
+    var providerStatusEl = document.getElementById('s-provider-status');
+
+    function applySettingsProviderAvailability() {
+        for (var i = 0; i < providerSelect.options.length; i++) {
+            var opt = providerSelect.options[i];
+            var info = settingsProviderStatus[opt.value];
+            // Strip existing markers
+            opt.textContent = opt.textContent.replace(/ [\u2718\u2731]$/, '');
+            opt.classList.remove('provider-unavailable');
+            if (info && !info.available) {
+                if (info.installed) {
+                    opt.textContent += ' \u2731';  // ✱
+                } else {
+                    opt.classList.add('provider-unavailable');
+                    opt.textContent += ' \u2718';  // ✘
+                }
+            }
+        }
+        updateSettingsProviderHint();
+    }
+
+    function updateSettingsProviderHint() {
+        var key = providerSelect.value;
+        var info = settingsProviderStatus[key];
+        if (info && !info.available && key !== 'claude_proxy' && key !== 'ollama') {
+            // claude_proxy and ollama have their own status areas
+            providerStatusEl.innerHTML = info.hint || '';
+            providerStatusEl.style.display = info.hint ? '' : 'none';
+        } else {
+            providerStatusEl.style.display = 'none';
+        }
+    }
+
+    function refreshSettingsProviders() {
+        fetch('/api/providers')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                settingsProviderStatus = data;
+                applySettingsProviderAvailability();
+            })
+            .catch(function() {});
+    }
+
     providerSelect.addEventListener('change', function() {
         showGroupsFor(providerSelect, providerKeyGroups);
         fetchModels(providerSelect.value);
         checkProxyStatus();
+        updateSettingsProviderHint();
     });
 
     ttsEngineSelect.addEventListener('change', function() {
@@ -982,7 +1027,8 @@
                 };
             }
 
-            // Fetch models for current provider, then select the saved model
+            // Fetch provider availability, then models for current provider
+            refreshSettingsProviders();
             fetchModels(providerSelect.value);
             var targetModel = providerSelect.value === 'ollama'
                 ? (cfg.llm?.ollama_model || '')

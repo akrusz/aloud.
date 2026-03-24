@@ -234,6 +234,7 @@
             <div class="form-group form-group-half">
                 <label for="model">Model</label>
                 <select id="model" name="model">
+                    <option value="">Loading models...</option>
                 </select>
             </div>
         </div>
@@ -390,6 +391,10 @@
     let providerStatus = {};  // populated by /api/providers
 
     function renderModelOptions(models) {
+        if (!models || !models.length) {
+            modelSelect.innerHTML = '<option value="">No models available</option>';
+            return;
+        }
         modelSelect.innerHTML = models.map(m =>
             `<option value="${m.value}">${m.label}</option>`
         ).join('');
@@ -397,7 +402,7 @@
 
     function fetchAndShowModels(provider) {
         // If we already fetched live models for this provider, use them
-        if (liveModels[provider]) {
+        if (liveModels[provider] && liveModels[provider].length) {
             renderModelOptions(liveModels[provider]);
             return;
         }
@@ -495,7 +500,10 @@
                 if (current !== 'ollama') delete liveModels[current];
                 updateModelOptions();
             })
-            .catch(() => {});
+            .catch(() => {
+                // Even if /api/providers fails, try to load models for current provider
+                updateModelOptions();
+            });
     }
 
     function startProxy() {
