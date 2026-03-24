@@ -4,7 +4,7 @@ import platform
 import shutil
 import subprocess
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, jsonify, Response
 
 
 def register_tool_routes(app: Flask) -> None:
