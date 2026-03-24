@@ -16,6 +16,7 @@ export const dom = {
     voiceModalList: null,
     voiceModalClose: null,
     modalSpeedSlider: null,
+    modalSpeedLabel: null,
     typingEl: null,
     timerEl: null,
     orbEl: null,
@@ -45,6 +46,7 @@ export function initDOM() {
     dom.voiceModalList = document.getElementById('voice-modal-list');
     dom.voiceModalClose = document.getElementById('voice-modal-close');
     dom.modalSpeedSlider = document.getElementById('modal-speed-slider');
+    dom.modalSpeedLabel = document.getElementById('modal-speed-label');
     dom.typingEl = document.getElementById('typing-indicator');
     dom.timerEl = document.getElementById('timer');
     dom.orbEl = document.getElementById('orb');

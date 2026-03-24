@@ -573,6 +573,8 @@ export function handleTranscription(data) {
             return;
         }
         if (commandOnly) {
+            // In noting mode, short utterances are valid labels — don't gate them
+            if (notingState.active) { _sendText(text); return; }
             if (state.inSilenceMode) { _sendText(text); return; }
             if (isHoldCommand(text)) _sendText(text);
             return;

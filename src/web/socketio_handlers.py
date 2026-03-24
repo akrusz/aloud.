@@ -129,20 +129,25 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
                 web_session.pacing.on_response_end()
                 return
 
-        emit("facilitator_typing", {"typing": True})
-        try:
-            opener = asyncio.run(web_session.generate_opener())
-        except Exception as e:
-            logger.error("Failed to generate opener: %s", e)
-            emit("facilitator_typing", {"typing": False})
-            emit("error", {
-                "type": "llm",
-                "message": (
-                    "Could not reach the LLM provider. "
-                    "Check your provider and API key in Settings."
-                ),
-            })
-            return
+        # Noting sessions use a static opener so we never hit the LLM
+        # (the circle may have zero AI participants).
+        if web_session.meditation_type == "noting":
+            opener = web_session.get_opener()
+        else:
+            emit("facilitator_typing", {"typing": True})
+            try:
+                opener = asyncio.run(web_session.generate_opener())
+            except Exception as e:
+                logger.error("Failed to generate opener: %s", e)
+                emit("facilitator_typing", {"typing": False})
+                emit("error", {
+                    "type": "llm",
+                    "message": (
+                        "Could not reach the LLM provider. "
+                        "Check your provider and API key in Settings."
+                    ),
+                })
+                return
 
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
@@ -205,6 +210,10 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         if not web_session or hasattr(web_session, '_cached_summary'):
             return
 
+        if web_session._llm_instance is None:
+            web_session._cached_summary = "No summary — no AI provider was used this session."
+            return
+
         try:
             web_session._cached_summary = asyncio.run(web_session.generate_summary())
         except Exception:
@@ -220,9 +229,13 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
         app.session_to_sid.pop(session_id, None)
         web_session = app.web_sessions.pop(session_id)
 
-        # Use pre-fetched summary if available, otherwise generate now
+        # Use pre-fetched summary if available, otherwise generate now.
+        # If the LLM was never initialised (e.g. noting with no AI
+        # participants) skip the call entirely.
         if hasattr(web_session, '_cached_summary'):
             summary = web_session._cached_summary
+        elif web_session._llm_instance is None:
+            summary = "No summary — no AI provider was used this session."
         else:
             summary = ""
             try:
@@ -279,7 +292,7 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
     def handle_set_tts_rate(data):
         rate = data.get("rate")
         if rate and isinstance(rate, (int, float)) and app.server_tts:
-            rate = max(80, min(180, int(rate)))
+            rate = max(60, min(240, int(rate)))
             app.server_tts.set_rate(rate)
 
     @socketio.on("set_tts_voice")
@@ -326,8 +339,9 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
 
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
-            if voice:
-                app.server_tts.set_voice(voice)
+            effective_voice = voice or web_session.tts_voice_name
+            if effective_voice:
+                app.server_tts.set_voice(effective_voice)
             audio = app.server_tts.speak_to_bytes(label)
 
         emit("noting_label", {
@@ -355,8 +369,9 @@ def register_socketio_events(socketio: SocketIO, app: Flask) -> None:
 
         audio = None
         if web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes'):
-            if voice:
-                app.server_tts.set_voice(voice)
+            effective_voice = voice or web_session.tts_voice_name
+            if effective_voice:
+                app.server_tts.set_voice(effective_voice)
             audio = app.server_tts.speak_to_bytes(text)
 
         emit("noting_audio", {

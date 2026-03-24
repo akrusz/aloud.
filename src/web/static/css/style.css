@@ -371,17 +371,19 @@ body {
 /* ---- Noting participant rows ---- */
 
 .participant-row {
-    background: rgba(212, 135, 58, 0.22);
-    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
     border-radius: var(--radius-sm);
     padding: 0.75rem;
     margin-bottom: 0.75rem;
 }
+.participant-row select,
+.participant-row input[type="text"],
+.participant-row .stepper,
+.participant-row .sound-pick-btn,
+.participant-row .participant-voice-btn,
 .participant-row input[type="range"] {
-    background: var(--bg-input);
-}
-[data-theme="light"] .participant-row {
-    background: rgba(176, 104, 40, 0.12);
+    background: var(--bg-primary);
 }
 
 .participant-row-header {
@@ -904,7 +906,7 @@ input[type="range"]::-moz-range-thumb {
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    margin-top: -0.75rem;
+    margin-top: var(--space-sm);
 }
 
 .provider-hint a {
@@ -2503,7 +2505,7 @@ body::before {
 
 .input-with-action {
     display: flex;
-    gap: var(--space-xs);
+    gap: var(--space-sm);
     align-items: center;
 }
 

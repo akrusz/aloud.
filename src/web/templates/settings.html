@@ -53,7 +53,6 @@
                     <input type="password" id="s-anthropic-key" placeholder="sk-ant-..." autocomplete="off">
                     <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
                 </div>
-                <span class="form-hint">From <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></span>
             </div>
 
             <div class="form-group api-key-group" id="s-openai-key-group" style="display:none">
@@ -62,7 +61,6 @@
                     <input type="password" id="s-openai-key" placeholder="sk-..." autocomplete="off">
                     <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
                 </div>
-                <span class="form-hint">From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a></span>
             </div>
 
             <div class="form-group api-key-group" id="s-openrouter-key-group" style="display:none">
@@ -71,7 +69,6 @@
                     <input type="password" id="s-openrouter-key" placeholder="sk-or-..." autocomplete="off">
                     <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
                 </div>
-                <span class="form-hint">From <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a></span>
             </div>
 
             <div class="form-group api-key-group" id="s-venice-key-group" style="display:none">
@@ -84,8 +81,11 @@
 
             <div class="form-group api-key-group" id="s-proxy-group" style="display:none">
                 <label for="s-proxy-url">Proxy URL</label>
-                <input type="text" id="s-proxy-url" placeholder="http://127.0.0.1:8317">
-                <span class="form-hint">Default: http://127.0.0.1:8317 — only change this if you've configured CLIProxyAPI on a different address</span>
+                <div class="input-with-action">
+                    <input type="text" id="s-proxy-url" placeholder="http://127.0.0.1:8317">
+                    <button type="button" class="btn btn-small btn-secondary" id="s-proxy-url-reset" title="Reset to default">Reset</button>
+                </div>
+                <span class="form-hint">Only change this if you've configured CLIProxyAPI on a different address</span>
                 <div id="s-proxy-status" class="proxy-status" style="margin-top:0.5rem"></div>
                 <div id="s-proxy-install" style="display:none">
                     <div class="tool-install-row" id="s-proxy-install-row">
@@ -789,13 +789,26 @@
         updateSettingsProviderHint();
     }
 
+    var providerKeyInfo = {
+        anthropic: { env: 'ANTHROPIC_API_KEY', url: 'https://console.anthropic.com/settings/keys', label: 'console.anthropic.com' },
+        openai: { env: 'OPENAI_API_KEY', url: 'https://platform.openai.com/api-keys', label: 'platform.openai.com' },
+        openrouter: { env: 'OPENROUTER_API_KEY', url: 'https://openrouter.ai/keys', label: 'openrouter.ai' },
+        venice: { env: 'VENICE_API_KEY', url: 'https://venice.ai/settings/api', label: 'venice.ai' }
+    };
+
     function updateSettingsProviderHint() {
         var key = providerSelect.value;
         var info = settingsProviderStatus[key];
         if (info && !info.available && key !== 'claude_proxy' && key !== 'ollama') {
-            // claude_proxy and ollama have their own status areas
-            providerStatusEl.innerHTML = info.hint || '';
-            providerStatusEl.style.display = info.hint ? '' : 'none';
+            var ki = providerKeyInfo[key];
+            if (ki) {
+                providerStatusEl.innerHTML =
+                    'Add your API key above or set <code>' + ki.env + '</code> in your environment. ' +
+                    'See <a href="' + ki.url + '" target="_blank" rel="noopener">' + ki.label + '</a> for more.';
+            } else {
+                providerStatusEl.innerHTML = info.hint || '';
+            }
+            providerStatusEl.style.display = '';
         } else {
             providerStatusEl.style.display = 'none';
         }
@@ -816,6 +829,10 @@
         fetchModels(providerSelect.value);
         checkProxyStatus();
         updateSettingsProviderHint();
+    });
+
+    document.getElementById('s-proxy-url-reset').addEventListener('click', function() {
+        document.getElementById('s-proxy-url').value = 'http://127.0.0.1:8317';
     });
 
     ttsEngineSelect.addEventListener('change', function() {

@@ -106,11 +106,13 @@ function init() {
         dom.modalSpeedSlider.value = savedSpeed;
         state.ttsRate = parseInt(savedSpeed);
     }
+    if (dom.modalSpeedLabel) dom.modalSpeedLabel.textContent = (state.ttsRate || dom.modalSpeedSlider.value) + ' wpm';
 
     dom.modalSpeedSlider.addEventListener('input', function () {
         state.ttsRate = parseInt(dom.modalSpeedSlider.value);
         localStorage.setItem('glooow-speed', dom.modalSpeedSlider.value);
         socket.emit('set_tts_rate', { rate: state.ttsRate });
+        if (dom.modalSpeedLabel) dom.modalSpeedLabel.textContent = state.ttsRate + ' wpm';
         updateVoicePickerLabel();
     });
     dom.voicePickerBtn.addEventListener('click', function () { openVoiceModal(deactivateVoice); });

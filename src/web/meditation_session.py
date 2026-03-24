@@ -110,7 +110,7 @@ class WebMeditationSession:
             api_key = config.llm.api_key
 
         effective_model = model or config.llm.effective_model_for(effective_provider)
-        self.llm = create_llm_provider(
+        self._llm_params = dict(
             provider=effective_provider,
             model=effective_model,
             proxy_url=config.llm.proxy_url,
@@ -119,8 +119,18 @@ class WebMeditationSession:
             max_tokens=config.llm.max_tokens,
             base_url=config.llm.openai_base_url,
         )
+        self._llm_instance = None
 
         self.session.start_session()
+
+    @property
+    def llm(self):
+        """Lazy LLM provider — created on first use so sessions that never
+        need AI (e.g. noting with only fixed-phrase participants) skip
+        provider init and API-key validation entirely."""
+        if self._llm_instance is None:
+            self._llm_instance = create_llm_provider(**self._llm_params)
+        return self._llm_instance
 
     def build_system_prompt(self) -> str:
         """Build system prompt, incorporating the meditator's intention."""
