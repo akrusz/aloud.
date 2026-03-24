@@ -18,7 +18,7 @@ tts:
   #   browser -- no server-side audio; falls back to browser speechSynthesis
   engine: macos
   voice: "Zoe (Premium)"
-  rate: 160  # words per minute
+  rate: 120  # words per minute
 
   # Parakeet options (if engine: parakeet)
   # model_name: nvidia/parakeet-tts-1.1b
@@ -78,8 +78,8 @@ llm:
 
   context:
     strategy: full  # full, rolling
-    window_size: 10    # exchanges to keep (if rolling)
-    max_tokens: 300    # max response tokens
+    window_size: 100   # exchanges to keep (if rolling)
+    max_tokens: 400    # max response tokens
 
 pacing:
   response_delay_ms: 2000       # wait after speech ends before responding
@@ -90,7 +90,7 @@ facilitation:
   directiveness: 3          # 0-10 scale
   focuses: []               # body_sensations, emotions, inner_parts
   qualities: []             # playful, compassionate, loving, spacious, effortless, feeling_good
-  verbosity: low            # low, medium, high
+  verbosity: medium         # low, medium, high
   custom_instructions: |
     Feel free to suggest releasing the need to pay attention to anything specific.
     Trust the meditator's process.
