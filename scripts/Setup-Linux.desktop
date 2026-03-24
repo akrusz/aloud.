@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Setup Glooow
-Comment=Run the Glooow setup
-Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")/.." && ./scripts/setup-local.sh; echo ""; echo "  Done! Double-click Start-Linux.desktop to launch."; echo "  Press Enter to close..."; read'
+Name=Start Glooow
+Comment=Launch the Glooow meditation facilitator (sets up automatically on first run)
+Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")/.." && ./scripts/start.sh --open'
 Terminal=true
 Icon=utilities-terminal
 Categories=Utility;

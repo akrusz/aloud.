@@ -60,8 +60,8 @@ if [ -d "$GLOOOW_DIR" ]; then
         info "Updating..."
         git pull
         ok "Updated"
-        info "Running setup..."
-        ./scripts/setup-local.sh
+        info "Starting glooow..."
+        ./scripts/start.sh --open
         exit 0
     fi
 fi
@@ -114,9 +114,9 @@ cd "$GLOOOW_DIR"
 # Save path so future runs can find it
 echo "$GLOOOW_DIR" > "$BREADCRUMB"
 
-# Run setup
-info "Running setup..."
-./scripts/setup-local.sh
+# Start (bootstraps on first run)
+info "Starting glooow..."
+./scripts/start.sh --open
 
 # macOS extras: Desktop app + remove quarantine
 if [ "$OS" = "Darwin" ] && [ -d "Glooow.app" ]; then
@@ -141,7 +141,7 @@ echo "  ╔═══════════════════════
 echo "  ║          Setup Complete!             ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
-echo "  To start:"
+echo "  To start again later:"
 if [ "$OS" = "Darwin" ]; then
     echo "    • Double-click Glooow on your Desktop"
     echo "    • Or: cd $GLOOOW_DIR && ./scripts/start.sh"

@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if ! command -v uv &>/dev/null; then
-    echo "  uv not found. Run ./scripts/setup-local.sh first or install uv: https://docs.astral.sh/uv/"
+    echo "  uv not found. Run ./scripts/start.sh first or install uv: https://docs.astral.sh/uv/"
     exit 1
 fi
 

@@ -36,7 +36,7 @@ fi
 # Offer choices
 ACTION=$(osascript -e '
 tell application "SystemUIServer"
-    set choice to button returned of (display dialog "What would you like to do?" with title "Glooow" buttons {"Start", "Setup", "Uninstall"} default button "Start")
+    set choice to button returned of (display dialog "What would you like to do?" with title "Glooow" buttons {"Start", "Uninstall"} default button "Start")
 end tell
 return choice
 ' 2>/dev/null || echo "Start")
@@ -50,13 +50,6 @@ if [ "$ACTION" = "Uninstall" ]; then
 tell application \"Terminal\"
     activate
     do script \"$ENV_PREFIX cd $ESCAPED_DIR && ./scripts/uninstall.sh\"
-end tell
-"
-elif [ "$ACTION" = "Setup" ]; then
-    osascript -e "
-tell application \"Terminal\"
-    activate
-    do script \"$ENV_PREFIX cd $ESCAPED_DIR && ./scripts/setup-local.sh\"
 end tell
 "
 else

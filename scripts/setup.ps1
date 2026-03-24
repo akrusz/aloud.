@@ -50,8 +50,8 @@ if (Test-Path $GlooowDir) {
         Info "Updating..."
         git pull
         Ok "Updated"
-        Info "Running setup..."
-        powershell -ExecutionPolicy Bypass -File scripts\setup-local.ps1
+        Info "Starting glooow..."
+        powershell -ExecutionPolicy Bypass -File scripts\start.ps1 --open
         exit 0
     }
 }
@@ -99,9 +99,9 @@ Set-Location $GlooowDir
 # Save path so future runs can find it
 $GlooowDir | Set-Content $Breadcrumb -Encoding UTF8
 
-# Run setup
-Info "Running setup..."
-powershell -ExecutionPolicy Bypass -File scripts\setup-local.ps1
+# Start (bootstraps on first run)
+Info "Starting glooow..."
+powershell -ExecutionPolicy Bypass -File scripts\start.ps1 --open
 
 # Create Desktop shortcut
 Info "Creating Desktop shortcut..."
@@ -122,7 +122,7 @@ Write-Host "  +======================================+"
 Write-Host "  |          Setup Complete!              |"
 Write-Host "  +======================================+"
 Write-Host ""
-Write-Host "  To start:"
+Write-Host "  To start again later:"
 Write-Host "    - Double-click Glooow on your Desktop"
 Write-Host "    - Or: cd $GlooowDir; .\scripts\start.ps1"
 Write-Host ""

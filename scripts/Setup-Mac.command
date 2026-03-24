@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
+# Setup is now handled automatically on first run.
 cd "$(dirname "$0")/.." || exit 1
-./scripts/setup-local.sh
-echo ""; echo "  Done! Double-click Start-Mac.command to launch."
-echo "  Press any key to close..."; read -n 1 -s
+./scripts/start.sh --open

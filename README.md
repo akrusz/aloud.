@@ -82,7 +82,7 @@ pacing:
 
 the settings page shows which providers are configured. unavailable ones are marked with what you need to do.
 
-**Anthropic (Subscription)** (default) — uses your claude subscription via CLIProxyAPI. install via homebrew, the setup script handles it. the desktop app can detect and start CLIProxyAPI for you from the new session page or settings.
+**Anthropic (Subscription)** — uses your claude subscription via CLIProxyAPI. install via homebrew, or the settings page can install it for you. the app auto-starts CLIProxyAPI when needed.
 
 **Anthropic (API Key)** — direct API access, no proxy needed
 ```bash
@@ -104,7 +104,7 @@ export OPENROUTER_API_KEY=sk-or-...
 export VENICE_API_KEY=...
 ```
 
-**Ollama (Local)** — fully local, no API key needed. the setup script can set this up automatically, or:
+**Ollama (Local)** (default) — fully local, no API key needed. the settings page can install and configure it, or:
 ```bash
 ollama pull qwen3.5:4b
 ```
@@ -158,20 +158,21 @@ uv run python -m src.web --browser    # open in browser instead
 
 requires python 3.10+ and [uv](https://docs.astral.sh/uv/). once running, the server listens on port 4649 (よろしく). press **B** to open browser, **Q** to quit.
 
-### setup scripts
+### scripts
 
 the `scripts/` directory has helpers for getting set up and running from source:
 
 | script | what it does |
 |--------|--------------|
-| `scripts/setup.sh` | one-line setup for macOS/Linux (clones repo, installs deps, creates Desktop launcher) |
+| `scripts/setup.sh` | one-line setup for macOS/Linux (clones repo and launches) |
 | `scripts/setup.ps1` | one-line setup for Windows |
-| `scripts/setup-local.sh` | interactive setup wizard (deps, LLM provider, whisper model) |
-| `scripts/start.sh` | full launcher — auto-starts CLIProxyAPI, shows config banner |
-| `scripts/start.ps1` | full launcher for Windows |
+| `scripts/start.sh` | launcher — bootstraps on first run, auto-starts Ollama/CLIProxyAPI |
+| `scripts/start.ps1` | launcher for Windows |
 | `scripts/start-server.sh` | lightweight launcher — just runs the server |
 
-there are also double-click launchers in `scripts/` (`Start-Mac.command`, `Start-Windows.bat`, `Start-Linux.desktop` and their Setup equivalents) if you want to skip the terminal entirely.
+on first run, `start.sh` automatically installs dependencies, creates a Python environment, and writes a default config. configure your LLM provider and other settings in the web UI.
+
+there are also double-click launchers in `scripts/` (`Start-Mac.command`, `Start-Windows.bat`, `Start-Linux.desktop`) if you want to skip the terminal.
 
 ### nix
 

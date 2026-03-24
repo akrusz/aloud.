@@ -1,7 +1,4 @@
 @echo off
+REM Setup is now handled automatically on first run.
 cd /d "%~dp0\.."
-powershell -ExecutionPolicy Bypass -File scripts\setup-local.ps1
-echo.
-echo   Done! Double-click Start-Windows.bat to launch.
-echo   Press any key to close...
-pause >nul
+powershell -ExecutionPolicy Bypass -File scripts\start.ps1 --open
