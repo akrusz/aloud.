@@ -48,6 +48,25 @@ def _recommended_ollama_model(ram_gb: int | None, tiers: list[dict]) -> dict:
     return tiers[-1]
 
 
+def find_cli_proxy() -> str | None:
+    """Find CLIProxyAPI, searching beyond the app bundle's limited PATH."""
+    binary = shutil.which("CLIProxyAPI")
+    if binary:
+        return binary
+    # macOS app bundles have a minimal PATH — ask the user's login shell
+    try:
+        result = subprocess.run(
+            ["/bin/zsh", "-lc", "which CLIProxyAPI"],
+            capture_output=True, text=True, timeout=5,
+        )
+        path = result.stdout.strip()
+        if result.returncode == 0 and path and os.path.isfile(path):
+            return path
+    except Exception:
+        pass
+    return None
+
+
 def register_routes(app: Flask) -> None:
     """Register all HTTP routes on the Flask app."""
 
@@ -149,28 +168,10 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    def _find_cli_proxy() -> str | None:
-        """Find CLIProxyAPI, searching beyond the app bundle's limited PATH."""
-        binary = shutil.which("CLIProxyAPI")
-        if binary:
-            return binary
-        # macOS app bundles have a minimal PATH — ask the user's login shell
-        try:
-            result = subprocess.run(
-                ["/bin/zsh", "-lc", "which CLIProxyAPI"],
-                capture_output=True, text=True, timeout=5,
-            )
-            path = result.stdout.strip()
-            if result.returncode == 0 and path and os.path.isfile(path):
-                return path
-        except Exception:
-            pass
-        return None
-
     @app.route("/api/proxy/status")
     def api_proxy_status():
         """Check if CLIProxyAPI is installed and/or running."""
-        binary = _find_cli_proxy()
+        binary = find_cli_proxy()
         installed = binary is not None
 
         running = False
@@ -197,7 +198,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/proxy/start", methods=["POST"])
     def api_proxy_start():
         """Start CLIProxyAPI if installed and not already running."""
-        binary = _find_cli_proxy()
+        binary = find_cli_proxy()
         if not binary:
             return jsonify({"ok": False, "message": "CLIProxyAPI not found on this system"}), 404
 
@@ -254,13 +255,101 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             return jsonify({"ok": False, "message": str(e)}), 500
 
+    @app.route("/api/system-info")
+    def api_system_info():
+        """Return system platform info and tool availability."""
+        system = platform.system()
+        has_homebrew = shutil.which("brew") is not None
+        proxy_binary = find_cli_proxy()
+
+        return jsonify({
+            "platform": system.lower(),
+            "has_homebrew": has_homebrew,
+            "tools": {
+                "cliproxyapi": {
+                    "installed": proxy_binary is not None,
+                    "path": proxy_binary,
+                },
+                "ollama": {
+                    "installed": shutil.which("ollama") is not None,
+                    "path": shutil.which("ollama"),
+                },
+            },
+        })
+
+    @app.route("/api/install/<tool>", methods=["POST"])
+    def api_install_tool(tool):
+        """Stream the installation of an external tool."""
+        import json as _json
+
+        valid_tools = {"cliproxyapi", "ollama"}
+        if tool not in valid_tools:
+            return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
+        system = platform.system()
+        has_homebrew = shutil.which("brew") is not None
+
+        if tool == "cliproxyapi":
+            if system == "Windows":
+                return jsonify({
+                    "error": "Download CLIProxyAPI manually on Windows",
+                    "download_url": "https://github.com/router-for-me/CLIProxyAPI/releases",
+                }), 400
+            if has_homebrew:
+                cmd = ["brew", "install", "cliproxyapi"]
+            else:
+                cmd = [
+                    "/bin/bash", "-c",
+                    "curl -fsSL https://raw.githubusercontent.com/brokechubb/cliproxyapi-installer/refs/heads/master/cliproxyapi-installer | bash",
+                ]
+        elif tool == "ollama":
+            if system == "Windows":
+                return jsonify({
+                    "error": "Download Ollama manually on Windows",
+                    "download_url": "https://ollama.ai",
+                }), 400
+            if has_homebrew and system == "Darwin":
+                cmd = ["brew", "install", "ollama"]
+            else:
+                cmd = ["/bin/bash", "-c", "curl -fsSL https://ollama.com/install.sh | sh"]
+        else:
+            return jsonify({"error": "Unknown tool"}), 400
+
+        def generate():
+            try:
+                yield _json.dumps({"status": f"Installing {tool}..."}) + "\n"
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+                for line in proc.stdout:
+                    line = line.rstrip()
+                    if line:
+                        yield _json.dumps({"status": line}) + "\n"
+                proc.wait()
+                if proc.returncode == 0:
+                    yield _json.dumps({"status": "done"}) + "\n"
+                else:
+                    yield _json.dumps({"status": "error", "error": f"Install exited with code {proc.returncode}"}) + "\n"
+            except Exception as exc:
+                yield _json.dumps({"status": "error", "error": str(exc)}) + "\n"
+
+        return Response(
+            generate(),
+            mimetype="application/x-ndjson",
+            headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+        )
+
     @app.route("/api/providers")
     def api_providers():
         """Return provider availability based on env vars / proxy reachability."""
         results = {}
 
         refresh = ' <a href="#" onclick="refreshProviders(); return false">Refresh</a>'
-        proxy_binary = _find_cli_proxy()
+        proxy_binary = find_cli_proxy()
 
         # claude_proxy — check if CLIProxyAPI is reachable
         proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
@@ -299,9 +388,10 @@ def register_routes(app: Flask) -> None:
                 results["claude_proxy"] = {
                     "available": False, "installed": False,
                     "hint": (
-                        "Requires <a href='https://github.com/router-for-me/CLIProxyAPI' "
-                        "target='_blank'>CLIProxyAPI</a>. "
-                        "Install it, start it, then:" + refresh
+                        "CLIProxyAPI is not installed. "
+                        "<a href='/settings'>Install from Settings</a> or visit "
+                        "<a href='https://github.com/router-for-me/CLIProxyAPI' "
+                        "target='_blank'>GitHub</a>." + refresh
                     ),
                 }
 
@@ -407,9 +497,10 @@ def register_routes(app: Flask) -> None:
             results["ollama"] = {
                 "available": False, "models": [],
                 "hint": (
-                    "Ollama is not running. Install from "
+                    "Ollama is not running. "
+                    "<a href='/settings'>Install from Settings</a> or visit "
                     "<a href='https://ollama.ai' target='_blank'>ollama.ai</a>, "
-                    "start it, then:" + refresh
+                    "then:" + refresh
                 ),
                 "recommendation": rec_info,
             }

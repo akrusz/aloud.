@@ -133,6 +133,7 @@ class WebConfig:
     frameless: bool = True
     vibrancy: bool = False
     text_scale: float = 1.0
+    auto_start_proxy: bool = True
 
 
 @dataclass

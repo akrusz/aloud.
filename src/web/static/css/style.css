@@ -371,11 +371,17 @@ body {
 /* ---- Noting participant rows ---- */
 
 .participant-row {
-    background: var(--accent-dim);
+    background: rgba(212, 135, 58, 0.22);
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
     padding: 0.75rem;
     margin-bottom: 0.75rem;
+}
+.participant-row input[type="range"] {
+    background: var(--bg-input);
+}
+[data-theme="light"] .participant-row {
+    background: rgba(176, 104, 40, 0.12);
 }
 
 .participant-row-header {
@@ -2419,7 +2425,7 @@ body::before {
 }
 
 .display-controls select {
-    max-width: 220px;
+    max-width: 280px;
 }
 
 .display-preview {
@@ -2664,6 +2670,107 @@ body::before {
     color: var(--text-muted);
     white-space: nowrap;
     min-width: 5rem;
+}
+
+/* Tool install shared styles (CLIProxyAPI, Ollama) */
+
+.tool-install-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    margin-top: 0.5rem;
+}
+
+[data-theme="light"] .tool-install-row {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.tool-install-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-tool-install {
+    padding: 0.35rem 0.85rem;
+    min-width: 5.5rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--success, #5a9e6f);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--success, #5a9e6f);
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+.btn-tool-install:hover:not(:disabled) {
+    background: var(--success, #5a9e6f);
+    color: #fff;
+}
+
+.btn-tool-install:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.tool-install-progress {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.tool-install-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+[data-theme="light"] .tool-install-bar {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.tool-install-bar-fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.tool-install-bar-fill.indeterminate {
+    width: 30%;
+    animation: indeterminate-slide 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate-slide {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(233%); }
+    100% { transform: translateX(-100%); }
+}
+
+.tool-install-status {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 20rem;
+}
+
+.tool-install-done {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: rgba(90, 158, 111, 0.08);
+    font-size: 0.875rem;
 }
 
 .settings-actions {

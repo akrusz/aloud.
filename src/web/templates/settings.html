@@ -87,11 +87,50 @@
                 <input type="text" id="s-proxy-url" placeholder="http://127.0.0.1:8317">
                 <span class="form-hint">Default: http://127.0.0.1:8317 — only change this if you've configured CLIProxyAPI on a different address</span>
                 <div id="s-proxy-status" class="proxy-status" style="margin-top:0.5rem"></div>
+                <div id="s-proxy-install" style="display:none">
+                    <div class="tool-install-row" id="s-proxy-install-row">
+                        <div class="tool-install-info">
+                            <strong>CLIProxyAPI</strong> is not installed.
+                            <div class="form-hint">A local proxy that lets glooow use your Claude Pro or Max subscription.</div>
+                        </div>
+                        <button type="button" class="btn-tool-install" id="btn-install-cliproxyapi">Install</button>
+                    </div>
+                    <div class="tool-install-progress" id="install-progress-cliproxyapi" style="display:none">
+                        <div class="tool-install-bar"><div class="tool-install-bar-fill"></div></div>
+                        <span class="tool-install-status"></span>
+                    </div>
+                    <div class="tool-install-done" id="install-done-cliproxyapi" style="display:none">
+                        <span style="color:var(--success)">Installed!</span>
+                        <div class="form-hint" style="margin-top:0.25rem">
+                            Open a terminal and run <code>CLIProxyAPI</code> to authorize with your Anthropic account.
+                            This is a one-time step that opens your browser for login.
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="form-group api-key-group" id="s-ollama-group" style="display:none">
                 <label for="s-ollama-url">Ollama URL</label>
                 <input type="text" id="s-ollama-url" placeholder="http://localhost:11434">
+                <div id="s-ollama-install" style="display:none">
+                    <div class="tool-install-row" id="s-ollama-install-row">
+                        <div class="tool-install-info">
+                            <strong>Ollama</strong> is not installed.
+                            <div class="form-hint">A free, open-source local AI runner. Your data never leaves your machine.</div>
+                        </div>
+                        <button type="button" class="btn-tool-install" id="btn-install-ollama">Install</button>
+                    </div>
+                    <div class="tool-install-progress" id="install-progress-ollama" style="display:none">
+                        <div class="tool-install-bar"><div class="tool-install-bar-fill"></div></div>
+                        <span class="tool-install-status"></span>
+                    </div>
+                    <div class="tool-install-done" id="install-done-ollama" style="display:none">
+                        <span style="color:var(--success)">Installed!</span>
+                        <div class="form-hint" style="margin-top:0.25rem">
+                            Ollama has been installed. Download a model below to get started.
+                        </div>
+                    </div>
+                </div>
                 <div id="s-ollama-recommendation" class="form-hint" style="margin-top:0.5rem"></div>
             </div>
 
@@ -256,6 +295,10 @@
                     <label class="checkbox-label" id="s-vibrancy-label" style="display:none">
                         <input type="checkbox" id="s-vibrancy">
                         <span>Vibrancy (translucent background)</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="s-auto-start-proxy" checked>
+                        <span>Auto-start CLIProxyAPI on launch</span>
                     </label>
                     <span class="form-hint">Window options take effect on next launch</span>
                     <div class="form-group">
@@ -577,8 +620,10 @@
 
     function checkProxyStatus() {
         var statusEl = document.getElementById('s-proxy-status');
+        var installEl = document.getElementById('s-proxy-install');
         if (providerSelect.value !== 'claude_proxy') {
             statusEl.innerHTML = '';
+            if (installEl) installEl.style.display = 'none';
             return;
         }
         statusEl.innerHTML = '<span style="color:var(--text-muted)">Checking...</span>';
@@ -587,14 +632,16 @@
             .then(function(data) {
                 if (data.running) {
                     statusEl.innerHTML = '<span style="color:var(--success)">Connected</span>';
+                    if (installEl) installEl.style.display = 'none';
                 } else if (data.installed) {
                     statusEl.innerHTML = '<span style="color:var(--text-muted)">Installed but not running: </span>'
                         + '<a href="#" onclick="startProxyFromSettings(); return false" '
                         + 'class="btn btn-small btn-primary" '
                         + 'style="padding:0.15rem 0.6rem; font-size:0.875rem">Start</a>';
+                    if (installEl) installEl.style.display = 'none';
                 } else {
-                    statusEl.innerHTML = '<span style="color:var(--text-muted)">Not installed — '
-                        + '<a href="https://github.com/router-for-me/CLIProxyAPI" target="_blank" rel="noopener">get CLIProxyAPI</a></span>';
+                    statusEl.innerHTML = '';
+                    if (installEl) installEl.style.display = '';
                 }
             })
             .catch(function() {
@@ -619,6 +666,106 @@
                 statusEl.innerHTML = '<span style="color:var(--danger)">Failed to start</span>';
             });
     };
+
+    // Shared tool install function (CLIProxyAPI, Ollama)
+    function installTool(tool, btn) {
+        var progressEl = document.getElementById('install-progress-' + tool);
+        var statusEl = progressEl ? progressEl.querySelector('.tool-install-status') : null;
+        var barFill = progressEl ? progressEl.querySelector('.tool-install-bar-fill') : null;
+        var doneEl = document.getElementById('install-done-' + tool);
+        var rowEl = btn.closest('.tool-install-row');
+
+        btn.disabled = true;
+        btn.textContent = 'Installing...';
+        if (progressEl) progressEl.style.display = '';
+
+        if (barFill) barFill.classList.add('indeterminate');
+
+        fetch('/api/install/' + tool, { method: 'POST' })
+            .then(function(resp) {
+                if (!resp.ok) {
+                    return resp.json().then(function(data) {
+                        if (data.download_url) {
+                            window.open(data.download_url, '_blank');
+                        }
+                        throw new Error(data.error || 'Install failed');
+                    });
+                }
+
+                var reader = resp.body.getReader();
+                var decoder = new TextDecoder();
+                var buffer = '';
+                var hadError = false;
+
+                function read() {
+                    reader.read().then(function(result) {
+                        if (result.done) {
+                            if (barFill) { barFill.classList.remove('indeterminate'); barFill.style.width = '100%'; }
+                            if (!hadError) {
+                                if (rowEl) rowEl.style.display = 'none';
+                                if (progressEl) progressEl.style.display = 'none';
+                                if (doneEl) doneEl.style.display = '';
+                            }
+                            // Refresh status
+                            refreshSettingsProviders();
+                            if (tool === 'cliproxyapi') checkProxyStatus();
+                            if (tool === 'ollama') fetchModels('ollama');
+                            return;
+                        }
+                        buffer += decoder.decode(result.value, {stream: true});
+                        var lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        lines.forEach(function(line) {
+                            if (!line.trim()) return;
+                            try {
+                                var obj = JSON.parse(line);
+                                if (obj.status === 'error') {
+                                    hadError = true;
+                                    btn.textContent = 'Retry';
+                                    btn.disabled = false;
+                                    if (barFill) barFill.classList.remove('indeterminate');
+                                    if (statusEl) statusEl.textContent = obj.error || 'Install failed';
+                                    return;
+                                }
+                                if (statusEl && obj.status && obj.status !== 'done') {
+                                    statusEl.textContent = obj.status;
+                                }
+                            } catch (e) {}
+                        });
+                        read();
+                    });
+                }
+                read();
+            })
+            .catch(function(err) {
+                btn.textContent = 'Retry';
+                btn.disabled = false;
+                if (statusEl) statusEl.textContent = err.message || 'Install failed';
+                if (barFill) barFill.classList.remove('indeterminate');
+            });
+    }
+
+    document.getElementById('btn-install-cliproxyapi').addEventListener('click', function() {
+        installTool('cliproxyapi', this);
+    });
+    document.getElementById('btn-install-ollama').addEventListener('click', function() {
+        installTool('ollama', this);
+    });
+
+    // Fetch system info to show/hide install buttons
+    fetch('/api/system-info')
+        .then(function(r) { return r.json(); })
+        .then(function(info) {
+            if (!info.tools.ollama.installed) {
+                document.getElementById('s-ollama-install').style.display = '';
+            }
+            // CLIProxyAPI install visibility is handled by checkProxyStatus()
+            if (info.platform === 'windows') {
+                var btns = document.querySelectorAll('.btn-tool-install');
+                btns.forEach(function(btn) { btn.textContent = 'Download'; });
+            }
+        })
+        .catch(function() {});
 
     var settingsProviderStatus = {};
     var providerStatusEl = document.getElementById('s-provider-status');
@@ -1017,6 +1164,7 @@
             document.getElementById('s-window-mode').value = cfg.web?.window_mode || 'remember';
             document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
             document.getElementById('s-vibrancy').checked = cfg.web?.vibrancy || false;
+            document.getElementById('s-auto-start-proxy').checked = cfg.web?.auto_start_proxy !== false;
 
             // Config folder button
             if (cfg._config_path) {
@@ -1087,6 +1235,7 @@
                 window_mode: document.getElementById('s-window-mode').value,
                 frameless: document.getElementById('s-frameless').checked,
                 vibrancy: document.getElementById('s-vibrancy').checked,
+                auto_start_proxy: document.getElementById('s-auto-start-proxy').checked,
             },
         };
 
