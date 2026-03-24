@@ -464,7 +464,9 @@
     function needsLLM() {
         if (activeTab !== 'noting') return true;
         // Noting mode: LLM only needed if at least one participant is AI
-        const rows = participantList.querySelectorAll('.participant-row');
+        const pl = document.getElementById('participant-list');
+        if (!pl) return true;
+        const rows = pl.querySelectorAll('.participant-row');
         if (rows.length === 0) return true;
         for (const row of rows) {
             if (row.querySelector('.participant-type').value === 'llm') return true;
