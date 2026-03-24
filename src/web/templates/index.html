@@ -385,10 +385,12 @@
     // ---- Provider / Model ----
     const liveModels = {};  // cache for fetched model lists
 
-    const providerSelect = document.getElementById('provider');
-    const modelSelect = document.getElementById('model');
-    const providerHint = document.getElementById('provider-hint');
-    var providerStatus = {};  // populated by /api/providers (var so applyTab can safely reference it before this line)
+    // var (not const/let) so applyTab → updateBeginButton can reference these
+    // before this line runs — var declarations are hoisted, let/const are not.
+    var providerSelect = document.getElementById('provider');
+    var modelSelect = document.getElementById('model');
+    var providerHint = document.getElementById('provider-hint');
+    var providerStatus = {};
 
     function renderModelOptions(models) {
         if (!models || !models.length) {
@@ -459,7 +461,7 @@
         }
     }
 
-    const beginBtn = document.querySelector('.btn-begin');
+    var beginBtn = document.querySelector('.btn-begin');
 
     function needsLLM() {
         if (activeTab !== 'noting') return true;
@@ -475,11 +477,13 @@
     }
 
     function providerAvailable() {
+        if (!providerSelect) return true;
         const info = providerStatus[providerSelect.value];
         return !info || info.available;
     }
 
     function updateBeginButton() {
+        if (!beginBtn) return;
         const disabled = needsLLM() && !providerAvailable();
         beginBtn.disabled = disabled;
         beginBtn.classList.toggle('btn-disabled', disabled);
