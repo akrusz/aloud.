@@ -26,7 +26,7 @@ export function applySessionConfig(cfg) {
 export var SILENCE_RAMP_RATE = 0.12;  // extra silence ms per ms of speech (ramps from base to max)
 export var PRE_BUFFER_CHUNKS = 20;    // ~2s of audio to keep before speech onset
 export var MIN_SPEECH_DURATION = 500; // ms — reject sounds shorter than this
-export var MIN_UTTERANCE_DURATION = 4000; // ms — don't submit until this long after speech onset
+export var MIN_UTTERANCE_DURATION = 800;  // ms — don't submit until this long after speech onset
 export var MIN_UTTERANCE_DURATION_SILENCE = 800; // ms — lower threshold during silence mode
 export var NOISE_REJECT_MS = 200;     // ms — abort speech_started if silence exceeds this
 export var TTS_WATCHDOG_MS = 1500;    // force-reset ttsSpeaking if synth stopped this long ago
