@@ -211,4 +211,12 @@
     // Load first page on init
     loadPage();
     loadMoreBtn.addEventListener('click', loadPage);
+
+    // Open sessions folder button
+    var openFolderBtn = document.getElementById('btn-open-sessions-folder');
+    if (openFolderBtn) {
+        openFolderBtn.addEventListener('click', function () {
+            fetch('/api/open-sessions-folder', { method: 'POST' });
+        });
+    }
 })();

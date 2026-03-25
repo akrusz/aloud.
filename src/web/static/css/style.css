@@ -375,6 +375,11 @@ body {
     outline: none;
 }
 
+.setup-voice-btn.no-voices {
+    color: var(--danger, #c0503e);
+    border-color: var(--danger, #c0503e);
+}
+
 /* ---- Noting participant rows ---- */
 
 .participant-row {
@@ -1468,6 +1473,10 @@ body:has(.session-container) {
     text-decoration: underline;
 }
 
+.voice-picker-btn.no-voices {
+    color: var(--danger, #c0503e);
+}
+
 /* ---- Voice Picker Modal ---- */
 
 .voice-modal-overlay {
@@ -2334,6 +2343,62 @@ body::before {
 
 .error-toast.visible {
     opacity: 1;
+    pointer-events: auto;
+}
+
+/* ---- No-voices warning ---- */
+
+.no-voices-banner {
+    position: fixed;
+    bottom: 4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--danger, #c0503e);
+    color: #fff;
+    padding: 0.75rem 1.5rem;
+    padding-right: 2.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    z-index: 10000;
+    max-width: 90vw;
+    text-align: center;
+}
+
+.no-voices-banner.inline {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    margin-top: 0.5rem;
+    text-align: left;
+    font-size: 0.825rem;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+}
+
+.no-voices-banner a {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.no-voices-banner p {
+    margin: 0.25rem 0;
+}
+
+.no-voices-banner .toast-close {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.25rem;
+    cursor: pointer;
+    opacity: 0.7;
+    line-height: 1;
+}
+
+.no-voices-banner .toast-close:hover {
+    opacity: 1;
 }
 
 /* ---- Settings Page ---- */
@@ -2777,11 +2842,36 @@ body::before {
     font-size: 0.875rem;
 }
 
-.settings-actions {
+.settings-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface, var(--bg));
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 1.5rem;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.settings-footer-inner {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-sm);
-    margin-top: var(--space-sm);
+    max-width: 640px;
+    margin: 0 auto;
+    min-height: 2.5rem;
+}
+
+.settings-footer-spacer {
+    flex: 1;
+}
+
+/* Pad the bottom of the form so content isn't hidden behind the fixed footer */
+.setup-container {
+    padding-bottom: 5rem;
 }
 
 .settings-saved {
@@ -2801,14 +2891,8 @@ body::before {
 }
 
 .settings-config-path {
-    margin-top: var(--space-md);
     font-size: 0.875rem;
     color: var(--text-muted);
-    word-break: break-all;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
 }
 
 .btn-config-path {

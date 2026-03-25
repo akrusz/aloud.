@@ -714,7 +714,13 @@
         if (previewAudio) { previewAudio.pause(); previewAudio = null; }
     }
 
-    setupVoiceBtn.addEventListener('click', () => {
+    let noVoicesMode = false;
+    setupVoiceBtn.addEventListener('click', (e) => {
+        if (noVoicesMode) {
+            e.stopPropagation();
+            toggleNoVoicesBanner(setupVoiceBtn);
+            return;
+        }
         renderVoiceModal();
         setupVoiceModal.classList.remove('hidden');
     });
@@ -781,6 +787,16 @@
                 .catch(() => buildSetupVoiceList([]));
         });
     }
+
+    // Warn if no TTS voices after everything has had time to load
+    setTimeout(() => {
+        if (scoredVoices.length === 0) {
+            noVoicesMode = true;
+            setupVoiceBtn.classList.add('no-voices');
+            setupVoiceBtn.textContent = '\u26a0 No voices';
+            setupVoiceBtn.title = 'No TTS voices available \u2014 click for info';
+        }
+    }, 3000);
 
     // ---- Noting participants ----
     const participantList = document.getElementById('participant-list');

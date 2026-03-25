@@ -101,7 +101,13 @@ function initSessionControls(params) {
     });
 
     // Voice picker modal
-    dom.voicePickerBtn.addEventListener('click', function () { openVoiceModal(deactivateVoice); });
+    dom.voicePickerBtn.addEventListener('click', function () {
+        if (state._noVoicesMode) {
+            toggleNoVoicesBanner(dom.voicePickerBtn);
+            return;
+        }
+        openVoiceModal(deactivateVoice);
+    });
     dom.voiceModalClose.addEventListener('click', function () { closeVoiceModal(true, activateVoice); });
     dom.voiceModal.addEventListener('click', function (e) {
         // Close on backdrop click (not on the modal itself)

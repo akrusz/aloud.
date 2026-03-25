@@ -3,6 +3,7 @@
 import logging
 import platform
 import subprocess
+from pathlib import Path
 
 from flask import Flask, request, jsonify
 
@@ -75,6 +76,16 @@ def register_config_routes(app: Flask) -> None:
     def api_open_config_folder():
         """Open the config file's parent folder in the system file browser."""
         folder = str(get_user_config_path().parent)
+        return _open_folder(folder)
+
+    @app.route("/api/open-sessions-folder", methods=["POST"])
+    def api_open_sessions_folder():
+        """Open the sessions folder in the system file browser."""
+        folder = app.meditation_config.session.save_directory
+        Path(folder).mkdir(parents=True, exist_ok=True)
+        return _open_folder(folder)
+
+    def _open_folder(folder):
         system = platform.system()
         try:
             if system == "Darwin":

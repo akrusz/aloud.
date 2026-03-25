@@ -113,6 +113,24 @@
 
     {% block scripts %}{% endblock %}
     <script>
+    // Shared no-voices warning — used by session, index, and settings pages
+    function toggleNoVoicesBanner(anchorEl) {
+        var existing = document.querySelector('.no-voices-banner');
+        if (existing) { existing.remove(); return; }
+
+        var banner = document.createElement('div');
+        banner.className = 'no-voices-banner inline';
+        banner.innerHTML =
+            '<span>No text-to-speech voices available.</span> ' +
+            '<a href="/settings">Set up TTS in Settings</a>' +
+            '<button class="toast-close" aria-label="Dismiss">\u00d7</button>';
+        banner.querySelector('.toast-close').addEventListener('click', function() {
+            banner.remove();
+        });
+        anchorEl.parentElement.appendChild(banner);
+    }
+    </script>
+    <script>
     // Update checking
     (function() {
         var indicator = document.getElementById('updateIndicator');

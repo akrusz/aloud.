@@ -184,7 +184,14 @@ function updateRateDisplay() {
 rateSlider.addEventListener('input', updateRateDisplay);
 
 // Voice modal events
-voiceBtn.addEventListener('click', openVoiceModal);
+let settingsNoVoicesMode = false;
+voiceBtn.addEventListener('click', function() {
+    if (settingsNoVoicesMode) {
+        toggleNoVoicesBanner(voiceBtn);
+        return;
+    }
+    openVoiceModal();
+});
 voiceModalClose.addEventListener('click', function() {
     stopPreview();
     voiceModal.classList.add('hidden');
@@ -229,6 +236,16 @@ function fetchVoices() {
 }
 
 fetchVoices();
+
+// Warn if no TTS voices after fetch completes
+setTimeout(function() {
+    if (scoredVoices.length === 0) {
+        settingsNoVoicesMode = true;
+        voiceBtn.classList.add('no-voices');
+        voiceBtn.textContent = '\u26a0 No voices';
+        voiceBtn.title = 'No TTS voices available \u2014 click for info';
+    }
+}, 3000);
 
 // Refresh voices when language changes
 document.getElementById('s-language').addEventListener('change', fetchVoices);

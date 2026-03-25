@@ -330,21 +330,21 @@
             </div>
         </section>
 
-        <!-- Save -->
-        <div class="settings-actions">
-            <button type="submit" class="btn btn-primary btn-begin">
-                {% if first_run %}Save & Start{% else %}Save Settings{% endif %}
-            </button>
-            {% if not first_run %}
-            <span class="settings-saved hidden" id="settings-saved">Saved</span>
-            {% endif %}
-            <div id="settings-error" class="settings-error hidden"></div>
-        </div>
-
-        <div class="settings-config-path" id="settings-config-path">
-            <button type="button" class="btn-config-path hidden" id="btn-open-config-folder">Open folder with config file and saved sessions</button>
-        </div>
     </form>
+</div>
+
+<div class="settings-footer">
+    <div class="settings-footer-inner">
+        <button type="submit" form="settings-form" class="btn btn-primary btn-begin">
+            {% if first_run %}Save & Start{% else %}Save Settings{% endif %}
+        </button>
+        {% if not first_run %}
+        <span class="settings-saved hidden" id="settings-saved">Saved</span>
+        {% endif %}
+        <div id="settings-error" class="settings-error hidden"></div>
+        <div class="settings-footer-spacer"></div>
+        <button type="button" class="btn-config-path hidden" id="btn-open-config-folder">Open config folder</button>
+    </div>
 </div>
 
 {{ picker_modal("settings-voice-modal", "settings-voice-modal-close", "settings-voice-modal-list",

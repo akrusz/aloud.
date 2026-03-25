@@ -271,4 +271,14 @@ export function initVoices() {
             }, 200);
         }
     }
+
+    // After voices have had time to load, mark the voice picker if none available
+    setTimeout(function () {
+        if (state.scoredVoices.length === 0 && dom.voicePickerBtn) {
+            state._noVoicesMode = true;
+            dom.voicePickerBtn.classList.add('no-voices');
+            dom.voicePickerBtn.textContent = '\u26a0 No voices';
+            dom.voicePickerBtn.title = 'No TTS voices available \u2014 click for info';
+        }
+    }, 3000);
 }
