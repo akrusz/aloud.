@@ -49,12 +49,10 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/api/close-window", methods=["POST"])
     def api_close_window():
-        """Close the pywebview window (shuts down the app)."""
+        """Close the pywebview window (shuts down the app). Desktop mode only."""
         window = getattr(app, "webview_window", None)
         if not window:
-            # Not in desktop mode — just shut down the server
-            os.kill(os.getpid(), signal.SIGINT)
-            return jsonify({"ok": True})
+            return jsonify({"error": "Not running in desktop mode"}), 400
         try:
             window.destroy()
             return jsonify({"ok": True})

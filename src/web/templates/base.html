@@ -58,7 +58,7 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             </button>
             {% if frameless %}
-            <button class="theme-toggle window-close-btn" id="windowCloseBtn" title="Close window" aria-label="Close window">
+            <button class="theme-toggle window-close-btn hidden" id="windowCloseBtn" title="Close window" aria-label="Close window">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
             {% endif %}
@@ -329,7 +329,9 @@
     <script>
     (function() {
         var closeBtn = document.getElementById('windowCloseBtn');
-        if (closeBtn) {
+        // Only show the close button inside the native pywebview window
+        if (closeBtn && window.pywebview) {
+            closeBtn.classList.remove('hidden');
             closeBtn.addEventListener('click', function() {
                 if (window._glooowSessionActive) {
                     if (!confirm('End session and close glooow?')) return;

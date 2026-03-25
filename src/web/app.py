@@ -186,9 +186,35 @@ def _stop_proxy(app) -> None:
             proc.kill()
 
 
+def _save_active_sessions(flask_app) -> None:
+    """Auto-save any active meditation sessions before exit."""
+    try:
+        sessions = dict(getattr(flask_app, "web_sessions", {}))
+        if not sessions:
+            return
+        config = getattr(flask_app, "meditation_config", None)
+        tl = getattr(flask_app, "transcript_logger", None)
+        if not config or not tl or not config.session.auto_save:
+            return
+        for session_id, web_session in sessions.items():
+            try:
+                session_data = web_session.end()
+                if session_data:
+                    tl.save_session(session_data)
+                    tl.save_session_text(session_data)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def _shutdown_all(flask_app=None) -> None:
     """Clean up child processes and exit."""
     print("\n  Window closed. Shutting down...", flush=True)
+
+    # Save any active meditation sessions before we tear everything down
+    if flask_app:
+        _save_active_sessions(flask_app)
 
     # Kill CLIProxyAPI immediately if we started it
     if flask_app:
@@ -330,24 +356,27 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
     window = webview.create_window(
         f"glooow v{__version__}",
         url,
+        localization={
+            "global.quitConfirmation": "End session and close glooow?",
+            "global.quit": "Close",
+            "global.cancel": "Cancel",
+        },
         **win_kwargs,
     )
     app.webview_window = window
 
-    # Confirm before closing if a meditation session is active; save geometry
+    # Save geometry on move/resize so we never need window property access
+    # during the close sequence (which can deadlock on macOS Cmd+Q).
+    if window_mode == "remember":
+        window.events.moved += lambda *_: _save_geometry(window)
+        window.events.resized += lambda *_: _save_geometry(window)
+
+    # Confirm before closing if a meditation session is active.
+    # We use pywebview's native confirm_close (Cocoa NSAlert) instead of
+    # evaluate_js(), which deadlocks on macOS Cmd+Q. Toggle it dynamically
+    # based on whether a session is active so it only prompts when needed.
     def _on_closing():
-        try:
-            active = window.evaluate_js("!!window._glooowSessionActive")
-            if active:
-                confirmed = window.evaluate_js(
-                    "confirm('End session and close glooow?')"
-                )
-                if not confirmed:
-                    return False  # cancel close
-        except Exception:
-            logger.debug("Could not check session state on close", exc_info=True)
-        if window_mode == "remember":
-            _save_geometry(window)
+        window.confirm_close = bool(app.sid_to_session)
     window.events.closing += _on_closing
 
     # Ensure cleanup when the window closes (Cmd+W on macOS closes the window
