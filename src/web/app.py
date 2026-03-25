@@ -334,11 +334,21 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
     )
     app.webview_window = window
 
-    # Save geometry when the window is about to close (while properties are still valid)
-    if window_mode == "remember":
-        def _on_closing():
+    # Confirm before closing if a meditation session is active; save geometry
+    def _on_closing():
+        try:
+            active = window.evaluate_js("!!window._glooowSessionActive")
+            if active:
+                confirmed = window.evaluate_js(
+                    "confirm('End session and close glooow?')"
+                )
+                if not confirmed:
+                    return False  # cancel close
+        except Exception:
+            logger.debug("Could not check session state on close", exc_info=True)
+        if window_mode == "remember":
             _save_geometry(window)
-        window.events.closing += _on_closing
+    window.events.closing += _on_closing
 
     # Ensure cleanup when the window closes (Cmd+W on macOS closes the window
     # but the NSApplication stays alive, so webview.start() never returns).

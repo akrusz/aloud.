@@ -2085,7 +2085,7 @@ body::before {
 }
 
 .about-modal {
-    max-width: 340px;
+    max-width: 420px;
     width: 90%;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -2137,6 +2137,12 @@ body::before {
     justify-content: center;
     flex-wrap: wrap;
     font-size: 1.05rem;
+}
+
+.about-donate-label {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    margin-top: 0.75rem;
 }
 
 .about-donate {
