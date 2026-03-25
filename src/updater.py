@@ -206,7 +206,8 @@ def _git_or_error(
 
 def _check_git() -> UpdateStatus:
     """Check for updates using git."""
-    status = UpdateStatus(is_git=True)
+    from . import __version__
+    status = UpdateStatus(is_git=True, current_version=__version__)
 
     try:
         sha = _git_or_error(status, "rev-parse", "HEAD",

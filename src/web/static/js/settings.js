@@ -891,3 +891,53 @@ form.addEventListener('submit', function(e) {
         errorEl.classList.remove('hidden');
     });
 });
+
+// Update check from settings
+(function() {
+    var checkBtn = document.getElementById('s-check-update');
+    var statusEl = document.getElementById('s-update-status');
+    var resultEl = document.getElementById('s-update-result');
+    if (!checkBtn) return;
+
+    checkBtn.addEventListener('click', function() {
+        checkBtn.disabled = true;
+        checkBtn.textContent = 'Checking...';
+        resultEl.classList.add('hidden');
+
+        if (window._glooowCheckUpdate) {
+            window._glooowCheckUpdate(function(data, err) {
+                checkBtn.disabled = false;
+                checkBtn.textContent = 'Check for Updates';
+                if (err || !data) {
+                    resultEl.textContent = 'Could not check for updates. Check your connection.';
+                    resultEl.className = 'settings-update-result update-error';
+                    resultEl.classList.remove('hidden');
+                    return;
+                }
+                if (data.available) {
+                    var label = data.is_release
+                        ? 'Version ' + data.latest_version + ' available!'
+                        : data.commits_behind + ' update' + (data.commits_behind !== 1 ? 's' : '') + ' available';
+                    statusEl.textContent = label;
+                    resultEl.innerHTML = '';
+                    var link = document.createElement('a');
+                    link.href = '#';
+                    link.textContent = 'View details and install';
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var aboutModal = document.getElementById('aboutModal');
+                        if (aboutModal) aboutModal.classList.remove('hidden');
+                    });
+                    resultEl.appendChild(link);
+                    resultEl.className = 'settings-update-result';
+                    resultEl.classList.remove('hidden');
+                } else {
+                    statusEl.textContent = 'You\u2019re up to date';
+                    resultEl.textContent = 'No updates available.';
+                    resultEl.className = 'settings-update-result update-success';
+                    resultEl.classList.remove('hidden');
+                }
+            });
+        }
+    });
+})();

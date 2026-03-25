@@ -44,9 +44,6 @@
     <nav class="nav pywebview-drag-region">
         <div class="nav-start">
             <a href="#" class="nav-brand" id="aboutLink" title="About glooow (v{{ glooow_version }})">glooow</a>
-            <button class="update-indicator hidden" id="updateIndicator" title="Update available" aria-label="Check for updates">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </button>
         </div>
         {% block nav_center %}{% endblock %}
         <div class="nav-links">
@@ -92,25 +89,14 @@
                     <a href="https://venmo.com/Alex-Krusz" target="_blank" rel="noopener">venmo</a>
                     <a href="mailto:lexkrusz@gmail.com?subject=glooow">kind words</a>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Update Modal -->
-    <div class="update-modal-overlay hidden" id="updateModal">
-        <div class="update-modal">
-            <div class="update-modal-header">
-                <span class="update-modal-title">Update Available</span>
-                <button class="voice-modal-close" id="updateModalClose">&times;</button>
-            </div>
-            <div class="update-modal-body">
-                <div class="update-info" id="updateInfo"></div>
-                <div class="update-commits" id="updateCommits"></div>
-                <div class="update-status" id="updateStatus"></div>
-            </div>
-            <div class="update-modal-footer">
-                <button class="btn btn-primary" id="updateNowBtn">Update Now</button>
-                <button class="btn btn-secondary" id="updateLaterBtn">Later</button>
+                <div class="about-update hidden" id="aboutUpdate">
+                    <div class="about-update-info" id="aboutUpdateInfo"></div>
+                    <div class="update-commits" id="updateCommits"></div>
+                    <div class="about-update-actions">
+                        <button class="btn btn-primary btn-small" id="updateNowBtn">Update Now</button>
+                    </div>
+                    <div class="update-status" id="updateStatus"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -136,15 +122,14 @@
     }
     </script>
     <script>
-    // Update checking
+    // Update checking — integrated into about modal and nav brand
     (function() {
-        var indicator = document.getElementById('updateIndicator');
-        var modal = document.getElementById('updateModal');
+        var brand = document.getElementById('aboutLink');
         var aboutModal = document.getElementById('aboutModal');
-        var _updateData = null;
+        window._glooowUpdateData = null;
 
-        // About modal
-        document.getElementById('aboutLink').addEventListener('click', function(e) {
+        // About modal — always opens (update-during-session guard is on the Update Now button)
+        brand.addEventListener('click', function(e) {
             e.preventDefault();
             aboutModal.classList.remove('hidden');
         });
@@ -164,66 +149,48 @@
             });
         }
 
-        // Check for updates on page load
-        fetch('/api/update/check')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                _updateData = data;
-                if (data.available) {
-                    indicator.classList.remove('hidden');
-                    indicator.classList.add('has-update');
-                    // Pulse for ~10 seconds then stop
-                    setTimeout(function() {
-                        indicator.classList.remove('has-update');
-                        indicator.classList.add('has-update-static');
-                    }, 10000);
-                }
-            })
-            .catch(function() {});
-
-        // Open update modal
-        indicator.addEventListener('click', function() {
-            // If on session page with active session, trigger end-session confirm first
-            if (window._glooowSessionActive && window._glooowConfirmEnd) {
-                window._glooowPendingUpdate = true;
-                window._glooowConfirmEnd();
-                return;
-            }
-            _showUpdateModal();
-        });
-
-        function _showUpdateModal() {
-            if (!_updateData) return;
-            var info = document.getElementById('updateInfo');
+        // Populate update section inside about modal
+        function _populateUpdateUI(data) {
+            window._glooowUpdateData = data;
+            var section = document.getElementById('aboutUpdate');
+            var info = document.getElementById('aboutUpdateInfo');
             var commits = document.getElementById('updateCommits');
             var btn = document.getElementById('updateNowBtn');
+            if (!section || !data) return;
+
             commits.innerHTML = '';
+            if (!data.available) {
+                section.classList.remove('hidden');
+                info.textContent = 'You\u2019re up to date';
+                btn.classList.add('hidden');
+                return;
+            }
 
-            if (_updateData.is_release) {
-                info.textContent = 'Version ' + _updateData.latest_version + ' is available'
-                    + ' (you have ' + _updateData.current_version + ')';
-
-                if (_updateData.release_notes) {
+            section.classList.remove('hidden');
+            if (data.is_release) {
+                var cur = data.current_version || document.querySelector('.about-version').textContent;
+                info.textContent = 'Version ' + data.latest_version + ' is available'
+                    + ' (you have ' + cur + ')';
+                if (data.release_notes) {
                     var notes = document.createElement('div');
                     notes.className = 'update-release-notes';
-                    notes.textContent = _updateData.release_notes;
+                    notes.textContent = data.release_notes;
                     commits.appendChild(notes);
                 }
-                if (_updateData.download_size) {
+                if (data.download_size) {
                     var size = document.createElement('div');
                     size.className = 'update-download-size';
-                    var mb = (_updateData.download_size / 1024 / 1024).toFixed(1);
+                    var mb = (data.download_size / 1024 / 1024).toFixed(1);
                     size.textContent = 'Download size: ' + mb + ' MB';
                     commits.appendChild(size);
                 }
                 btn.textContent = 'Download Update';
             } else {
-                info.textContent = _updateData.commits_behind + ' new commit' +
-                    (_updateData.commits_behind !== 1 ? 's' : '') + ' available';
-
-                if (_updateData.commit_messages && _updateData.commit_messages.length) {
+                info.textContent = data.commits_behind + ' new commit' +
+                    (data.commits_behind !== 1 ? 's' : '') + ' available';
+                if (data.commit_messages && data.commit_messages.length) {
                     var ul = document.createElement('ul');
-                    _updateData.commit_messages.forEach(function(msg) {
+                    data.commit_messages.forEach(function(msg) {
                         var li = document.createElement('li');
                         li.textContent = msg;
                         ul.appendChild(li);
@@ -232,26 +199,63 @@
                 }
                 btn.textContent = 'Update Now';
             }
-
-            document.getElementById('updateStatus').innerHTML = '';
+            btn.classList.remove('hidden');
             btn.disabled = false;
-            modal.classList.remove('hidden');
+            document.getElementById('updateStatus').innerHTML = '';
+        }
+
+        // Check for updates on page load
+        fetch('/api/update/check')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                _populateUpdateUI(data);
+                if (data.available) {
+                    brand.classList.add('has-update');
+                    setTimeout(function() {
+                        brand.classList.remove('has-update');
+                        brand.classList.add('has-update-static');
+                    }, 10000);
+                }
+            })
+            .catch(function() {});
+
+        // Show about modal (used after session ends with pending update)
+        function _showUpdateModal() {
+            aboutModal.classList.remove('hidden');
         }
         window._glooowShowUpdateModal = _showUpdateModal;
 
-        // Close modal
-        function closeModal() { modal.classList.add('hidden'); }
-        document.getElementById('updateModalClose').addEventListener('click', closeModal);
-        document.getElementById('updateLaterBtn').addEventListener('click', closeModal);
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) closeModal();
-        });
+        // Shared: check for update (force) and populate UI
+        window._glooowCheckUpdate = function(callback) {
+            fetch('/api/update/check?force=1')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    _populateUpdateUI(data);
+                    if (data.available) {
+                        brand.classList.add('has-update-static');
+                    } else {
+                        brand.classList.remove('has-update', 'has-update-static');
+                    }
+                    if (callback) callback(data);
+                })
+                .catch(function(err) {
+                    if (callback) callback(null, err);
+                });
+        };
 
         // Apply update
         document.getElementById('updateNowBtn').addEventListener('click', function() {
+            // If in an active session, confirm ending it first
+            if (window._glooowSessionActive && window._glooowConfirmEnd) {
+                aboutModal.classList.add('hidden');
+                window._glooowPendingUpdate = true;
+                window._glooowConfirmEnd();
+                return;
+            }
             var btn = this;
             var status = document.getElementById('updateStatus');
-            var isRelease = _updateData && _updateData.is_release;
+            var data = window._glooowUpdateData;
+            var isRelease = data && data.is_release;
             var defaultLabel = isRelease ? 'Download Update' : 'Update Now';
             btn.disabled = true;
             btn.textContent = isRelease ? 'Downloading...' : 'Updating...';
@@ -262,19 +266,19 @@
             if (isRelease) {
                 fetchOpts.headers = { 'Content-Type': 'application/json' };
                 fetchOpts.body = JSON.stringify({
-                    download_url: _updateData.download_url,
-                    asset_name: _updateData.asset_name,
+                    download_url: data.download_url,
+                    asset_name: data.asset_name,
                 });
             }
 
             fetch('/api/update/apply', fetchOpts)
                 .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data.success) {
-                        status.textContent = data.message;
+                .then(function(result) {
+                    if (result.success) {
+                        status.textContent = result.message;
                         status.classList.add('update-success');
-                        indicator.classList.add('hidden');
-                        if (data.needs_restart) {
+                        brand.classList.remove('has-update', 'has-update-static');
+                        if (result.needs_restart) {
                             btn.textContent = 'Close';
                             btn.disabled = false;
                             btn.onclick = function() {
@@ -283,7 +287,7 @@
                             };
                         }
                     } else {
-                        status.textContent = data.message;
+                        status.textContent = result.message;
                         status.classList.add('update-error');
                         btn.textContent = defaultLabel;
                         btn.disabled = false;

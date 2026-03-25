@@ -117,6 +117,7 @@ body {
     letter-spacing: 0.05em;
     cursor: pointer;
     transition: text-shadow 0.3s ease;
+    position: relative;
 }
 
 .nav-brand:hover {
@@ -2034,46 +2035,21 @@ body::before {
    Update Indicator & Modal
    ============================================ */
 
-.update-indicator {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: var(--text-secondary);
-    font-size: 1rem;
-    transition: all var(--transition);
-    padding: 0;
-    line-height: 1;
-    position: absolute;
-    left: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-left: 0.5rem;
-}
+/* Update dot on nav brand */
 
-.update-indicator:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-.update-indicator.has-update::after,
-.update-indicator.has-update-static::after {
+.nav-brand.has-update::after,
+.nav-brand.has-update-static::after {
     content: '';
     position: absolute;
-    top: -1px;
-    right: -1px;
+    top: -2px;
+    right: -6px;
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: var(--accent);
 }
 
-.update-indicator.has-update::after {
+.nav-brand.has-update::after {
     animation: updatePulse 1.5s ease-in-out 6;
 }
 
@@ -2180,6 +2156,22 @@ body::before {
     text-decoration: underline;
 }
 
+.about-update {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.about-update-info {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.about-update-actions {
+    margin-top: 0.5rem;
+}
+
 /* Nav about link */
 
 .nav-about-link {
@@ -2193,53 +2185,7 @@ body::before {
     color: var(--text-primary);
 }
 
-/* Update modal */
-
-.update-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 90;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.15s ease;
-}
-
-.update-modal {
-    max-width: 420px;
-    width: 90%;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.update-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border);
-}
-
-.update-modal-title {
-    font-weight: 500;
-    color: var(--text-primary);
-    font-size: 0.95rem;
-}
-
-.update-modal-body {
-    padding: 1rem;
-}
-
-.update-info {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-}
+/* Update info (used inside about modal and settings) */
 
 .update-commits ul {
     list-style: none;
@@ -2292,14 +2238,6 @@ body::before {
 .update-download-size {
     font-size: 0.8rem;
     color: var(--text-muted);
-}
-
-.update-modal-footer {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    border-top: 1px solid var(--border);
 }
 
 /* ---- Responsive ---- */
@@ -2926,4 +2864,30 @@ body::before {
 .btn-config-path:hover {
     border-color: var(--accent);
     color: var(--accent);
+}
+
+.settings-update-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.settings-update-status {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.settings-update-result {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.settings-update-result a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.settings-update-result a:hover {
+    text-decoration: underline;
 }
