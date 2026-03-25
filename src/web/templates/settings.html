@@ -308,15 +308,6 @@
                         <span>Vibrancy (translucent background)</span>
                     </label>
                     <span class="form-hint">Window options take effect on next launch</span>
-                    <div class="form-group">
-                        <label for="s-host">Network Access</label>
-                        <select id="s-host">
-                            <option value="127.0.0.1">Local only (127.0.0.1)</option>
-                            <option value="0.0.0.0">LAN access (0.0.0.0)</option>
-                        </select>
-                        <span class="form-hint">LAN access lets other devices on your network connect. Requires restart.</span>
-                        <div id="s-lan-info" class="lan-info hidden"></div>
-                    </div>
                 </div>
                 <div class="display-preview">
                     <div class="text-scale-preview" id="text-scale-preview">
@@ -327,6 +318,20 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Network Section -->
+        <section class="settings-section">
+            <h2>Network</h2>
+            <div class="form-group">
+                <label for="s-host">Network Access</label>
+                <select id="s-host" style="max-width:280px">
+                    <option value="127.0.0.1">Local only (127.0.0.1)</option>
+                    <option value="0.0.0.0">LAN access (0.0.0.0)</option>
+                </select>
+                <span class="form-hint">LAN access lets other devices on your network connect. Requires restart.</span>
+                <div id="s-lan-info" class="lan-info hidden"></div>
             </div>
         </section>
 

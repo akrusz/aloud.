@@ -392,12 +392,33 @@
                 : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
         }
         updateIcon();
+        var themeClicks = [];
         btn.addEventListener('click', function() {
             var current = document.documentElement.getAttribute('data-theme');
             var next = current === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('theme', JSON.stringify({ value: next, ts: Date.now() }));
             updateIcon();
+            // Easter egg: 8 toggles in 4 seconds
+            var now = Date.now();
+            themeClicks.push(now);
+            if (themeClicks.length >= 8) {
+                if (now - themeClicks[themeClicks.length - 8] < 4000) {
+                    themeClicks = [];
+                    var u = new SpeechSynthesisUtterance('the system... is down...');
+                    var savedVoiceName = localStorage.getItem('glooow-voice');
+                    if (savedVoiceName) {
+                        var voices = speechSynthesis.getVoices();
+                        for (var vi = 0; vi < voices.length; vi++) {
+                            if (voices[vi].name === savedVoiceName) { u.voice = voices[vi]; break; }
+                        }
+                    }
+                    var savedSpeed = localStorage.getItem('glooow-speed');
+                    if (savedSpeed) u.rate = parseInt(savedSpeed) / 180;
+                    speechSynthesis.speak(u);
+                }
+            }
+            if (themeClicks.length > 8) themeClicks = themeClicks.slice(-8);
         });
         // Listen for system preference changes (only if no manual override)
         if (window.matchMedia) {

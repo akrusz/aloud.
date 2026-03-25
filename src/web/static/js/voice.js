@@ -1,92 +1,30 @@
-/* voice.js — voice scoring, voice list, voice modal */
+/* voice.js — session-page voice management.
+   Delegates scoring, rendering, and preview to voice-picker.js. */
 
 import { state, dom, socket } from './state.js';
+import {
+    scoreVoiceName, buildScoredVoiceList, renderVoiceList,
+    updateVoiceSelection, previewVoice as sharedPreview, stopPreview,
+    getSavedVoice, setSavedVoice,
+    MACOS_QUALITY_VOICES, TIER_LABELS, PREVIEW_PHRASE,
+} from './voice-picker.js';
 
-// Known high-quality macOS voices (base names, without Premium/Enhanced suffix).
-export var MACOS_QUALITY_VOICES = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
-
-export var TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
-export var PREVIEW_PHRASE = 'Welcome to glow. I\'ll be your guide.';
-
-export var previewAudio = null;  // Audio element for server-side preview playback
-
-export function scoreVoiceName(name) {
-    var baseName = name.replace(/\s*\(.*\)$/, '');
-    if (/Premium/i.test(name)) return 3;
-    if (/Enhanced/i.test(name)) return 2;
-    if (/Online|Natural/i.test(name)) return 2;
-    if (/^Google/i.test(name)) return 1;
-    if (MACOS_QUALITY_VOICES.test(baseName)) return 1;
-    return 0;
-}
+// Re-export constants for any existing consumers
+export { scoreVoiceName, MACOS_QUALITY_VOICES, TIER_LABELS, PREVIEW_PHRASE };
 
 export function buildVoiceList() {
-    var langPrefix = (navigator.language || 'en').split(/[-_]/)[0];
-    var browserVoices = state.synth ? state.synth.getVoices() : [];
+    var scored = buildScoredVoiceList(state._serverVoices, true);
 
-    // Index browser voices by name for quick lookup
-    var browserByName = {};
-    for (var i = 0; i < browserVoices.length; i++) {
-        browserByName[browserVoices[i].name] = browserVoices[i];
-    }
-
-    // Start with server voices (authoritative — these are what actually speak)
-    var scored = [];
-    var seen = {};
-
-    if (state._serverVoices) {
-        for (var i = 0; i < state._serverVoices.length; i++) {
-            var sv = state._serverVoices[i];
-            var vLang = (sv.lang || '').split(/[-_]/)[0];
-            if (vLang !== 'en' && vLang !== langPrefix) continue;
-
-            var score = scoreVoiceName(sv.name);
-            // If browser has this voice, use the real object (enables preview)
-            var browserVoice = browserByName[sv.name];
-            if (!browserVoice && !sv.name.match(/\(/)) {
-                // Try without qualifier — e.g. server has "Ava (Premium)",
-                // browser might have just "Ava"
-                var baseName = sv.name.replace(/\s*\(.*\)$/, '');
-                browserVoice = browserByName[baseName];
-            }
-
-            scored.push({
-                voice: browserVoice || { name: sv.name, lang: sv.lang, serverOnly: true },
-                score: score,
-            });
-            seen[sv.name] = true;
-            if (browserVoice) seen[browserVoice.name] = true;
-        }
-    }
-
-    // Add browser-only voices not already covered by server list
-    for (var i = 0; i < browserVoices.length; i++) {
-        var v = browserVoices[i];
-        if (seen[v.name]) continue;
-        var vLang = (v.lang || '').split(/[-_]/)[0];
-        if (vLang !== 'en' && vLang !== langPrefix) continue;
-
-        var score = scoreVoiceName(v.name);
-        if (!v.localService) score = Math.max(score, 2);
-        scored.push({ voice: v, score: score });
-        seen[v.name] = true;
-    }
-
-    // Sort: highest score first, then alphabetically
-    scored.sort(function (a, b) {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.voice.name.localeCompare(b.voice.name);
-    });
-
+    // Attach voice objects to state for browser TTS
     state.scoredVoices = scored;
 
     // Restore saved voice, or default to the best available.
     if (scored.length > 0) {
-        var savedVoice = localStorage.getItem('glooow-voice');
+        var savedVoice = getSavedVoice();
         if (savedVoice) {
             var found = null;
             for (var i = 0; i < scored.length; i++) {
-                if (scored[i].voice.name === savedVoice) { found = scored[i].voice; break; }
+                if (scored[i].name === savedVoice) { found = scored[i].voice; break; }
             }
             if (found) state.preferredVoice = found;
             else if (!state.preferredVoice) state.preferredVoice = scored[0].voice;
@@ -137,61 +75,8 @@ export function updateVoicePickerLabel() {
 
 export function openVoiceModal(deactivateVoiceFn) {
     deactivateVoiceFn();
-
-    dom.voiceModalList.innerHTML = '';
-
-    // Group by tier
-    var tiers = {};
-    for (var i = 0; i < state.scoredVoices.length; i++) {
-        var s = state.scoredVoices[i].score;
-        if (!tiers[s]) tiers[s] = [];
-        tiers[s].push(state.scoredVoices[i]);
-    }
-
-    // Render tiers in descending order
-    var tierOrder = [3, 2, 1, 0];
-    for (var t = 0; t < tierOrder.length; t++) {
-        var tier = tierOrder[t];
-        var items = tiers[tier];
-        if (!items || items.length === 0) continue;
-
-        var label = document.createElement('div');
-        label.className = 'voice-tier-label';
-        label.textContent = TIER_LABELS[tier];
-        dom.voiceModalList.appendChild(label);
-
-        for (var i = 0; i < items.length; i++) {
-            var entry = items[i];
-            var row = document.createElement('div');
-            row.className = 'voice-row';
-            if (state.preferredVoice && entry.voice.name === state.preferredVoice.name) {
-                row.classList.add('selected');
-            }
-            row.dataset.voiceName = entry.voice.name;
-
-            var nameSpan = document.createElement('span');
-            nameSpan.className = 'voice-row-name';
-            nameSpan.textContent = entry.voice.name;
-            row.appendChild(nameSpan);
-
-            if (state.preferredVoice && entry.voice.name === state.preferredVoice.name) {
-                var check = document.createElement('span');
-                check.className = 'voice-row-check';
-                check.textContent = '\u2713';
-                row.appendChild(check);
-            }
-
-            var previewBtn = document.createElement('button');
-            previewBtn.type = 'button';
-            previewBtn.className = 'voice-row-preview';
-            previewBtn.textContent = 'Preview';
-            previewBtn.dataset.voiceName = entry.voice.name;
-            row.appendChild(previewBtn);
-
-            dom.voiceModalList.appendChild(row);
-        }
-    }
-
+    var selectedName = state.preferredVoice ? state.preferredVoice.name : null;
+    renderVoiceList(dom.voiceModalList, state.scoredVoices, selectedName);
     dom.voiceModal.classList.remove('hidden');
 }
 
@@ -203,54 +88,27 @@ export function closeVoiceModal(restoreMic, activateVoiceFn) {
     }
 }
 
-export function stopPreview() {
-    if (state.synth) state.synth.cancel();
-    state.previewUtterance = null;
-    if (previewAudio) { previewAudio.pause(); previewAudio = null; }
-}
+export { stopPreview };
 
 export function previewVoice(voiceName) {
-    stopPreview();
-
-    // Use server TTS for preview — consistent quality and works for
-    // voices the browser doesn't expose (e.g. macOS Premium in Safari).
-    if (previewAudio) { previewAudio.pause(); previewAudio = null; }
-    var url = '/api/voices/preview?voice=' + encodeURIComponent(voiceName);
-    if (voiceName === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
-    previewAudio = new Audio(url);
-    previewAudio.play().catch(function () {});
+    sharedPreview(voiceName);
 }
 
 export function selectVoice(voiceName) {
     // Find the voice in scoredVoices (covers both browser and server-only voices)
     state.preferredVoice = null;
     for (var i = 0; i < state.scoredVoices.length; i++) {
-        if (state.scoredVoices[i].voice.name === voiceName) {
+        if (state.scoredVoices[i].name === voiceName) {
             state.preferredVoice = state.scoredVoices[i].voice;
             break;
         }
     }
     socket.emit('set_tts_voice', { voice: voiceName });
-    localStorage.setItem('glooow-voice', voiceName);
+    setSavedVoice(voiceName);
     updateVoicePickerLabel();
 
     // Update selected state in modal
-    var rows = dom.voiceModalList.querySelectorAll('.voice-row');
-    for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        var isSelected = row.dataset.voiceName === voiceName;
-        row.classList.toggle('selected', isSelected);
-        // Update checkmark
-        var existingCheck = row.querySelector('.voice-row-check');
-        if (isSelected && !existingCheck) {
-            var check = document.createElement('span');
-            check.className = 'voice-row-check';
-            check.textContent = '\u2713';
-            row.insertBefore(check, row.querySelector('.voice-row-preview'));
-        } else if (!isSelected && existingCheck) {
-            existingCheck.remove();
-        }
-    }
+    updateVoiceSelection(dom.voiceModalList, voiceName);
 }
 
 /** Initialise voice system: fetch server voices, wire browser voiceschanged */

@@ -4,7 +4,7 @@ your voice is an overpowered and underrated tool for meditation and inner work.
 
 **glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses your mic for voice input, whisper.cpp for speech recognition, an LLM to guide you, and speaks using text-to-speech from your browser or operating system.
 
-works on macOS, Linux, and Windows. choose your LLM — run fully local with ollama, use a claude subscription, or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page.
+glooow works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription, or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page.
 
 ![glooow screenshot](docs/glooow-screen.png)
 
@@ -46,15 +46,16 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 
 - the theme toggle in the top right follows your system preference by default, or just click it.
 - if speech recognition feels slow, try the `base` whisper model (faster, less accurate).
-- sessions auto-save as JSON and plain text, with a short LLM-generated summary.
-- from the history page you can continue any past session. the facilitator picks up where you left off with full context.
 - say something like "hold on a bit" during a session to enter silence mode. say "come back" or similar to resume.
 - say "mute" to immediately turn off the microphone. click the mic button to resume.
 - the speaker button next to the mic toggles text-to-speech.
-- set an intention loosely or not at all. the facilitator holds it lightly.
 - click the orb in the nav bar to enter kasina gazing mode. click away from it to exit.
 - the ember controls add floating particles. each level doubles the count and increases the size.
 - click the voice name in the controls bar to open a voice picker — voices are grouped by quality tier with inline previews.
+- sessions auto-save as JSON and plain text, with a short LLM-generated summary.
+- from the history page you can continue any past session. the facilitator picks up where you left off with full context.
+- one running copy of glooow can be made accessible to anyone on your local network by setting network access mode to LAN Access in settings
+- 🥚 there are a couple easter eggs 🥚
 
 ## running from source
 

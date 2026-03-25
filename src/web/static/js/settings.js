@@ -1,5 +1,11 @@
 // Settings page — extracted from inline <script> in settings.html
 
+import {
+    scoreVoiceName, buildScoredVoiceList, renderVoiceList,
+    updateVoiceSelection, previewVoice as sharedPreview, stopPreview,
+    getSavedVoice, setSavedVoice, getSavedSpeed, setSavedSpeed,
+} from './voice-picker.js';
+
 const firstRun = document.getElementById('settings-data').dataset.firstRun === 'true';
 const form = document.getElementById('settings-form');
 const providerSelect = document.getElementById('s-provider');
@@ -56,121 +62,16 @@ textScaleReset.addEventListener('click', function() {
 let serverVoices = [];
 let scoredVoices = [];
 let selectedVoiceName = '';
-let previewAudio = null;
-
-const QUALITY_VOICES_RE = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
-const TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
-
-function scoreVoiceName(name) {
-    if (/Premium/i.test(name)) return 3;
-    if (/Enhanced|Online|Natural/i.test(name)) return 2;
-    if (/^Google/i.test(name)) return 1;
-    const baseName = name.replace(/\s*\(.*\)$/, '');
-    if (QUALITY_VOICES_RE.test(baseName)) return 1;
-    return 0;
-}
-
-function buildVoiceList() {
-    scoredVoices = [];
-    for (let i = 0; i < serverVoices.length; i++) {
-        const sv = serverVoices[i];
-        scoredVoices.push({ name: sv.name, lang: sv.lang, score: scoreVoiceName(sv.name) });
-    }
-    scoredVoices.sort(function(a, b) {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.name.localeCompare(b.name);
-    });
-}
 
 function openVoiceModal() {
-    voiceModalList.innerHTML = '';
-    if (scoredVoices.length === 0) {
-        voiceModalList.innerHTML = '<div class="voice-tier-label">No text-to-speech voices available for the selected engine</div>';
-        voiceModal.classList.remove('hidden');
-        return;
-    }
-
-    // Group by tier
-    const tiers = {};
-    for (let i = 0; i < scoredVoices.length; i++) {
-        const s = scoredVoices[i].score;
-        if (!tiers[s]) tiers[s] = [];
-        tiers[s].push(scoredVoices[i]);
-    }
-
-    [3, 2, 1, 0].forEach(function(tier) {
-        const items = tiers[tier];
-        if (!items || items.length === 0) return;
-
-        const label = document.createElement('div');
-        label.className = 'voice-tier-label';
-        label.textContent = TIER_LABELS[tier];
-        voiceModalList.appendChild(label);
-
-        items.forEach(function(entry) {
-            const row = document.createElement('div');
-            row.className = 'voice-row';
-            if (entry.name === selectedVoiceName) row.classList.add('selected');
-            row.dataset.voiceName = entry.name;
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'voice-row-name';
-            nameSpan.textContent = entry.name;
-            row.appendChild(nameSpan);
-
-            if (entry.name === selectedVoiceName) {
-                const check = document.createElement('span');
-                check.className = 'voice-row-check';
-                check.textContent = '\u2713';
-                row.appendChild(check);
-            }
-
-            const previewBtn = document.createElement('button');
-            previewBtn.type = 'button';
-            previewBtn.className = 'voice-row-preview';
-            previewBtn.textContent = 'Preview';
-            previewBtn.dataset.voiceName = entry.name;
-            row.appendChild(previewBtn);
-
-            voiceModalList.appendChild(row);
-        });
-    });
-
+    renderVoiceList(voiceModalList, scoredVoices, selectedVoiceName);
     voiceModal.classList.remove('hidden');
 }
 
 function selectSettingsVoice(name) {
     selectedVoiceName = name;
     voiceBtn.textContent = name + ' \u00b7 ' + rateSlider.value + ' wpm';
-
-    // Update visual state in modal
-    const rows = voiceModalList.querySelectorAll('.voice-row');
-    rows.forEach(function(row) {
-        const isSelected = row.dataset.voiceName === name;
-        row.classList.toggle('selected', isSelected);
-        const existingCheck = row.querySelector('.voice-row-check');
-        if (isSelected && !existingCheck) {
-            const check = document.createElement('span');
-            check.className = 'voice-row-check';
-            check.textContent = '\u2713';
-            row.insertBefore(check, row.querySelector('.voice-row-preview'));
-        } else if (!isSelected && existingCheck) {
-            existingCheck.remove();
-        }
-    });
-}
-
-function stopPreview() {
-    if (previewAudio) { previewAudio.pause(); previewAudio = null; }
-}
-
-function previewVoice(name) {
-    stopPreview();
-    let url = '/api/voices/preview?voice=' + encodeURIComponent(name)
-        + '&rate=' + rateSlider.value;
-    if (name === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
-    previewAudio = new Audio(url);
-    previewAudio.play().catch(function() {});
+    updateVoiceSelection(voiceModalList, name);
 }
 
 // Speed slider in voice modal
@@ -203,7 +104,7 @@ voiceModalList.addEventListener('click', function(e) {
     const previewBtn = e.target.closest('.voice-row-preview');
     if (previewBtn) {
         e.stopPropagation();
-        previewVoice(previewBtn.dataset.voiceName);
+        sharedPreview(previewBtn.dataset.voiceName, rateSlider.value);
         return;
     }
     const row = e.target.closest('.voice-row');
@@ -220,7 +121,7 @@ function fetchVoices() {
         .then(function(r) { return r.json(); })
         .then(function(voices) {
             serverVoices = voices;
-            buildVoiceList();
+            scoredVoices = buildScoredVoiceList(voices, false);
             // If current voice isn't in the filtered list, clear selection
             if (selectedVoiceName) {
                 let found = false;
@@ -967,6 +868,13 @@ form.addEventListener('submit', function(e) {
             errorEl.classList.remove('hidden');
             return;
         }
+        // Sync voice and speed to localStorage so the session page picks them up
+        var savedVoice = selectedVoiceName || voiceBtn.textContent;
+        if (savedVoice && savedVoice !== 'Default') {
+            setSavedVoice(savedVoice);
+        }
+        setSavedSpeed(parseInt(rateSlider.value, 10));
+
         if (firstRun) {
             window.location.href = '/';
         } else {

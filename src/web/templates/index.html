@@ -255,7 +255,13 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script type="module">
+    import {
+        scoreVoiceName, buildScoredVoiceList, renderVoiceList,
+        updateVoiceSelection, previewVoice as sharedPreview, stopPreview,
+        getSavedVoice, setSavedVoice, getSavedSpeed, setSavedSpeed,
+    } from '{{ url_for("static", filename="js/voice-picker.js") }}';
+
     // ---- Tab switching ----
     let activeTab = localStorage.getItem('glooow-tab') || 'exploration';
 
@@ -597,121 +603,27 @@
     }
 
     // ---- Voice picker ----
-    const QUALITY_VOICES_RE = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
-    const TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
-
     const setupVoiceBtn = document.getElementById('setup-voice-btn');
     const setupVoiceModal = document.getElementById('setup-voice-modal');
     const setupVoiceModalList = document.getElementById('setup-voice-modal-list');
     const setupVoiceModalClose = document.getElementById('setup-voice-modal-close');
 
     let scoredVoices = [];
-    let selectedVoiceName = localStorage.getItem('glooow-voice') || null;
-    let previewAudio = null;
-
-    function scoreVoiceName(name) {
-        if (/Premium/i.test(name)) return 3;
-        if (/Enhanced|Online|Natural/i.test(name)) return 2;
-        if (/^Google/i.test(name)) return 1;
-        const baseName = name.replace(/\s*\(.*\)$/, '');
-        if (QUALITY_VOICES_RE.test(baseName)) return 1;
-        return 0;
-    }
+    let selectedVoiceName = getSavedVoice() || null;
 
     function updateVoiceBtnLabel() {
         setupVoiceBtn.textContent = selectedVoiceName || 'Default';
     }
 
     function buildSetupVoiceList(serverVoices) {
-        const langPrefix = (navigator.language || 'en').split(/[-_]/)[0];
-        const browserVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
-        const browserByName = {};
-        browserVoices.forEach(v => { browserByName[v.name] = v; });
-
-        const scored = [];
-        const seen = {};
-
-        // Server voices first
-        (serverVoices || []).forEach(sv => {
-            const vLang = (sv.lang || '').split(/[-_]/)[0];
-            if (vLang !== 'en' && vLang !== langPrefix) return;
-            const score = scoreVoiceName(sv.name);
-            scored.push({ name: sv.name, score });
-            seen[sv.name] = true;
-        });
-
-        // Browser-only voices
-        browserVoices.forEach(v => {
-            if (seen[v.name]) return;
-            const vLang = (v.lang || '').split(/[-_]/)[0];
-            if (vLang !== 'en' && vLang !== langPrefix) return;
-            let score = scoreVoiceName(v.name);
-            if (!v.localService) score = Math.max(score, 2);
-            scored.push({ name: v.name, score });
-            seen[v.name] = true;
-        });
-
-        scored.sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
-        scoredVoices = scored;
+        scoredVoices = buildScoredVoiceList(serverVoices, true);
 
         // If no saved voice, default to best available
-        if (!selectedVoiceName && scored.length) {
-            selectedVoiceName = scored[0].name;
-            localStorage.setItem('glooow-voice', selectedVoiceName);
+        if (!selectedVoiceName && scoredVoices.length) {
+            selectedVoiceName = scoredVoices[0].name;
+            setSavedVoice(selectedVoiceName);
         }
         updateVoiceBtnLabel();
-    }
-
-    function renderVoiceModal() {
-        setupVoiceModalList.innerHTML = '';
-        const tiers = {};
-        scoredVoices.forEach(v => {
-            if (!tiers[v.score]) tiers[v.score] = [];
-            tiers[v.score].push(v);
-        });
-
-        [3, 2, 1, 0].forEach(tier => {
-            const items = tiers[tier];
-            if (!items || !items.length) return;
-
-            const label = document.createElement('div');
-            label.className = 'voice-tier-label';
-            label.textContent = TIER_LABELS[tier];
-            setupVoiceModalList.appendChild(label);
-
-            items.forEach(entry => {
-                const row = document.createElement('div');
-                row.className = 'voice-row';
-                if (entry.name === selectedVoiceName) row.classList.add('selected');
-                row.dataset.voiceName = entry.name;
-
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'voice-row-name';
-                nameSpan.textContent = entry.name;
-                row.appendChild(nameSpan);
-
-                if (entry.name === selectedVoiceName) {
-                    const check = document.createElement('span');
-                    check.className = 'voice-row-check';
-                    check.textContent = '\u2713';
-                    row.appendChild(check);
-                }
-
-                const previewBtn = document.createElement('button');
-                previewBtn.type = 'button';
-                previewBtn.className = 'voice-row-preview';
-                previewBtn.textContent = 'Preview';
-                previewBtn.dataset.voiceName = entry.name;
-                row.appendChild(previewBtn);
-
-                setupVoiceModalList.appendChild(row);
-            });
-        });
-    }
-
-    function stopVoicePreview() {
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-        if (previewAudio) { previewAudio.pause(); previewAudio = null; }
     }
 
     let noVoicesMode = false;
@@ -721,19 +633,19 @@
             toggleNoVoicesBanner(setupVoiceBtn);
             return;
         }
-        renderVoiceModal();
+        renderVoiceList(setupVoiceModalList, scoredVoices, selectedVoiceName);
         setupVoiceModal.classList.remove('hidden');
     });
 
     setupVoiceModalClose.addEventListener('click', () => {
         setupVoiceModal.classList.add('hidden');
-        stopVoicePreview();
+        stopPreview();
     });
 
     setupVoiceModal.addEventListener('click', (e) => {
         if (e.target === setupVoiceModal) {
             setupVoiceModal.classList.add('hidden');
-            stopVoicePreview();
+            stopPreview();
         }
     });
 
@@ -741,34 +653,29 @@
         const previewBtn = e.target.closest('.voice-row-preview');
         if (previewBtn) {
             e.stopPropagation();
-            stopVoicePreview();
-            const voiceName = previewBtn.dataset.voiceName;
-            let url = '/api/voices/preview?voice=' + encodeURIComponent(voiceName);
-            if (voiceName === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
-            previewAudio = new Audio(url);
-            previewAudio.play().catch(() => {});
+            sharedPreview(previewBtn.dataset.voiceName);
             return;
         }
 
         const row = e.target.closest('.voice-row');
         if (!row) return;
         selectedVoiceName = row.dataset.voiceName;
-        localStorage.setItem('glooow-voice', selectedVoiceName);
+        setSavedVoice(selectedVoiceName);
         updateVoiceBtnLabel();
-        renderVoiceModal();
+        updateVoiceSelection(setupVoiceModalList, selectedVoiceName);
     });
 
     // Speed slider in setup voice modal
     const setupSpeedSlider = document.getElementById('setup-speed-slider');
     const setupSpeedLabel = document.getElementById('setup-speed-label');
-    const savedSpeed = localStorage.getItem('glooow-speed');
+    const savedSpeed = getSavedSpeed();
     if (savedSpeed) {
         setupSpeedSlider.value = savedSpeed;
         setupSpeedLabel.textContent = savedSpeed + ' wpm';
     }
     setupSpeedSlider.addEventListener('input', () => {
         const rate = setupSpeedSlider.value;
-        localStorage.setItem('glooow-speed', rate);
+        setSavedSpeed(rate);
         setupSpeedLabel.textContent = rate + ' wpm';
     });
 
@@ -809,7 +716,7 @@
         row.className = 'participant-row';
         row.dataset.index = index;
 
-        const defaultVoice = localStorage.getItem('glooow-voice') || null;
+        const defaultVoice = getSavedVoice() || null;
         const defaultLabel = defaultVoice ? stripVoiceQualifier(defaultVoice) : `Participant ${index + 1}`;
 
         row.innerHTML = `
@@ -922,7 +829,7 @@
 
         // Voice picker for this participant
         const voiceBtn = row.querySelector('.participant-voice-btn');
-        let participantVoice = localStorage.getItem('glooow-voice') || null;
+        let participantVoice = getSavedVoice() || null;
         if (participantVoice) {
             voiceBtn.textContent = participantVoice;
             voiceBtn.dataset.voice = participantVoice;

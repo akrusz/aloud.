@@ -3,6 +3,7 @@
 
 import { state, dom, socket, initDOM } from './state.js';
 import { initVoices, openVoiceModal, closeVoiceModal, previewVoice, selectVoice, updateVoicePickerLabel } from './voice.js';
+import { getSavedVoice, getSavedSpeed, setSavedSpeed } from './voice-picker.js';
 import { activateVoice, deactivateVoice, toggleVoice, toggleListenMode, initAudio } from './audio.js';
 import { speak, stopServerAudio } from './tts.js';
 import { registerSocketHandlers } from './socketHandlers.js';
@@ -85,7 +86,7 @@ function initSessionControls(params) {
     });
 
     // Restore saved speed
-    var savedSpeed = localStorage.getItem('glooow-speed');
+    var savedSpeed = getSavedSpeed();
     if (savedSpeed) {
         dom.modalSpeedSlider.value = savedSpeed;
         state.ttsRate = parseInt(savedSpeed);
@@ -94,7 +95,7 @@ function initSessionControls(params) {
 
     dom.modalSpeedSlider.addEventListener('input', function () {
         state.ttsRate = parseInt(dom.modalSpeedSlider.value);
-        localStorage.setItem('glooow-speed', dom.modalSpeedSlider.value);
+        setSavedSpeed(dom.modalSpeedSlider.value);
         socket.emit('set_tts_rate', { rate: state.ttsRate });
         if (dom.modalSpeedLabel) dom.modalSpeedLabel.textContent = state.ttsRate + ' wpm';
         updateVoicePickerLabel();
@@ -456,7 +457,7 @@ function init() {
     initEmbers();
 
     // Pass saved voice so the server knows the voice from the first message
-    var savedVoice = localStorage.getItem('glooow-voice');
+    var savedVoice = getSavedVoice();
     if (savedVoice) params.voice_name = savedVoice;
 
     // Start session
