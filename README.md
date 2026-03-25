@@ -181,7 +181,7 @@ if you have nix with flakes enabled:
 ```bash
 git clone https://github.com/akrusz/glooow.git
 cd glooow
-nix develop                             # headless (lighter): nix develop .#browser
+nix develop                             # browser-only (lighter): nix develop .#browser
 ./scripts/start.sh                      # auto-bootstraps config and launches
 ```
 
