@@ -48,10 +48,9 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 - if speech recognition feels slow, try the `base` whisper model (faster, less accurate).
 - say something like "hold on a bit" during a session to enter silence mode. say "come back" or similar to resume.
 - say "mute" to immediately turn off the microphone. click the mic button to resume.
-- the speaker button next to the mic toggles text-to-speech.
 - click the orb in the nav bar to enter kasina gazing mode. click away from it to exit.
 - the ember controls add floating particles. each level doubles the count and increases the size.
-- click the voice name in the controls bar to open a voice picker — voices are grouped by quality tier with inline previews.
+- click the voice name in the controls bar to open a voice/speed picker.
 - sessions auto-save as JSON and plain text, with a short LLM-generated summary.
 - from the history page you can continue any past session. the facilitator picks up where you left off with full context.
 - the AI can hold silence when appropriate and gently check in if you've been quiet for a while. adjust timing in settings.

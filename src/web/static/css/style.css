@@ -88,8 +88,8 @@ body {
 /* ---- Nav ---- */
 
 .nav {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     padding: 1rem 2rem;
     border-bottom: 1px solid var(--border);
@@ -104,10 +104,9 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    justify-self: start;
     position: relative;
-    max-width: calc(50% - 40px);
 }
-
 
 .nav-brand {
     font-family: 'Lexend Exa', sans-serif;
@@ -133,9 +132,9 @@ body {
 .nav-links {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    max-width: calc(50% - 40px);
-    white-space: nowrap;
+    gap: 1.5rem;
+    grid-column: 3;
+    justify-self: end;
 }
 
 .nav-links a {
@@ -1002,10 +1001,9 @@ body:has(.session-container) {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    grid-column: 2;
+    justify-self: center;
+    margin: 0 1rem;
 }
 
 .orb-nav {
