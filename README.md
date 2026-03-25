@@ -44,11 +44,10 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 
 ## tips
 
-- the theme toggle in the top right follows your system preference by default, or just click it.
 - if speech recognition feels slow, try the `base` whisper model (faster, less accurate).
 - say something like "hold on a bit" during a session to enter silence mode. say "come back" or similar to resume.
 - say "mute" to immediately turn off the microphone. click the mic button to resume.
-- click the orb in the nav bar to enter kasina gazing mode. click away from it to exit.
+- click the orb in the nav bar to enter kasina gazing mode during a session. click away from it to exit.
 - the ember controls add floating particles. each level doubles the count and increases the size.
 - click the voice name in the controls bar to open a voice/speed picker.
 - sessions auto-save as JSON and plain text, with a short LLM-generated summary.
