@@ -2,7 +2,6 @@
 
 import math
 import os
-import signal
 
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for
 
