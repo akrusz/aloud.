@@ -39,7 +39,7 @@ jobs:
 
             <!-- install-notes -->
             ---
-            **macOS note:** If macOS blocks the app on first launch, right-click (or Control-click) the app and choose **Open**.
+            **macOS note:** If macOS blocks the app on first launch, right-click (or Control-click) the app and choose **Open**. If it refuses, you can click the [?] for instructions on how to run it anyway. Eventually I may get an Apple Developer license which will fix this!
 
   build-windows:
     runs-on: windows-latest
