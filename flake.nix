@@ -34,8 +34,8 @@
           echo "glooow development environment (${mode})"
           echo ""
 
-          # Set up library paths for native deps
-          export LD_LIBRARY_PATH="${pkgs.portaudio}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          # Set up library paths for native deps (portaudio for audio, libstdc++ for numpy/scipy)
+          export LD_LIBRARY_PATH="${pkgs.portaudio}/lib:${pkgs.stdenv.cc.cc.lib}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
         '' + pkgs.lib.optionalString (mode == "desktop") ''
           export LD_LIBRARY_PATH="${pkgs.gtk3}/lib:${pkgs.webkitgtk_4_1}/lib:${pkgs.cairo}/lib:${pkgs.glib.out}/lib:$LD_LIBRARY_PATH"
           export GI_TYPELIB_PATH="${pkgs.gtk3}/lib/girepository-1.0:${pkgs.webkitgtk_4_1}/lib/girepository-1.0''${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}"
