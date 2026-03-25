@@ -36,9 +36,9 @@ no terminal, no Python install needed. all settings (LLM provider, voice, whispe
 
 ### platform notes
 
-- **macOS**: TTS uses the `say` command with access to all system voices. the app runs in a native frameless window.
+- **macOS**: TTS uses the `say` command with access to all system voices. the app runs in a native frameless window. You can download enhanced system voices by going to System Settings > Accessibility > Spoken Content, click the dropdown next to System Voice, select Manage Voices, and download Enhanced or Premium voices.
 - **windows**: for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis.
-- **linux**: for server-side TTS, install piper-tts and set `tts.engine: piper` in settings. otherwise TTS falls back to browser speechSynthesis.
+- **linux**: for server-side TTS, install piper-tts and set `tts.engine: piper` in settings. otherwise TTS falls back to browser speechSynthesis. Note that some browsers don't have built in speech synthesis.
 
 ## presets
 
