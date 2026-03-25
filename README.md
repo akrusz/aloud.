@@ -181,15 +181,8 @@ if you have nix with flakes enabled:
 ```bash
 git clone https://github.com/akrusz/glooow.git
 cd glooow
-nix develop                             # full app (native window via GTK/WebKit2)
+nix develop                             # headless (lighter): nix develop .#browser
 ./scripts/start.sh                      # auto-bootstraps config and launches
-```
-
-for a lighter setup without the native window (browser-only):
-
-```bash
-nix develop .#browser
-./scripts/start.sh
 ```
 
 the flake provides portaudio, ffmpeg, python, uv, and GTK/WebKit2 (for pywebview) via the nix binary cache. python packages are installed via uv into a local venv on first entry.
