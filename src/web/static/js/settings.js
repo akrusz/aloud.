@@ -85,7 +85,7 @@ function buildVoiceList() {
 function openVoiceModal() {
     voiceModalList.innerHTML = '';
     if (scoredVoices.length === 0) {
-        voiceModalList.innerHTML = '<div class="voice-tier-label">No server voices available</div>';
+        voiceModalList.innerHTML = '<div class="voice-tier-label">No text-to-speech voices available for the selected engine</div>';
         voiceModal.classList.remove('hidden');
         return;
     }
@@ -212,10 +212,11 @@ voiceModalList.addEventListener('click', function(e) {
     }
 });
 
-// Fetch server voices filtered by selected language
+// Fetch server voices filtered by selected language and engine
 function fetchVoices() {
     const lang = document.getElementById('s-language').value || 'en';
-    fetch('/api/voices?lang=' + encodeURIComponent(lang))
+    const engine = ttsEngineSelect.value;
+    fetch('/api/voices?lang=' + encodeURIComponent(lang) + '&engine=' + encodeURIComponent(engine))
         .then(function(r) { return r.json(); })
         .then(function(voices) {
             serverVoices = voices;
@@ -231,21 +232,30 @@ function fetchVoices() {
                     updateRateDisplay();
                 }
             }
+            updateVoiceBtnState();
         })
         .catch(function() {});
 }
 
-fetchVoices();
-
-// Warn if no TTS voices after fetch completes
-setTimeout(function() {
+function updateVoiceBtnState() {
     if (scoredVoices.length === 0) {
         settingsNoVoicesMode = true;
         voiceBtn.classList.add('no-voices');
         voiceBtn.textContent = '\u26a0 No voices';
-        voiceBtn.title = 'No TTS voices available \u2014 click for info';
+        voiceBtn.title = 'No TTS voices available for the selected engine';
+    } else {
+        settingsNoVoicesMode = false;
+        voiceBtn.classList.remove('no-voices');
+        voiceBtn.title = '';
+        // Restore label to selected voice
+        voiceBtn.textContent = selectedVoiceName || 'Default';
+        // Remove any lingering warning banner
+        var banner = document.querySelector('.no-voices-banner');
+        if (banner) banner.remove();
     }
-}, 3000);
+}
+
+fetchVoices();
 
 // Refresh voices when language changes
 document.getElementById('s-language').addEventListener('change', fetchVoices);
@@ -496,6 +506,7 @@ document.getElementById('s-proxy-url-reset').addEventListener('click', function(
 
 ttsEngineSelect.addEventListener('change', function() {
     showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+    fetchVoices();
 });
 
 // LAN info display

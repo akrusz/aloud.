@@ -112,13 +112,26 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/api/voices")
     def api_voices():
-        """Return voices available to the server-side TTS engine.
+        """Return voices available to a TTS engine.
 
-        Optional query param ?lang=en filters to voices matching that language prefix.
+        Optional query params:
+          ?lang=en    — filter to voices matching that language prefix
+          ?engine=X   — list voices for engine X without changing server state
         """
-        if not app.server_tts or not hasattr(app.server_tts, "list_voices"):
+        engine_override = request.args.get("engine")
+        tts = app.server_tts
+
+        if engine_override and engine_override != getattr(tts, 'engine', None):
+            # Temporarily create the requested engine to query its voices
+            try:
+                from ..tts import create_tts
+                tts = create_tts(engine=engine_override)
+            except Exception:
+                tts = None
+
+        if not tts or not hasattr(tts, "list_voices"):
             return jsonify([])
-        voices = app.server_tts.list_voices()
+        voices = tts.list_voices()
         lang_filter = request.args.get("lang")
         if lang_filter:
             voices = [

@@ -946,7 +946,6 @@ option.provider-unavailable {
     padding: 0.9rem;
     font-size: 1rem;
     border-radius: var(--radius);
-    margin-top: 0.5rem;
     transition: opacity 0.2s;
 }
 
@@ -2849,7 +2848,7 @@ body::before {
     right: 0;
     background: var(--surface, var(--bg));
     border-top: 1px solid var(--border);
-    padding: 0.75rem 1.5rem;
+    padding: 0.5rem 1.5rem;
     z-index: 100;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
