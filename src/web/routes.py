@@ -73,7 +73,8 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/open-url", methods=["POST"])
     def api_open_url():
         """Open a URL in the system default handler (browser, email client, etc.)."""
-        import subprocess, sys
+        import subprocess
+        import sys
         url = (request.json or {}).get("url", "")
         if not url:
             return jsonify({"error": "Missing url"}), 400
