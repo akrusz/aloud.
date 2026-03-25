@@ -2033,6 +2033,7 @@ body::before {
     border-radius: 50%;
     width: 32px;
     height: 32px;
+    margin-left: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
