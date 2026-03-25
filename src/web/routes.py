@@ -70,6 +70,20 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/open-url", methods=["POST"])
+    def api_open_url():
+        """Open a URL in the system default handler (browser, email client, etc.)."""
+        import subprocess, sys
+        url = (request.json or {}).get("url", "")
+        if not url:
+            return jsonify({"error": "Missing url"}), 400
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", url])
+        else:
+            import webbrowser
+            webbrowser.open(url)
+        return jsonify({"ok": True})
+
     # ---- Session history ----
 
     @app.route("/api/sessions")

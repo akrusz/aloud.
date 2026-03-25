@@ -329,8 +329,10 @@
     <script>
     (function() {
         var closeBtn = document.getElementById('windowCloseBtn');
-        // Only show the close button inside the native pywebview window
-        if (closeBtn && window.pywebview) {
+
+        function initCloseBtn() {
+            if (!closeBtn || closeBtn.dataset.init) return;
+            closeBtn.dataset.init = '1';
             closeBtn.classList.remove('hidden');
             closeBtn.addEventListener('click', function() {
                 if (window._glooowSessionActive) {
@@ -340,12 +342,41 @@
             });
         }
 
+        // pywebview injects window.pywebview asynchronously — check now and on ready event
+        if (closeBtn && window.pywebview) {
+            initCloseBtn();
+        } else if (closeBtn) {
+            window.addEventListener('pywebviewready', initCloseBtn);
+        }
+
         // Prevent accidental close during active session (browser tab / Cmd+W)
         window.addEventListener('beforeunload', function(e) {
             if (window._glooowSessionActive) {
                 e.preventDefault();
             }
         });
+    })();
+    </script>
+    <script>
+    // In pywebview, open external and mailto links via the system handler
+    (function() {
+        function init() {
+            document.addEventListener('click', function(e) {
+                var a = e.target.closest('a[href]');
+                if (!a) return;
+                var href = a.getAttribute('href');
+                if (href && (href.startsWith('mailto:') || a.target === '_blank')) {
+                    e.preventDefault();
+                    fetch('/api/open-url', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({url: href})
+                    });
+                }
+            });
+        }
+        if (window.pywebview) init();
+        else window.addEventListener('pywebviewready', init);
     })();
     </script>
     <script>
