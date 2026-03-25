@@ -271,8 +271,15 @@
                     if (data.success) {
                         status.textContent = data.message;
                         status.classList.add('update-success');
-                        btn.textContent = 'Done';
                         indicator.classList.add('hidden');
+                        if (data.needs_restart) {
+                            btn.textContent = 'Close';
+                            btn.disabled = false;
+                            btn.onclick = function() {
+                                fetch('/api/close-window', { method: 'POST' })
+                                    .finally(function() { window.close(); });
+                            };
+                        }
                     } else {
                         status.textContent = data.message;
                         status.classList.add('update-error');
