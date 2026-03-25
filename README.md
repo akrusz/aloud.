@@ -74,7 +74,8 @@ there are also double-click launchers in `scripts/` (`Start-Mac.command`, `Start
 ```bash
 # macOS/Linux
 curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.sh | bash
-
+```
+```bash
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.ps1 | iex
 ```
