@@ -12,9 +12,9 @@ glooow works on macOS, Linux, and Windows. choose your LLM — run fully local a
 
 glooow has two modes: exploration and noting.
 
-**exploration**: this is a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore.  it can hold silence when appropriate and gently check in if you've been quiet for a while.
+**exploration**: this is a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore. 
 
-instead of fixed styles, you optionally set an intention and then mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want. in my personal experience, this sort of exploration has been helpful in experiencing jhana states if approached with enough openheartedness.
+in this mode, you optionally set an intention and then mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want. in my personal experience, this sort of exploration has been helpful in experiencing jhana states if approached with enough openheartedness.
 
 thanks to [Maija Haavisto](https://lovingawakening.net/) and [Jhourney](https://www.jhourney.io/) for guiding me in similar practices.
 
@@ -54,7 +54,8 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 - click the voice name in the controls bar to open a voice picker — voices are grouped by quality tier with inline previews.
 - sessions auto-save as JSON and plain text, with a short LLM-generated summary.
 - from the history page you can continue any past session. the facilitator picks up where you left off with full context.
-- one running copy of glooow can be made accessible to anyone on your local network by setting network access mode to LAN Access in settings
+- the AI can hold silence when appropriate and gently check in if you've been quiet for a while. adjust timing in settings.
+- one running copy of glooow can be made accessible to anyone on your local network by setting network access mode to LAN A.ccess in settings
 - 🥚 there are a couple easter eggs 🥚
 
 ## running from source
