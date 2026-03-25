@@ -2,9 +2,9 @@
 
 your voice is an overpowered and underrated tool for meditation and inner work.
 
-**glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses an LLM to guide you, whisper.cpp for speech recognition, and your mic for voice input.
+**glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses your mic for voice input, whisper.cpp for speech recognition, an LLM to guide you, and speaks using text-to-speech from your browser or operating system.
 
-works on macOS, Linux, and Windows. bring your own LLM — run fully local with ollama, use a claude subscription, or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page.
+works on macOS, Linux, and Windows. choose your LLM — run fully local with ollama, use a claude subscription, or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page.
 
 ![glooow screenshot](docs/glooow-screen.png)
 
@@ -12,13 +12,15 @@ works on macOS, Linux, and Windows. bring your own LLM — run fully local with 
 
 glooow has two modes: exploration and noting.
 
-**exploration**: this is a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore. this app listens with the mic, transcribes what you say with whisper, sends it to an LLM, and speaks the response back with text-to-speech. it can hold silence when appropriate and gently check in if you've been quiet for a while.
+**exploration**: this is a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore.  it can hold silence when appropriate and gently check in if you've been quiet for a while.
 
-instead of fixed styles, you optionally set an intention and then mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want.
+instead of fixed styles, you optionally set an intention and then mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want. in my personal experience, this sort of exploration has been helpful in experiencing jhana states if approached with enough openheartedness.
 
-in my personal experience, this sort of exploration has been helpful in experiencing jhana states if approached with enough openheartedness. thanks to [Maija Haavisto](https://lovingawakening.net/) and [Jhourney](https://www.jhourney.io/) for guiding me in similar practices.
+thanks to [Maija Haavisto](https://lovingawakening.net/) and [Jhourney](https://www.jhourney.io/) for guiding me in similar practices.
 
-**noting**: you specify what virtual participants you'd like, if any — AIs, fixed phrases, or sound effects. then starting with you, each participant notes a sensation in their "awareness" (ideally 1–2 words) or plays their fixed phrase or sound. yes, AIs noting their experience seems kind of silly, but I've actually found it helpful to observe the mental and somatic processes that happen in the cycle of resting -> hearing my cue -> observing -> speaking. if there are no other participants, it'll just briefly introduce the method and then record what you note. thanks to [Vince Horn](https://www.buddhistgeeks.org/) and again to [Jhourney](https://www.jhourney.io/) for inspiration.
+**noting**: you specify what participants you'd like, if any — AIs, fixed phrases, or sound effects. then starting with you, each participant notes a sensation in their "awareness" (ideally 1–2 words) or plays their fixed phrase or sound. yes, AIs noting their experience seems kind of silly, but I've actually found it helpful to observe the mental and somatic processes that happen in the cycle of resting -> hearing my cue -> observing -> speaking. if there are no other participants, it'll just briefly introduce the method and then record what you note.
+
+thanks to [Vince Horn](https://www.buddhistgeeks.org/) and again to [Jhourney](https://www.jhourney.io/) for inspiration.
 
 ## getting started
 
@@ -32,13 +34,13 @@ grab the latest release for your platform from [releases](https://github.com/akr
 | **Windows** | `Glooow-x.x.x-Windows.exe` — run the installer |
 | **Linux** | `Glooow-x.x.x-Linux.AppImage` — `chmod +x`, double-click or run from terminal |
 
-no terminal, no Python install needed. all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
+all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
 
 ### platform notes
 
 - **macOS**: TTS uses the `say` command with access to all system voices. You can download better system voices by going to System Settings > Accessibility > Spoken Content, click the dropdown next to System Voice, select Manage Voices, and download Enhanced or Premium voices.
 - **windows**: for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis.
-- **linux**: for server-side TTS, install piper-tts and set `tts.engine: piper` in settings. otherwise TTS falls back to browser speechSynthesis. Note that some browsers don't have built in speech synthesis.
+- **linux**: for server-side TTS, install piper-tts and set the TTS Engine to Piper on the settings page. otherwise TTS falls back to browser speechSynthesis. Note that some browsers don't have built in speech synthesis.
 
 ## tips
 
