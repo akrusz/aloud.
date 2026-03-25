@@ -80,6 +80,11 @@ def register_session_handlers(socketio: SocketIO, app: Flask) -> None:
             "tts_rate": config.tts.rate,
         })
 
+        # If whisper already loaded, tell this client immediately
+        # (the broadcast stt_ready may have fired before they connected)
+        if app.whisper_model_ready:
+            emit("stt_ready", {})
+
         # Restore voice name so easter egg persona works from the first message
         voice_name = data.get("voice_name")
         if voice_name:
