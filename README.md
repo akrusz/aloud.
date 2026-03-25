@@ -52,8 +52,8 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 - click the voice name in the controls bar to open a voice/speed picker.
 - sessions auto-save as JSON and plain text, with a short LLM-generated summary.
 - from the history page you can continue any past session. the facilitator picks up where you left off with full context.
-- the AI can hold silence when appropriate and gently check in if you've been quiet for a while. adjust timing in settings.
-- one running copy of glooow can be made accessible to anyone on your local network by setting network access mode to LAN Access in settings
+- the AI can hold silence when requested and gently check in if you're quiet for a while. adjust timing in settings.
+- one running copy of glooow can be made accessible to anyone on your local network by setting network access mode to "LAN Access" in settings
 - 🥚 there are a couple easter eggs 🥚
 
 ## running from source
