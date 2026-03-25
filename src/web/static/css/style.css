@@ -88,8 +88,8 @@ body {
 /* ---- Nav ---- */
 
 .nav {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
     border-bottom: 1px solid var(--border);
@@ -104,8 +104,10 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    justify-self: start;
+    position: relative;
+    max-width: calc(50% - 40px);
 }
+
 
 .nav-brand {
     font-family: 'Lexend Exa', sans-serif;
@@ -131,9 +133,9 @@ body {
 .nav-links {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
-    grid-column: 3;
-    justify-self: end;
+    gap: 1rem;
+    max-width: calc(50% - 40px);
+    white-space: nowrap;
 }
 
 .nav-links a {
@@ -1000,9 +1002,10 @@ body:has(.session-container) {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    grid-column: 2;
-    justify-self: center;
-    margin: 0 1rem;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .orb-nav {
@@ -2039,7 +2042,6 @@ body::before {
     border-radius: 50%;
     width: 32px;
     height: 32px;
-    margin-left: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2049,7 +2051,11 @@ body::before {
     transition: all var(--transition);
     padding: 0;
     line-height: 1;
-    position: relative;
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0.5rem;
 }
 
 .update-indicator:hover {
@@ -2061,8 +2067,8 @@ body::before {
 .update-indicator.has-update-static::after {
     content: '';
     position: absolute;
-    top: -2px;
-    right: -2px;
+    top: -1px;
+    right: -1px;
     width: 8px;
     height: 8px;
     border-radius: 50%;
