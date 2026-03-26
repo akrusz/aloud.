@@ -126,6 +126,7 @@ class WhisperCppSTT:
         self._model = Model(
             model_path,
             redirect_whispercpp_logs_to=os.devnull,
+            print_progress=False,
         )
         self._loaded = True
         logger.info("whisper.cpp model loaded")

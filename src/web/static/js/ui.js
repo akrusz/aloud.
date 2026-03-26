@@ -102,7 +102,7 @@ export function setStatus(text) {
 
 // ---- Ember system ----
 
-export var EMBER_COUNTS = [0, 3, 6, 12, 24];
+export var EMBER_COUNTS = [0, 3, 6, 12, 24, 48];
 export var EMBER_COLORS_DARK = ['#e8a840', '#d4873a', '#c07830', '#e0a038', '#cc8030'];
 export var EMBER_COLORS_LIGHT = ['#fed025', '#f6b818', '#fcc430', '#f0a80e', '#f8c020'];
 export var EMBER_SHRINK_RATE = 0.3; // px/s — constant for all embers
@@ -135,7 +135,7 @@ export function regenerateEmbers() {
     for (var i = 0; i < count; i++) {
         var span = document.createElement('span');
         span.className = 'ember';
-        var sizeRange = [0, 2, 3.5, 5, 6.5][state.emberLevel];
+        var sizeRange = [0, 2, 3.5, 5, 6.5, 8][state.emberLevel];
         var size = 2 + Math.random() * sizeRange;
         var color = palette[Math.floor(Math.random() * palette.length)];
         var glow = Math.round(3 + size);
@@ -161,6 +161,43 @@ export function regenerateEmbers() {
         });
 
         dom.emberContainer.appendChild(span);
+    }
+}
+
+export function burstEmbers(count) {
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var palette = isLight ? EMBER_COLORS_LIGHT : EMBER_COLORS_DARK;
+    dom.emberContainer.classList.add('active');
+    for (var i = 0; i < count; i++) {
+        var span = document.createElement('span');
+        span.className = 'ember';
+        var size = 2 + Math.random() * 8;
+        var color = palette[Math.floor(Math.random() * palette.length)];
+        var glow = Math.round(3 + size);
+        span.style.left = (5 + Math.random() * 90) + '%';
+        span.style.bottom = '-10px';
+        span.style.width = size + 'px';
+        span.style.height = size + 'px';
+        span.style.background = color;
+        span.style.boxShadow = '0 0 ' + glow + 'px ' + Math.round(size * 0.4) + 'px ' + hexGlow(color);
+
+        var dur = 2 + Math.random() * 3;
+        var driftX = -60 + Math.random() * 120;
+        var driftY = -(window.innerHeight * 0.4) - Math.random() * (window.innerHeight * 0.6);
+
+        var anim = span.animate([
+            { transform: 'translate(0,0) scale(1)', opacity: 0.9, offset: 0 },
+            { transform: 'translate(' + (driftX * 0.3) + 'px,' + (driftY * 0.3) + 'px) scale(0.8)', opacity: 0.7, offset: 0.3 },
+            { transform: 'translate(' + driftX + 'px,' + driftY + 'px) scale(0)', opacity: 0, offset: 1.0 },
+        ], {
+            duration: dur * 1000,
+            delay: Math.random() * 400,
+            easing: 'ease-out',
+            fill: 'forwards',
+        });
+
+        dom.emberContainer.appendChild(span);
+        anim.onfinish = (function (el) { return function () { el.remove(); }; })(span);
     }
 }
 

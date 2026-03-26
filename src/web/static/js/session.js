@@ -9,7 +9,7 @@ import { speak, stopServerAudio } from './tts.js';
 import { registerSocketHandlers } from './socketHandlers.js';
 import {
     addMessage, scrollToBottom, startTimer, stopTimer, setStatus,
-    setEmberLevel, regenerateEmbers, showConfirm, hideConfirm,
+    setEmberLevel, regenerateEmbers, burstEmbers, showConfirm, hideConfirm,
     endSession, doEndSession,
 } from './ui.js';
 import { initNoting, startCircle, stopCircle, handleUserNote, notingState } from './noting.js';
@@ -364,17 +364,64 @@ function initKasinaMode() {
 function initEmbers() {
     // Restore saved ember level from localStorage
     var savedEmbers = localStorage.getItem('glooow-embers');
-    if (savedEmbers !== null) state.emberLevel = parseInt(savedEmbers) || 0;
+    if (savedEmbers !== null) state.emberLevel = Math.min(parseInt(savedEmbers) || 0, 4);
+
+    var eggUnlocked = false;
+    var eggClicks = [];
+
+    function maxLevel() { return eggUnlocked ? 5 : 4; }
 
     function setAndSaveEmberLevel(level) {
         setEmberLevel(level);
         localStorage.setItem('glooow-embers', level);
     }
+
+    function addFifthBlock() {
+        if (dom.emberBlocks.querySelector('[data-level="5"]')) return;
+        var block = document.createElement('span');
+        block.className = 'ember-block';
+        block.dataset.level = '5';
+        dom.emberBlocks.appendChild(block);
+    }
+
+    function shakeBlocks() {
+        dom.emberBlocks.classList.remove('shake');
+        dom.emberBlocks.offsetHeight; // reflow to restart animation
+        dom.emberBlocks.classList.add('shake');
+    }
+
+    function unlockFifthLevel() {
+        eggUnlocked = true;
+        var block = document.createElement('span');
+        block.className = 'ember-block growing';
+        block.dataset.level = '5';
+        dom.emberBlocks.appendChild(block);
+        setTimeout(function () {
+            block.classList.remove('growing');
+            setAndSaveEmberLevel(5);
+            burstEmbers(100);
+        }, 400);
+    }
+
     document.getElementById('ember-minus').addEventListener('click', function () {
         setAndSaveEmberLevel(Math.max(0, state.emberLevel - 1));
     });
     document.getElementById('ember-plus').addEventListener('click', function () {
-        setAndSaveEmberLevel(Math.min(4, state.emberLevel + 1));
+        if (state.emberLevel < maxLevel()) {
+            setAndSaveEmberLevel(state.emberLevel + 1);
+            return;
+        }
+        // At max level 4 and not yet unlocked — easter egg territory
+        if (state.emberLevel === 4 && !eggUnlocked) {
+            shakeBlocks();
+            var now = Date.now();
+            eggClicks.push(now);
+            eggClicks = eggClicks.filter(function (t) { return now - t < 2500; });
+            if (eggClicks.length >= 5) {
+                eggClicks = [];
+                unlockFifthLevel();
+            }
+        }
     });
     dom.emberBlocks.addEventListener('click', function (e) {
         var block = e.target.closest('.ember-block');

@@ -14,7 +14,7 @@ glooow has two modes: exploration and noting.
 
 **exploration**: this is a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore. 
 
-in this mode, you optionally set an intention and then mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, then you can adjust anything. there's a directiveness slider so you can dial in how much guidance you want. in my personal experience, this sort of exploration has been helpful in experiencing jhana states if approached with enough openheartedness.
+in this mode, you optionally set an intention and then mix and match **attention focuses** (body, emotions, parts work) with **vibes** (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, or you can build your own style. there's a directiveness slider so you can dial in how much guidance you want. in my personal experience, this sort of exploration has been helpful in experiencing jhana states if approached with enough openheartedness.
 
 thanks to [Maija Haavisto](https://lovingawakening.net/) and [Jhourney](https://www.jhourney.io/) for guiding me in similar practices.
 
@@ -39,7 +39,7 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 ### platform notes
 
 - **macOS**: TTS uses the `say` command with access to all system voices. You can download better system voices by going to System Settings > Accessibility > Spoken Content, click the dropdown next to System Voice, select Manage Voices, and download Enhanced or Premium voices.
-- **windows**: for best voice quality, use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis.
+- **windows**: if using browser mode, for best voice quality use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis.
 - **linux**: for server-side TTS, install piper-tts and set the TTS Engine to Piper on the settings page. otherwise TTS falls back to browser speechSynthesis. Note that some browsers don't have built in speech synthesis.
 
 ## tips
@@ -51,10 +51,10 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 - the ember controls add floating particles. each level doubles the count and increases the size.
 - click the voice name in the controls bar to open a voice/speed picker.
 - sessions auto-save as JSON and plain text, with a short LLM-generated summary.
-- from the history page you can continue any past session. the facilitator picks up where you left off with full context.
+- you can continue any past session or access the saved sessions folder from the history page.
 - the AI can hold silence when requested and gently check in if you're quiet for a while. adjust timing in settings.
 - one running copy of glooow can be made accessible to anyone on your local network by setting network access mode to "LAN Access" in settings
-- 🥚 there are a couple easter eggs 🥚
+- 🥚 there are a few easter eggs 🥚
 
 ## running from source
 
@@ -95,17 +95,3 @@ the flake provides portaudio, ffmpeg, python, uv, and GTK/WebKit2 (for pywebview
 ## building
 
 release builds are automated via GitHub Actions — creating a release tagged `vX.X.X` triggers builds for all three platforms and attaches the artifacts. see [docs/building.md](docs/building.md) for manual build instructions.
-
-## project layout
-
-```
-src/
-  web/              flask + socketio app, templates, vanilla JS frontend
-  tts/              text-to-speech engines (macos, piper, parakeet, elevenlabs)
-  stt/              whisper.cpp + legacy whisper speech-to-text
-  llm/              LLM provider abstraction (claude, openai, openrouter, venice, ollama)
-  facilitation/     prompt building, session management, pacing state machine
-  audio/            CLI audio capture + VAD
-config/             default.yaml
-scripts/            launchers, build scripts
-```
