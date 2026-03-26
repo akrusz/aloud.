@@ -2,8 +2,6 @@
 
 import sys
 
-import pytest
-
 from src.updater import _parse_version, _version_newer, _get_platform_asset_ext
 
 

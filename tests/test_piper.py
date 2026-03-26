@@ -2,8 +2,6 @@
 
 import shutil
 
-import pytest
-
 from src.tts.piper import PiperTTS, _voice_hf_urls
 
 

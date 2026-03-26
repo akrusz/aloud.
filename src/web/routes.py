@@ -235,7 +235,8 @@ def register_routes(app: Flask) -> None:
                 elif engine == "parakeet":
                     # Parakeet downloads via huggingface_hub
                     from huggingface_hub import snapshot_download
-                    import threading, queue
+                    import threading
+                    import queue
 
                     progress_q = queue.Queue()
                     error = [None]
@@ -257,7 +258,7 @@ def register_routes(app: Flask) -> None:
                     yield _json.dumps({"status": "Downloading Parakeet model (~4.4 GB)..."}) + "\n"
 
                     # Wait for completion (snapshot_download doesn't give great progress hooks)
-                    done = progress_q.get(timeout=1800)  # 30 min timeout
+                    progress_q.get(timeout=1800)  # 30 min timeout
                     if error[0]:
                         yield _json.dumps({"status": "error", "error": error[0]}) + "\n"
                     else:

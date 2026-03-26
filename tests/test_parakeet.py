@@ -2,8 +2,6 @@
 
 import sys
 
-import pytest
-
 from src.tts.parakeet import ParakeetTTS
 
 
