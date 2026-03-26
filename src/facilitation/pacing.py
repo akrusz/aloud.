@@ -22,7 +22,6 @@ class ConversationState(Enum):
     PROCESSING = auto()  # Processing what was said
     RESPONDING = auto()  # Facilitator is speaking
     SILENT_HOLD = auto()  # Extended silence mode (meditator requested)
-    DEEP_SILENCE = auto()  # Very long silence, may check in
 
 
 class TurnDecision(Enum):

@@ -10,6 +10,7 @@ from src.audio.vad import (
     SpeechState,
     VADConfig,
     VoiceActivityDetector,
+    WebRTCVAD,
     create_vad,
 )
 
@@ -177,3 +178,12 @@ class TestFactory:
     def test_create_unknown_raises(self):
         with pytest.raises(ValueError, match="Unknown VAD method"):
             create_vad(method="unknown")
+
+    def test_create_webrtc_vad(self):
+        try:
+            vad = create_vad(method="webrtc")
+            assert isinstance(vad, WebRTCVAD)
+        except ImportError:
+            # webrtcvad not installed — the factory should propagate the error
+            with pytest.raises(ImportError, match="webrtcvad"):
+                create_vad(method="webrtc")
