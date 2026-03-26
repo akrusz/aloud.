@@ -1633,6 +1633,72 @@ body:has(.session-container) {
     border-color: var(--accent);
 }
 
+.voice-row-size {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.voice-row-download {
+    background: none;
+    border: 1px solid var(--success, #5a9e6f);
+    border-radius: var(--radius-sm);
+    color: var(--success, #5a9e6f);
+    font-size: 0.75rem;
+    font-family: var(--font);
+    padding: 0.15rem 0.45rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all var(--transition);
+}
+
+.voice-row-download:hover:not(:disabled) {
+    background: var(--success, #5a9e6f);
+    color: #fff;
+}
+
+.voice-row-download:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.voice-row-ready {
+    font-size: 0.75rem;
+    color: var(--success, #5a9e6f);
+    flex-shrink: 0;
+}
+
+.voice-row-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    min-width: 120px;
+}
+
+.voice-row-progress .dl-bar {
+    flex: 1;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.voice-row-progress .dl-bar-fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.voice-row-progress .dl-status {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
 .voice-modal-footer {
     display: flex;
     align-items: center;

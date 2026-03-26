@@ -3,6 +3,7 @@
 import math
 import os
 
+import httpx
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for
 
 from .. import __version__
@@ -179,6 +180,100 @@ def register_routes(app: Flask) -> None:
         if not audio:
             return Response(status=500)
         return Response(audio, mimetype="audio/wav")
+
+    # ---- TTS model downloads ----
+
+    @app.route("/api/tts/download-model", methods=["POST"])
+    def api_tts_download_model():
+        """Stream a TTS model download with progress."""
+        import json as _json
+
+        data = request.get_json(silent=True) or {}
+        engine = data.get("engine", "").strip()
+        voice = data.get("voice", "").strip()
+
+        if not engine or not voice:
+            return jsonify({"error": "engine and voice are required"}), 400
+
+        def generate():
+            try:
+                if engine == "piper":
+                    from ..tts.piper import PiperTTS, _get_piper_models_dir, _voice_hf_urls
+                    if PiperTTS.is_model_downloaded(voice):
+                        yield _json.dumps({"status": "already_downloaded"}) + "\n"
+                        return
+
+                    models_dir = _get_piper_models_dir()
+                    models_dir.mkdir(parents=True, exist_ok=True)
+                    files = _voice_hf_urls(voice)
+                    total_downloaded = 0
+
+                    for url, filename in files:
+                        dest = models_dir / filename
+                        tmp = dest.with_suffix(".part")
+                        try:
+                            with httpx.stream("GET", url, follow_redirects=True, timeout=120) as resp:
+                                resp.raise_for_status()
+                                file_total = int(resp.headers.get("content-length", 0))
+                                with open(tmp, "wb") as f:
+                                    for chunk in resp.iter_bytes(chunk_size=64 * 1024):
+                                        f.write(chunk)
+                                        total_downloaded += len(chunk)
+                                        yield _json.dumps({
+                                            "status": "downloading",
+                                            "total": file_total,
+                                            "completed": total_downloaded,
+                                            "file": filename,
+                                        }) + "\n"
+                            tmp.rename(dest)
+                        except Exception:
+                            tmp.unlink(missing_ok=True)
+                            raise
+
+                    yield _json.dumps({"status": "done"}) + "\n"
+
+                elif engine == "parakeet":
+                    # Parakeet downloads via huggingface_hub
+                    from huggingface_hub import snapshot_download
+                    import threading, queue
+
+                    progress_q = queue.Queue()
+                    error = [None]
+
+                    def do_download():
+                        try:
+                            snapshot_download(
+                                voice,  # "nvidia/parakeet-tts-1.1b"
+                                local_files_only=False,
+                            )
+                        except Exception as e:
+                            error[0] = str(e)
+                        finally:
+                            progress_q.put(None)  # signal done
+
+                    t = threading.Thread(target=do_download, daemon=True)
+                    t.start()
+
+                    yield _json.dumps({"status": "Downloading Parakeet model (~4.4 GB)..."}) + "\n"
+
+                    # Wait for completion (snapshot_download doesn't give great progress hooks)
+                    done = progress_q.get(timeout=1800)  # 30 min timeout
+                    if error[0]:
+                        yield _json.dumps({"status": "error", "error": error[0]}) + "\n"
+                    else:
+                        yield _json.dumps({"status": "done"}) + "\n"
+
+                else:
+                    yield _json.dumps({"status": "error", "error": f"Unknown engine: {engine}"}) + "\n"
+
+            except Exception as exc:
+                yield _json.dumps({"status": "error", "error": str(exc)}) + "\n"
+
+        return Response(
+            generate(),
+            mimetype="application/x-ndjson",
+            headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+        )
 
     # ---- Updates ----
 

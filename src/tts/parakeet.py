@@ -52,8 +52,12 @@ class ParakeetTTS:
         self._sample_rate = 22050
 
     def _load_model(self) -> None:
-        """Lazy load the model."""
+        """Lazy load the model. Skips if model isn't pre-downloaded."""
         if self._loaded:
+            return
+
+        if not self.is_model_downloaded(self.model_name):
+            logger.warning("Parakeet model not downloaded — download it from Settings first")
             return
 
         if self.backend == "transformers":
@@ -239,6 +243,43 @@ class ParakeetTTS:
     def is_speaking(self) -> bool:
         """Check if currently speaking."""
         return self._speaking
+
+    @staticmethod
+    def is_available() -> bool:
+        """Check if Parakeet dependencies are installed."""
+        try:
+            import transformers  # noqa: F401
+            import torch  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    def list_voices(self) -> list[dict]:
+        """List available voices (empty if dependencies not installed)."""
+        if not self.is_available():
+            return []
+        return [{
+            "name": "Parakeet",
+            "lang": "en_US",
+            "downloaded": self.is_model_downloaded(),
+            "size_display": "~4.4 GB",
+            "needs_download": True,
+        }]
+
+    @staticmethod
+    def is_model_downloaded(model_name: str = "nvidia/parakeet-tts-1.1b") -> bool:
+        """Check if the Parakeet model is cached locally."""
+        try:
+            from huggingface_hub import try_to_load_from_cache
+            result = try_to_load_from_cache(model_name, "config.json")
+            return result is not None and not isinstance(result, str) or (isinstance(result, str) and result != result)
+        except Exception:
+            pass
+        # Fallback: check common HF cache locations
+        import os
+        hf_home = os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")
+        cache_dir = Path(hf_home) / "hub" / ("models--" + model_name.replace("/", "--"))
+        return cache_dir.exists() and any(cache_dir.rglob("*.safetensors"))
 
     def set_voice(self, voice: str) -> None:
         """Set voice (Parakeet uses single voice, this is a no-op)."""

@@ -78,6 +78,7 @@ def register_session_handlers(socketio: SocketIO, app: Flask) -> None:
             "silence_base_ms": config.pacing.silence_base_ms,
             "silence_max_ms": config.pacing.silence_max_ms,
             "tts_rate": config.tts.rate,
+            "tts_engine": config.tts.engine,
         })
 
         # If whisper already loaded, tell this client immediately

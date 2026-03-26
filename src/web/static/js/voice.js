@@ -13,7 +13,8 @@ import {
 export { scoreVoiceName, MACOS_QUALITY_VOICES, TIER_LABELS, PREVIEW_PHRASE };
 
 export function buildVoiceList() {
-    var scored = buildScoredVoiceList(state._serverVoices, true);
+    var includeBrowser = !state.ttsEngine || state.ttsEngine === 'browser';
+    var scored = buildScoredVoiceList(state._serverVoices, includeBrowser);
 
     // Attach voice objects to state for browser TTS
     state.scoredVoices = scored;

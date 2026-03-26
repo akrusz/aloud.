@@ -62,12 +62,19 @@ export function buildScoredVoiceList(serverVoices, includeBrowserVoices) {
                 browserVoice = browserByName[baseName];
             }
 
-            scored.push({
+            var entry = {
                 name: sv.name,
                 lang: sv.lang,
                 score: score,
                 voice: browserVoice || { name: sv.name, lang: sv.lang, serverOnly: true },
-            });
+            };
+            // Pass through download metadata from server
+            if (sv.needs_download) {
+                entry.needsDownload = true;
+                entry.downloaded = sv.downloaded;
+                entry.sizeDisplay = sv.size_display;
+            }
+            scored.push(entry);
             seen[sv.name] = true;
             if (browserVoice) seen[browserVoice.name] = true;
         }
@@ -151,11 +158,33 @@ export function renderVoiceList(listEl, scoredVoices, selectedName) {
                 row.appendChild(check);
             }
 
+            if (entry.needsDownload) {
+                if (entry.downloaded) {
+                    var ready = document.createElement('span');
+                    ready.className = 'voice-row-ready';
+                    ready.textContent = 'Ready';
+                    row.appendChild(ready);
+                } else {
+                    var size = document.createElement('span');
+                    size.className = 'voice-row-size';
+                    size.textContent = entry.sizeDisplay;
+                    row.appendChild(size);
+
+                    var dlBtn = document.createElement('button');
+                    dlBtn.type = 'button';
+                    dlBtn.className = 'voice-row-download';
+                    dlBtn.textContent = 'Download';
+                    dlBtn.dataset.voiceName = entry.name;
+                    row.appendChild(dlBtn);
+                }
+            }
+
             var previewBtn = document.createElement('button');
             previewBtn.type = 'button';
             previewBtn.className = 'voice-row-preview';
             previewBtn.textContent = 'Preview';
             previewBtn.dataset.voiceName = entry.name;
+            if (entry.needsDownload && !entry.downloaded) previewBtn.disabled = true;
             row.appendChild(previewBtn);
 
             listEl.appendChild(row);

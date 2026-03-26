@@ -58,6 +58,20 @@ textScaleReset.addEventListener('click', function() {
     updateTextScaleButtons();
 });
 
+// TTS engine hints
+const TTS_ENGINE_HINTS = {
+    macos: "Uses the built-in macOS 'say' command. Zero latency, works offline.",
+    browser: "Uses your browser's built-in speech synthesis. Quality varies by browser.",
+    elevenlabs: "Cloud neural TTS with natural, expressive voices. Requires an API key and internet.",
+    piper: "Fast local neural TTS. Download voice models (~60\u2013100 MB each) from the voice picker.",
+    parakeet: "High-quality local neural TTS from NVIDIA. Single voice, ~4.4 GB model download.",
+};
+const ttsEngineHintEl = document.getElementById('s-tts-engine-hint');
+
+function updateTtsEngineHint() {
+    ttsEngineHintEl.textContent = TTS_ENGINE_HINTS[ttsEngineSelect.value] || '';
+}
+
 // Voice state
 let serverVoices = [];
 let scoredVoices = [];
@@ -87,11 +101,7 @@ rateSlider.addEventListener('input', updateRateDisplay);
 // Voice modal events
 let settingsNoVoicesMode = false;
 voiceBtn.addEventListener('click', function() {
-    if (settingsNoVoicesMode) {
-        toggleNoVoicesBanner(voiceBtn);
-        return;
-    }
-    openVoiceModal();
+    if (!settingsNoVoicesMode) openVoiceModal();
 });
 voiceModalClose.addEventListener('click', function() {
     stopPreview();
@@ -101,10 +111,16 @@ voiceModal.addEventListener('click', function(e) {
     if (e.target === voiceModal) { stopPreview(); voiceModal.classList.add('hidden'); }
 });
 voiceModalList.addEventListener('click', function(e) {
+    const dlBtn = e.target.closest('.voice-row-download');
+    if (dlBtn) {
+        e.stopPropagation();
+        downloadTtsModel(ttsEngineSelect.value, dlBtn.dataset.voiceName, dlBtn);
+        return;
+    }
     const previewBtn = e.target.closest('.voice-row-preview');
     if (previewBtn) {
         e.stopPropagation();
-        sharedPreview(previewBtn.dataset.voiceName, rateSlider.value);
+        if (!previewBtn.disabled) sharedPreview(previewBtn.dataset.voiceName, rateSlider.value);
         return;
     }
     const row = e.target.closest('.voice-row');
@@ -112,6 +128,87 @@ voiceModalList.addEventListener('click', function(e) {
         selectSettingsVoice(row.dataset.voiceName);
     }
 });
+
+function downloadTtsModel(engine, voice, btn) {
+    const row = btn.closest('.voice-row');
+    btn.disabled = true;
+    btn.textContent = 'Downloading\u2026';
+
+    // Replace size badge with progress bar
+    const sizeEl = row.querySelector('.voice-row-size');
+    var progressEl = document.createElement('span');
+    progressEl.className = 'voice-row-progress';
+    progressEl.innerHTML = '<span class="dl-bar"><span class="dl-bar-fill"></span></span><span class="dl-status">0%</span>';
+    if (sizeEl) sizeEl.replaceWith(progressEl);
+
+    const barFill = progressEl.querySelector('.dl-bar-fill');
+    const statusEl = progressEl.querySelector('.dl-status');
+
+    fetch('/api/tts/download-model', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({engine: engine, voice: voice}),
+    }).then(function(resp) {
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        function read() {
+            reader.read().then(function(result) {
+                if (result.done) {
+                    onComplete();
+                    return;
+                }
+                buffer += decoder.decode(result.value, {stream: true});
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+                lines.forEach(function(line) {
+                    if (!line.trim()) return;
+                    try {
+                        const obj = JSON.parse(line);
+                        if (obj.status === 'error') {
+                            btn.textContent = 'Error';
+                            btn.disabled = false;
+                            statusEl.textContent = obj.error || 'Failed';
+                            return;
+                        }
+                        if (obj.status === 'done' || obj.status === 'already_downloaded') {
+                            onComplete();
+                            return;
+                        }
+                        if (obj.total && obj.completed != null) {
+                            const pct = Math.round((obj.completed / obj.total) * 100);
+                            barFill.style.width = pct + '%';
+                            const dlMB = (obj.completed / (1024 * 1024)).toFixed(0);
+                            const totalMB = (obj.total / (1024 * 1024)).toFixed(0);
+                            statusEl.textContent = dlMB + '/' + totalMB + ' MB';
+                        } else if (obj.status) {
+                            statusEl.textContent = obj.status;
+                        }
+                    } catch (e) {}
+                });
+                read();
+            });
+        }
+        read();
+    }).catch(function() {
+        btn.textContent = 'Error';
+        btn.disabled = false;
+        statusEl.textContent = 'Connection failed';
+    });
+
+    function onComplete() {
+        // Replace download button + progress with "Ready"
+        btn.remove();
+        progressEl.remove();
+        var ready = document.createElement('span');
+        ready.className = 'voice-row-ready';
+        ready.textContent = 'Ready';
+        var preview = row.querySelector('.voice-row-preview');
+        row.insertBefore(ready, preview);
+        if (preview) preview.disabled = false;
+    }
+}
 
 // Fetch server voices filtered by selected language and engine
 function fetchVoices() {
@@ -138,24 +235,37 @@ function fetchVoices() {
         .catch(function() {});
 }
 
+var NO_VOICES_HELP = {
+    macos: 'No macOS voices found. Check System Settings \u2192 Accessibility \u2192 Spoken Content.',
+    browser: 'Your browser has no speechSynthesis voices. Try Chrome or Edge for better support.',
+    elevenlabs: 'Add your ElevenLabs API key below to load voices.',
+    piper: 'Piper is not installed. Install with: pip install piper-tts',
+    parakeet: 'Parakeet requires transformers and torch. Install with: pip install transformers torch',
+};
+
 function updateVoiceBtnState() {
+    // Remove any lingering warning banner
+    var banner = document.querySelector('.no-voices-banner');
+    if (banner) banner.remove();
+
     if (scoredVoices.length === 0) {
         settingsNoVoicesMode = true;
         voiceBtn.classList.add('no-voices');
         voiceBtn.textContent = '\u26a0 No voices';
-        voiceBtn.title = 'No TTS voices available for the selected engine';
+        voiceBtn.title = '';
+        // Show install instructions inline in the hint area
+        var help = NO_VOICES_HELP[ttsEngineSelect.value];
+        if (help) ttsEngineHintEl.textContent = help;
     } else {
         settingsNoVoicesMode = false;
         voiceBtn.classList.remove('no-voices');
         voiceBtn.title = '';
-        // Restore label to selected voice
         voiceBtn.textContent = selectedVoiceName || 'Default';
-        // Remove any lingering warning banner
-        var banner = document.querySelector('.no-voices-banner');
-        if (banner) banner.remove();
+        updateTtsEngineHint(); // restore normal hint
     }
 }
 
+updateTtsEngineHint();
 fetchVoices();
 
 // Refresh voices when language changes
@@ -407,6 +517,7 @@ document.getElementById('s-proxy-url-reset').addEventListener('click', function(
 
 ttsEngineSelect.addEventListener('change', function() {
     showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+    updateTtsEngineHint();
     fetchVoices();
 });
 
@@ -447,18 +558,6 @@ function updateLanInfo() {
 hostSelect.addEventListener('change', updateLanInfo);
 
 // Toggle password visibility
-document.querySelectorAll('.toggle-visibility').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        const input = btn.parentElement.querySelector('input');
-        if (input.type === 'password') {
-            input.type = 'text';
-            btn.textContent = 'Hide';
-        } else {
-            input.type = 'password';
-            btn.textContent = 'Show';
-        }
-    });
-});
 
 // Stepper buttons
 document.querySelectorAll('.stepper-inc, .stepper-dec').forEach(function(btn) {
@@ -717,6 +816,7 @@ fetch('/api/config')
         // TTS
         ttsEngineSelect.value = cfg.tts?.engine || 'macos';
         showGroupsFor(ttsEngineSelect, ttsKeyGroups);
+        updateTtsEngineHint();
         const voiceName = cfg.tts?.voice || '';
         if (voiceName) {
             selectedVoiceName = voiceName;

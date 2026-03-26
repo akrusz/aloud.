@@ -50,34 +50,22 @@
             <!-- API Key fields — shown/hidden per provider -->
             <div class="form-group api-key-group hidden" id="s-anthropic-key-group">
                 <label for="s-anthropic-key">Anthropic API Key</label>
-                <div class="input-with-action">
-                    <input type="password" id="s-anthropic-key" placeholder="sk-ant-..." autocomplete="off">
-                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
-                </div>
+                <input type="password" id="s-anthropic-key" placeholder="sk-ant-..." autocomplete="off">
             </div>
 
             <div class="form-group api-key-group hidden" id="s-openai-key-group">
                 <label for="s-openai-key">OpenAI API Key</label>
-                <div class="input-with-action">
-                    <input type="password" id="s-openai-key" placeholder="sk-..." autocomplete="off">
-                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
-                </div>
+                <input type="password" id="s-openai-key" placeholder="sk-..." autocomplete="off">
             </div>
 
             <div class="form-group api-key-group hidden" id="s-openrouter-key-group">
                 <label for="s-openrouter-key">OpenRouter API Key</label>
-                <div class="input-with-action">
-                    <input type="password" id="s-openrouter-key" placeholder="sk-or-..." autocomplete="off">
-                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
-                </div>
+                <input type="password" id="s-openrouter-key" placeholder="sk-or-..." autocomplete="off">
             </div>
 
             <div class="form-group api-key-group hidden" id="s-venice-key-group">
                 <label for="s-venice-key">Venice API Key</label>
-                <div class="input-with-action">
-                    <input type="password" id="s-venice-key" placeholder="..." autocomplete="off">
-                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
-                </div>
+                <input type="password" id="s-venice-key" placeholder="..." autocomplete="off">
             </div>
 
             <div class="form-group api-key-group hidden" id="s-proxy-group">
@@ -215,6 +203,7 @@
                         <option value="piper">Piper (local neural TTS)</option>
                         <option value="parakeet">Parakeet (local neural TTS)</option>
                     </select>
+                    <span class="form-hint" id="s-tts-engine-hint"></span>
                 </div>
                 <div class="form-group form-group-half">
                     <label>Default Voice</label>
@@ -224,10 +213,7 @@
 
             <div class="form-group api-key-group hidden" id="s-elevenlabs-key-group">
                 <label for="s-elevenlabs-key">ElevenLabs API Key</label>
-                <div class="input-with-action">
-                    <input type="password" id="s-elevenlabs-key" placeholder="..." autocomplete="off">
-                    <button type="button" class="btn btn-small btn-secondary toggle-visibility">Show</button>
-                </div>
+                <input type="password" id="s-elevenlabs-key" placeholder="..." autocomplete="off">
             </div>
         </section>
 

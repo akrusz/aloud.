@@ -7,12 +7,49 @@ https://github.com/rhasspy/piper
 from __future__ import annotations
 
 import asyncio
+import shutil
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .macos import MacOSTTS
+
+
+# Popular Piper voice models — used by list_voices() so users see real choices
+PIPER_VOICES = [
+    {"name": "en_US-lessac-medium", "lang": "en_US", "size_mb": 63},
+    {"name": "en_US-lessac-high", "lang": "en_US", "size_mb": 105},
+    {"name": "en_US-amy-medium", "lang": "en_US", "size_mb": 63},
+    {"name": "en_US-arctic-medium", "lang": "en_US", "size_mb": 63},
+    {"name": "en_US-ryan-medium", "lang": "en_US", "size_mb": 63},
+    {"name": "en_US-ryan-high", "lang": "en_US", "size_mb": 105},
+    {"name": "en_US-libritts-high", "lang": "en_US", "size_mb": 105},
+    {"name": "en_GB-alan-medium", "lang": "en_GB", "size_mb": 63},
+    {"name": "en_GB-cori-medium", "lang": "en_GB", "size_mb": 63},
+    {"name": "en_GB-jenny_dioco-medium", "lang": "en_GB", "size_mb": 63},
+]
+
+
+def _get_piper_models_dir() -> Path:
+    """Return our managed piper models directory."""
+    from ..config import get_user_config_dir
+    return get_user_config_dir() / "piper-models"
+
+
+def _voice_hf_urls(voice_name: str) -> list[tuple[str, str]]:
+    """Return [(url, filename), ...] for a piper voice's model files."""
+    parts = voice_name.split("-")
+    locale = parts[0]       # en_US
+    quality = parts[-1]     # medium
+    speaker = "-".join(parts[1:-1])  # lessac, jenny_dioco, etc.
+    # Underscores in speaker names need to stay as-is in the path
+    lang = locale.split("_")[0]
+    base = f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{lang}/{locale}/{speaker}/{quality}"
+    return [
+        (f"{base}/{voice_name}.onnx", f"{voice_name}.onnx"),
+        (f"{base}/{voice_name}.onnx.json", f"{voice_name}.onnx.json"),
+    ]
 
 
 class PiperTTS:
@@ -63,7 +100,12 @@ class PiperTTS:
             if self.model_path:
                 cmd.extend(["--model", self.model_path])
             else:
-                cmd.extend(["--model", self.voice])
+                local_path = _get_piper_models_dir() / f"{self.voice}.onnx"
+                if local_path.exists():
+                    cmd.extend(["--model", str(local_path)])
+                else:
+                    # Model not downloaded — skip silently (falls back to browser TTS)
+                    return
 
             cmd.extend([
                 "--output_file", output_path,
@@ -105,6 +147,37 @@ class PiperTTS:
             True if currently speaking
         """
         return self._speaking
+
+    @staticmethod
+    def is_available() -> bool:
+        """Check if the piper binary is installed."""
+        return shutil.which("piper") is not None
+
+    @staticmethod
+    def is_model_downloaded(voice: str) -> bool:
+        """Check if a voice model is already downloaded."""
+        model_path = _get_piper_models_dir() / f"{voice}.onnx"
+        return model_path.exists()
+
+    @staticmethod
+    def get_model_path(voice: str) -> str:
+        """Return the full path to a downloaded model."""
+        return str(_get_piper_models_dir() / f"{voice}.onnx")
+
+    def list_voices(self) -> list[dict]:
+        """List available Piper voice models (empty if piper not installed)."""
+        if not self.is_available():
+            return []
+        return [
+            {
+                "name": v["name"],
+                "lang": v["lang"],
+                "downloaded": self.is_model_downloaded(v["name"]),
+                "size_display": str(v["size_mb"]) + " MB",
+                "needs_download": True,
+            }
+            for v in PIPER_VOICES
+        ]
 
     def set_voice(self, voice: str) -> None:
         """Set the voice/model to use.

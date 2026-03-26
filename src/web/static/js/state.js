@@ -80,6 +80,7 @@ export const state = {
     pendingNavigation: null,
     pendingConfirmAction: null,
     ttsRate: 160,
+    ttsEngine: null,
     synth: window.speechSynthesis || null,
     preferredVoice: null,
     scoredVoices: [],
