@@ -101,7 +101,7 @@
         </div>
     </div>
 
-    {% block scripts %}{% endblock %}
+    <div id="page-scripts">{% block scripts %}{% endblock %}</div>
     <script>
     // Shared no-voices warning — used by session, index, and settings pages
     function toggleNoVoicesBanner(anchorEl) {
@@ -441,6 +441,94 @@
                 }
             });
         }
+    })();
+    </script>
+    <script>
+    // Client-side navigation — swap <main> + page scripts without tearing down the nav
+    (function() {
+        var NAV_ROUTES = ['/', '/history', '/settings'];
+
+        function isNavRoute(url) {
+            return NAV_ROUTES.indexOf(url) !== -1;
+        }
+
+        function activateScripts(container) {
+            // Scripts inserted via innerHTML don't execute — replace with fresh elements
+            var scripts = container.querySelectorAll('script');
+            for (var i = 0; i < scripts.length; i++) {
+                var old = scripts[i];
+                var fresh = document.createElement('script');
+                for (var j = 0; j < old.attributes.length; j++) {
+                    var attr = old.attributes[j];
+                    var val = attr.value;
+                    // Cache-bust module src so the browser re-executes it
+                    if (attr.name === 'src' && old.type === 'module') {
+                        val += (val.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
+                    }
+                    fresh.setAttribute(attr.name, val);
+                }
+                if (old.textContent) fresh.textContent = old.textContent;
+                old.parentNode.replaceChild(fresh, old);
+            }
+        }
+
+        function navigate(url, addToHistory) {
+            fetch(url)
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+
+                    // Swap main content
+                    document.querySelector('.main').innerHTML =
+                        doc.querySelector('.main').innerHTML;
+
+                    // Swap page scripts (and re-execute them)
+                    var oldScripts = document.getElementById('page-scripts');
+                    var newScripts = doc.getElementById('page-scripts');
+                    if (oldScripts && newScripts) {
+                        oldScripts.innerHTML = newScripts.innerHTML;
+                        activateScripts(oldScripts);
+                    }
+
+                    // Update nav active state
+                    var links = document.querySelectorAll('.nav-links a[href]');
+                    for (var i = 0; i < links.length; i++) {
+                        var href = links[i].getAttribute('href');
+                        if (isNavRoute(href)) {
+                            links[i].classList.toggle('nav-active', href === url);
+                        }
+                    }
+
+                    document.title = doc.title;
+                    if (addToHistory !== false) history.pushState({}, '', url);
+                    window.scrollTo(0, 0);
+                })
+                .catch(function() {
+                    // Fetch failed — fall back to regular navigation
+                    window.location.href = url;
+                });
+        }
+
+        // Intercept nav-link clicks to nav routes
+        document.addEventListener('click', function(e) {
+            if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+            var a = e.target.closest('.nav-links a[href]');
+            if (!a) return;
+            var href = a.getAttribute('href');
+            if (!isNavRoute(href) || href === location.pathname) return;
+            e.preventDefault();
+            navigate(href);
+        });
+
+        // Back/forward — only SPA-navigate if we still have standard nav links
+        window.addEventListener('popstate', function() {
+            if (!isNavRoute(location.pathname)) return;
+            if (!document.querySelector('.nav-links a[href="/"]')) {
+                window.location.reload();
+                return;
+            }
+            navigate(location.pathname, false);
+        });
     })();
     </script>
 </body>
