@@ -270,9 +270,11 @@ class ParakeetTTS:
     def is_model_downloaded(model_name: str = "nvidia/parakeet-tts-1.1b") -> bool:
         """Check if the Parakeet model is cached locally."""
         try:
-            from huggingface_hub import try_to_load_from_cache
+            from huggingface_hub import try_to_load_from_cache, _CACHED_NO_EXIST
             result = try_to_load_from_cache(model_name, "config.json")
-            return result is not None and not isinstance(result, str) or (isinstance(result, str) and result != result)
+            if result is not None and result is not _CACHED_NO_EXIST:
+                return True
+            return False
         except Exception:
             pass
         # Fallback: check common HF cache locations

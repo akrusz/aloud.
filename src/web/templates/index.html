@@ -566,6 +566,21 @@
         return name ? name.replace(/\s*\(.*\)$/, '') : name;
     }
 
+    // Speed slider in setup voice modal
+    const setupSpeedSlider = document.getElementById('setup-speed-slider');
+    const setupSpeedLabel = document.getElementById('setup-speed-label');
+    const savedSpeed = getSavedSpeed();
+    if (savedSpeed) {
+        setupSpeedSlider.value = savedSpeed;
+        setupSpeedLabel.textContent = savedSpeed + ' wpm';
+    }
+    setupSpeedSlider.addEventListener('input', () => {
+        const rate = setupSpeedSlider.value;
+        setSavedSpeed(rate);
+        setupSpeedLabel.textContent = rate + ' wpm';
+        updateVoiceBtnLabel();
+    });
+
     // ---- Voice picker ----
     const setupVoiceBtn = document.getElementById('setup-voice-btn');
     const setupVoiceModal = document.getElementById('setup-voice-modal');
@@ -576,7 +591,10 @@
     let selectedVoiceName = getSavedVoice() || null;
 
     function updateVoiceBtnLabel() {
-        setupVoiceBtn.textContent = selectedVoiceName || 'Default';
+        var label = selectedVoiceName || 'Default';
+        var speed = setupSpeedSlider.value;
+        if (speed) label += ' \u00b7 ' + speed + ' wpm';
+        setupVoiceBtn.textContent = label;
     }
 
     function buildSetupVoiceList(serverVoices) {
@@ -627,20 +645,6 @@
         setSavedVoice(selectedVoiceName);
         updateVoiceBtnLabel();
         updateVoiceSelection(setupVoiceModalList, selectedVoiceName);
-    });
-
-    // Speed slider in setup voice modal
-    const setupSpeedSlider = document.getElementById('setup-speed-slider');
-    const setupSpeedLabel = document.getElementById('setup-speed-label');
-    const savedSpeed = getSavedSpeed();
-    if (savedSpeed) {
-        setupSpeedSlider.value = savedSpeed;
-        setupSpeedLabel.textContent = savedSpeed + ' wpm';
-    }
-    setupSpeedSlider.addEventListener('input', () => {
-        const rate = setupSpeedSlider.value;
-        setSavedSpeed(rate);
-        setupSpeedLabel.textContent = rate + ' wpm';
     });
 
     // Fetch server voices and build the list

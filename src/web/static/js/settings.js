@@ -6,14 +6,15 @@ import {
     getSavedVoice, setSavedVoice, getSavedSpeed, setSavedSpeed,
 } from './voice-picker.js';
 
-const firstRun = document.getElementById('settings-data').dataset.firstRun === 'true';
+const settingsDataEl = document.getElementById('settings-data');
+const firstRun = settingsDataEl.dataset.firstRun === 'true';
+const isFrozen = settingsDataEl.dataset.frozen === 'true';
 const form = document.getElementById('settings-form');
 const providerSelect = document.getElementById('s-provider');
 const modelSelect = document.getElementById('s-model');
 const ttsEngineSelect = document.getElementById('s-tts-engine');
 const savedEl = document.getElementById('settings-saved');
 const errorEl = document.getElementById('settings-error');
-const configPathEl = document.getElementById('settings-config-path');
 const voiceBtn = document.getElementById('s-voice-btn');
 const voiceModal = document.getElementById('settings-voice-modal');
 const voiceModalList = document.getElementById('settings-voice-modal-list');
@@ -219,16 +220,14 @@ function fetchVoices() {
         .then(function(voices) {
             serverVoices = voices;
             scoredVoices = buildScoredVoiceList(voices, false);
-            // If current voice isn't in the filtered list, clear selection
-            if (selectedVoiceName) {
-                let found = false;
-                for (let i = 0; i < scoredVoices.length; i++) {
-                    if (scoredVoices[i].name === selectedVoiceName) { found = true; break; }
-                }
-                if (!found) {
-                    selectedVoiceName = scoredVoices.length > 0 ? scoredVoices[0].name : '';
-                    updateRateDisplay();
-                }
+            // If current voice isn't in the filtered list, pick the top one
+            let found = false;
+            for (let i = 0; i < scoredVoices.length; i++) {
+                if (scoredVoices[i].name === selectedVoiceName) { found = true; break; }
+            }
+            if (!found) {
+                selectedVoiceName = scoredVoices.length > 0 ? scoredVoices[0].name : '';
+                updateRateDisplay();
             }
             updateVoiceBtnState();
         })
@@ -239,29 +238,63 @@ var NO_VOICES_HELP = {
     macos: 'No macOS voices found. Check System Settings \u2192 Accessibility \u2192 Spoken Content.',
     browser: 'Your browser has no speechSynthesis voices. Try Chrome or Edge for better support.',
     elevenlabs: 'Add your ElevenLabs API key below to load voices.',
-    piper: 'Piper is not installed. Install with: pip install piper-tts',
-    parakeet: 'Parakeet requires transformers and torch. Install with: pip install transformers torch',
 };
+
+// Engines that can be pip-installed from the UI
+var TTS_INSTALLABLE = {
+    piper: { tool: 'piper-tts', name: 'Piper', desc: 'Fast local neural TTS. Voices are small (~60\u2013100 MB each).' },
+    parakeet: { tool: 'parakeet', name: 'Parakeet', desc: 'High-quality neural TTS from NVIDIA. Requires ~2 GB for dependencies + ~4.4 GB for the model.' },
+};
+
+var ttsInstallSection = document.getElementById('s-tts-install');
+var ttsInstallRow = document.getElementById('s-tts-install-row');
+var ttsInstallDone = document.getElementById('install-done-tts');
 
 function updateVoiceBtnState() {
     // Remove any lingering warning banner
     var banner = document.querySelector('.no-voices-banner');
     if (banner) banner.remove();
 
+    var engine = ttsEngineSelect.value;
+    var installInfo = TTS_INSTALLABLE[engine];
+
     if (scoredVoices.length === 0) {
         settingsNoVoicesMode = true;
         voiceBtn.classList.add('no-voices');
         voiceBtn.textContent = '\u26a0 No voices';
         voiceBtn.title = '';
-        // Show install instructions inline in the hint area
-        var help = NO_VOICES_HELP[ttsEngineSelect.value];
-        if (help) ttsEngineHintEl.textContent = help;
+
+        if (installInfo) {
+            // Show the install UI for pip-installable engines
+            document.getElementById('s-tts-install-name').textContent = installInfo.name;
+            var btn = document.getElementById('btn-install-tts');
+            if (isFrozen) {
+                document.getElementById('s-tts-install-desc').textContent =
+                    installInfo.name + ' can be added by running: pip install ' + installInfo.tool +
+                    ' in a terminal, then restarting glooow.';
+                btn.classList.add('hidden');
+            } else {
+                document.getElementById('s-tts-install-desc').textContent = installInfo.desc;
+                btn.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = 'Install';
+            }
+            ttsInstallRow.classList.remove('hidden');
+            ttsInstallDone.classList.add('hidden');
+            document.getElementById('install-progress-tts').classList.add('hidden');
+            ttsInstallSection.classList.remove('hidden');
+        } else {
+            ttsInstallSection.classList.add('hidden');
+            var help = NO_VOICES_HELP[engine];
+            if (help) ttsEngineHintEl.textContent = help;
+        }
     } else {
         settingsNoVoicesMode = false;
         voiceBtn.classList.remove('no-voices');
         voiceBtn.title = '';
-        voiceBtn.textContent = selectedVoiceName || 'Default';
-        updateTtsEngineHint(); // restore normal hint
+        updateRateDisplay();
+        ttsInstallSection.classList.add('hidden');
+        updateTtsEngineHint();
     }
 }
 
@@ -431,6 +464,74 @@ document.getElementById('btn-install-cliproxyapi').addEventListener('click', fun
 document.getElementById('btn-install-ollama').addEventListener('click', function() {
     installTool('ollama', this);
 });
+document.getElementById('btn-install-tts').addEventListener('click', function() {
+    var engine = ttsEngineSelect.value;
+    var info = TTS_INSTALLABLE[engine];
+    if (!info) return;
+    var btn = this;
+    // Use the shared installTool pattern but with custom completion handler
+    var progressEl = document.getElementById('install-progress-tts');
+    var statusEl = progressEl.querySelector('.tool-install-status');
+    var barFill = progressEl.querySelector('.tool-install-bar-fill');
+
+    btn.disabled = true;
+    btn.textContent = 'Installing\u2026';
+    progressEl.classList.remove('hidden');
+    if (barFill) barFill.classList.add('indeterminate');
+
+    fetch('/api/install/' + info.tool, { method: 'POST' })
+        .then(function(resp) {
+            if (!resp.ok) {
+                return resp.json().then(function(data) {
+                    btn.textContent = 'Error';
+                    btn.disabled = false;
+                    if (statusEl) statusEl.textContent = data.error || 'Install failed';
+                    if (barFill) barFill.classList.remove('indeterminate');
+                });
+            }
+            var reader = resp.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            function read() {
+                reader.read().then(function(result) {
+                    if (result.done) { onDone(); return; }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    lines.forEach(function(line) {
+                        if (!line.trim()) return;
+                        try {
+                            var obj = JSON.parse(line);
+                            if (obj.status === 'error') {
+                                btn.textContent = 'Error';
+                                btn.disabled = false;
+                                if (statusEl) statusEl.textContent = obj.error || 'Failed';
+                                return;
+                            }
+                            if (obj.status === 'done') { onDone(); return; }
+                            if (statusEl) statusEl.textContent = obj.status;
+                        } catch(e) {}
+                    });
+                    read();
+                });
+            }
+            read();
+        })
+        .catch(function() {
+            btn.textContent = 'Error';
+            btn.disabled = false;
+            if (statusEl) statusEl.textContent = 'Connection failed';
+        });
+
+    function onDone() {
+        if (barFill) barFill.classList.remove('indeterminate');
+        ttsInstallRow.classList.add('hidden');
+        progressEl.classList.add('hidden');
+        ttsInstallDone.classList.remove('hidden');
+        // Refresh voices now that the engine is installed
+        setTimeout(fetchVoices, 500);
+    }
+});
 
 // Fetch system info to show/hide install buttons
 fetch('/api/system-info')
@@ -556,8 +657,6 @@ function updateLanInfo() {
 }
 
 hostSelect.addEventListener('change', updateLanInfo);
-
-// Toggle password visibility
 
 // Stepper buttons
 document.querySelectorAll('.stepper-inc, .stepper-dec').forEach(function(btn) {
@@ -818,10 +917,7 @@ fetch('/api/config')
         showGroupsFor(ttsEngineSelect, ttsKeyGroups);
         updateTtsEngineHint();
         const voiceName = cfg.tts?.voice || '';
-        if (voiceName) {
-            selectedVoiceName = voiceName;
-            voiceBtn.textContent = voiceName;
-        }
+        if (voiceName) selectedVoiceName = voiceName;
         const rate = cfg.tts?.rate || 160;
         rateSlider.value = rate;
         rateLabel.textContent = rate + ' wpm';
@@ -904,7 +1000,7 @@ form.addEventListener('submit', function(e) {
         },
         tts: {
             engine: ttsEngineSelect.value,
-            voice: selectedVoiceName || voiceBtn.textContent,
+            voice: selectedVoiceName || '',
             rate: parseInt(rateSlider.value, 10),
         },
         stt: {
@@ -969,7 +1065,7 @@ form.addEventListener('submit', function(e) {
             return;
         }
         // Sync voice and speed to localStorage so the session page picks them up
-        var savedVoice = selectedVoiceName || voiceBtn.textContent;
+        var savedVoice = selectedVoiceName;
         if (savedVoice && savedVoice !== 'Default') {
             setSavedVoice(savedVoice);
         }

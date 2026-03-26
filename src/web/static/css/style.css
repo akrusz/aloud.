@@ -1339,6 +1339,7 @@ body:has(.session-container) {
     align-items: center;
     margin-top: 0.6rem;
     padding: 0 0.25rem;
+    font-size: 0.9rem;
 }
 
 .toggle-label {
@@ -1346,7 +1347,7 @@ body:has(.session-container) {
     align-items: center;
     gap: 0.4rem;
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: inherit;
     color: var(--text-muted);
 }
 
@@ -1387,7 +1388,7 @@ body:has(.session-container) {
     display: flex;
     align-items: center;
     gap: 0.3rem;
-    font-size: 0.875rem;
+    font-size: inherit;
     color: var(--text-muted);
 }
 
@@ -1486,7 +1487,7 @@ body:has(.session-container) {
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 0.875rem;
+    font-size: inherit;
     font-family: var(--font);
     cursor: pointer;
     padding: 0;
@@ -2930,11 +2931,6 @@ body::before {
 .settings-error {
     color: var(--danger);
     font-size: 0.9rem;
-}
-
-.settings-config-path {
-    font-size: 0.875rem;
-    color: var(--text-muted);
 }
 
 .btn-config-path {

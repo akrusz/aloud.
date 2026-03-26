@@ -74,6 +74,7 @@ def _create_flask_app(config: Config) -> Flask:
     app.jinja_env.globals["glooow_version"] = __version__
     app.jinja_env.globals["text_scale"] = config.web.text_scale
     app.jinja_env.globals["frameless"] = config.web.frameless
+    app.jinja_env.globals["is_frozen"] = is_frozen()
 
     @app.after_request
     def _no_cache_js(response):

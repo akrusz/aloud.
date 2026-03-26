@@ -215,6 +215,24 @@
                 <label for="s-elevenlabs-key">ElevenLabs API Key</label>
                 <input type="password" id="s-elevenlabs-key" placeholder="..." autocomplete="off">
             </div>
+
+            <div id="s-tts-install" class="hidden">
+                <div class="tool-install-row" id="s-tts-install-row">
+                    <div class="tool-install-info">
+                        <strong id="s-tts-install-name"></strong> is not installed.
+                        <div class="form-hint" id="s-tts-install-desc"></div>
+                    </div>
+                    <button type="button" class="btn-tool-install" id="btn-install-tts">Install</button>
+                </div>
+                <div class="tool-install-progress hidden" id="install-progress-tts">
+                    <div class="tool-install-bar"><div class="tool-install-bar-fill"></div></div>
+                    <span class="tool-install-status"></span>
+                </div>
+                <div class="tool-install-done hidden" id="install-done-tts">
+                    <span style="color:var(--success)">Installed!</span>
+                    <div class="form-hint" style="margin-top:0.25rem">Select a voice above to get started.</div>
+                </div>
+            </div>
         </section>
 
         <!-- Pacing Section -->
@@ -357,6 +375,6 @@
 {% endblock %}
 
 {% block scripts %}
-<div id="settings-data" data-first-run="{{ 'true' if first_run else 'false' }}"></div>
+<div id="settings-data" data-first-run="{{ 'true' if first_run else 'false' }}" data-frozen="{{ 'true' if is_frozen else 'false' }}"></div>
 <script type="module" src="{{ url_for('static', filename='js/settings.js') }}"></script>
 {% endblock %}

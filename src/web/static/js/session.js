@@ -373,7 +373,7 @@ function initEmbers() {
 
     function setAndSaveEmberLevel(level) {
         setEmberLevel(level);
-        localStorage.setItem('glooow-embers', level);
+        localStorage.setItem('glooow-embers', Math.min(level, 4));
     }
 
     function addFifthBlock() {
