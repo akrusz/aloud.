@@ -1,11 +1,13 @@
 #!/bin/bash
-# Create a release: bump version, update README links, commit, and tag.
+# Create a release: bump version, update README links, commit, tag, push,
+# and create the GitHub release (which triggers the build workflow).
 #
 # Usage:
 #   scripts/release.sh           # bump patch (default)
 #   scripts/release.sh patch     # 0.9.19 → 0.9.20
 #   scripts/release.sh minor     # 0.9.19 → 0.10.0
 #   scripts/release.sh major     # 0.9.19 → 1.0.0
+#   scripts/release.sh same      # re-release current version
 #   scripts/release.sh 1.2.3     # explicit version
 
 set -e
@@ -39,7 +41,20 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     exit 1
 fi
 
-echo "  $CURRENT → $VERSION"
+BRANCH=$(git branch --show-current)
+if [ "$BRANCH" != "main" ]; then
+    echo "  Warning: releasing from '$BRANCH', not main"
+fi
+
+echo ""
+echo "  $CURRENT → $VERSION  (on $BRANCH)"
+echo ""
+printf "  Proceed? [Y/n] "
+read -r REPLY
+if [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ]; then
+    echo "  Aborted."
+    exit 0
+fi
 
 # Bump __version__
 sed -i.bak "s/__version__ = \".*\"/__version__ = \"${VERSION}\"/" src/__init__.py
@@ -61,7 +76,6 @@ fi
 git tag "v${VERSION}"
 
 echo ""
-echo "  Tagged v${VERSION}"
 echo "  Pushing..."
 
 git push
@@ -71,4 +85,18 @@ else
     git push origin "v${VERSION}"
 fi
 
-echo "  Released v${VERSION} ✓"
+# Create GitHub release (triggers build workflow)
+if command -v gh >/dev/null 2>&1; then
+    echo "  Creating GitHub release..."
+    if [ "$ARG" = "same" ]; then
+        # Delete existing release first for re-release
+        gh release delete "v${VERSION}" --yes 2>/dev/null || true
+    fi
+    gh release create "v${VERSION}" --title "v${VERSION}"
+    echo ""
+    echo "  Released v${VERSION} — build started ✓"
+else
+    echo ""
+    echo "  Pushed v${VERSION} ✓"
+    echo "  Create the release at: https://github.com/akrusz/glooow/releases/new?tag=v${VERSION}"
+fi
