@@ -1013,7 +1013,7 @@
 
     // Participant voice picker — reuses the setup voice modal
     function openParticipantVoicePicker(triggerBtn, onSelect) {
-        renderVoiceModal();
+        renderVoiceList(setupVoiceModalList, scoredVoices, triggerBtn.dataset.voice || '');
         // Highlight the current voice for this participant
         const currentVoice = triggerBtn.dataset.voice;
         if (currentVoice) {
