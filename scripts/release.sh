@@ -64,6 +64,6 @@ echo ""
 echo "  Tagged v${VERSION}"
 echo "  Pushing..."
 
-git push && git push --tags
+git push && git push origin "v${VERSION}" --force
 
 echo "  Released v${VERSION} ✓"
