@@ -12,6 +12,11 @@
 
 set -e
 
+# Cache SSH passphrase for the duration of this script
+eval "$(ssh-agent -s)" > /dev/null 2>&1
+ssh-add 2>/dev/null
+trap 'ssh-agent -k > /dev/null 2>&1' EXIT
+
 # Read current version from src/__init__.py
 CURRENT=$(python3 -c "import re; print(re.search(r'__version__\s*=\s*\"(.+?)\"', open('src/__init__.py').read()).group(1))")
 IFS='.' read -r MAJ MIN PAT <<< "$CURRENT"
@@ -49,6 +54,14 @@ fi
 echo ""
 echo "  $CURRENT → $VERSION  (on $BRANCH)"
 echo ""
+printf "  Release name (enter for none): v${VERSION} "
+read -r RELEASE_NAME
+if [ -n "$RELEASE_NAME" ]; then
+    TITLE="v${VERSION} - ${RELEASE_NAME}"
+else
+    TITLE="v${VERSION}"
+fi
+
 printf "  Proceed? [Y/n] "
 read -r REPLY
 if [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ]; then
@@ -89,12 +102,11 @@ fi
 if command -v gh >/dev/null 2>&1; then
     echo "  Creating GitHub release..."
     if [ "$ARG" = "same" ]; then
-        # Delete existing release first for re-release
         gh release delete "v${VERSION}" --yes 2>/dev/null || true
     fi
-    gh release create "v${VERSION}" --title "v${VERSION}"
+    gh release create "v${VERSION}" --title "$TITLE"
     echo ""
-    echo "  Released v${VERSION} — build started ✓"
+    echo "  Released ${TITLE} — build started ✓"
 else
     echo ""
     echo "  Pushed v${VERSION} ✓"

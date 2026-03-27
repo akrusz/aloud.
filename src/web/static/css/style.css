@@ -2314,12 +2314,12 @@ body::before {
 
 .update-release-notes {
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     white-space: pre-wrap;
     max-height: 200px;
     overflow-y: auto;
     padding: 0.5rem;
-    background: var(--bg-input);
+    background: var(--bg-surface);
     border-radius: calc(var(--radius) / 2);
     margin-bottom: 0.5rem;
 }
