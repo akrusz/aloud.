@@ -64,6 +64,11 @@ echo ""
 echo "  Tagged v${VERSION}"
 echo "  Pushing..."
 
-git push && git push origin "v${VERSION}" --force
+git push
+if [ "$ARG" = "same" ]; then
+    git push origin "v${VERSION}" --force
+else
+    git push origin "v${VERSION}"
+fi
 
 echo "  Released v${VERSION} ✓"
