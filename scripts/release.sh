@@ -17,22 +17,22 @@ IFS='.' read -r MAJ MIN PAT <<< "$CURRENT"
 ARG="${1:-patch}"
 
 case "$ARG" in
+    same)   VERSION="$CURRENT" ;;
     patch)  VERSION="$MAJ.$MIN.$((PAT + 1))" ;;
     minor)  VERSION="$MAJ.$((MIN + 1)).0" ;;
     major)  VERSION="$((MAJ + 1)).0.0" ;;
     *)
         VERSION="${ARG#v}"
         if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: version must be patch, minor, major, or X.Y.Z" >&2
+            echo "Error: version must be same, patch, minor, major, or X.Y.Z" >&2
+            exit 1
+        fi
+        if [ "$VERSION" = "$CURRENT" ]; then
+            echo "Error: version is already $CURRENT (use 'same' to re-release)" >&2
             exit 1
         fi
         ;;
 esac
-
-if [ "$VERSION" = "$CURRENT" ]; then
-    echo "Error: version is already $CURRENT" >&2
-    exit 1
-fi
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "Error: uncommitted changes — commit or stash first" >&2
@@ -52,8 +52,18 @@ rm -f README.md.bak
 
 git add src/__init__.py README.md
 git commit -m "v${VERSION}"
+
+# Re-release: move existing tag to this commit
+if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+    git tag -d "v${VERSION}"
+    git push origin ":refs/tags/v${VERSION}" 2>/dev/null || true
+fi
 git tag "v${VERSION}"
 
 echo ""
 echo "  Tagged v${VERSION}"
-echo "  Run: git push && git push --tags"
+echo "  Pushing..."
+
+git push && git push --tags
+
+echo "  Released v${VERSION} ✓"
