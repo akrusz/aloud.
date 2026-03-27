@@ -21,7 +21,8 @@ jobs:
       - name: Update README with release version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          sed -i "s/Glooow-[0-9x][0-9x.]*-/Glooow-${VERSION}-/g" README.md
+          sed -i "s/Glooow-[0-9][0-9.]*-/Glooow-${VERSION}-/g" README.md
+          sed -i "s|download/v[0-9][0-9.]*/|download/v${VERSION}/|g" README.md
 
       - name: Commit and push if changed
         run: |
