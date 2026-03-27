@@ -11,28 +11,6 @@ env:
   PYTHON_VERSION: "3.12"
 
 jobs:
-  update-readme:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: main
-
-      - name: Update README with release version
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          sed -i "s/Glooow-[0-9][0-9.]*-/Glooow-${VERSION}-/g" README.md
-          sed -i "s|download/v[0-9][0-9.]*/|download/v${VERSION}/|g" README.md
-
-      - name: Commit and push if changed
-        run: |
-          git diff --quiet README.md && exit 0
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git commit -m "docs: update README download links to v${GITHUB_REF_NAME#v}"
-          git push
-
   build-macos:
     runs-on: macos-latest
     steps:
