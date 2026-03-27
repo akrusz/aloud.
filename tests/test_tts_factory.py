@@ -56,10 +56,10 @@ class TestCreateTTSOptions:
         assert isinstance(tts, PiperTTS)
         assert tts.voice == "en_GB-alan-medium"
 
-    def test_piper_rate_converted(self):
+    def test_piper_rate_stored_as_wpm(self):
         tts = create_tts("piper", rate=360)
         assert isinstance(tts, PiperTTS)
-        assert abs(tts.rate - 2.0) < 0.01  # 360/180 = 2.0
+        assert tts.rate == 360  # Stored as WPM, converted at synthesis time
 
     def test_parakeet_kwargs_passed(self):
         tts = create_tts("parakeet", device="cpu", backend="nemo")

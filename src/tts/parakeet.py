@@ -10,8 +10,10 @@ Can be run via:
 """
 
 import asyncio
+import io
 import logging
 import tempfile
+import wave
 from pathlib import Path
 from typing import Literal
 
@@ -41,6 +43,8 @@ class ParakeetTTS:
             backend: Which backend to use for inference
         """
         self.model_name = model_name
+        self.voice = "Parakeet"
+        self.rate = 180
         self.device = device
         self.backend = backend
 
@@ -234,6 +238,34 @@ class ParakeetTTS:
             await play_audio_file(temp_path)
 
             Path(temp_path).unlink(missing_ok=True)
+
+    def speak_to_bytes(self, text: str) -> bytes | None:
+        """Generate speech as WAV bytes (synchronous, blocking).
+
+        Returns WAV file bytes, or None on failure.
+        """
+        if not text.strip():
+            return None
+
+        try:
+            waveform = self._synthesize(text)
+            if waveform is None:
+                return None
+
+            # Normalize and convert to int16
+            waveform = waveform / max(np.max(np.abs(waveform)), 1e-8)
+            pcm = (waveform * 32767).astype(np.int16).tobytes()
+
+            buf = io.BytesIO()
+            with wave.open(buf, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(self._sample_rate)
+                wf.writeframes(pcm)
+            return buf.getvalue()
+        except Exception as e:
+            logger.error("Parakeet speak_to_bytes error: %s", e)
+            return None
 
     def stop(self) -> None:
         """Stop current speech."""

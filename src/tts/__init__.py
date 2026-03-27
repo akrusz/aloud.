@@ -59,7 +59,7 @@ def create_tts(
     elif engine == "piper":
         return PiperTTS(
             voice=voice or "en_US-lessac-medium",
-            rate=float(rate) / 180.0,  # Convert WPM to rate multiplier
+            rate=rate,
             model_path=kwargs.get("model_path"),
         )
 

@@ -6,9 +6,14 @@ and emotion. Ideal for meditation facilitation where voice quality matters.
 https://elevenlabs.io/
 """
 
+import io
+import logging
 import os
+import wave
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 # Recommended voices for meditation facilitation
@@ -65,11 +70,14 @@ class ElevenLabsTTS:
         # Resolve voice
         if voice_id:
             self.voice_id = voice_id
+            self.voice = voice_name or voice_id
         elif voice_name and voice_name.lower() in RECOMMENDED_VOICES:
             self.voice_id = RECOMMENDED_VOICES[voice_name.lower()]
+            self.voice = voice_name
         else:
             # Default to Rachel - calm, warm female voice
             self.voice_id = RECOMMENDED_VOICES["rachel"]
+            self.voice = "rachel"
 
         self.model_id = model_id
         self.stability = stability
@@ -149,6 +157,46 @@ class ElevenLabsTTS:
 
         await play_audio_bytes(audio_data, sample_rate=22050)
 
+    def speak_to_bytes(self, text: str) -> bytes | None:
+        """Generate speech as WAV bytes (synchronous, blocking).
+
+        Returns WAV file bytes, or None on failure.
+        """
+        if not text.strip():
+            return None
+
+        try:
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}?output_format=pcm_22050"
+            payload = {
+                "text": text,
+                "model_id": self.model_id,
+                "voice_settings": {
+                    "stability": self.stability,
+                    "similarity_boost": self.similarity_boost,
+                    "style": self.style,
+                    "use_speaker_boost": self.use_speaker_boost,
+                },
+            }
+            resp = httpx.post(
+                url, json=payload,
+                headers={"xi-api-key": self.api_key, "Content-Type": "application/json"},
+                timeout=httpx.Timeout(30.0, connect=5.0),
+            )
+            resp.raise_for_status()
+            pcm_data = resp.content
+
+            # Wrap raw 16-bit PCM in a WAV container
+            buf = io.BytesIO()
+            with wave.open(buf, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)  # 16-bit
+                wf.setframerate(22050)
+                wf.writeframes(pcm_data)
+            return buf.getvalue()
+        except Exception as e:
+            logger.error("ElevenLabs speak_to_bytes error: %s", e)
+            return None
+
     def stop(self) -> None:
         """Stop current speech."""
         from ..audio.playback import stop_playback
@@ -166,6 +214,7 @@ class ElevenLabsTTS:
         Args:
             voice: Voice name (from RECOMMENDED_VOICES) or voice ID
         """
+        self.voice = voice
         if voice.lower() in RECOMMENDED_VOICES:
             self.voice_id = RECOMMENDED_VOICES[voice.lower()]
         else:
@@ -180,19 +229,23 @@ class ElevenLabsTTS:
         """
         pass
 
-    async def list_voices(self) -> list[dict]:
+    def list_voices(self) -> list[dict]:
         """List available voices from your ElevenLabs account.
 
         Returns:
             List of voice information dicts
         """
-        client = await self._get_client()
-
-        response = await client.get("https://api.elevenlabs.io/v1/voices")
-        response.raise_for_status()
-
-        data = response.json()
-        return data.get("voices", [])
+        try:
+            resp = httpx.get(
+                "https://api.elevenlabs.io/v1/voices",
+                headers={"xi-api-key": self.api_key},
+                timeout=httpx.Timeout(10.0, connect=5.0),
+            )
+            resp.raise_for_status()
+            return resp.json().get("voices", [])
+        except Exception as e:
+            logger.error("ElevenLabs list_voices error: %s", e)
+            return []
 
     async def close(self) -> None:
         """Close the HTTP client."""
