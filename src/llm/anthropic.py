@@ -48,7 +48,11 @@ class AnthropicProvider(BaseLLMProvider):
                     "anthropic package not installed. Run: pip install anthropic"
                 )
 
-            self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
+            import httpx as _httpx
+            self._client = anthropic.AsyncAnthropic(
+                api_key=self.api_key,
+                timeout=_httpx.Timeout(60.0, connect=5.0),
+            )
 
         return self._client
 

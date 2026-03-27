@@ -50,7 +50,10 @@ class ClaudeProxyProvider(BaseLLMProvider):
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["X-Api-Key"] = self.api_key
-        return httpx.AsyncClient(timeout=self.timeout, headers=headers)
+        return httpx.AsyncClient(
+            timeout=httpx.Timeout(self.timeout, connect=5.0),
+            headers=headers,
+        )
 
     async def complete(
         self,

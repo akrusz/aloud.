@@ -52,7 +52,9 @@ class OllamaProvider(BaseLLMProvider):
                 pass
             self._client = None
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=self.timeout)
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self.timeout, connect=5.0),
+            )
             self._client_loop = loop
         return self._client
 

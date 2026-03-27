@@ -67,7 +67,7 @@ def _download_model(
         progress_callback("downloading", 0.0)
 
     # Stream download with progress
-    with httpx.stream("GET", url, follow_redirects=True, timeout=300) as resp:
+    with httpx.stream("GET", url, follow_redirects=True, timeout=httpx.Timeout(300, connect=5.0)) as resp:
         resp.raise_for_status()
         total = int(resp.headers.get("content-length", 0))
         downloaded = 0

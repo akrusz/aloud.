@@ -218,7 +218,7 @@ def _check_git() -> UpdateStatus:
 
         if _git_or_error(status, "fetch", "origin", "main", "--quiet",
                          error_msg="Could not reach update server",
-                         timeout=15) is None:
+                         timeout=3) is None:
             return status
 
         count = _git_or_error(status, "rev-list", "--count", "HEAD..origin/main",

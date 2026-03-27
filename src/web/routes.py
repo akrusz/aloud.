@@ -8,7 +8,7 @@ from flask import Flask, render_template, request, jsonify, Response, redirect, 
 
 from .. import __version__
 from ..config import has_user_config
-from ..updater import check_for_updates, apply_update, download_release
+from ..updater import check_for_updates, apply_update, download_release, UpdateStatus, _load_cache
 
 from .config_routes import register_config_routes
 from .provider_routes import register_provider_routes
@@ -281,7 +281,31 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/update/check")
     def api_update_check():
         force = request.args.get("force", "0") == "1"
-        status = check_for_updates(force=force)
+
+        if force:
+            # User explicitly clicked "check for updates" — OK to block
+            status = check_for_updates(force=True)
+        else:
+            # Page-load check: return cached result immediately so we
+            # never block the HTTP thread (the background startup task
+            # populates the cache).  If no cache yet, return empty.
+            cached = _load_cache()
+            status = UpdateStatus(
+                available=cached["available"],
+                commits_behind=cached["commits_behind"],
+                commit_messages=cached.get("commit_messages", []),
+                current_sha=cached.get("current_sha", ""),
+                remote_sha=cached.get("remote_sha", ""),
+                is_git=cached.get("is_git", True),
+                is_release=cached.get("is_release", False),
+                current_version=cached.get("current_version", ""),
+                latest_version=cached.get("latest_version", ""),
+                release_notes=cached.get("release_notes", ""),
+                download_url=cached.get("download_url", ""),
+                download_size=cached.get("download_size", 0),
+                asset_name=cached.get("asset_name", ""),
+            ) if cached else UpdateStatus()
+
         return jsonify({
             "available": status.available,
             "commits_behind": status.commits_behind,

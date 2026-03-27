@@ -59,9 +59,11 @@ class OpenAIProvider(BaseLLMProvider):
                     "openai package not installed. Run: pip install openai"
                 )
 
+            import httpx as _httpx
             self._client = openai.AsyncOpenAI(
                 api_key=self.api_key,
                 base_url=self.base_url,
+                timeout=_httpx.Timeout(60.0, connect=5.0),
             )
             self._client_loop = loop
 
