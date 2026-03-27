@@ -26,7 +26,7 @@ thanks to [Vince Horn](https://www.buddhistgeeks.org/) and again to [Jhourney](h
 
 ### download the app
 
-grab the latest release for your platform from [releases](https://github.com/akrusz/glooow/releases):
+grab the latest release for your platform below, or from [releases](https://github.com/akrusz/glooow/releases):
 
 | platform | download |
 |----------|----------|
