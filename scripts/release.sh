@@ -66,7 +66,7 @@ sed -i.bak "s|download/v[0-9][0-9.]*/|download/v${VERSION}/|g" README.md
 rm -f README.md.bak
 
 git add src/__init__.py README.md
-git commit -m "v${VERSION}"
+git diff --cached --quiet || git commit -m "v${VERSION}"
 
 # Re-release: move existing tag to this commit
 if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
