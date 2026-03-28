@@ -72,8 +72,10 @@ class TestListVoices:
         assert len(voices) > 0
         # Check dict keys on every voice
         required_keys = {"name", "lang", "downloaded", "size_display", "needs_download"}
+        optional_keys = {"recommended"}
         for v in voices:
-            assert set(v.keys()) == required_keys
+            assert required_keys <= set(v.keys())
+            assert set(v.keys()) <= required_keys | optional_keys
 
         # The pre-downloaded model should be marked as downloaded
         lessac = next(v for v in voices if v["name"] == "en_US-lessac-medium")

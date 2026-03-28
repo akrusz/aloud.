@@ -542,6 +542,10 @@ def run_web(
     port: int | None = None,
     debug: bool = False,
     browser: bool = False,
+    fresh: bool = False,
+    hide_premium: bool = False,
+    no_voices: bool = False,
+    reset_piper: bool = False,
 ) -> None:
     """Run the web application.
 
@@ -559,6 +563,10 @@ def run_web(
     print(f"\n  http://localhost:{port}  (Ctrl+C to quit)")
 
     app, socketio = create_app(config)
+    app.simulate_fresh = fresh
+    app.hide_premium_voices = hide_premium
+    app.no_voices = no_voices
+    app.reset_piper = reset_piper
 
     # Decide whether to use pywebview or browser
     use_webview = not browser

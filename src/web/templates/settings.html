@@ -9,6 +9,12 @@
 </div>
 {% endblock %}
 
+{% block nav_items %}
+{% if not first_run %}
+{{ super() }}
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="setup-container">
     {% if first_run %}
@@ -198,9 +204,9 @@
                     <label for="s-tts-engine">TTS Engine</label>
                     <select id="s-tts-engine" name="tts_engine">
                         <option value="macos">macOS (built-in 'say')</option>
+                        <option value="piper">Piper (local neural TTS)</option>
                         <option value="browser">Browser (speechSynthesis)</option>
                         <option value="elevenlabs">ElevenLabs (API)</option>
-                        <option value="piper">Piper (local neural TTS)</option>
                         <option value="parakeet">Parakeet (local neural TTS)</option>
                     </select>
                     <span class="form-hint" id="s-tts-engine-hint"></span>
@@ -210,6 +216,8 @@
                     <button type="button" id="s-voice-btn" class="setup-voice-btn">Default</button>
                 </div>
             </div>
+
+            <div class="voice-quality-hint hidden" id="voice-quality-hint"></div>
 
             <div class="form-group api-key-group hidden" id="s-elevenlabs-key-group">
                 <label for="s-elevenlabs-key">ElevenLabs API Key</label>
@@ -231,51 +239,6 @@
                 <div class="tool-install-done hidden" id="install-done-tts">
                     <span style="color:var(--success)">Installed!</span>
                     <div class="form-hint" style="margin-top:0.25rem">Select a voice above to get started.</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Pacing Section -->
-        <section class="settings-section">
-            <h2>Pacing</h2>
-            <div class="form-row">
-                <div class="form-group form-group-half">
-                    <label>Pause Detection (s)</label>
-                    <div class="stepper">
-                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-base" aria-label="Decrease">&minus;</button>
-                        <input type="number" id="s-silence-base" class="stepper-value" min="1" max="15" step="0.5" value="3">
-                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-base" aria-label="Increase">+</button>
-                    </div>
-                    <span class="form-hint">Minimum pause before your speech is submitted</span>
-                </div>
-                <div class="form-group form-group-half">
-                    <label>Extended Pause (s)</label>
-                    <div class="stepper">
-                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-max" aria-label="Decrease">&minus;</button>
-                        <input type="number" id="s-silence-max" class="stepper-value" min="2" max="20" step="0.5" value="7">
-                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-max" aria-label="Increase">+</button>
-                    </div>
-                    <span class="form-hint">Maximum pause tolerance after longer speech</span>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group form-group-half">
-                    <label>Response Delay (s)</label>
-                    <div class="stepper">
-                        <button type="button" class="stepper-btn stepper-dec" data-target="s-response-delay" aria-label="Decrease">&minus;</button>
-                        <input type="number" id="s-response-delay" class="stepper-value" min="0.5" max="10" step="0.5" value="2">
-                        <button type="button" class="stepper-btn stepper-inc" data-target="s-response-delay" aria-label="Increase">+</button>
-                    </div>
-                    <span class="form-hint">Wait after transcription before LLM responds</span>
-                </div>
-                <div class="form-group form-group-half">
-                    <label>Check-in After (s)</label>
-                    <div class="stepper">
-                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-sec" aria-label="Decrease">&minus;</button>
-                        <input type="number" id="s-silence-sec" class="stepper-value" min="30" max="3600" step="30" value="300">
-                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-sec" aria-label="Increase">+</button>
-                    </div>
-                    <span class="form-hint">Extended silence before a gentle check-in</span>
                 </div>
             </div>
         </section>
@@ -321,6 +284,51 @@
                             <p class="preview-small">Smaller labels and hints look like this.</p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pacing Section -->
+        <section class="settings-section">
+            <h2>Pacing</h2>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label>Pause Detection (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-base" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-base" class="stepper-value" min="1" max="15" step="0.5" value="3">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-base" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Minimum pause before your speech is submitted</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label>Extended Pause (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-max" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-max" class="stepper-value" min="2" max="20" step="0.5" value="7">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-max" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Maximum pause tolerance after longer speech</span>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label>Response Delay (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-response-delay" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-response-delay" class="stepper-value" min="0.5" max="10" step="0.5" value="2">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-response-delay" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Wait after transcription before LLM responds</span>
+                </div>
+                <div class="form-group form-group-half">
+                    <label>Check-in After (s)</label>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-sec" aria-label="Decrease">&minus;</button>
+                        <input type="number" id="s-silence-sec" class="stepper-value" min="30" max="3600" step="30" value="300">
+                        <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-sec" aria-label="Increase">+</button>
+                    </div>
+                    <span class="form-hint">Extended silence before a gentle check-in</span>
                 </div>
             </div>
         </section>
@@ -372,6 +380,32 @@
     title="Choose Default Voice",
     speed_slider_id="s-tts-rate", speed_label_id="s-tts-rate-label",
     speed_text="160 wpm") }}
+
+<!-- Voice quality prompt modal -->
+<div class="voice-modal-overlay hidden" id="voice-quality-modal">
+    <div class="voice-modal" style="max-width:420px">
+        <div class="voice-modal-header">
+            <span class="voice-modal-title">Improve Your Voice Quality</span>
+            <button type="button" class="voice-modal-close" id="vq-close">&times;</button>
+        </div>
+        <div class="vq-body">
+            <p>glooow sounds best with a high-quality voice.</p>
+            <div class="vq-option hidden" id="vq-macos-option">
+                <strong>Download a Premium macOS voice</strong>
+                <p class="form-hint" style="margin-top:0.25rem">System Settings &rarr; Accessibility &rarr; Spoken Content &rarr; System Voice &rarr; Manage Voices</p>
+            </div>
+            <div class="vq-option" id="vq-piper-option">
+                <strong id="vq-piper-title">Try Piper neural TTS</strong>
+                <p class="form-hint" style="margin-top:0.25rem" id="vq-piper-desc">Free, high-quality local voices (~60&ndash;100 MB each). <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen to samples</a></p>
+                <button type="button" class="btn btn-small btn-secondary" id="vq-try-piper" style="margin-top:0.5rem">Switch to Piper</button>
+            </div>
+        </div>
+        <div class="vq-footer">
+            <button type="button" class="btn btn-small btn-secondary" id="vq-dismiss">Remind Me Later</button>
+            <button type="button" class="btn btn-small vq-dismiss-permanent" id="vq-dismiss-permanent">Don't ask again</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}

@@ -2,6 +2,7 @@
 
 import math
 import os
+import re
 
 import httpx
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for
@@ -18,6 +19,11 @@ from .tool_routes import register_tool_routes
 def register_routes(app: Flask) -> None:
     """Register all HTTP routes on the Flask app."""
 
+    def _is_first_run():
+        if getattr(app, "simulate_fresh", False):
+            return True
+        return not has_user_config()
+
     # Delegate to focused sub-modules
     register_config_routes(app)
     register_provider_routes(app)
@@ -28,7 +34,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/")
     def index():
         # First-run: redirect to settings if no user config exists
-        if not has_user_config():
+        if _is_first_run():
             return redirect(url_for("settings_page"))
         return render_template("index.html")
 
@@ -42,7 +48,7 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/settings")
     def settings_page():
-        first_run = not has_user_config()
+        first_run = _is_first_run()
         return render_template("settings.html", first_run=first_run)
 
     # ---- Window management ----
@@ -144,6 +150,10 @@ def register_routes(app: Flask) -> None:
 
         if not tts or not hasattr(tts, "list_voices"):
             return jsonify([])
+
+        if getattr(app, "no_voices", False):
+            return jsonify([])
+
         voices = tts.list_voices()
         lang_filter = request.args.get("lang")
         if lang_filter:
@@ -151,6 +161,15 @@ def register_routes(app: Flask) -> None:
                 v for v in voices
                 if v.get("lang", "").split("_")[0] == lang_filter
             ]
+        if getattr(app, "hide_premium_voices", False):
+            voices = [
+                v for v in voices
+                if not re.search(r"Premium|Enhanced", v.get("name", ""), re.IGNORECASE)
+            ]
+        if getattr(app, "reset_piper", False):
+            for v in voices:
+                if v.get("needs_download"):
+                    v["downloaded"] = False
         return jsonify(voices)
 
     @app.route("/api/voices/preview")
@@ -199,7 +218,7 @@ def register_routes(app: Flask) -> None:
             try:
                 if engine == "piper":
                     from ..tts.piper import PiperTTS, _get_piper_models_dir, _voice_hf_urls
-                    if PiperTTS.is_model_downloaded(voice):
+                    if PiperTTS.is_model_downloaded(voice) and not getattr(app, "reset_piper", False):
                         yield _json.dumps({"status": "already_downloaded"}) + "\n"
                         return
 

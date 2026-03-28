@@ -37,7 +37,7 @@ def register_config_routes(app: Flask) -> None:
                 cfg["tts"]["api_key"] = key[:4] + "..." + key[-4:]
             else:
                 cfg["tts"]["api_key"] = "***"
-        cfg["_has_user_config"] = has_user_config()
+        cfg["_has_user_config"] = has_user_config() and not getattr(app, "simulate_fresh", False)
         cfg["_config_path"] = str(get_user_config_path())
         return jsonify(cfg)
 
@@ -67,6 +67,9 @@ def register_config_routes(app: Flask) -> None:
             except Exception as e:
                 logger.debug("Server-side TTS unavailable after config change: %s", e)
                 app.server_tts = None
+
+            # Clear --fresh flag so post-save redirect to / works
+            app.simulate_fresh = False
 
             return jsonify({"saved": True, "path": str(path)})
         except Exception as e:

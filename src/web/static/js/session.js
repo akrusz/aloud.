@@ -119,12 +119,14 @@ function initSessionControls(params) {
         var previewBtn = e.target.closest('.voice-row-preview');
         if (previewBtn) {
             e.stopPropagation();
+            if (previewBtn.classList.contains('preview-unavailable')) return;
             previewVoice(previewBtn.dataset.voiceName);
             return;
         }
         // Voice row click — select that voice
         var row = e.target.closest('.voice-row');
         if (row) {
+            if (row.classList.contains('voice-row-locked')) return;
             selectVoice(row.dataset.voiceName);
         }
     });

@@ -96,6 +96,7 @@ def _run_git(*args: str, timeout: int = 30) -> subprocess.CompletedProcess:
         capture_output=True,
         text=True,
         timeout=timeout,
+        stdin=subprocess.DEVNULL,
     )
 
 
@@ -216,9 +217,12 @@ def _check_git() -> UpdateStatus:
             return status
         status.current_sha = sha[:12]
 
-        if _git_or_error(status, "fetch", "origin", "main", "--quiet",
+        # Fetch via HTTPS so we never trigger SSH auth prompts on public repos
+        https_url = f"https://github.com/{GITHUB_REPO}.git"
+        if _git_or_error(status, "fetch", https_url, "main:refs/remotes/origin/main",
+                         "--quiet",
                          error_msg="Could not reach update server",
-                         timeout=3) is None:
+                         timeout=5) is None:
             return status
 
         count = _git_or_error(status, "rev-list", "--count", "HEAD..origin/main",
@@ -362,8 +366,9 @@ def apply_update() -> UpdateResult:
                 message="You have uncommitted changes to tracked files. Please commit or stash them first.",
             )
 
-    # Pull latest
-    result = _run_git("pull", "origin", "main", "--ff-only", timeout=30)
+    # Pull latest via HTTPS (avoids SSH auth prompts on public repos)
+    https_url = f"https://github.com/{GITHUB_REPO}.git"
+    result = _run_git("pull", https_url, "main", "--ff-only", timeout=30)
     if result.returncode != 0:
         err = result.stderr.strip() or result.stdout.strip()
         return UpdateResult(

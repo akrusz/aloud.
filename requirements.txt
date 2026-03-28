@@ -15,8 +15,9 @@ anthropic>=0.40.0
 openai>=1.50.0
 httpx>=0.27.0
 
-# TTS - macOS 'say' is default, others are optional:
-# pip install piper-tts                    # Piper - fast local neural TTS
+# TTS - macOS 'say' is default, Piper bundled, others optional:
+piper-tts>=1.2.0                           # Piper - fast local neural TTS
+pathvalidate>=3.0.0                        # Missing from piper-tts deps
 # pip install transformers torch           # Parakeet - high quality neural TTS
 # pip install nemo_toolkit[tts]            # Parakeet via NeMo (alternative)
 # pip install onnxruntime                  # Parakeet via ONNX (alternative)

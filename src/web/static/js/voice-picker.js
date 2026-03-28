@@ -74,6 +74,7 @@ export function buildScoredVoiceList(serverVoices, includeBrowserVoices) {
                 entry.downloaded = sv.downloaded;
                 entry.sizeDisplay = sv.size_display;
             }
+            if (sv.recommended) entry.recommended = true;
             scored.push(entry);
             seen[sv.name] = true;
             if (browserVoice) seen[browserVoice.name] = true;
@@ -93,9 +94,10 @@ export function buildScoredVoiceList(serverVoices, includeBrowserVoices) {
         seen[v.name] = true;
     }
 
-    // Sort: highest score first, then alphabetically
+    // Sort: highest score first, then recommended first, then alphabetically
     scored.sort(function (a, b) {
         if (b.score !== a.score) return b.score - a.score;
+        if (a.recommended !== b.recommended) return a.recommended ? -1 : 1;
         return a.name.localeCompare(b.name);
     });
 
@@ -119,15 +121,31 @@ export function renderVoiceList(listEl, scoredVoices, selectedName) {
         return;
     }
 
-    // Group by tier
+    // Split recommended voices out, then group rest by tier
+    var recommended = [];
     var tiers = {};
     for (var i = 0; i < scoredVoices.length; i++) {
-        var s = scoredVoices[i].score;
-        if (!tiers[s]) tiers[s] = [];
-        tiers[s].push(scoredVoices[i]);
+        if (scoredVoices[i].recommended) {
+            recommended.push(scoredVoices[i]);
+        } else {
+            var s = scoredVoices[i].score;
+            if (!tiers[s]) tiers[s] = [];
+            tiers[s].push(scoredVoices[i]);
+        }
     }
 
-    // Render tiers in descending order
+    // Render recommended section first
+    if (recommended.length > 0) {
+        var recLabel = document.createElement('div');
+        recLabel.className = 'voice-tier-label';
+        recLabel.textContent = 'Recommended';
+        listEl.appendChild(recLabel);
+        for (var i = 0; i < recommended.length; i++) {
+            _renderVoiceRow(listEl, recommended[i], selectedName);
+        }
+    }
+
+    // Render remaining tiers in descending order
     var tierOrder = [3, 2, 1, 0];
     for (var t = 0; t < tierOrder.length; t++) {
         var tier = tierOrder[t];
@@ -140,56 +158,63 @@ export function renderVoiceList(listEl, scoredVoices, selectedName) {
         listEl.appendChild(label);
 
         for (var i = 0; i < items.length; i++) {
-            var entry = items[i];
-            var row = document.createElement('div');
-            row.className = 'voice-row';
-            if (entry.name === selectedName) row.classList.add('selected');
-            row.dataset.voiceName = entry.name;
-
-            var nameSpan = document.createElement('span');
-            nameSpan.className = 'voice-row-name';
-            nameSpan.textContent = entry.name;
-            row.appendChild(nameSpan);
-
-            if (entry.name === selectedName) {
-                var check = document.createElement('span');
-                check.className = 'voice-row-check';
-                check.textContent = '\u2713';
-                row.appendChild(check);
-            }
-
-            if (entry.needsDownload) {
-                if (entry.downloaded) {
-                    var ready = document.createElement('span');
-                    ready.className = 'voice-row-ready';
-                    ready.textContent = 'Ready';
-                    row.appendChild(ready);
-                } else {
-                    var size = document.createElement('span');
-                    size.className = 'voice-row-size';
-                    size.textContent = entry.sizeDisplay;
-                    row.appendChild(size);
-
-                    var dlBtn = document.createElement('button');
-                    dlBtn.type = 'button';
-                    dlBtn.className = 'voice-row-download';
-                    dlBtn.textContent = 'Download';
-                    dlBtn.dataset.voiceName = entry.name;
-                    row.appendChild(dlBtn);
-                }
-            }
-
-            var previewBtn = document.createElement('button');
-            previewBtn.type = 'button';
-            previewBtn.className = 'voice-row-preview';
-            previewBtn.textContent = 'Preview';
-            previewBtn.dataset.voiceName = entry.name;
-            if (entry.needsDownload && !entry.downloaded) previewBtn.disabled = true;
-            row.appendChild(previewBtn);
-
-            listEl.appendChild(row);
+            _renderVoiceRow(listEl, items[i], selectedName);
         }
     }
+}
+
+function _renderVoiceRow(listEl, entry, selectedName) {
+    var row = document.createElement('div');
+    row.className = 'voice-row';
+    if (entry.needsDownload && !entry.downloaded) row.classList.add('voice-row-locked');
+    if (entry.name === selectedName) row.classList.add('selected');
+    row.dataset.voiceName = entry.name;
+
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'voice-row-name';
+    nameSpan.textContent = entry.name;
+    row.appendChild(nameSpan);
+
+    if (entry.name === selectedName) {
+        var check = document.createElement('span');
+        check.className = 'voice-row-check';
+        check.textContent = '\u2713';
+        row.appendChild(check);
+    }
+
+    if (entry.needsDownload) {
+        if (entry.downloaded) {
+            var ready = document.createElement('span');
+            ready.className = 'voice-row-ready';
+            ready.textContent = 'Ready';
+            row.appendChild(ready);
+        } else {
+            var size = document.createElement('span');
+            size.className = 'voice-row-size';
+            size.textContent = entry.sizeDisplay;
+            row.appendChild(size);
+
+            var dlBtn = document.createElement('button');
+            dlBtn.type = 'button';
+            dlBtn.className = 'voice-row-download';
+            dlBtn.textContent = 'Download';
+            dlBtn.dataset.voiceName = entry.name;
+            row.appendChild(dlBtn);
+        }
+    }
+
+    var previewBtn = document.createElement('button');
+    previewBtn.type = 'button';
+    previewBtn.className = 'voice-row-preview';
+    previewBtn.textContent = 'Preview';
+    previewBtn.dataset.voiceName = entry.name;
+    if (entry.needsDownload && !entry.downloaded) {
+        previewBtn.classList.add('preview-unavailable');
+        previewBtn.title = 'Download this voice first to preview it';
+    }
+    row.appendChild(previewBtn);
+
+    listEl.appendChild(row);
 }
 
 /**

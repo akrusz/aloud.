@@ -9,6 +9,14 @@ import {
 const settingsDataEl = document.getElementById('settings-data');
 const firstRun = settingsDataEl.dataset.firstRun === 'true';
 const isFrozen = settingsDataEl.dataset.frozen === 'true';
+
+// Clear client-side state on fresh/first-run so prompts re-appear
+if (firstRun) {
+    localStorage.removeItem('glooow-voice');
+    localStorage.removeItem('glooow-speed');
+    localStorage.removeItem('glooow-embers');
+    localStorage.removeItem('glooow-voice-quality-prompted-permanent');
+}
 const form = document.getElementById('settings-form');
 const providerSelect = document.getElementById('s-provider');
 const modelSelect = document.getElementById('s-model');
@@ -64,13 +72,18 @@ const TTS_ENGINE_HINTS = {
     macos: "Uses the built-in macOS 'say' command. Zero latency, works offline.",
     browser: "Uses your browser's built-in speech synthesis. Quality varies by browser.",
     elevenlabs: "Cloud neural TTS with natural, expressive voices. Requires an API key and internet.",
-    piper: "Fast local neural TTS. Download voice models (~60\u2013100 MB each) from the voice picker.",
+    piper: 'Fast local neural TTS. Download voice models (~60\u2013100 MB each) from the voice picker. <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen to samples</a>',
     parakeet: "High-quality local neural TTS from NVIDIA. Single voice, ~4.4 GB model download.",
 };
 const ttsEngineHintEl = document.getElementById('s-tts-engine-hint');
 
 function updateTtsEngineHint() {
-    ttsEngineHintEl.textContent = TTS_ENGINE_HINTS[ttsEngineSelect.value] || '';
+    var hint = TTS_ENGINE_HINTS[ttsEngineSelect.value] || '';
+    if (ttsEngineSelect.value === 'piper') {
+        ttsEngineHintEl.innerHTML = hint;
+    } else {
+        ttsEngineHintEl.textContent = hint;
+    }
 }
 
 // Voice state
@@ -94,13 +107,19 @@ const rateSlider = document.getElementById('s-tts-rate');
 const rateLabel = document.getElementById('s-tts-rate-label');
 function updateRateDisplay() {
     rateLabel.textContent = rateSlider.value + ' wpm';
-    const voiceText = selectedVoiceName || 'Default';
-    voiceBtn.textContent = voiceText + ' \u00b7 ' + rateSlider.value + ' wpm';
+    if (selectedVoiceName) {
+        voiceBtn.textContent = selectedVoiceName + ' \u00b7 ' + rateSlider.value + ' wpm';
+    } else {
+        voiceBtn.textContent = 'Choose a voice';
+    }
 }
 rateSlider.addEventListener('input', updateRateDisplay);
 
 // Voice modal events
 let settingsNoVoicesMode = false;
+var configLoaded = false;
+var vqModalShown = false;
+var VQ_PROMPTED_KEY = 'glooow-voice-quality-prompted';
 voiceBtn.addEventListener('click', function() {
     if (!settingsNoVoicesMode) openVoiceModal();
 });
@@ -121,14 +140,32 @@ voiceModalList.addEventListener('click', function(e) {
     const previewBtn = e.target.closest('.voice-row-preview');
     if (previewBtn) {
         e.stopPropagation();
-        if (!previewBtn.disabled) sharedPreview(previewBtn.dataset.voiceName, rateSlider.value);
+        if (previewBtn.classList.contains('preview-unavailable')) {
+            _showPreviewHint(previewBtn.closest('.voice-row'));
+            return;
+        }
+        sharedPreview(previewBtn.dataset.voiceName, rateSlider.value);
         return;
     }
     const row = e.target.closest('.voice-row');
     if (row) {
+        if (row.classList.contains('voice-row-locked')) return;
         selectSettingsVoice(row.dataset.voiceName);
     }
 });
+
+var _previewHintEl = null;
+function _showPreviewHint(row) {
+    // Remove any existing hint
+    if (_previewHintEl) { _previewHintEl.remove(); _previewHintEl = null; }
+    var hint = document.createElement('div');
+    hint.className = 'voice-preview-tooltip';
+    hint.innerHTML = 'Download to preview in-app. <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen online</a>';
+    row.style.position = 'relative';
+    row.appendChild(hint);
+    _previewHintEl = hint;
+    setTimeout(function() { if (hint.parentNode) { hint.remove(); _previewHintEl = null; } }, 4000);
+}
 
 function downloadTtsModel(engine, voice, btn) {
     const row = btn.closest('.voice-row');
@@ -198,16 +235,23 @@ function downloadTtsModel(engine, voice, btn) {
         statusEl.textContent = 'Connection failed';
     });
 
+    var completed = false;
     function onComplete() {
+        if (completed) return;
+        completed = true;
         // Replace download button + progress with "Ready"
-        btn.remove();
-        progressEl.remove();
+        if (btn.parentNode) btn.remove();
+        if (progressEl.parentNode) progressEl.remove();
+        row.classList.remove('voice-row-locked');
         var ready = document.createElement('span');
         ready.className = 'voice-row-ready';
         ready.textContent = 'Ready';
         var preview = row.querySelector('.voice-row-preview');
         row.insertBefore(ready, preview);
-        if (preview) preview.disabled = false;
+        if (preview) {
+            preview.classList.remove('preview-unavailable');
+            preview.title = '';
+        }
     }
 }
 
@@ -218,18 +262,30 @@ function fetchVoices() {
     fetch('/api/voices?lang=' + encodeURIComponent(lang) + '&engine=' + encodeURIComponent(engine))
         .then(function(r) { return r.json(); })
         .then(function(voices) {
+            if (ttsEngineSelect.value !== engine) return;
             serverVoices = voices;
             scoredVoices = buildScoredVoiceList(voices, false);
-            // If current voice isn't in the filtered list, pick the top one
+            // If current voice isn't available (missing or not downloaded), pick another
             let found = false;
             for (let i = 0; i < scoredVoices.length; i++) {
-                if (scoredVoices[i].name === selectedVoiceName) { found = true; break; }
+                if (scoredVoices[i].name === selectedVoiceName) {
+                    found = !scoredVoices[i].needsDownload || scoredVoices[i].downloaded;
+                    break;
+                }
             }
             if (!found) {
-                selectedVoiceName = scoredVoices.length > 0 ? scoredVoices[0].name : '';
+                // Pick the first selectable voice (skip undownloaded)
+                selectedVoiceName = '';
+                for (let i = 0; i < scoredVoices.length; i++) {
+                    if (!scoredVoices[i].needsDownload || scoredVoices[i].downloaded) {
+                        selectedVoiceName = scoredVoices[i].name;
+                        break;
+                    }
+                }
                 updateRateDisplay();
             }
             updateVoiceBtnState();
+            if (configLoaded) checkVoiceQuality();
         })
         .catch(function() {});
 }
@@ -932,6 +988,7 @@ fetch('/api/config')
         if (langSelect.querySelector('option[value="' + cfgLang + '"]')) {
             langSelect.value = cfgLang;
         }
+        configLoaded = true;
         fetchVoices();
 
         // STT
@@ -994,6 +1051,17 @@ fetch('/api/config')
 form.addEventListener('submit', function(e) {
     e.preventDefault();
     errorEl.classList.add('hidden');
+
+    // Validate voice selection for engines that need one
+    var engine = ttsEngineSelect.value;
+    if (engine !== 'browser' && !selectedVoiceName) {
+        errorEl.textContent = 'Please choose a voice';
+        errorEl.classList.remove('hidden');
+        voiceBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        voiceBtn.classList.add('voice-btn-attention');
+        setTimeout(function() { voiceBtn.classList.remove('voice-btn-attention'); }, 2000);
+        return;
+    }
 
     const provider = providerSelect.value;
     const data = {
@@ -1141,3 +1209,96 @@ form.addEventListener('submit', function(e) {
         }
     });
 })();
+
+// ---- Voice quality prompt ----
+
+function needsVoiceQualityPrompt() {
+    var engine = ttsEngineSelect.value;
+    if (engine === 'elevenlabs' || engine === 'parakeet') return false;
+    if (scoredVoices.length === 0) return false;
+    for (var i = 0; i < scoredVoices.length; i++) {
+        if (scoredVoices[i].score >= 2) return false;
+        if (scoredVoices[i].needsDownload && scoredVoices[i].downloaded) return false;
+    }
+    return true;
+}
+
+function checkVoiceQuality() {
+    var hintEl = document.getElementById('voice-quality-hint');
+    if (!needsVoiceQualityPrompt()) {
+        hintEl.classList.add('hidden');
+        return;
+    }
+    if (localStorage.getItem(VQ_PROMPTED_KEY + '-permanent')) {
+        return;
+    }
+    var prompted = sessionStorage.getItem(VQ_PROMPTED_KEY);
+    if (!prompted && !vqModalShown) {
+        showVoiceQualityModal();
+    } else {
+        showVoiceQualityHint();
+    }
+}
+
+function showVoiceQualityModal() {
+    vqModalShown = true;
+    var isMac = /Mac/.test(navigator.platform);
+    var onPiper = ttsEngineSelect.value === 'piper';
+
+    document.getElementById('vq-macos-option').classList.toggle('hidden', !isMac || onPiper);
+
+    var piperTitle = document.getElementById('vq-piper-title');
+    var piperBtn = document.getElementById('vq-try-piper');
+    if (onPiper) {
+        piperTitle.textContent = 'Download a Piper voice';
+        piperBtn.textContent = 'Open voice picker';
+        piperBtn.dataset.action = 'open-picker';
+    } else {
+        piperTitle.textContent = 'Try Piper neural TTS';
+        piperBtn.textContent = 'Switch to Piper';
+        piperBtn.dataset.action = 'switch';
+    }
+
+    document.getElementById('voice-quality-modal').classList.remove('hidden');
+}
+
+function dismissVoiceQualityModal() {
+    sessionStorage.setItem(VQ_PROMPTED_KEY, '1');
+    document.getElementById('voice-quality-modal').classList.add('hidden');
+    if (needsVoiceQualityPrompt()) showVoiceQualityHint();
+}
+
+function dismissVoiceQualityPermanent() {
+    localStorage.setItem(VQ_PROMPTED_KEY + '-permanent', '1');
+    document.getElementById('voice-quality-modal').classList.add('hidden');
+}
+
+function showVoiceQualityHint() {
+    var hintEl = document.getElementById('voice-quality-hint');
+    var engine = ttsEngineSelect.value;
+    if (engine === 'piper') {
+        hintEl.textContent = 'Choose and download a voice above to get started.';
+    } else if (/Mac/.test(navigator.platform)) {
+        hintEl.textContent = 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content, or switch the engine to Piper below.';
+    } else {
+        hintEl.textContent = 'Tip: Switch the TTS engine to Piper for higher quality neural voices.';
+    }
+    hintEl.classList.remove('hidden');
+}
+
+document.getElementById('vq-close').addEventListener('click', dismissVoiceQualityModal);
+document.getElementById('vq-dismiss').addEventListener('click', dismissVoiceQualityModal);
+document.getElementById('vq-dismiss-permanent').addEventListener('click', dismissVoiceQualityPermanent);
+document.getElementById('vq-try-piper').addEventListener('click', function() {
+    if (this.dataset.action === 'open-picker') {
+        dismissVoiceQualityModal();
+        openVoiceModal();
+    } else {
+        ttsEngineSelect.value = 'piper';
+        ttsEngineSelect.dispatchEvent(new Event('change'));
+        dismissVoiceQualityModal();
+    }
+});
+document.getElementById('voice-quality-modal').addEventListener('click', function(e) {
+    if (e.target === this) dismissVoiceQualityModal();
+});

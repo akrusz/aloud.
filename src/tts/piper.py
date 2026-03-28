@@ -20,15 +20,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Popular Piper voice models — used by list_voices() so users see real choices
+# Popular Piper voice models — used by list_voices() so users see real choices.
+# Recommended voices are shown first in the voice picker.
 PIPER_VOICES = [
+    # Recommended
+    {"name": "en_US-joe-medium", "lang": "en_US", "size_mb": 63, "recommended": True},
+    {"name": "en_US-kristin-medium", "lang": "en_US", "size_mb": 63, "recommended": True},
+    {"name": "en_US-norman-medium", "lang": "en_US", "size_mb": 63, "recommended": True},
+    {"name": "en_US-libritts-high", "lang": "en_US", "size_mb": 105, "recommended": True},
+    # Other voices
     {"name": "en_US-lessac-medium", "lang": "en_US", "size_mb": 63},
     {"name": "en_US-lessac-high", "lang": "en_US", "size_mb": 105},
     {"name": "en_US-amy-medium", "lang": "en_US", "size_mb": 63},
     {"name": "en_US-arctic-medium", "lang": "en_US", "size_mb": 63},
     {"name": "en_US-ryan-medium", "lang": "en_US", "size_mb": 63},
     {"name": "en_US-ryan-high", "lang": "en_US", "size_mb": 105},
-    {"name": "en_US-libritts-high", "lang": "en_US", "size_mb": 105},
     {"name": "en_GB-alan-medium", "lang": "en_GB", "size_mb": 63},
     {"name": "en_GB-cori-medium", "lang": "en_GB", "size_mb": 63},
     {"name": "en_GB-jenny_dioco-medium", "lang": "en_GB", "size_mb": 63},
@@ -223,16 +229,19 @@ class PiperTTS:
         """List available Piper voice models (empty if piper not installed)."""
         if not self.is_available():
             return []
-        return [
-            {
+        voices = []
+        for v in PIPER_VOICES:
+            entry = {
                 "name": v["name"],
                 "lang": v["lang"],
                 "downloaded": self.is_model_downloaded(v["name"]),
                 "size_display": str(v["size_mb"]) + " MB",
                 "needs_download": True,
             }
-            for v in PIPER_VOICES
-        ]
+            if v.get("recommended"):
+                entry["recommended"] = True
+            voices.append(entry)
+        return voices
 
     def set_voice(self, voice: str) -> None:
         """Set the voice/model to use.
