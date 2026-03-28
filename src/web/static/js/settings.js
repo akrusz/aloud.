@@ -908,7 +908,11 @@ fetch('/api/config')
             const fieldId = keyFieldMap[cfg.llm?.provider];
             if (fieldId) {
                 const input = document.getElementById(fieldId);
-                input.placeholder = cfg.llm.api_key + ' (saved)';
+                input.placeholder = 'enter new key to replace';
+                const hint = document.createElement('div');
+                hint.className = 'field-hint saved-key-hint';
+                hint.textContent = 'key saved (' + cfg.llm.api_key + ')';
+                input.parentNode.insertBefore(hint, input.nextSibling);
             }
         }
 

@@ -332,6 +332,12 @@ body {
     gap: 0.5rem;
 }
 
+.saved-key-hint {
+    font-size: 0.8rem;
+    color: var(--accent);
+    margin-top: -0.25rem;
+}
+
 .form-group label {
     font-size: 0.9rem;
     font-weight: 500;
