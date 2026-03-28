@@ -20,18 +20,28 @@ export function buildVoiceList() {
     state.scoredVoices = scored;
 
     // Restore saved voice, or default to the best available.
+    // Skip voices that need downloading (not usable for TTS).
+    function isUsable(entry) {
+        return !entry.needsDownload || entry.downloaded;
+    }
     if (scored.length > 0) {
         var savedVoice = getSavedVoice();
+        var found = null;
         if (savedVoice) {
-            var found = null;
             for (var i = 0; i < scored.length; i++) {
-                if (scored[i].name === savedVoice) { found = scored[i].voice; break; }
+                if (scored[i].name === savedVoice && isUsable(scored[i])) {
+                    found = scored[i].voice;
+                    break;
+                }
             }
-            if (found) state.preferredVoice = found;
-            else if (!state.preferredVoice) state.preferredVoice = scored[0].voice;
-        } else {
-            state.preferredVoice = scored[0].voice;
         }
+        if (!found) {
+            // Pick the first usable voice
+            for (var i = 0; i < scored.length; i++) {
+                if (isUsable(scored[i])) { found = scored[i].voice; break; }
+            }
+        }
+        state.preferredVoice = found || null;
 
         // Tell the server which voice to use (restores preference on new sessions)
         if (state.preferredVoice) {
