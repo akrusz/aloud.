@@ -29,6 +29,7 @@ def speak_to_audio(app: Flask, web_session, text: str, voice: str | None = None)
     Checks that the session has TTS enabled, that the server TTS engine
     exists, and that it supports ``speak_to_bytes``.  Uses the session's
     voice (or an explicit override) without mutating global TTS state.
+    Falls back to the engine's default voice if the requested voice fails.
     """
     if not (web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes')):
         return None
@@ -39,9 +40,21 @@ def speak_to_audio(app: Flask, web_session, text: str, voice: str | None = None)
     try:
         if target_voice and target_voice != original_voice:
             tts.set_voice(target_voice)
-        return tts.speak_to_bytes(text)
+        result = tts.speak_to_bytes(text)
+        # If voice failed (e.g. undownloaded Piper model), try the default voice
+        if result is None and target_voice and target_voice != original_voice:
+            import logging
+            logging.getLogger(__name__).warning(
+                "TTS voice '%s' failed, falling back to '%s'", target_voice, original_voice)
+            tts.set_voice(original_voice)
+            result = tts.speak_to_bytes(text)
+        return result
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("TTS error")
+        return None
     finally:
-        if target_voice and target_voice != original_voice:
+        if tts.voice != original_voice:
             tts.set_voice(original_voice)
 
 

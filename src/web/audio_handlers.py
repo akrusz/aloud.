@@ -37,6 +37,12 @@ def register_audio_handlers(socketio: SocketIO, app: Flask) -> None:
     def handle_set_tts_voice(data):
         voice = data.get("voice")
         if voice:
+            # Validate for Piper: only accept downloaded voices
+            from ..tts.piper import PiperTTS
+            tts = app.server_tts
+            if isinstance(tts, PiperTTS) and not PiperTTS.is_model_downloaded(voice):
+                logger.debug("Rejecting undownloaded Piper voice: %s", voice)
+                return
             web_session = get_session(app, request.sid)
             if web_session:
                 web_session.tts_voice_name = voice

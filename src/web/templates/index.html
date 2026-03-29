@@ -600,10 +600,26 @@
     function buildSetupVoiceList(serverVoices) {
         scoredVoices = buildScoredVoiceList(serverVoices, true);
 
-        // If no saved voice, default to best available
-        if (!selectedVoiceName && scoredVoices.length) {
-            selectedVoiceName = scoredVoices[0].name;
-            setSavedVoice(selectedVoiceName);
+        // Validate saved voice against available list (skip undownloaded)
+        var found = false;
+        if (selectedVoiceName) {
+            for (var i = 0; i < scoredVoices.length; i++) {
+                if (scoredVoices[i].name === selectedVoiceName &&
+                    (!scoredVoices[i].needsDownload || scoredVoices[i].downloaded)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found && scoredVoices.length) {
+            // Pick the first usable voice
+            for (var i = 0; i < scoredVoices.length; i++) {
+                if (!scoredVoices[i].needsDownload || scoredVoices[i].downloaded) {
+                    selectedVoiceName = scoredVoices[i].name;
+                    setSavedVoice(selectedVoiceName);
+                    break;
+                }
+            }
         }
         updateVoiceBtnLabel();
     }
@@ -640,7 +656,7 @@
         }
 
         const row = e.target.closest('.voice-row');
-        if (!row) return;
+        if (!row || row.classList.contains('voice-row-locked')) return;
         selectedVoiceName = row.dataset.voiceName;
         setSavedVoice(selectedVoiceName);
         updateVoiceBtnLabel();
@@ -1040,7 +1056,7 @@
             if (previewBtn) return; // let preview work normally
 
             const row = e.target.closest('.voice-row');
-            if (!row) return;
+            if (!row || row.classList.contains('voice-row-locked')) return;
             onSelect(row.dataset.voiceName);
             setupVoiceModal.classList.add('hidden');
             stopVoicePreview();

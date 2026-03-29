@@ -89,7 +89,7 @@ function updateTtsEngineHint() {
 // Voice state
 let serverVoices = [];
 let scoredVoices = [];
-let selectedVoiceName = '';
+let selectedVoiceName = getSavedVoice() || '';
 
 function openVoiceModal() {
     renderVoiceList(voiceModalList, scoredVoices, selectedVoiceName);
