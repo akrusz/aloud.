@@ -30,9 +30,9 @@ grab the latest release for your platform below, or from [releases](https://gith
 
 | platform | download |
 |----------|----------|
-| **macOS** | [`Glooow-0.9.25-macOS.dmg`](https://github.com/akrusz/glooow/releases/download/v0.9.25/Glooow-0.9.25-macOS.dmg) — open the DMG, drag Glooow to Applications |
-| **Windows** | [`Glooow-0.9.25-Windows.exe`](https://github.com/akrusz/glooow/releases/download/v0.9.25/Glooow-0.9.25-Windows.exe) — run the installer |
-| **Linux** | [`Glooow-0.9.25-Linux.AppImage`](https://github.com/akrusz/glooow/releases/download/v0.9.25/Glooow-0.9.25-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
+| **macOS** | [`Glooow-0.9.26-macOS.dmg`](https://github.com/akrusz/glooow/releases/download/v0.9.26/Glooow-0.9.26-macOS.dmg) — open the DMG, drag Glooow to Applications |
+| **Windows** | [`Glooow-0.9.26-Windows.exe`](https://github.com/akrusz/glooow/releases/download/v0.9.26/Glooow-0.9.26-Windows.exe) — run the installer |
+| **Linux** | [`Glooow-0.9.26-Linux.AppImage`](https://github.com/akrusz/glooow/releases/download/v0.9.26/Glooow-0.9.26-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
 
 all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
 
