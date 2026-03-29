@@ -176,25 +176,47 @@ def register_routes(app: Flask) -> None:
     def api_voice_preview():
         """Generate a short TTS preview for a given voice."""
         voice = request.args.get("voice")
-        if not voice or not app.server_tts or not hasattr(app.server_tts, "speak_to_bytes"):
+        if not voice:
             return Response(status=404)
 
-        default_text = _preview_text_for_voice(voice, app.server_tts)
-        text = request.args.get("text", default_text)
+        # Use the requested engine if specified, otherwise fall back to server TTS
+        engine_override = request.args.get("engine")
+        tts = app.server_tts
+        is_temp = False
 
-        # Temporarily switch voice and rate, generate audio, then restore
-        original_voice = app.server_tts.voice
-        original_rate = getattr(app.server_tts, 'rate', None)
-        app.server_tts.set_voice(voice)
+        if engine_override and engine_override != getattr(tts, 'engine', None):
+            try:
+                from ..tts import create_tts
+                tts = create_tts(engine=engine_override, voice=voice)
+                is_temp = True
+            except Exception:
+                tts = None
+
+        if not tts or not hasattr(tts, "speak_to_bytes"):
+            return Response(status=404)
+
+        default_text = _preview_text_for_voice(voice, tts)
+        text = request.args.get("text", default_text)
         rate = request.args.get("rate", type=int)
-        if rate and hasattr(app.server_tts, "set_rate"):
-            app.server_tts.set_rate(rate)
-        try:
-            audio = app.server_tts.speak_to_bytes(text)
-        finally:
-            app.server_tts.set_voice(original_voice)
-            if original_rate is not None and hasattr(app.server_tts, "set_rate"):
-                app.server_tts.set_rate(original_rate)
+
+        if is_temp:
+            # Temporary instance — no need to save/restore state
+            if rate and hasattr(tts, "set_rate"):
+                tts.set_rate(rate)
+            audio = tts.speak_to_bytes(text)
+        else:
+            # Shared instance — save/restore voice and rate
+            original_voice = tts.voice
+            original_rate = getattr(tts, 'rate', None)
+            tts.set_voice(voice)
+            if rate and hasattr(tts, "set_rate"):
+                tts.set_rate(rate)
+            try:
+                audio = tts.speak_to_bytes(text)
+            finally:
+                tts.set_voice(original_voice)
+                if original_rate is not None and hasattr(tts, "set_rate"):
+                    tts.set_rate(original_rate)
 
         if not audio:
             return Response(status=500)

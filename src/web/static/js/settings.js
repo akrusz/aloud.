@@ -144,7 +144,7 @@ voiceModalList.addEventListener('click', function(e) {
             _showPreviewHint(previewBtn.closest('.voice-row'));
             return;
         }
-        sharedPreview(previewBtn.dataset.voiceName, rateSlider.value);
+        sharedPreview(previewBtn.dataset.voiceName, rateSlider.value, ttsEngineSelect.value);
         return;
     }
     const row = e.target.closest('.voice-row');
@@ -298,7 +298,6 @@ var NO_VOICES_HELP = {
 
 // Engines that can be pip-installed from the UI
 var TTS_INSTALLABLE = {
-    piper: { tool: 'piper-tts', name: 'Piper', desc: 'Fast local neural TTS. Voices are small (~60\u2013100 MB each).' },
     parakeet: { tool: 'parakeet', name: 'Parakeet', desc: 'High-quality neural TTS from NVIDIA. Requires ~2 GB for dependencies + ~4.4 GB for the model.' },
 };
 

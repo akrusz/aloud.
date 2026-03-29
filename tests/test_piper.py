@@ -1,6 +1,6 @@
 """Tests for Piper TTS engine utilities."""
 
-import shutil
+import importlib
 
 from src.tts.piper import PiperTTS, _voice_hf_urls
 
@@ -50,18 +50,22 @@ class TestGetModelPath:
 
 
 class TestIsAvailable:
-    def test_available_when_piper_installed(self, monkeypatch):
-        monkeypatch.setattr(shutil, "which", lambda name: "/usr/local/bin/piper")
+    def test_available_when_piper_importable(self):
+        # piper-tts is a bundled dependency, should always be importable
         assert PiperTTS.is_available() is True
 
     def test_unavailable_when_piper_missing(self, monkeypatch):
-        monkeypatch.setattr(shutil, "which", lambda name: None)
+        _real_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
+        def fake_import(name, *args, **kwargs):
+            if name == "piper":
+                raise ImportError("mocked")
+            return _real_import(name, *args, **kwargs)
+        monkeypatch.setattr("builtins.__import__", fake_import)
         assert PiperTTS.is_available() is False
 
 
 class TestListVoices:
     def test_returns_voices_when_available(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(shutil, "which", lambda name: "/usr/local/bin/piper")
         monkeypatch.setattr("src.tts.piper._get_piper_models_dir", lambda: tmp_path)
         # Pre-download one model
         (tmp_path / "en_US-lessac-medium.onnx").write_text("fake")
@@ -89,6 +93,11 @@ class TestListVoices:
         assert ryan["downloaded"] is False
 
     def test_returns_empty_when_piper_not_installed(self, monkeypatch):
-        monkeypatch.setattr(shutil, "which", lambda name: None)
+        _real_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
+        def fake_import(name, *args, **kwargs):
+            if name == "piper":
+                raise ImportError("mocked")
+            return _real_import(name, *args, **kwargs)
+        monkeypatch.setattr("builtins.__import__", fake_import)
         tts = PiperTTS()
         assert tts.list_voices() == []

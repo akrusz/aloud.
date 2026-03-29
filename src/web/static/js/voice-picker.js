@@ -243,10 +243,11 @@ export function updateVoiceSelection(listEl, selectedName) {
 
 // ---- Preview ----
 
-export function previewVoice(voiceName, rate) {
+export function previewVoice(voiceName, rate, engine) {
     stopPreview();
     var url = '/api/voices/preview?voice=' + encodeURIComponent(voiceName);
     if (rate) url += '&rate=' + rate;
+    if (engine) url += '&engine=' + encodeURIComponent(engine);
     if (voiceName === 'Zarvox') url += '&text=' + encodeURIComponent('Come. On. Fahoogwuhgods.');
     _previewAudio = new Audio(url);
     _previewAudio.play().catch(function () {});

@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -104,8 +104,8 @@ class PiperTTS:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                 output_path = f.name
 
-            # Build piper command
-            cmd = ["piper"]
+            # Build piper command (use module invocation for frozen/venv compat)
+            cmd = [sys.executable, "-m", "piper"]
 
             if self.model_path:
                 cmd.extend(["--model", self.model_path])
@@ -145,7 +145,7 @@ class PiperTTS:
 
     def _get_model_cmd(self) -> list[str] | None:
         """Return the piper command with --model flag, or None if unavailable."""
-        cmd = ["piper"]
+        cmd = [sys.executable, "-m", "piper"]
         if self.model_path:
             cmd.extend(["--model", self.model_path])
         else:
@@ -211,8 +211,12 @@ class PiperTTS:
 
     @staticmethod
     def is_available() -> bool:
-        """Check if the piper binary is installed."""
-        return shutil.which("piper") is not None
+        """Check if the piper module is installed."""
+        try:
+            import piper  # noqa: F401
+            return True
+        except ImportError:
+            return False
 
     @staticmethod
     def is_model_downloaded(voice: str) -> bool:

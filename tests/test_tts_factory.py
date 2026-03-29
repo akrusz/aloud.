@@ -27,9 +27,15 @@ class TestCreateTTS:
         tts = create_tts("piper")
         assert isinstance(tts, PiperTTS)
 
-    def test_create_parakeet(self):
+    def test_create_parakeet(self, monkeypatch):
+        monkeypatch.setattr(ParakeetTTS, "is_available", staticmethod(lambda: True))
         tts = create_tts("parakeet")
         assert isinstance(tts, ParakeetTTS)
+
+    def test_create_parakeet_returns_none_when_unavailable(self, monkeypatch):
+        monkeypatch.setattr(ParakeetTTS, "is_available", staticmethod(lambda: False))
+        result = create_tts("parakeet")
+        assert result is None
 
     def test_create_elevenlabs(self, monkeypatch):
         monkeypatch.setenv("ELEVENLABS_API_KEY", "test-key-123")
@@ -61,7 +67,8 @@ class TestCreateTTSOptions:
         assert isinstance(tts, PiperTTS)
         assert tts.rate == 360  # Stored as WPM, converted at synthesis time
 
-    def test_parakeet_kwargs_passed(self):
+    def test_parakeet_kwargs_passed(self, monkeypatch):
+        monkeypatch.setattr(ParakeetTTS, "is_available", staticmethod(lambda: True))
         tts = create_tts("parakeet", device="cpu", backend="nemo")
         assert isinstance(tts, ParakeetTTS)
         assert tts.device == "cpu"

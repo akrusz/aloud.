@@ -27,14 +27,22 @@ def speak_to_audio(app: Flask, web_session, text: str, voice: str | None = None)
     """Generate TTS audio bytes, or None if TTS is disabled/unavailable.
 
     Checks that the session has TTS enabled, that the server TTS engine
-    exists, and that it supports ``speak_to_bytes``.  Optionally switches
-    to *voice* before synthesis.
+    exists, and that it supports ``speak_to_bytes``.  Uses the session's
+    voice (or an explicit override) without mutating global TTS state.
     """
     if not (web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes')):
         return None
-    if voice:
-        app.server_tts.set_voice(voice)
-    return app.server_tts.speak_to_bytes(text)
+    tts = app.server_tts
+    # Determine which voice to use: explicit override > session voice > current
+    target_voice = voice or web_session.tts_voice_name
+    original_voice = tts.voice
+    try:
+        if target_voice and target_voice != original_voice:
+            tts.set_voice(target_voice)
+        return tts.speak_to_bytes(text)
+    finally:
+        if target_voice and target_voice != original_voice:
+            tts.set_voice(original_voice)
 
 
 def register_socketio_events(socketio: SocketIO, app: Flask) -> None:

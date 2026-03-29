@@ -36,8 +36,6 @@ def register_audio_handlers(socketio: SocketIO, app: Flask) -> None:
     @socketio.on("set_tts_voice")
     def handle_set_tts_voice(data):
         voice = data.get("voice")
-        if voice and app.server_tts:
-            app.server_tts.set_voice(voice)
         if voice:
             web_session = get_session(app, request.sid)
             if web_session:

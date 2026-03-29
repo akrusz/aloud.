@@ -57,6 +57,9 @@ def create_tts(
         )
 
     elif engine == "piper":
+        if not PiperTTS.is_available():
+            logger.warning("Piper TTS not available (piper module not installed). Falling back to browser TTS.")
+            return None
         return PiperTTS(
             voice=voice or "en_US-lessac-medium",
             rate=rate,
@@ -64,6 +67,9 @@ def create_tts(
         )
 
     elif engine == "parakeet":
+        if not ParakeetTTS.is_available():
+            logger.warning("Parakeet TTS not available (dependencies not installed). Falling back to browser TTS.")
+            return None
         return ParakeetTTS(
             model_name=kwargs.get("model_name", "nvidia/parakeet-tts-1.1b"),
             device=kwargs.get("device", "auto"),
