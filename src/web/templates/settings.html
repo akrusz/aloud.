@@ -33,9 +33,9 @@
             <h2>LLM Provider <button type="button" class="info-btn" id="llm-info-btn" aria-label="LLM provider info">?</button></h2>
             <div class="info-panel hidden" id="llm-info-panel">
                 <p><strong>What is an LLM?</strong> &mdash; A large language model is the AI that listens to what you say and generates thoughtful responses to guide your meditation.</p>
-                <p><strong>Anthropic (Subscription)</strong> &mdash; Uses your existing Claude subscription via CLIProxyAPI. No extra cost beyond what you already pay, and Claude is the recommended model for glooow.</p>
-                <p><strong>Ollama (Local)</strong> &mdash; Free and private. Runs the AI entirely on your computer. Smaller models (like 4B) work fine on most modern laptops.</p>
-                <p><strong>Anthropic / OpenAI / OpenRouter / Venice (API Key)</strong> &mdash; Pay-per-use cloud AI. You sign up with the provider, get an API key, and paste it here. Best quality, but costs a small amount per session.</p>
+                <p><strong>Anthropic (Subscription)</strong> &mdash; Uses your existing Claude subscription via CLIProxyAPI. No extra cost beyond what you already pay, and Claude Opus is generally the most emotionally intelligent model.</p>
+                <p><strong>Ollama (Local)</strong> &mdash; Free and private. Runs the AI entirely on your computer. We'll recommend the smartest model that your computer can run.</p>
+                <p><strong>Anthropic / OpenAI / OpenRouter / Venice (via API Key)</strong> &mdash; Pay-per-use cloud AI. You sign up with the provider, get an API key, and paste it here. Costs a small amount per session which depends on which model you choose.</p>
             </div>
             <p class="settings-desc">Choose how glooow connects to a language model. Most functions need AI.<br>If you don't have any AI subscriptions, choose Ollama (local) to set up a free AI on your computer.</p>
 
@@ -208,7 +208,7 @@
             <div class="info-panel hidden" id="tts-info-panel">
                 <p><strong>macOS</strong> &mdash; Built-in system voices. Zero latency, works offline. Quality varies by voice.</p>
                 <p><strong>Piper</strong> &mdash; Fast local neural TTS. Lightweight (~60&ndash;100 MB per voice), runs on CPU.</p>
-                <p><strong>Browser</strong> &mdash; Uses your browser's speechSynthesis. No install needed, quality varies.</p>
+                <p><strong>Browser</strong> &mdash; Uses your browser's speechSynthesis. No install needed, recommended on Edge browser or Windows app.</p>
                 <p><strong>VibeVoice</strong> &mdash; High-quality local neural TTS from Microsoft. 6 voices, ~1.9 GB download. Needs a GPU or Apple Silicon.</p>
                 <p><strong>ElevenLabs</strong> &mdash; Cloud TTS with the most natural voices. Requires an API key and internet.</p>
             </div>
@@ -271,6 +271,14 @@
                         </div>
                     </div>
                     <div class="form-group">
+                        <label for="s-theme-mode">Theme</label>
+                        <select id="s-theme-mode">
+                            <option value="auto">Auto (follow system)</option>
+                            <option value="dark">Always dark</option>
+                            <option value="light">Always light</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="s-window-mode">Window Mode</label>
                         <select id="s-window-mode">
                             <option value="remember">Remember last size</option>
@@ -283,18 +291,37 @@
                         <input type="checkbox" id="s-frameless">
                         <span>Frameless window</span>
                     </label>
-                    <label class="checkbox-label hidden" id="s-vibrancy-label">
-                        <input type="checkbox" id="s-vibrancy">
-                        <span>Vibrancy (translucent background)</span>
-                    </label>
                     <span class="form-hint">Window options take effect on next launch</span>
                 </div>
                 <div class="display-preview">
                     <div class="text-scale-preview" id="text-scale-preview">
                         <div class="text-scale-preview-inner" id="text-scale-preview-inner">
-                            <p class="preview-heading">Heading Text</p>
-                            <p class="preview-body">This is how body text will look at this size.</p>
-                            <p class="preview-small">Smaller labels and hints look like this.</p>
+                            <p class="preview-label">Style Preview</p>
+                            <p class="preview-heading">Header Text</p>
+                            <p class="preview-body">This is what regular text will look like.</p>
+                            <p class="preview-small">This is how small text will appear.</p>
+                            <div class="preview-field">
+                                <label class="preview-field-label">Dropdown</label>
+                                <select class="preview-select" tabindex="-1">
+                                    <option>Option 1</option>
+                                    <option>Option 2</option>
+                                    <option>Option 3</option>
+                                </select>
+                            </div>
+                            <div class="preview-field">
+                                <label class="preview-field-label">Slider</label>
+                                <input type="range" class="preview-range" min="0" max="10" value="7" tabindex="-1">
+                            </div>
+                            <div class="preview-field">
+                                <label class="checkbox-label preview-checkbox">
+                                    <input type="checkbox" checked tabindex="-1">
+                                    <span>Checkbox</span>
+                                </label>
+                            </div>
+                            <div class="preview-field preview-btn-row">
+                                <button type="button" class="btn btn-small btn-primary preview-btn" tabindex="-1">Button 1</button>
+                                <button type="button" class="btn btn-small btn-secondary preview-btn" tabindex="-1">Button 2</button>
+                            </div>
                         </div>
                     </div>
                 </div>

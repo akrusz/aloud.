@@ -581,8 +581,7 @@ def run_web(
         try:
             _run_webview(app, socketio, host, port,
                          window_mode=config.web.window_mode,
-                         frameless=config.web.frameless,
-                         vibrancy=config.web.vibrancy)
+                         frameless=config.web.frameless)
             return  # webview exited normally (window closed)
         except Exception as e:
             logger.warning("Native window failed (%s), falling back to browser mode", e)

@@ -131,7 +131,7 @@ class WebConfig:
     port: int = 4649
     window_mode: str = "remember"  # remember, fullscreen, maximized, small
     frameless: bool = True
-    vibrancy: bool = False
+    theme_mode: str = "auto"  # auto, dark, light
     text_scale: float = 1.0
     auto_start_proxy: bool = True
 

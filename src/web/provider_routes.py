@@ -15,7 +15,7 @@ from ..config import DEFAULT_OLLAMA_TIERS
 logger = logging.getLogger(__name__)
 
 
-# ---- System RAM detection ----
+# ---- System hardware detection ----
 
 def _get_system_ram_gb() -> int | None:
     """Return total system RAM in whole GB, or None if unknown."""
@@ -31,6 +31,28 @@ def _get_system_ram_gb() -> int | None:
     except Exception as e:
         logger.debug("Could not detect system RAM: %s", e)
     return None
+
+
+def _has_fast_gpu(min_vram_gb: int = 20) -> bool:
+    """Check if the system has a GPU with enough VRAM for large models.
+
+    On macOS (Apple Silicon), unified memory is always fast — returns True.
+    On other platforms, checks for an NVIDIA GPU via nvidia-smi.
+    """
+    if platform.system() == "Darwin":
+        return True
+    try:
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=memory.total",
+             "--format=csv,noheader,nounits"],
+            text=True, timeout=3,
+        )
+        for line in out.strip().splitlines():
+            if int(line.strip()) >= min_vram_gb * 1024:
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def _recommended_ollama_model(ram_gb: int | None, tiers: list[dict]) -> dict:
@@ -470,20 +492,24 @@ def register_provider_routes(app: Flask) -> None:
         tiers = app.meditation_config.llm.ollama_tiers or DEFAULT_OLLAMA_TIERS
         ram_gb = _get_system_ram_gb()
         rec = _recommended_ollama_model(ram_gb, tiers)
+        has_gpu = _has_fast_gpu()
+        tier_list = []
+        for t in tiers:
+            note = t.get("note", "")
+            if not has_gpu and t["min_gb"] >= 24:
+                note += ". May be slow with your current GPU" if note else "May be slow with your current GPU"
+            tier_list.append({
+                "model": t["model"], "label": t["label"],
+                "download": t["download"], "disk": t["disk"],
+                "ram": t["ram"], "note": note,
+                "min_gb": t["min_gb"],
+                "fits": ram_gb is not None and ram_gb >= t["min_gb"],
+            })
         rec_info = {
             "ram_gb": ram_gb,
             "recommended_model": rec["model"],
             "recommended_label": rec["label"],
-            "tiers": [
-                {
-                    "model": t["model"], "label": t["label"],
-                    "download": t["download"], "disk": t["disk"],
-                    "ram": t["ram"], "note": t.get("note", ""),
-                    "min_gb": t["min_gb"],
-                    "fits": ram_gb is not None and ram_gb >= t["min_gb"],
-                }
-                for t in tiers
-            ],
+            "tiers": tier_list,
         }
 
         ollama_url = app.meditation_config.llm.ollama_url or "http://localhost:11434"

@@ -2714,9 +2714,61 @@ body::before {
 }
 
 .text-scale-preview .preview-small {
-    font-size: 0.85em;
+    font-size: 0.875em;
     margin: 0;
     color: var(--text-muted);
+}
+
+.preview-label {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin: 0 0 0.4em;
+}
+.preview-field {
+    margin-top: 0.5em;
+}
+.preview-field-label {
+    display: block;
+    font-size: 0.875em;
+    color: var(--text-secondary);
+    margin-bottom: 0.2em;
+}
+.preview-select {
+    width: 100%;
+    font-size: 0.875em;
+}
+.preview-range {
+    width: 100%;
+}
+.preview-checkbox {
+    font-size: 0.875em;
+}
+.preview-btn-row {
+    display: flex;
+    gap: 0.4rem;
+}
+.preview-btn {
+    pointer-events: none;
+}
+
+/* Preview-local theme overrides */
+.text-scale-preview[data-preview-theme="dark"] {
+    --bg-primary: #110d08;
+    --text-primary: #f5efe6;
+    --text-muted: #b0a090;
+    --border: #302618;
+    --bg-input: #281f16;
+    --text-secondary: #c4b49e;
+}
+.text-scale-preview[data-preview-theme="light"] {
+    --bg-primary: #f5f0e8;
+    --text-primary: #221d19;
+    --text-muted: #685c50;
+    --border: #d4c8b8;
+    --bg-input: #fffcf8;
+    --text-secondary: #5c5248;
 }
 
 .settings-section .form-group > label {

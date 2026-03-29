@@ -513,6 +513,28 @@ function installTool(tool, btn) {
         });
 }
 
+// Theme selector drives the preview box
+(function() {
+    var previewBox = document.getElementById('text-scale-preview');
+    var themeSelect = document.getElementById('s-theme-mode');
+
+    function resolveTheme(mode) {
+        if (mode === 'dark' || mode === 'light') return mode;
+        // Auto: derive from system or time
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        var hour = new Date().getHours();
+        return (hour >= 7 && hour < 19) ? 'light' : 'dark';
+    }
+
+    function syncPreview() {
+        previewBox.setAttribute('data-preview-theme', resolveTheme(themeSelect.value));
+    }
+    syncPreview();
+
+    themeSelect.addEventListener('change', syncPreview);
+})();
+
 document.getElementById('tts-info-btn').addEventListener('click', function() {
     document.getElementById('tts-info-panel').classList.toggle('hidden');
 });
@@ -1014,7 +1036,7 @@ fetch('/api/config')
         updateLanInfo();
         document.getElementById('s-window-mode').value = cfg.web?.window_mode || 'remember';
         document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
-        document.getElementById('s-vibrancy').checked = cfg.web?.vibrancy || false;
+        document.getElementById('s-theme-mode').value = cfg.web?.theme_mode || 'auto';
         document.getElementById('s-auto-start-proxy').checked = cfg.web?.auto_start_proxy !== false;
 
         // Config folder button
@@ -1096,7 +1118,7 @@ form.addEventListener('submit', function(e) {
             text_scale: parseFloat(document.getElementById('s-text-scale').value),
             window_mode: document.getElementById('s-window-mode').value,
             frameless: document.getElementById('s-frameless').checked,
-            vibrancy: document.getElementById('s-vibrancy').checked,
+            theme_mode: document.getElementById('s-theme-mode').value,
             auto_start_proxy: document.getElementById('s-auto-start-proxy').checked,
         },
     };
@@ -1148,6 +1170,24 @@ form.addEventListener('submit', function(e) {
             setSavedVoice(savedVoice);
         }
         setSavedSpeed(parseInt(rateSlider.value, 10));
+
+        // Apply theme preference
+        var themeMode = document.getElementById('s-theme-mode').value;
+        localStorage.setItem('themeMode', themeMode);
+        localStorage.removeItem('theme'); // clear toggle override
+        if (themeMode === 'dark' || themeMode === 'light') {
+            document.documentElement.setAttribute('data-theme', themeMode);
+        } else {
+            // Auto: revert to system preference
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                var hour = new Date().getHours();
+                document.documentElement.setAttribute('data-theme', (hour >= 7 && hour < 19) ? 'light' : 'dark');
+            }
+        }
 
         if (firstRun) {
             window.location.href = '/';

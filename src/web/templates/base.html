@@ -11,8 +11,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ glooow_version }}">
     <script>
     // Apply theme before paint to prevent flash.
-    // Priority: manual override (expires after 4h) > system preference > time of day.
+    // Priority: settings preference > toggle override (expires after 4h) > system preference > time of day.
     (function() {
+        var mode = localStorage.getItem('themeMode');
+        if (mode === 'dark' || mode === 'light') {
+            document.documentElement.setAttribute('data-theme', mode);
+            return;
+        }
         var THEME_TTL = 4 * 60 * 60 * 1000;
         var raw = localStorage.getItem('theme');
         if (raw) {
@@ -425,9 +430,11 @@
             }
             if (themeClicks.length > 8) themeClicks = themeClicks.slice(-8);
         });
-        // Listen for system preference changes (only if no manual override)
+        // Listen for system preference changes (only if no manual or settings override)
         if (window.matchMedia) {
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+                var mode = localStorage.getItem('themeMode');
+                if (mode === 'dark' || mode === 'light') return;
                 var raw = localStorage.getItem('theme');
                 var hasOverride = false;
                 if (raw) {
