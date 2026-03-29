@@ -12,10 +12,11 @@
 
 set -e
 
-# Cache SSH passphrase for the duration of this script
-eval "$(ssh-agent -s)" > /dev/null 2>&1
-ssh-add 2>/dev/null
-trap 'ssh-agent -k > /dev/null 2>&1' EXIT
+# Check for uncommitted changes before prompting for anything
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Error: uncommitted changes — commit or stash first" >&2
+    exit 1
+fi
 
 # Read current version from src/__init__.py
 CURRENT=$(python3 -c "import re; print(re.search(r'__version__\s*=\s*\"(.+?)\"', open('src/__init__.py').read()).group(1))")
@@ -41,11 +42,6 @@ case "$ARG" in
         ;;
 esac
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
-    echo "Error: uncommitted changes — commit or stash first" >&2
-    exit 1
-fi
-
 BRANCH=$(git branch --show-current)
 if [ "$BRANCH" != "main" ]; then
     echo "  Warning: releasing from '$BRANCH', not main"
@@ -54,7 +50,7 @@ fi
 echo ""
 echo "  $CURRENT → $VERSION  (on $BRANCH)"
 echo ""
-printf "  Release name (enter for none): v${VERSION} "
+printf "  Release name (enter for none): "
 read -r RELEASE_NAME
 if [ -n "$RELEASE_NAME" ]; then
     TITLE="v${VERSION} - ${RELEASE_NAME}"
@@ -87,6 +83,11 @@ if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
     git push origin ":refs/tags/v${VERSION}" 2>/dev/null || true
 fi
 git tag "v${VERSION}"
+
+# Cache SSH passphrase for push/release
+eval "$(ssh-agent -s)" > /dev/null 2>&1
+ssh-add 2>/dev/null
+trap 'ssh-agent -k > /dev/null 2>&1' EXIT
 
 echo ""
 echo "  Pushing..."

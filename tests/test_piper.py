@@ -1,7 +1,5 @@
 """Tests for Piper TTS engine utilities."""
 
-import importlib
-
 from src.tts.piper import PiperTTS, _voice_hf_urls
 
 
