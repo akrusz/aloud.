@@ -203,7 +203,7 @@ body {
     padding: 0.6rem 1.2rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    background: transparent;
+    background: var(--bg-secondary);
     color: var(--text-primary);
     font-family: var(--font);
     font-size: 0.875rem;
@@ -1288,7 +1288,7 @@ body:has(.session-container) {
     padding: 0;
     flex-shrink: 0;
     border: 1px solid var(--border);
-    background: transparent;
+    background: var(--bg-secondary);
     color: var(--text-muted);
     cursor: pointer;
     display: flex;
@@ -1332,7 +1332,7 @@ body:has(.session-container) {
     border-radius: 21px;
     font-size: 0.875rem;
     color: var(--text-muted);
-    background: transparent;
+    background: var(--bg-secondary);
     cursor: pointer;
     transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
@@ -1690,7 +1690,7 @@ body:has(.session-container) {
 }
 
 .voice-row-download {
-    background: none;
+    background: var(--bg-secondary);
     border: 1px solid var(--success, #5a9e6f);
     border-radius: var(--radius-sm);
     color: var(--success, #5a9e6f);
@@ -2668,7 +2668,7 @@ body::before {
 }
 
 .display-controls {
-    flex: 0 0 60%;
+    flex: 0 0 45%;
     min-width: 0;
 }
 
@@ -2904,7 +2904,7 @@ body::before {
     font-size: 0.875rem;
     border: 1px solid;
     border-radius: 4px;
-    background: transparent;
+    background: var(--bg-secondary);
     cursor: pointer;
     white-space: nowrap;
     text-align: center;
@@ -3007,7 +3007,7 @@ body::before {
     font-size: 0.875rem;
     border: 1px solid var(--success, #5a9e6f);
     border-radius: 4px;
-    background: transparent;
+    background: var(--bg-secondary);
     color: var(--success, #5a9e6f);
     cursor: pointer;
     white-space: nowrap;
@@ -3086,12 +3086,10 @@ body::before {
     bottom: 0;
     left: 0;
     right: 0;
-    background: var(--surface, var(--bg));
+    background: var(--bg-secondary);
     border-top: 1px solid var(--border);
     padding: 0.5rem 1.5rem;
     z-index: 100;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
 }
 
 .settings-footer-inner {
@@ -3136,16 +3134,17 @@ body::before {
     font-size: 0.875rem;
     border: 1px solid var(--text-muted);
     border-radius: 4px;
-    background: transparent;
+    background: var(--bg-card);
     color: var(--text-muted);
     cursor: pointer;
     white-space: nowrap;
-    transition: border-color 0.2s, color 0.2s;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .btn-config-path:hover {
     border-color: var(--accent);
     color: var(--accent);
+    background: var(--bg-card);
 }
 
 .settings-update-row {

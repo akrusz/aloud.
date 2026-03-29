@@ -28,43 +28,15 @@ const voiceModal = document.getElementById('settings-voice-modal');
 const voiceModalList = document.getElementById('settings-voice-modal-list');
 const voiceModalClose = document.getElementById('settings-voice-modal-close');
 
-// Text scale — preview + reset
+// Text scale — live preview via style preview panel
 const textScaleSlider = document.getElementById('s-text-scale');
 const textScaleLabel = document.getElementById('s-text-scale-label');
-const textScalePreviewBtn = document.getElementById('s-text-scale-apply');
-const textScaleReset = document.getElementById('s-text-scale-reset');
 const textScalePreviewInner = document.getElementById('text-scale-preview-inner');
-let textScalePreviewed = parseFloat(textScaleSlider.value) || 1;
-let textScaleLoaded = textScalePreviewed;
-
-function updateTextScaleButtons() {
-    const scale = parseFloat(textScaleSlider.value);
-    textScalePreviewBtn.disabled = (scale === textScalePreviewed);
-    textScaleReset.disabled = (scale === textScaleLoaded);
-}
 
 textScaleSlider.addEventListener('input', function() {
     const scale = parseFloat(textScaleSlider.value);
     textScaleLabel.textContent = Math.round(scale * 100) + '%';
     textScalePreviewInner.style.fontSize = (18 * scale) + 'px';
-    updateTextScaleButtons();
-});
-
-textScalePreviewBtn.addEventListener('click', function() {
-    const scale = parseFloat(textScaleSlider.value);
-    document.documentElement.style.setProperty('--text-scale', scale);
-    textScalePreviewed = scale;
-    updateTextScaleButtons();
-    document.getElementById('text-scale-group').scrollIntoView({ behavior: 'smooth', block: 'center' });
-});
-
-textScaleReset.addEventListener('click', function() {
-    textScaleSlider.value = textScaleLoaded;
-    textScaleLabel.textContent = Math.round(textScaleLoaded * 100) + '%';
-    textScalePreviewInner.style.fontSize = (18 * textScaleLoaded) + 'px';
-    document.documentElement.style.setProperty('--text-scale', textScaleLoaded);
-    textScalePreviewed = textScaleLoaded;
-    updateTextScaleButtons();
 });
 
 // TTS engine hints
