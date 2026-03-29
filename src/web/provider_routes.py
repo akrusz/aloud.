@@ -43,6 +43,23 @@ def _recommended_ollama_model(ram_gb: int | None, tiers: list[dict]) -> dict:
     return tiers[-1]
 
 
+def _is_ollama_installed(app) -> bool:
+    """Check if Ollama is available (CLI on PATH or server reachable)."""
+    if shutil.which("ollama"):
+        return True
+    # Ollama.app on macOS runs the server without putting the CLI on PATH
+    ollama_url = getattr(app, "meditation_config", None)
+    if ollama_url:
+        ollama_url = ollama_url.llm.ollama_url or "http://localhost:11434"
+    else:
+        ollama_url = "http://localhost:11434"
+    try:
+        resp = httpx.get(f"{ollama_url.rstrip('/')}/", timeout=1.0)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
+
 def find_cli_proxy() -> str | None:
     """Find CLIProxyAPI, searching beyond the app bundle's limited PATH."""
     binary = shutil.which("CLIProxyAPI")
@@ -355,7 +372,7 @@ def register_provider_routes(app: Flask) -> None:
                     "path": proxy_binary,
                 },
                 "ollama": {
-                    "installed": shutil.which("ollama") is not None,
+                    "installed": _is_ollama_installed(app),
                     "path": shutil.which("ollama"),
                 },
             },
