@@ -35,9 +35,9 @@ class TTSConfig:
     voice: str = "Zoe (Premium)"
     rate: int = 120
 
-    # Parakeet options
-    model_name: str = "nvidia/parakeet-tts-1.1b"
-    backend: str = "transformers"  # transformers, nemo, onnx
+    # VibeVoice options
+    model_name: str = "microsoft/VibeVoice-Realtime-0.5B"
+    num_steps: int = 5  # DDPM inference steps (lower = faster, less quality)
     device: str = "auto"
 
     # ElevenLabs options

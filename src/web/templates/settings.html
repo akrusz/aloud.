@@ -30,8 +30,14 @@
 
         <!-- LLM Provider Section -->
         <section class="settings-section">
-            <h2>LLM Provider</h2>
-            <p class="settings-desc">Choose how glooow connects to a language model. Most functions need AI. If you don't have any AI subscriptions, choose Ollama (local) to set up a free AI on your computer.</p>
+            <h2>LLM Provider <button type="button" class="info-btn" id="llm-info-btn" aria-label="LLM provider info">?</button></h2>
+            <div class="info-panel hidden" id="llm-info-panel">
+                <p><strong>What is an LLM?</strong> &mdash; A large language model is the AI that listens to what you say and generates thoughtful responses to guide your meditation.</p>
+                <p><strong>Anthropic (Subscription)</strong> &mdash; Uses your existing Claude subscription via CLIProxyAPI. No extra cost beyond what you already pay, and Claude is the recommended model for glooow.</p>
+                <p><strong>Ollama (Local)</strong> &mdash; Free and private. Runs the AI entirely on your computer. Smaller models (like 4B) work fine on most modern laptops.</p>
+                <p><strong>Anthropic / OpenAI / OpenRouter / Venice (API Key)</strong> &mdash; Pay-per-use cloud AI. You sign up with the provider, get an API key, and paste it here. Best quality, but costs a small amount per session.</p>
+            </div>
+            <p class="settings-desc">Choose how glooow connects to a language model. Most functions need AI.<br>If you don't have any AI subscriptions, choose Ollama (local) to set up a free AI on your computer.</p>
 
             <div class="form-row">
                 <div class="form-group form-group-half">
@@ -198,7 +204,14 @@
 
         <!-- TTS Section -->
         <section class="settings-section">
-            <h2>Text-to-Speech</h2>
+            <h2>Text-to-Speech <button type="button" class="info-btn" id="tts-info-btn" aria-label="TTS engine info">?</button></h2>
+            <div class="info-panel hidden" id="tts-info-panel">
+                <p><strong>macOS</strong> &mdash; Built-in system voices. Zero latency, works offline. Quality varies by voice.</p>
+                <p><strong>Piper</strong> &mdash; Fast local neural TTS. Lightweight (~60&ndash;100 MB per voice), runs on CPU.</p>
+                <p><strong>Browser</strong> &mdash; Uses your browser's speechSynthesis. No install needed, quality varies.</p>
+                <p><strong>VibeVoice</strong> &mdash; High-quality local neural TTS from Microsoft. 6 voices, ~1.9 GB download. Needs a GPU or Apple Silicon.</p>
+                <p><strong>ElevenLabs</strong> &mdash; Cloud TTS with the most natural voices. Requires an API key and internet.</p>
+            </div>
             <div class="form-row">
                 <div class="form-group form-group-half">
                     <label for="s-tts-engine">TTS Engine</label>
@@ -206,8 +219,8 @@
                         <option value="macos">macOS (built-in 'say')</option>
                         <option value="piper">Piper (local neural TTS)</option>
                         <option value="browser">Browser (speechSynthesis)</option>
+                        <option value="vibevoice">VibeVoice (local neural TTS)</option>
                         <option value="elevenlabs">ElevenLabs (API)</option>
-                        <option value="parakeet">Parakeet (local neural TTS)</option>
                     </select>
                     <span class="form-hint" id="s-tts-engine-hint"></span>
                 </div>

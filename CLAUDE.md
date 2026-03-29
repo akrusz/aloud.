@@ -43,7 +43,7 @@ Both share the same backend modules for facilitation, LLM, STT, and TTS.
 | `facilitation/` | Core logic: `PacingController` (turn-taking state machine), `PromptBuilder` (composable system prompts), `SessionManager` (conversation history) |
 | `llm/` | Protocol-based LLM providers: claude_proxy, anthropic, openai, openrouter, venice, ollama |
 | `stt/whisper.py` | Whisper speech-to-text, loads model in background |
-| `tts/` | Protocol-based TTS engines: macos, piper, parakeet, elevenlabs; falls back to browser speechSynthesis |
+| `tts/` | Protocol-based TTS engines: macos, piper, vibevoice, elevenlabs; falls back to browser speechSynthesis |
 | `audio/` | Audio I/O and `VoiceActivityDetector` (energy-based with adaptive noise floor) |
 | `config.py` | Dataclass-based config loaded from `config/default.yaml` with `${ENV_VAR}` substitution |
 | `log_config.py` | Structured logging for the `src` namespace |

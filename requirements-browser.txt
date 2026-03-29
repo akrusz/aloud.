@@ -11,7 +11,7 @@ anthropic>=0.40.0
 openai>=1.50.0
 httpx>=0.27.0
 
-# For scipy (used by Parakeet for audio output)
+# For scipy (used by audio output)
 scipy>=1.10.0
 
 # Web interface (browser-only — no pywebview)

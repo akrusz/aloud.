@@ -16,7 +16,7 @@ def register_tool_routes(app: Flask) -> None:
         """Stream the installation of an external tool."""
         import json as _json
 
-        valid_tools = {"cliproxyapi", "ollama", "piper-tts", "parakeet"}
+        valid_tools = {"cliproxyapi", "ollama", "piper-tts", "vibevoice"}
         if tool not in valid_tools:
             return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
@@ -46,11 +46,11 @@ def register_tool_routes(app: Flask) -> None:
                 cmd = ["brew", "install", "ollama"]
             else:
                 cmd = ["/bin/bash", "-c", "curl -fsSL https://ollama.com/install.sh | sh"]
-        elif tool in ("piper-tts", "parakeet"):
+        elif tool in ("piper-tts", "vibevoice"):
             from ..frozen import is_frozen
             if is_frozen():
                 return jsonify({"error": "Package install not available in desktop app"}), 400
-            packages = ["piper-tts"] if tool == "piper-tts" else ["transformers", "torch"]
+            packages = ["piper-tts"] if tool == "piper-tts" else ["vibevoice[streamingtts]", "torch"]
             # Install into the same environment glooow is running in
             pip_cmd = shutil.which("uv")
             if pip_cmd:

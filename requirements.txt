@@ -18,11 +18,8 @@ httpx>=0.27.0
 # TTS - macOS 'say' is default, Piper bundled, others optional:
 piper-tts>=1.2.0                           # Piper - fast local neural TTS
 pathvalidate>=3.0.0                        # Missing from piper-tts deps
-# pip install transformers torch           # Parakeet - high quality neural TTS
-# pip install nemo_toolkit[tts]            # Parakeet via NeMo (alternative)
-# pip install onnxruntime                  # Parakeet via ONNX (alternative)
+# pip install vibevoice[streamingtts] torch # VibeVoice - high quality neural TTS
 
-# For scipy (used by Parakeet for audio output)
 scipy>=1.10.0
 
 # Web interface

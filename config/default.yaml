@@ -20,9 +20,9 @@ tts:
   voice: "Zoe (Premium)"
   rate: 120  # words per minute
 
-  # Parakeet options (if engine: parakeet)
-  # model_name: nvidia/parakeet-tts-1.1b
-  # backend: transformers  # transformers, nemo, onnx
+  # VibeVoice options (if engine: vibevoice)
+  # model_name: microsoft/VibeVoice-Realtime-0.5B
+  # num_steps: 5  # DDPM inference steps (lower = faster, less quality)
 
   # ElevenLabs options (if engine: elevenlabs)
   # api_key: ${ELEVENLABS_API_KEY}

@@ -5,7 +5,7 @@ import sys
 
 from .base import TTSEngine
 from .piper import PiperTTS
-from .parakeet import ParakeetTTS
+from .vibevoice import VibeVoiceTTS
 from .elevenlabs import ElevenLabsTTS
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "TTSEngine",
     "PiperTTS",
-    "ParakeetTTS",
+    "VibeVoiceTTS",
     "ElevenLabsTTS",
     "create_tts",
 ]
@@ -29,14 +29,14 @@ def create_tts(
     voice: str | None = None,
     rate: int = 180,
     **kwargs,
-) -> "MacOSTTS | PiperTTS | ParakeetTTS | ElevenLabsTTS | None":
+) -> "MacOSTTS | PiperTTS | VibeVoiceTTS | ElevenLabsTTS | None":
     """Factory function to create TTS engine.
 
     Args:
         engine: TTS engine name:
             - "macos": macOS native 'say' command (zero latency, decent quality)
             - "piper": Piper TTS (fast local neural TTS)
-            - "parakeet": NVIDIA Parakeet (high quality neural TTS)
+            - "vibevoice": Microsoft VibeVoice Realtime (high quality neural TTS)
             - "elevenlabs": ElevenLabs API (highest quality, requires API key)
             - "browser": no server-side TTS; browser speechSynthesis only
         voice: Voice name/model (engine-specific)
@@ -66,14 +66,15 @@ def create_tts(
             model_path=kwargs.get("model_path"),
         )
 
-    elif engine == "parakeet":
-        if not ParakeetTTS.is_available():
-            logger.warning("Parakeet TTS not available (dependencies not installed). Falling back to browser TTS.")
+    elif engine == "vibevoice":
+        if not VibeVoiceTTS.is_available():
+            logger.warning("VibeVoice TTS not available (dependencies not installed). Falling back to browser TTS.")
             return None
-        return ParakeetTTS(
-            model_name=kwargs.get("model_name", "nvidia/parakeet-tts-1.1b"),
+        return VibeVoiceTTS(
+            model_name=kwargs.get("model_name", "microsoft/VibeVoice-Realtime-0.5B"),
             device=kwargs.get("device", "auto"),
-            backend=kwargs.get("backend", "transformers"),
+            voice=voice or "Emma",
+            num_steps=kwargs.get("num_steps", 5),
         )
 
     elif engine == "elevenlabs":
@@ -94,5 +95,5 @@ def create_tts(
     else:
         raise ValueError(
             f"Unknown TTS engine: {engine}. "
-            f"Available: macos, piper, parakeet, elevenlabs, browser"
+            f"Available: macos, piper, vibevoice, elevenlabs, browser"
         )

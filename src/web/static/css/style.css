@@ -2,6 +2,8 @@
    Glooow — Theme system
    ============================================ */
 
+html { font-size: 16px; }
+
 :root,
 [data-theme="dark"] {
     --bg-primary: #110d08;
@@ -952,7 +954,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .provider-hint code {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     background: rgba(0, 0, 0, 0.15);
     padding: 0.1rem 0.35rem;
     border-radius: 3px;
@@ -1866,7 +1868,7 @@ body:has(.session-container) {
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     cursor: pointer;
     padding: 0.25rem 0;
     opacity: 0.7;
@@ -2596,6 +2598,47 @@ body::before {
     margin-bottom: var(--space-xs);
 }
 
+.info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    border: 1.5px solid var(--text-muted);
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    vertical-align: middle;
+    margin-left: 0.35rem;
+    padding: 0;
+    line-height: 1;
+    transition: border-color 0.15s, color 0.15s;
+}
+.info-btn:hover {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
+.info-panel {
+    background: var(--surface-alt, var(--surface));
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 8px);
+    padding: 0.75rem 1rem;
+    margin-bottom: var(--space-xs);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.info-panel p {
+    margin: 0 0 0.35rem;
+}
+.info-panel p:last-child {
+    margin-bottom: 0;
+}
+
 .settings-desc {
     color: var(--text-muted);
     font-size: 0.875rem;
@@ -3032,7 +3075,7 @@ body::before {
 
 .settings-error {
     color: var(--danger);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     white-space: nowrap;
 }
 

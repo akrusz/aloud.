@@ -73,7 +73,7 @@ const TTS_ENGINE_HINTS = {
     browser: "Uses your browser's built-in speech synthesis. Quality varies by browser.",
     elevenlabs: "Cloud neural TTS with natural, expressive voices. Requires an API key and internet.",
     piper: 'Fast local neural TTS. Download voice models (~60\u2013100 MB each) from the voice picker. <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen to samples</a>',
-    parakeet: "High-quality local neural TTS from NVIDIA. Single voice, ~4.4 GB model download.",
+    vibevoice: "High-quality local neural TTS from Microsoft. 6 English voices, ~1.9 GB model download.",
 };
 const ttsEngineHintEl = document.getElementById('s-tts-engine-hint');
 
@@ -298,7 +298,7 @@ var NO_VOICES_HELP = {
 
 // Engines that can be pip-installed from the UI
 var TTS_INSTALLABLE = {
-    parakeet: { tool: 'parakeet', name: 'Parakeet', desc: 'High-quality neural TTS from NVIDIA. Requires ~2 GB for dependencies + ~4.4 GB for the model.' },
+    vibevoice: { tool: 'vibevoice', name: 'VibeVoice', desc: 'High-quality neural TTS from Microsoft. Requires ~2 GB for dependencies + ~1.9 GB for the model.' },
 };
 
 var ttsInstallSection = document.getElementById('s-tts-install');
@@ -512,6 +512,13 @@ function installTool(tool, btn) {
             if (barFill) barFill.classList.remove('indeterminate');
         });
 }
+
+document.getElementById('tts-info-btn').addEventListener('click', function() {
+    document.getElementById('tts-info-panel').classList.toggle('hidden');
+});
+document.getElementById('llm-info-btn').addEventListener('click', function() {
+    document.getElementById('llm-info-panel').classList.toggle('hidden');
+});
 
 document.getElementById('btn-install-cliproxyapi').addEventListener('click', function() {
     installTool('cliproxyapi', this);
@@ -1213,7 +1220,7 @@ form.addEventListener('submit', function(e) {
 
 function needsVoiceQualityPrompt() {
     var engine = ttsEngineSelect.value;
-    if (engine === 'elevenlabs' || engine === 'parakeet') return false;
+    if (engine === 'elevenlabs' || engine === 'vibevoice') return false;
     if (scoredVoices.length === 0) return false;
     for (var i = 0; i < scoredVoices.length; i++) {
         if (scoredVoices[i].score >= 2) return false;

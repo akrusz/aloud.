@@ -6,7 +6,7 @@ import pytest
 
 from src.tts import create_tts
 from src.tts.piper import PiperTTS
-from src.tts.parakeet import ParakeetTTS
+from src.tts.vibevoice import VibeVoiceTTS
 from src.tts.elevenlabs import ElevenLabsTTS
 
 
@@ -27,14 +27,14 @@ class TestCreateTTS:
         tts = create_tts("piper")
         assert isinstance(tts, PiperTTS)
 
-    def test_create_parakeet(self, monkeypatch):
-        monkeypatch.setattr(ParakeetTTS, "is_available", staticmethod(lambda: True))
-        tts = create_tts("parakeet")
-        assert isinstance(tts, ParakeetTTS)
+    def test_create_vibevoice(self, monkeypatch):
+        monkeypatch.setattr(VibeVoiceTTS, "is_available", staticmethod(lambda: True))
+        tts = create_tts("vibevoice")
+        assert isinstance(tts, VibeVoiceTTS)
 
-    def test_create_parakeet_returns_none_when_unavailable(self, monkeypatch):
-        monkeypatch.setattr(ParakeetTTS, "is_available", staticmethod(lambda: False))
-        result = create_tts("parakeet")
+    def test_create_vibevoice_returns_none_when_unavailable(self, monkeypatch):
+        monkeypatch.setattr(VibeVoiceTTS, "is_available", staticmethod(lambda: False))
+        result = create_tts("vibevoice")
         assert result is None
 
     def test_create_elevenlabs(self, monkeypatch):
@@ -67,9 +67,10 @@ class TestCreateTTSOptions:
         assert isinstance(tts, PiperTTS)
         assert tts.rate == 360  # Stored as WPM, converted at synthesis time
 
-    def test_parakeet_kwargs_passed(self, monkeypatch):
-        monkeypatch.setattr(ParakeetTTS, "is_available", staticmethod(lambda: True))
-        tts = create_tts("parakeet", device="cpu", backend="nemo")
-        assert isinstance(tts, ParakeetTTS)
+    def test_vibevoice_kwargs_passed(self, monkeypatch):
+        monkeypatch.setattr(VibeVoiceTTS, "is_available", staticmethod(lambda: True))
+        tts = create_tts("vibevoice", voice="Carter", device="cpu", num_steps=3)
+        assert isinstance(tts, VibeVoiceTTS)
+        assert tts.voice == "Carter"
         assert tts.device == "cpu"
-        assert tts.backend == "nemo"
+        assert tts.num_steps == 3

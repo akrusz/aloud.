@@ -273,8 +273,8 @@ def register_routes(app: Flask) -> None:
 
                     yield _json.dumps({"status": "done"}) + "\n"
 
-                elif engine == "parakeet":
-                    # Parakeet downloads via huggingface_hub
+                elif engine == "vibevoice":
+                    # VibeVoice downloads via huggingface_hub
                     from huggingface_hub import snapshot_download
                     import threading
                     import queue
@@ -285,7 +285,7 @@ def register_routes(app: Flask) -> None:
                     def do_download():
                         try:
                             snapshot_download(
-                                voice,  # "nvidia/parakeet-tts-1.1b"
+                                voice,  # "microsoft/VibeVoice-Realtime-0.5B"
                                 local_files_only=False,
                             )
                         except Exception as e:
@@ -296,7 +296,7 @@ def register_routes(app: Flask) -> None:
                     t = threading.Thread(target=do_download, daemon=True)
                     t.start()
 
-                    yield _json.dumps({"status": "Downloading Parakeet model (~4.4 GB)..."}) + "\n"
+                    yield _json.dumps({"status": "Downloading VibeVoice model (~1.9 GB)..."}) + "\n"
 
                     # Wait for completion (snapshot_download doesn't give great progress hooks)
                     progress_q.get(timeout=1800)  # 30 min timeout
