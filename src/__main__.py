@@ -1,12 +1,7 @@
-"""Allow running as python -m src."""
+"""Allow running as python -m src — delegates to the web interface."""
 
+import runpy
 import sys
 
 if __name__ == "__main__":
-    if "--web" in sys.argv:
-        sys.argv.remove("--web")
-        from .web import run_web
-        run_web()
-    else:
-        from .main import main
-        main()
+    runpy.run_module("src.web", run_name="__main__", alter_sys=True)
