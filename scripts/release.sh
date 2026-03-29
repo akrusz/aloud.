@@ -19,6 +19,21 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     exit 1
 fi
 
+# Lint check
+if command -v ruff >/dev/null 2>&1; then
+    if ! ruff check src/ tests/; then
+        echo "Error: ruff found lint errors — fix them before releasing" >&2
+        exit 1
+    fi
+elif command -v uv >/dev/null 2>&1 && uv run ruff --version >/dev/null 2>&1; then
+    if ! uv run ruff check src/ tests/; then
+        echo "Error: ruff found lint errors — fix them before releasing" >&2
+        exit 1
+    fi
+else
+    echo "  Warning: ruff not found, skipping lint check. Proceeding anyway."
+fi
+
 # Read current version from src/__init__.py
 CURRENT=$(python3 -c "import re; print(re.search(r'__version__\s*=\s*\"(.+?)\"', open('src/__init__.py').read()).group(1))")
 IFS='.' read -r MAJ MIN PAT <<< "$CURRENT"
