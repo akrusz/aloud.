@@ -1,16 +1,17 @@
 """Piper text-to-speech engine.
 
-Piper is a fast, local neural TTS system.
+Piper is a fast, local neural TTS system.  Uses the piper library directly
+(no subprocess) so it works in frozen PyInstaller bundles and pywebview.
 https://github.com/rhasspy/piper
 """
 
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
-import subprocess
-import sys
 import tempfile
+import wave
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -86,113 +87,84 @@ class PiperTTS:
         self.voice = voice
         self.rate = rate
         self._speaking = False
+        self._piper_voice = None      # cached PiperVoice instance
+        self._loaded_model_path = None  # path of the cached model
+
+    def _get_model_path(self) -> str | None:
+        """Resolve the model path for the current voice."""
+        if self.model_path:
+            return self.model_path
+        local_path = _get_piper_models_dir() / f"{self.voice}.onnx"
+        return str(local_path) if local_path.exists() else None
+
+    def _load_voice(self):
+        """Load (or reuse cached) PiperVoice for the current model."""
+        model_path = self._get_model_path()
+        if model_path is None:
+            return None
+        # Reuse if same model is already loaded
+        if self._piper_voice and self._loaded_model_path == model_path:
+            return self._piper_voice
+        try:
+            from piper.voice import PiperVoice
+            self._piper_voice = PiperVoice.load(model_path)
+            self._loaded_model_path = model_path
+            return self._piper_voice
+        except Exception as e:
+            logger.error("Failed to load Piper model %s: %s", model_path, e)
+            return None
+
+    def _length_scale(self) -> float:
+        """Convert WPM rate to Piper length_scale (inverse relationship)."""
+        return 180.0 / max(self.rate, 1)
+
+    def _synthesize_wav_bytes(self, text: str) -> bytes | None:
+        """Synthesize text to WAV bytes using the piper library."""
+        pv = self._load_voice()
+        if pv is None:
+            return None
+        try:
+            from piper.config import SynthesisConfig
+            syn_config = SynthesisConfig(length_scale=self._length_scale())
+            buf = io.BytesIO()
+            with wave.open(buf, "wb") as wav_file:
+                pv.synthesize_wav(text, wav_file, syn_config=syn_config)
+            return buf.getvalue() or None
+        except Exception as e:
+            logger.error("Piper synthesis error: %s", e)
+            return None
 
     async def speak(self, text: str) -> None:
-        """Speak the given text.
-
-        Args:
-            text: Text to speak
-        """
+        """Speak the given text."""
         self.stop()
-
         if not text.strip():
             return
 
         self._speaking = True
         try:
-            # Create temp file for audio output
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-                output_path = f.name
-
-            # Build piper command (use module invocation for frozen/venv compat)
-            cmd = [sys.executable, "-m", "piper"]
-
-            if self.model_path:
-                cmd.extend(["--model", self.model_path])
-            else:
-                local_path = _get_piper_models_dir() / f"{self.voice}.onnx"
-                if local_path.exists():
-                    cmd.extend(["--model", str(local_path)])
-                else:
-                    # Model not downloaded — skip silently (falls back to browser TTS)
-                    return
-
-            cmd.extend([
-                "--output_file", output_path,
-                "--length_scale", str(180.0 / max(self.rate, 1)),
-            ])
-
-            # Run piper to generate audio
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
+            wav_bytes = await asyncio.get_event_loop().run_in_executor(
+                None, self._synthesize_wav_bytes, text,
             )
-            await proc.communicate(input=text.encode())
+            if not wav_bytes:
+                return
 
-            # Play the audio
-            if Path(output_path).exists():
+            # Write to temp file and play
+            tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+            tmp.write(wav_bytes)
+            tmp.close()
+            try:
                 from ..audio.playback import play_audio_file
-
-                await play_audio_file(output_path)
-
-                # Clean up
-                Path(output_path).unlink(missing_ok=True)
-
+                await play_audio_file(tmp.name)
+            finally:
+                Path(tmp.name).unlink(missing_ok=True)
         finally:
             self._speaking = False
 
-    def _get_model_cmd(self) -> list[str] | None:
-        """Return the piper command with --model flag, or None if unavailable."""
-        cmd = [sys.executable, "-m", "piper"]
-        if self.model_path:
-            cmd.extend(["--model", self.model_path])
-        else:
-            local_path = _get_piper_models_dir() / f"{self.voice}.onnx"
-            if local_path.exists():
-                cmd.extend(["--model", str(local_path)])
-            else:
-                return None
-        return cmd
-
     def speak_to_bytes(self, text: str) -> bytes | None:
-        """Generate speech as WAV bytes (synchronous, blocking).
-
-        Returns WAV file bytes, or None on failure.
-        """
+        """Generate speech as WAV bytes (synchronous, blocking)."""
         if not text.strip():
             return None
-
-        cmd = self._get_model_cmd()
-        if cmd is None:
-            return None
-
-        tmp = None
-        try:
-            tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-            tmp.close()
-
-            cmd.extend([
-                "--output_file", tmp.name,
-                "--length_scale", str(180.0 / max(self.rate, 1)),
-            ])
-
-            proc = subprocess.run(
-                cmd, input=text.encode(), capture_output=True, timeout=30,
-            )
-            if proc.returncode != 0:
-                logger.error("Piper failed (rc=%d): %s", proc.returncode, proc.stderr.decode(errors="replace"))
-                return None
-
-            wav_bytes = Path(tmp.name).read_bytes()
-            return wav_bytes if wav_bytes else None
-        except Exception as e:
-            logger.error("Piper speak_to_bytes error: %s", e)
-            return None
-        finally:
-            if tmp:
-                Path(tmp.name).unlink(missing_ok=True)
+        return self._synthesize_wav_bytes(text)
 
     def stop(self) -> None:
         """Stop any current speech."""

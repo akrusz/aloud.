@@ -43,6 +43,11 @@ export function buildVoiceList() {
         }
         state.preferredVoice = found || null;
 
+        // If saved voice wasn't found (wrong engine, deleted, etc.), update localStorage
+        if (savedVoice && state.preferredVoice && state.preferredVoice.name !== savedVoice) {
+            setSavedVoice(state.preferredVoice.name);
+        }
+
         // Tell the server which voice to use (restores preference on new sessions)
         if (state.preferredVoice) {
             socket.emit('set_tts_voice', { voice: state.preferredVoice.name });
@@ -79,6 +84,8 @@ export function updateVoicePickerLabel() {
         var label = state.preferredVoice.name;
         if (state.ttsRate) label += ' \u00b7 ' + state.ttsRate + ' wpm';
         dom.voicePickerBtn.textContent = label;
+    } else if (state.scoredVoices && state.scoredVoices.length > 0) {
+        dom.voicePickerBtn.textContent = 'Choose voice';
     } else {
         dom.voicePickerBtn.textContent = 'Voice';
     }
