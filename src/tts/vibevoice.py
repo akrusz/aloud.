@@ -8,7 +8,6 @@ https://github.com/microsoft/VibeVoice
 from __future__ import annotations
 
 import asyncio
-import copy
 import io
 import logging
 import wave
