@@ -107,7 +107,12 @@ class PiperTTS:
             return self._piper_voice
         try:
             from piper.voice import PiperVoice
-            self._piper_voice = PiperVoice.load(model_path)
+            import piper as _piper_pkg
+            # Resolve espeak-ng-data relative to the piper package (works in
+            # frozen PyInstaller builds where the default venv path doesn't exist)
+            espeak_dir = Path(_piper_pkg.__file__).parent / "espeak-ng-data"
+            self._piper_voice = PiperVoice.load(
+                model_path, espeak_data_dir=str(espeak_dir))
             self._loaded_model_path = model_path
             return self._piper_voice
         except Exception as e:

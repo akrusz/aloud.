@@ -3,7 +3,7 @@
 
 import re
 import sys
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 # Read version from source so the bundle stays in sync
 _version_match = re.search(
@@ -30,6 +30,8 @@ a = Analysis(
         ('src/web/templates', 'src/web/templates'),
         ('src/web/static', 'src/web/static'),
         ('config/default.yaml', 'config'),
+        # Piper TTS: espeak-ng-data and tashkeel required for phonemization
+        *collect_data_files('piper', include_py_files=False),
     ],
     hiddenimports=[
         'engineio.async_drivers.threading',
@@ -37,6 +39,9 @@ a = Analysis(
         'pywhispercpp',
         'pywhispercpp.model',
         'pywhispercpp.utils',
+        # Piper TTS and its dependencies
+        *collect_submodules('piper'),
+        *collect_submodules('onnxruntime'),
         *collect_submodules('src.llm'),
         *collect_submodules('src.tts'),
         *collect_submodules('src.facilitation'),
