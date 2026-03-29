@@ -4,7 +4,7 @@ your voice is an overpowered and underrated tool for meditation and inner work.
 
 **glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses your mic for voice input, whisper.cpp for speech recognition, an LLM to guide you, and speaks using text-to-speech.
 
-glooow works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription, or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page. the app will also help you set up text-to-speech if it's not already configured.
+glooow works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription, or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page. the app will also help you set up text-to-speech if necessary.
 
 ![glooow screenshot](docs/glooow-screen.png)
 
