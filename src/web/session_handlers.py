@@ -174,28 +174,32 @@ def register_session_handlers(socketio: SocketIO, app: Flask) -> None:
             web_session._cached_summary = ""
 
     @socketio.on("end_session")
-    def handle_end_session():
+    def handle_end_session(data=None):
         sid = request.sid
         session_id = app.sid_to_session.pop(sid, None)
         if not session_id or session_id not in app.web_sessions:
             return
 
+        data = data or {}
+        skip_save = data.get("skip_save", False)
+
         app.session_to_sid.pop(session_id, None)
         web_session = app.web_sessions.pop(session_id)
 
-        # Use pre-fetched summary if available, otherwise generate now.
-        # If the LLM was never initialised (e.g. noting with no AI
-        # participants) skip the call entirely.
-        if hasattr(web_session, '_cached_summary'):
-            summary = web_session._cached_summary
-        elif web_session._llm_instance is None:
-            summary = NO_AI_SUMMARY
-        else:
-            summary = ""
-            try:
-                summary = asyncio.run(web_session.generate_summary())
-            except Exception:
-                summary = ""
+        summary = ""
+        if not skip_save:
+            # Use pre-fetched summary if available, otherwise generate now.
+            # If the LLM was never initialised (e.g. noting with no AI
+            # participants) skip the call entirely.
+            if hasattr(web_session, '_cached_summary'):
+                summary = web_session._cached_summary
+            elif web_session._llm_instance is None:
+                summary = NO_AI_SUMMARY
+            else:
+                try:
+                    summary = asyncio.run(web_session.generate_summary())
+                except Exception:
+                    summary = ""
 
         session_data = web_session.end()
         if summary:
@@ -205,7 +209,7 @@ def register_session_handlers(socketio: SocketIO, app: Flask) -> None:
         if getattr(web_session, "client_id", None):
             session_data["client_id"] = web_session.client_id
         saved_id = None
-        if session_data and app.meditation_config.session.auto_save:
+        if not skip_save and session_data and app.meditation_config.session.auto_save:
             if hasattr(web_session, 'continued_from'):
                 session_data["continued_from"] = web_session.continued_from
             app.transcript_logger.save_session(session_data)

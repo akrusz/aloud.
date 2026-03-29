@@ -43,14 +43,19 @@ export function buildVoiceList() {
         }
         state.preferredVoice = found || null;
 
-        // If saved voice wasn't found (wrong engine, deleted, etc.), update localStorage
-        if (savedVoice && state.preferredVoice && state.preferredVoice.name !== savedVoice) {
-            setSavedVoice(state.preferredVoice.name);
-        }
+        // Only persist and notify the server when we have server voice data.
+        // Without it we're working from an incomplete browser-only list and
+        // would corrupt the saved piper voice with a browser fallback.
+        if (state._serverVoices) {
+            // If saved voice wasn't found (wrong engine, deleted, etc.), update localStorage
+            if (savedVoice && state.preferredVoice && state.preferredVoice.name !== savedVoice) {
+                setSavedVoice(state.preferredVoice.name);
+            }
 
-        // Tell the server which voice to use (restores preference on new sessions)
-        if (state.preferredVoice) {
-            socket.emit('set_tts_voice', { voice: state.preferredVoice.name });
+            // Tell the server which voice to use (restores preference on new sessions)
+            if (state.preferredVoice) {
+                socket.emit('set_tts_voice', { voice: state.preferredVoice.name });
+            }
         }
     }
 

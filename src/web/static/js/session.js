@@ -143,6 +143,15 @@ function initSessionControls(params) {
     dom.confirmNo.addEventListener('click', function () {
         hideConfirm();
     });
+
+    // End Without Saving — skip summary generation and transcript save
+    if (dom.confirmSkipSave) {
+        dom.confirmSkipSave.addEventListener('click', function () {
+            dom.confirmOverlay.classList.add('hidden');
+            state.pendingConfirmAction = null;
+            doEndSession(deactivateVoice, true);
+        });
+    }
 }
 
 function initKasinaMode() {
@@ -505,9 +514,13 @@ function init() {
     initKasinaMode();
     initEmbers();
 
-    // Pass saved voice so the server knows the voice from the first message
-    var savedVoice = getSavedVoice();
-    if (savedVoice) params.voice_name = savedVoice;
+    // Pass saved voice so the server knows the voice from the first message.
+    // Prefer the voice already in sessionParams (set on the index page) over
+    // localStorage, which may have been corrupted by an early buildVoiceList().
+    if (!params.voice_name) {
+        var savedVoice = getSavedVoice();
+        if (savedVoice) params.voice_name = savedVoice;
+    }
 
     // Start session
     socket.emit('start_session', params);

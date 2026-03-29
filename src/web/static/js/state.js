@@ -24,6 +24,7 @@ export const dom = {
     confirmText: null,
     confirmYes: null,
     confirmNo: null,
+    confirmSkipSave: null,
     savingOverlay: null,
     endedOverlay: null,
     kasinaToggle: null,
@@ -54,6 +55,7 @@ export function initDOM() {
     dom.confirmText = document.getElementById('confirm-text');
     dom.confirmYes = document.getElementById('confirm-yes');
     dom.confirmNo = document.getElementById('confirm-no');
+    dom.confirmSkipSave = document.getElementById('confirm-skip-save');
     dom.savingOverlay = document.getElementById('session-saving');
     dom.endedOverlay = document.getElementById('session-ended');
     dom.kasinaToggle = document.getElementById('kasina-toggle');

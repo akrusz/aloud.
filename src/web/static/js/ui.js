@@ -219,10 +219,14 @@ export function showErrorToast(message) {
 
 // ---- Confirm dialog ----
 
-export function showConfirm(message, onConfirm) {
+export function showConfirm(message, onConfirm, opts) {
     dom.confirmText.textContent = message;
     state.pendingConfirmAction = onConfirm;
     dom.confirmOverlay.classList.remove('hidden');
+    // Show "End Without Saving" link only when requested
+    if (dom.confirmSkipSave) {
+        dom.confirmSkipSave.classList.toggle('hidden', !(opts && opts.showSkipSave));
+    }
 }
 
 export function hideConfirm() {
@@ -237,12 +241,12 @@ export function endSession(deactivateVoiceFn) {
     showConfirm('End this session?', function () {
         dom.savingOverlay.classList.remove('hidden');
         doEndSession(deactivateVoiceFn);
-    });
+    }, { showSkipSave: true });
 }
 
-export function doEndSession(deactivateVoiceFn) {
+export function doEndSession(deactivateVoiceFn, skipSave) {
     if (state.voiceActive) {
         deactivateVoiceFn();
     }
-    socket.emit('end_session');
+    socket.emit('end_session', { skip_save: !!skipSave });
 }
