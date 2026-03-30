@@ -410,6 +410,7 @@
         {% endif %}
         <div id="settings-error" class="settings-error hidden"></div>
         <div class="settings-footer-spacer"></div>
+        <button type="button" class="tour-show-btn" id="btn-show-tour">Setup guide</button>
         <button type="button" class="btn-config-path hidden" id="btn-open-config-folder">Open config folder</button>
     </div>
 </div>
@@ -447,6 +448,6 @@
 {% endblock %}
 
 {% block scripts %}
-<div id="settings-data" data-first-run="{{ 'true' if first_run else 'false' }}" data-frozen="{{ 'true' if is_frozen else 'false' }}"></div>
+<div id="settings-data" data-first-run="{{ 'true' if first_run else 'false' }}" data-frozen="{{ 'true' if is_frozen else 'false' }}" data-piper-available="{{ 'true' if piper_available else 'false' }}" data-vibevoice-available="{{ 'true' if vibevoice_available else 'false' }}"></div>
 <script type="module" src="{{ url_for('static', filename='js/settings.js') }}"></script>
 {% endblock %}

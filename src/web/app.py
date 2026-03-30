@@ -546,6 +546,9 @@ def run_web(
     hide_premium: bool = False,
     no_voices: bool = False,
     reset_piper: bool = False,
+    reset_vibevoice: bool = False,
+    no_providers: bool = False,
+    no_ollama: bool = False,
 ) -> None:
     """Run the web application.
 
@@ -567,6 +570,9 @@ def run_web(
     app.hide_premium_voices = hide_premium
     app.no_voices = no_voices
     app.reset_piper = reset_piper
+    app.reset_vibevoice = reset_vibevoice
+    app.no_providers = no_providers
+    app.no_ollama = no_ollama
 
     # Decide whether to use pywebview or browser
     use_webview = not browser

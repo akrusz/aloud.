@@ -35,8 +35,17 @@ uv run python -m src.web --hide-premium
 # Return zero voices from /api/voices (triggers no-voices UI)
 uv run python -m src.web --no-voices
 
-# Piper voices show as "not downloaded" (test download flow UI)
+# Piper hidden from engine list & recommendations
 uv run python -m src.web --reset-piper
+
+# VibeVoice hidden from engine list
+uv run python -m src.web --reset-vibevoice
+
+# All LLM providers appear unavailable (test cold-start provider setup)
+uv run python -m src.web --no-providers
+
+# Ollama appears not installed (test Ollama install/pull flow)
+uv run python -m src.web --no-ollama
 
 # Combine flags — full fresh-install experience without premium voices
 uv run python -m src.web --fresh --hide-premium
@@ -44,8 +53,11 @@ uv run python -m src.web --fresh --hide-premium
 # Full fresh-install with no voices at all
 uv run python -m src.web --fresh --no-voices
 
-# Test the Piper onboarding: fresh install, no premium, download flow visible
-uv run python -m src.web --fresh --hide-premium --reset-piper
+# True cold-start: fresh install, no providers, no premium, no Piper/VibeVoice
+uv run python -m src.web --fresh --no-providers --hide-premium --reset-piper --reset-vibevoice
+
+# Test Ollama install flow with everything else available
+uv run python -m src.web --fresh --no-ollama
 
 # All flags work with --browser too
 uv run python -m src.web --browser --fresh --hide-premium
@@ -56,7 +68,10 @@ uv run python -m src.web --browser --fresh --hide-premium
 | `--fresh` | Shows first-run settings UI, clears localStorage (voice prefs, embers, quality prompt) |
 | `--hide-premium` | Filters out Premium/Enhanced voices from `/api/voices` so only basic voices appear |
 | `--no-voices` | `/api/voices` returns `[]` — tests the empty-voices state |
-| `--reset-piper` | Piper voices appear as not-yet-downloaded, download buttons re-enabled |
+| `--reset-piper` | Piper hidden from engine dropdown, voice quality modal, and hints |
+| `--reset-vibevoice` | VibeVoice hidden from engine dropdown |
+| `--no-providers` | All LLM providers return `available: false` — tests zero-provider setup UI |
+| `--no-ollama` | Ollama appears not installed/running — tests Ollama install flow |
 | `--debug` | Sets log level to DEBUG for all `src.*` loggers |
 | `--browser` | Opens in system browser instead of pywebview native window |
 

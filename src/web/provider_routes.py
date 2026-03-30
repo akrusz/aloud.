@@ -394,8 +394,8 @@ def register_provider_routes(app: Flask) -> None:
                     "path": proxy_binary,
                 },
                 "ollama": {
-                    "installed": _is_ollama_installed(app),
-                    "path": shutil.which("ollama"),
+                    "installed": _is_ollama_installed(app) and not getattr(app, "no_ollama", False),
+                    "path": None if getattr(app, "no_ollama", False) else shutil.which("ollama"),
                 },
             },
         })
@@ -565,6 +565,24 @@ def register_provider_routes(app: Flask) -> None:
                 ),
                 "recommendation": rec_info,
             }
+
+        # --no-ollama: make Ollama appear not installed/running
+        if getattr(app, "no_ollama", False) and "ollama" in results:
+            results["ollama"]["available"] = False
+            results["ollama"]["models"] = []
+            results["ollama"]["hint"] = (
+                "Ollama is not running. "
+                "<a href='/settings'>Install from Settings</a> or visit "
+                "<a href='https://ollama.ai' target='_blank'>ollama.ai</a>, "
+                "then:" + refresh
+            )
+
+        # --no-providers: force all providers unavailable
+        if getattr(app, "no_providers", False):
+            for key in results:
+                results[key]["available"] = False
+                if "models" in results[key]:
+                    results[key]["models"] = []
 
         return jsonify(results)
 

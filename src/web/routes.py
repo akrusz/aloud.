@@ -49,7 +49,13 @@ def register_routes(app: Flask) -> None:
     @app.route("/settings")
     def settings_page():
         first_run = _is_first_run()
-        return render_template("settings.html", first_run=first_run)
+        from ..tts.piper import PiperTTS
+        from ..tts.vibevoice import VibeVoiceTTS
+        piper_available = PiperTTS.is_available() and not getattr(app, "reset_piper", False)
+        vibevoice_available = VibeVoiceTTS.is_available() and not getattr(app, "reset_vibevoice", False)
+        return render_template("settings.html", first_run=first_run,
+                               piper_available=piper_available,
+                               vibevoice_available=vibevoice_available)
 
     # ---- Window management ----
 
@@ -166,7 +172,7 @@ def register_routes(app: Flask) -> None:
                 v for v in voices
                 if not re.search(r"Premium|Enhanced", v.get("name", ""), re.IGNORECASE)
             ]
-        if getattr(app, "reset_piper", False):
+        if getattr(app, "reset_piper", False) or getattr(app, "reset_vibevoice", False):
             for v in voices:
                 if v.get("needs_download"):
                     v["downloaded"] = False

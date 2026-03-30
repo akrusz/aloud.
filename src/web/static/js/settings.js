@@ -9,6 +9,7 @@ import {
 const settingsDataEl = document.getElementById('settings-data');
 const firstRun = settingsDataEl.dataset.firstRun === 'true';
 const isFrozen = settingsDataEl.dataset.frozen === 'true';
+const piperAvailable = settingsDataEl.dataset.piperAvailable === 'true';
 
 // Clear client-side state on fresh/first-run so prompts re-appear
 if (firstRun) {
@@ -16,6 +17,7 @@ if (firstRun) {
     localStorage.removeItem('glooow-speed');
     localStorage.removeItem('glooow-embers');
     localStorage.removeItem('glooow-voice-quality-prompted-permanent');
+    localStorage.removeItem('glooow-tour-dismissed');
 }
 const form = document.getElementById('settings-form');
 const providerSelect = document.getElementById('s-provider');
@@ -90,6 +92,7 @@ rateSlider.addEventListener('input', updateRateDisplay);
 // Voice modal events
 let settingsNoVoicesMode = false;
 var configLoaded = false;
+var tourActive = false;
 var vqModalShown = false;
 var VQ_PROMPTED_KEY = 'glooow-voice-quality-prompted';
 voiceBtn.addEventListener('click', function() {
@@ -991,6 +994,18 @@ fetch('/api/config')
         configLoaded = true;
         fetchVoices();
 
+        // Start onboarding tour on first run
+        if (firstRun) {
+            tourActive = true;
+            import('./tour.js').then(function(mod) {
+                mod.startTour({
+                    piperAvailable: piperAvailable,
+                    isMac: /Mac/.test(navigator.platform),
+                    onComplete: function() { tourActive = false; },
+                });
+            });
+        }
+
         // STT
         document.getElementById('s-whisper-model').value = cfg.stt?.model || 'small';
 
@@ -1242,6 +1257,7 @@ function needsVoiceQualityPrompt() {
 }
 
 function checkVoiceQuality() {
+    if (tourActive) return;
     var hintEl = document.getElementById('voice-quality-hint');
     if (!needsVoiceQualityPrompt()) {
         hintEl.classList.add('hidden');
@@ -1264,6 +1280,7 @@ function showVoiceQualityModal() {
     var onPiper = ttsEngineSelect.value === 'piper';
 
     document.getElementById('vq-macos-option').classList.toggle('hidden', !isMac || onPiper);
+    document.getElementById('vq-piper-option').classList.toggle('hidden', !piperAvailable);
 
     var piperTitle = document.getElementById('vq-piper-title');
     var piperBtn = document.getElementById('vq-try-piper');
@@ -1297,9 +1314,13 @@ function showVoiceQualityHint() {
     if (engine === 'piper') {
         hintEl.textContent = 'Choose and download a voice above to get started.';
     } else if (/Mac/.test(navigator.platform)) {
-        hintEl.textContent = 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content, or switch the engine to Piper below.';
-    } else {
+        hintEl.textContent = piperAvailable
+            ? 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content, or switch the engine to Piper below.'
+            : 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content.';
+    } else if (piperAvailable) {
         hintEl.textContent = 'Tip: Switch the TTS engine to Piper for higher quality neural voices.';
+    } else {
+        hintEl.textContent = 'Tip: Try a different voice for better quality.';
     }
     hintEl.classList.remove('hidden');
 }
@@ -1319,4 +1340,16 @@ document.getElementById('vq-try-piper').addEventListener('click', function() {
 });
 document.getElementById('voice-quality-modal').addEventListener('click', function(e) {
     if (e.target === this) dismissVoiceQualityModal();
+});
+
+// ---- Setup guide button ----
+document.getElementById('btn-show-tour').addEventListener('click', function() {
+    tourActive = true;
+    import('./tour.js').then(function(mod) {
+        mod.resetAndStart({
+            piperAvailable: piperAvailable,
+            isMac: /Mac/.test(navigator.platform),
+            onComplete: function() { tourActive = false; },
+        });
+    });
 });
