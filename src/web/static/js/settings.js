@@ -42,7 +42,7 @@ textScaleSlider.addEventListener('input', function() {
 });
 
 // TTS engine hints
-var _openSettingsLink = ' <a href="#" onclick="window.open(\'x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech\'); return false;">Download Premium voices</a>';
+var _openSettingsLink = ' <a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Download Premium voices</a>';
 const TTS_ENGINE_HINTS = {
     macos: 'Built-in macOS voices. Zero latency, works offline.' + (/Mac/.test(navigator.platform) ? _openSettingsLink : ''),
     browser: "Uses your browser's built-in speech synthesis. Quality varies by browser.",
@@ -1305,7 +1305,7 @@ function dismissVoiceQualityPermanent() {
 
 function showVoiceQualityHint() {
     var hintEl = document.getElementById('voice-quality-hint');
-    var openSettings = '<a href="#" onclick="window.open(\'x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech\'); return false;">Open Settings</a>';
+    var openSettings = '<a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Open Settings</a>';
     if (/Mac/.test(navigator.platform)) {
         hintEl.innerHTML = piperAvailable
             ? 'Tip: Download a Premium macOS voice (' + openSettings + ') or a Piper voice from the voice picker.'

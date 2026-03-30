@@ -206,7 +206,7 @@
         <section class="settings-section">
             <h2>Text-to-Speech <button type="button" class="info-btn" id="tts-info-btn" aria-label="TTS engine info">?</button></h2>
             <div class="info-panel hidden" id="tts-info-panel">
-                <p><strong>macOS</strong> &mdash; Built-in system voices. Zero latency, works offline. Download Premium voices from <a href="#" onclick="window.open('x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech'); return false;">System Settings &rarr; Accessibility &rarr; Spoken Content</a>.</p>
+                <p><strong>macOS</strong> &mdash; Built-in system voices. Zero latency, works offline. Download Premium voices from <a href="#" onclick="fetch('/api/open-voice-settings',{method:'POST'}); return false;">System Settings &rarr; Accessibility &rarr; Spoken Content</a>.</p>
                 <p><strong>Piper</strong> &mdash; Fast local neural TTS. Lightweight (~60&ndash;100 MB per voice), runs on CPU. <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen to samples</a></p>
                 <p><strong>Browser</strong> &mdash; Uses your browser's speechSynthesis. No install needed, recommended on Edge browser or Windows app.</p>
                 <p><strong>ElevenLabs</strong> &mdash; Cloud TTS with the most natural voices. Requires an API key and internet.</p>
@@ -429,7 +429,7 @@
             <p>glooow sounds best with a high-quality voice.</p>
             <div class="vq-option hidden" id="vq-macos-option">
                 <strong>Download a Premium macOS voice</strong>
-                <p class="form-hint" style="margin-top:0.25rem">System Settings &rarr; Accessibility &rarr; Spoken Content &rarr; Manage Voices. <a href="#" onclick="window.open('x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech'); return false;">Open Settings</a></p>
+                <p class="form-hint" style="margin-top:0.25rem">System Settings &rarr; Accessibility &rarr; Spoken Content &rarr; Manage Voices. <a href="#" onclick="fetch('/api/open-voice-settings',{method:'POST'}); return false;">Open Settings</a></p>
             </div>
             <div class="vq-option" id="vq-piper-option">
                 <strong id="vq-piper-title">Try Piper neural TTS</strong>

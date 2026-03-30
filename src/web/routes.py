@@ -325,6 +325,19 @@ def register_routes(app: Flask) -> None:
 
         return jsonify({"error": "uninstall not supported for this engine"}), 400
 
+    @app.route("/api/open-voice-settings", methods=["POST"])
+    def api_open_voice_settings():
+        """Open macOS System Settings to the Spoken Content pane."""
+        import subprocess
+        import sys as _sys
+        if _sys.platform != "darwin":
+            return jsonify({"error": "macOS only"}), 400
+        subprocess.Popen([
+            "open",
+            "x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech",
+        ])
+        return jsonify({"status": "ok"})
+
     # ---- Updates ----
 
     @app.route("/api/update/check")

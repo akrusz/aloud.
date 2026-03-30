@@ -338,7 +338,7 @@ function showVoiceStep() {
         if (tourOptions.isMac) {
             html += '<button class="tour-choice" data-action="voice" data-value="macos">';
             html += '<strong>Premium macOS voices</strong>';
-            html += '<small>Download from System Settings \u2192 Accessibility \u2192 Spoken Content. <a href="#" onclick="window.open(\'x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech\'); return false;">Open Settings</a></small>';
+            html += '<small>Download from System Settings \u2192 Accessibility \u2192 Spoken Content. <a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Open Settings</a></small>';
             html += '</button>';
         }
 
