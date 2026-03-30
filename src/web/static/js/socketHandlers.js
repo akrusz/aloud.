@@ -36,13 +36,48 @@ export function registerSocketHandlers(deactivateVoiceFn) {
         hideTyping();
         addMessage('facilitator', data.text);
         if (dom.ttsToggle.classList.contains('active')) {
-            // If voice isn't active yet (e.g. opener arrives before mic
-            // permission is granted), queue the speech for later.
-            if (state.voiceActive) {
-                speak(data.text, data.audio);
+            if (data.audio) {
+                // Audio included — play immediately
+                if (state.voiceActive) {
+                    speak(data.text, data.audio);
+                } else {
+                    state.queuedSpeech = data.text;
+                    state.queuedAudio = data.audio;
+                }
             } else {
-                state.queuedSpeech = data.text;
-                state.queuedAudio = data.audio || null;
+                // No audio yet — wait briefly for a facilitator_audio event
+                // before falling back to browser TTS
+                state._pendingSpeechText = data.text;
+                state._pendingSpeechTimer = setTimeout(function() {
+                    if (state._pendingSpeechText) {
+                        var txt = state._pendingSpeechText;
+                        state._pendingSpeechText = null;
+                        if (state.voiceActive) {
+                            speak(txt, null);
+                        } else {
+                            state.queuedSpeech = txt;
+                            state.queuedAudio = null;
+                        }
+                    }
+                }, 5000);
+            }
+        }
+    });
+
+    socket.on('facilitator_audio', function (data) {
+        // Server-synthesized audio arriving after the text
+        if (state._pendingSpeechTimer) {
+            clearTimeout(state._pendingSpeechTimer);
+            state._pendingSpeechTimer = null;
+        }
+        var txt = state._pendingSpeechText || '';
+        state._pendingSpeechText = null;
+        if (dom.ttsToggle.classList.contains('active')) {
+            if (state.voiceActive) {
+                speak(txt, data.audio);
+            } else {
+                state.queuedSpeech = txt;
+                state.queuedAudio = data.audio;
             }
         }
     });

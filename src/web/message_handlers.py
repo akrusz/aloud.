@@ -40,8 +40,11 @@ def register_message_handlers(socketio: SocketIO, app: Flask) -> None:
 
         try:
             response, hold_signal = asyncio.run(web_session.generate_response(text))
+            # Emit text immediately so the user sees it while TTS synthesizes
+            emit("facilitator_message", {"text": response, "type": "response"})
             audio = speak_to_audio(app, web_session, response)
-            emit("facilitator_message", {"text": response, "type": "response", "audio": audio})
+            if audio:
+                emit("facilitator_audio", {"audio": audio})
             # Don't re-enter silence right after the user just exited it
             if hold_signal == "hold" and not was_silent:
                 web_session.pacing.enter_silence_mode()
