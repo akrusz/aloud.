@@ -206,10 +206,9 @@
         <section class="settings-section">
             <h2>Text-to-Speech <button type="button" class="info-btn" id="tts-info-btn" aria-label="TTS engine info">?</button></h2>
             <div class="info-panel hidden" id="tts-info-panel">
-                <p><strong>macOS</strong> &mdash; Built-in system voices. Zero latency, works offline. Quality varies by voice.</p>
-                <p><strong>Piper</strong> &mdash; Fast local neural TTS. Lightweight (~60&ndash;100 MB per voice), runs on CPU.</p>
+                <p><strong>macOS</strong> &mdash; Built-in system voices. Zero latency, works offline. Download Premium voices from <a href="#" onclick="window.open('x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech'); return false;">System Settings &rarr; Accessibility &rarr; Spoken Content</a>.</p>
+                <p><strong>Piper</strong> &mdash; Fast local neural TTS. Lightweight (~60&ndash;100 MB per voice), runs on CPU. <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen to samples</a></p>
                 <p><strong>Browser</strong> &mdash; Uses your browser's speechSynthesis. No install needed, recommended on Edge browser or Windows app.</p>
-                <!-- <p><strong>VibeVoice</strong> &mdash; High-quality local neural TTS from Microsoft. 6 voices, ~1.9 GB download. Needs a GPU or Apple Silicon.</p> -->
                 <p><strong>ElevenLabs</strong> &mdash; Cloud TTS with the most natural voices. Requires an API key and internet.</p>
             </div>
             <div class="form-row">
@@ -219,15 +218,13 @@
                         <option value="macos">macOS (built-in 'say')</option>
                         <option value="piper">Piper (local neural TTS)</option>
                         <option value="browser">Browser (speechSynthesis)</option>
-                        <!-- VibeVoice hidden until upstream packaging issues are resolved (meditation-pal-rkx) -->
-                        <!-- <option value="vibevoice">VibeVoice (local neural TTS)</option> -->
                         <option value="elevenlabs">ElevenLabs (API)</option>
                     </select>
                     <span class="form-hint" id="s-tts-engine-hint"></span>
                 </div>
                 <div class="form-group form-group-half">
-                    <label>Default Voice</label>
-                    <button type="button" id="s-voice-btn" class="setup-voice-btn">Default</button>
+                    <label>Manage Voices</label>
+                    <button type="button" id="s-voice-btn" class="setup-voice-btn">Choose voice</button>
                 </div>
             </div>
 
@@ -417,7 +414,7 @@
 </div>
 
 {{ picker_modal("settings-voice-modal", "settings-voice-modal-close", "settings-voice-modal-list",
-    title="Choose Default Voice",
+    title="Manage Voices",
     speed_slider_id="s-tts-rate", speed_label_id="s-tts-rate-label",
     speed_text="160 wpm") }}
 

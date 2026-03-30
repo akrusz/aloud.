@@ -35,11 +35,6 @@ class TTSConfig:
     voice: str = "Zoe (Premium)"
     rate: int = 120
 
-    # VibeVoice options
-    model_name: str = "microsoft/VibeVoice-Realtime-0.5B"
-    num_steps: int = 5  # DDPM inference steps (lower = faster, less quality)
-    device: str = "auto"
-
     # ElevenLabs options
     api_key: str | None = None
     voice_id: str | None = None

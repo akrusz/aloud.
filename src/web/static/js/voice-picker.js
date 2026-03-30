@@ -5,6 +5,7 @@
 export var MACOS_QUALITY_VOICES = /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
 
 export var TIER_LABELS = { 3: 'Premium', 2: 'Quality', 1: 'Standard', 0: 'Other' };
+var ENGINE_LABELS = { macos: 'macOS', piper: 'Piper', elevenlabs: 'ElevenLabs', browser: 'Browser' };
 export var PREVIEW_PHRASE = 'Welcome to glow. I\'ll be your guide.';
 
 var _previewAudio = null;
@@ -75,6 +76,7 @@ export function buildScoredVoiceList(serverVoices, includeBrowserVoices) {
                 entry.sizeDisplay = sv.size_display;
             }
             if (sv.recommended) entry.recommended = true;
+            if (sv.engine) entry.engine = sv.engine;
             scored.push(entry);
             seen[sv.name] = true;
             if (browserVoice) seen[browserVoice.name] = true;
@@ -112,12 +114,16 @@ export function buildScoredVoiceList(serverVoices, includeBrowserVoices) {
  * @param {HTMLElement} listEl - the .voice-modal-list container
  * @param {Array} scoredVoices - output from buildScoredVoiceList
  * @param {string|null} selectedName - currently selected voice name
+ * @param {Object} [options] - rendering options
+ * @param {boolean} [options.showUninstall] - show uninstall button on downloaded voices
+ * @param {boolean} [options.showEngine] - show engine badge on each voice
  */
-export function renderVoiceList(listEl, scoredVoices, selectedName) {
+export function renderVoiceList(listEl, scoredVoices, selectedName, options) {
     listEl.innerHTML = '';
+    var opts = options || {};
 
     if (scoredVoices.length === 0) {
-        listEl.innerHTML = '<div class="voice-tier-label">No text-to-speech voices available for the selected engine</div>';
+        listEl.innerHTML = '<div class="voice-tier-label">No text-to-speech voices available</div>';
         return;
     }
 
@@ -141,7 +147,7 @@ export function renderVoiceList(listEl, scoredVoices, selectedName) {
         recLabel.textContent = 'Recommended';
         listEl.appendChild(recLabel);
         for (var i = 0; i < recommended.length; i++) {
-            _renderVoiceRow(listEl, recommended[i], selectedName);
+            _renderVoiceRow(listEl, recommended[i], selectedName, opts);
         }
     }
 
@@ -158,12 +164,12 @@ export function renderVoiceList(listEl, scoredVoices, selectedName) {
         listEl.appendChild(label);
 
         for (var i = 0; i < items.length; i++) {
-            _renderVoiceRow(listEl, items[i], selectedName);
+            _renderVoiceRow(listEl, items[i], selectedName, opts);
         }
     }
 }
 
-function _renderVoiceRow(listEl, entry, selectedName) {
+function _renderVoiceRow(listEl, entry, selectedName, opts) {
     var row = document.createElement('div');
     row.className = 'voice-row';
     if (entry.needsDownload && !entry.downloaded) row.classList.add('voice-row-locked');
@@ -175,6 +181,14 @@ function _renderVoiceRow(listEl, entry, selectedName) {
     nameSpan.textContent = entry.name;
     row.appendChild(nameSpan);
 
+    // Engine badge (e.g. "Piper", "macOS")
+    if (opts && opts.showEngine && entry.engine) {
+        var engineBadge = document.createElement('span');
+        engineBadge.className = 'voice-row-engine';
+        engineBadge.textContent = ENGINE_LABELS[entry.engine] || entry.engine;
+        row.appendChild(engineBadge);
+    }
+
     if (entry.name === selectedName) {
         var check = document.createElement('span');
         check.className = 'voice-row-check';
@@ -184,10 +198,16 @@ function _renderVoiceRow(listEl, entry, selectedName) {
 
     if (entry.needsDownload) {
         if (entry.downloaded) {
-            var ready = document.createElement('span');
-            ready.className = 'voice-row-ready';
-            ready.textContent = 'Ready';
-            row.appendChild(ready);
+            // Uninstall button for downloaded voices
+            if (opts && opts.showUninstall) {
+                var unBtn = document.createElement('button');
+                unBtn.type = 'button';
+                unBtn.className = 'voice-row-uninstall';
+                unBtn.textContent = 'Uninstall';
+                unBtn.dataset.voiceName = entry.name;
+                unBtn.dataset.engine = entry.engine || '';
+                row.appendChild(unBtn);
+            }
         } else {
             var size = document.createElement('span');
             size.className = 'voice-row-size';
@@ -199,6 +219,7 @@ function _renderVoiceRow(listEl, entry, selectedName) {
             dlBtn.className = 'voice-row-download';
             dlBtn.textContent = 'Download';
             dlBtn.dataset.voiceName = entry.name;
+            dlBtn.dataset.engine = entry.engine || '';
             row.appendChild(dlBtn);
         }
     }

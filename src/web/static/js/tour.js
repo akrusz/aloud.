@@ -70,8 +70,13 @@ function showCard(html, className) {
 }
 
 function wireActions() {
+    // Let links inside tour cards open normally without triggering the button action
+    cardEl.querySelectorAll('a[href]').forEach(function(link) {
+        link.addEventListener('click', function(e) { e.stopPropagation(); });
+    });
     cardEl.querySelectorAll('[data-action]').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
+            if (e.target.closest('a')) return;
             e.stopPropagation();
             var action = this.dataset.action;
             if (action === 'self-serve') dismissRemindLater();
@@ -360,15 +365,11 @@ function chooseVoice(value) {
     }
 
     if (value === 'piper') {
-        var sel = document.getElementById('s-tts-engine');
-        sel.value = 'piper';
-        sel.dispatchEvent(new Event('change'));
-
         // Hide the tour so the voice picker modal is fully usable
         hideTour();
 
-        // Wait for voices to load, then open picker
-        waitForVoices(function() {
+        // Open picker (all voices are already loaded)
+        setTimeout(function() {
             document.getElementById('s-voice-btn').click();
             // Watch for the voice picker to close, then show done step
             waitForPickerClose(function() {

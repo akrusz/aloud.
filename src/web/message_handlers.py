@@ -27,15 +27,15 @@ def _split_sentences(text: str) -> list[str]:
     return [p for p in parts if p.strip()]
 
 
-_CHUNK_ENGINES = ("PiperTTS", "VibeVoiceTTS")
+_CHUNK_ENGINES = ("PiperTTS",)
 
 
 def _emit_chunked_audio(app, web_session, text: str) -> None:
     """Synthesize TTS in chunks for local neural engines, single pass otherwise.
 
-    Only Piper and VibeVoice benefit from chunking — their synthesis time
-    scales with text length.  macOS/browser TTS is near-instant, and
-    ElevenLabs has per-request network overhead that makes chunking worse.
+    Only Piper benefits from chunking — its synthesis time scales with
+    text length.  macOS/browser TTS is near-instant, and ElevenLabs has
+    per-request network overhead that makes chunking worse.
 
     Emits ``facilitator_audio`` events with ``{"audio": ..., "final": bool}``.
     """

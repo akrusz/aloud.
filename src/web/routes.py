@@ -134,30 +134,37 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/api/voices")
     def api_voices():
-        """Return voices available to a TTS engine.
+        """Return voices available for TTS.
+
+        Without query params, returns voices from **all** available local
+        engines (macOS, Piper) plus ElevenLabs if active.
 
         Optional query params:
           ?lang=en    — filter to voices matching that language prefix
-          ?engine=X   — list voices for engine X without changing server state
+          ?engine=X   — list voices for engine X only (used by Settings)
         """
         engine_override = request.args.get("engine")
-        tts = app.server_tts
-
-        if engine_override and engine_override != getattr(tts, 'engine', None):
-            # Temporarily create the requested engine to query its voices
-            try:
-                from ..tts import create_tts
-                tts = create_tts(engine=engine_override)
-            except Exception:
-                tts = None
-
-        if not tts or not hasattr(tts, "list_voices"):
-            return jsonify([])
 
         if getattr(app, "no_voices", False):
             return jsonify([])
 
-        voices = tts.list_voices()
+        if engine_override:
+            # Settings page: return voices for a specific engine only
+            tts = app.server_tts
+            if engine_override != getattr(tts, 'engine', None):
+                try:
+                    from ..tts import create_tts
+                    tts = create_tts(engine=engine_override)
+                except Exception:
+                    tts = None
+            if not tts or not hasattr(tts, "list_voices"):
+                return jsonify([])
+            voices = tts.list_voices()
+        else:
+            # Index / session page: aggregate all available engines
+            from ..tts import aggregate_voices
+            voices = aggregate_voices(server_tts=app.server_tts)
+
         lang_filter = request.args.get("lang")
         if lang_filter:
             voices = [
@@ -182,12 +189,19 @@ def register_routes(app: Flask) -> None:
         if not voice:
             return Response(status=404)
 
-        # Use the requested engine if specified, otherwise fall back to server TTS
+        # Use the requested engine if specified, otherwise auto-detect
         engine_override = request.args.get("engine")
         tts = app.server_tts
         is_temp = False
 
-        if engine_override and engine_override != getattr(tts, 'engine', None):
+        # Auto-detect the right engine when none specified
+        if not engine_override:
+            from ..tts import engine_for_voice
+            detected = engine_for_voice(voice)
+            if detected and not isinstance(tts, _tts_class_for(detected)):
+                engine_override = detected
+
+        if engine_override:
             try:
                 from ..tts import create_tts
                 tts = create_tts(engine=engine_override, voice=voice)
@@ -276,45 +290,6 @@ def register_routes(app: Flask) -> None:
 
                     yield _json.dumps({"status": "done"}) + "\n"
 
-                elif engine == "vibevoice":
-                    # VibeVoice voices all share one model — download by model ID,
-                    # not by voice name (voice is e.g. "Emma", model is the HF repo)
-                    from ..tts.vibevoice import VibeVoiceTTS, DEFAULT_MODEL as VV_MODEL
-                    from huggingface_hub import snapshot_download
-                    import threading
-                    import queue
-
-                    model_id = VV_MODEL
-                    if VibeVoiceTTS.is_model_downloaded(model_id) and not getattr(app, "reset_vibevoice", False):
-                        yield _json.dumps({"status": "already_downloaded"}) + "\n"
-                        return
-
-                    progress_q = queue.Queue()
-                    error = [None]
-
-                    def do_download():
-                        try:
-                            snapshot_download(
-                                model_id,
-                                local_files_only=False,
-                            )
-                        except Exception as e:
-                            error[0] = str(e)
-                        finally:
-                            progress_q.put(None)  # signal done
-
-                    t = threading.Thread(target=do_download, daemon=True)
-                    t.start()
-
-                    yield _json.dumps({"status": "Downloading VibeVoice model (~1.9 GB)..."}) + "\n"
-
-                    # Wait for completion (snapshot_download doesn't give great progress hooks)
-                    progress_q.get(timeout=1800)  # 30 min timeout
-                    if error[0]:
-                        yield _json.dumps({"status": "error", "error": error[0]}) + "\n"
-                    else:
-                        yield _json.dumps({"status": "done"}) + "\n"
-
                 else:
                     yield _json.dumps({"status": "error", "error": f"Unknown engine: {engine}"}) + "\n"
 
@@ -326,6 +301,29 @@ def register_routes(app: Flask) -> None:
             mimetype="application/x-ndjson",
             headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
         )
+
+    @app.route("/api/tts/uninstall-model", methods=["POST"])
+    def api_tts_uninstall_model():
+        """Remove a downloaded TTS voice model."""
+        data = request.get_json(silent=True) or {}
+        voice = data.get("voice", "").strip()
+        engine = data.get("engine", "").strip()
+
+        if not voice:
+            return jsonify({"error": "voice is required"}), 400
+
+        if engine == "piper":
+            from ..tts.piper import _get_piper_models_dir
+            models_dir = _get_piper_models_dir()
+            removed = False
+            for suffix in (".onnx", ".onnx.json"):
+                f = models_dir / (voice + suffix)
+                if f.exists():
+                    f.unlink()
+                    removed = True
+            return jsonify({"status": "removed" if removed else "not_found"})
+
+        return jsonify({"error": "uninstall not supported for this engine"}), 400
 
     # ---- Updates ----
 
@@ -459,6 +457,20 @@ _PREVIEW_TEXTS = {
     "ms": "Selamat datang ke Glow. Saya akan menjadi pemandu anda.",
     "ca": "Benvingut a Glow. Seré el teu guia.",
 }
+
+
+def _tts_class_for(engine_name: str) -> type:
+    """Return the TTS class for an engine name (for isinstance checks)."""
+    if engine_name == "piper":
+        from ..tts.piper import PiperTTS
+        return PiperTTS
+    if engine_name == "elevenlabs":
+        from ..tts.elevenlabs import ElevenLabsTTS
+        return ElevenLabsTTS
+    if engine_name == "macos":
+        from ..tts.macos import MacOSTTS
+        return MacOSTTS
+    return type(None)
 
 
 def _preview_text_for_voice(voice_name: str, tts) -> str:

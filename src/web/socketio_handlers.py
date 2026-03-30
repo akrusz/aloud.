@@ -29,11 +29,17 @@ def speak_to_audio(app: Flask, web_session, text: str, voice: str | None = None)
     Checks that the session has TTS enabled, that the server TTS engine
     exists, and that it supports ``speak_to_bytes``.  Uses the session's
     voice (or an explicit override) without mutating global TTS state.
-    Falls back to the engine's default voice if the requested voice fails.
+
+    When the voice belongs to a different engine (e.g. a macOS Premium
+    voice while Piper is active), a temporary TTS instance is created
+    for that engine.  Falls back to the primary engine's default voice
+    only if all else fails.
     """
-    if not (web_session.tts_enabled and app.server_tts and hasattr(app.server_tts, 'speak_to_bytes')):
+    if not web_session.tts_enabled:
         return None
     tts = app.server_tts
+    if not tts or not hasattr(tts, 'speak_to_bytes'):
+        return None
     # Determine which voice to use: explicit override > session voice > current
     target_voice = voice or web_session.tts_voice_name
     original_voice = tts.voice
@@ -41,7 +47,22 @@ def speak_to_audio(app: Flask, web_session, text: str, voice: str | None = None)
         if target_voice and target_voice != original_voice:
             tts.set_voice(target_voice)
         result = tts.speak_to_bytes(text)
-        # If voice failed (e.g. undownloaded Piper model), try the default voice
+        # If synthesis failed, try the correct engine for this voice
+        if result is None and target_voice:
+            from ..tts import engine_for_voice, create_tts
+            fallback_engine = engine_for_voice(target_voice)
+            if fallback_engine:
+                try:
+                    alt_tts = create_tts(
+                        engine=fallback_engine,
+                        voice=target_voice,
+                        rate=int(getattr(tts, 'rate', 180)),
+                    )
+                    if alt_tts and hasattr(alt_tts, 'speak_to_bytes'):
+                        result = alt_tts.speak_to_bytes(text)
+                except Exception:
+                    pass
+        # Last resort: fall back to the primary engine's default voice
         if result is None and target_voice and target_voice != original_voice:
             import logging
             logging.getLogger(__name__).warning(

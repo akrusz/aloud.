@@ -1537,7 +1537,7 @@ body:has(.session-container) {
 }
 
 .voice-modal {
-    max-width: 440px;
+    max-width: 520px;
     width: 90%;
     max-height: 70vh;
     background: var(--bg-card);
@@ -1716,6 +1716,39 @@ body:has(.session-container) {
     font-size: 0.75rem;
     color: var(--success, #5a9e6f);
     flex-shrink: 0;
+}
+
+.voice-row-engine {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    padding: 0.05rem 0.35rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.voice-row-uninstall {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-family: var(--font);
+    padding: 0.1rem 0.35rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all var(--transition);
+}
+
+.voice-row-uninstall:hover:not(:disabled) {
+    border-color: var(--error, #c44);
+    color: var(--error, #c44);
+}
+
+.voice-row-uninstall:disabled {
+    opacity: 0.6;
+    cursor: default;
 }
 
 .voice-row-progress {

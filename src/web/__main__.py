@@ -33,8 +33,6 @@ elif __name__ == "__main__":
                         help="Return empty voice list (test no-voices UX)")
     parser.add_argument("--reset-piper", action="store_true",
                         help="Pretend Piper isn't installed (hides from engine list & recommendations)")
-    parser.add_argument("--reset-vibevoice", action="store_true",
-                        help="Pretend VibeVoice isn't installed (hides from engine list)")
     parser.add_argument("--no-providers", action="store_true",
                         help="All LLM providers appear unavailable (test cold-start setup)")
     parser.add_argument("--no-ollama", action="store_true",
@@ -91,5 +89,4 @@ elif __name__ == "__main__":
     run_web(host=args.host, port=args.port, debug=args.debug, browser=args.browser,
             fresh=args.fresh, hide_premium=args.hide_premium,
             no_voices=args.no_voices, reset_piper=args.reset_piper,
-            reset_vibevoice=args.reset_vibevoice, no_providers=args.no_providers,
-            no_ollama=args.no_ollama)
+            no_providers=args.no_providers, no_ollama=args.no_ollama)

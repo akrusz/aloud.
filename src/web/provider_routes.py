@@ -403,7 +403,7 @@ def register_provider_routes(app: Flask) -> None:
     @app.route("/api/providers")
     def api_providers():
         """Return provider availability based on env vars / proxy reachability."""
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from concurrent.futures import ThreadPoolExecutor
 
         results = {}
 

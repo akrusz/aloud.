@@ -20,10 +20,6 @@ tts:
   voice: "Zoe (Premium)"
   rate: 120  # words per minute
 
-  # VibeVoice options (if engine: vibevoice)
-  # model_name: microsoft/VibeVoice-Realtime-0.5B
-  # num_steps: 5  # DDPM inference steps (lower = faster, less quality)
-
   # ElevenLabs options (if engine: elevenlabs)
   # api_key: ${ELEVENLABS_API_KEY}
   # voice_id: 21m00Tcm4TlvDq8ikWAM  # Rachel - calm, warm

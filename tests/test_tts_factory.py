@@ -6,7 +6,6 @@ import pytest
 
 from src.tts import create_tts
 from src.tts.piper import PiperTTS
-from src.tts.vibevoice import VibeVoiceTTS
 from src.tts.elevenlabs import ElevenLabsTTS
 
 
@@ -26,16 +25,6 @@ class TestCreateTTS:
     def test_create_piper(self):
         tts = create_tts("piper")
         assert isinstance(tts, PiperTTS)
-
-    def test_create_vibevoice(self, monkeypatch):
-        monkeypatch.setattr(VibeVoiceTTS, "is_available", staticmethod(lambda: True))
-        tts = create_tts("vibevoice")
-        assert isinstance(tts, VibeVoiceTTS)
-
-    def test_create_vibevoice_returns_none_when_unavailable(self, monkeypatch):
-        monkeypatch.setattr(VibeVoiceTTS, "is_available", staticmethod(lambda: False))
-        result = create_tts("vibevoice")
-        assert result is None
 
     def test_create_elevenlabs(self, monkeypatch):
         monkeypatch.setenv("ELEVENLABS_API_KEY", "test-key-123")
@@ -66,11 +55,3 @@ class TestCreateTTSOptions:
         tts = create_tts("piper", rate=360)
         assert isinstance(tts, PiperTTS)
         assert tts.rate == 360  # Stored as WPM, converted at synthesis time
-
-    def test_vibevoice_kwargs_passed(self, monkeypatch):
-        monkeypatch.setattr(VibeVoiceTTS, "is_available", staticmethod(lambda: True))
-        tts = create_tts("vibevoice", voice="Carter", device="cpu", num_steps=3)
-        assert isinstance(tts, VibeVoiceTTS)
-        assert tts.voice == "Carter"
-        assert tts.device == "cpu"
-        assert tts.num_steps == 3
