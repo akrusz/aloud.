@@ -32,7 +32,7 @@ class TestIsAvailable:
 
 class TestIsModelDownloaded:
     def test_filesystem_fallback_with_safetensors(self, tmp_path, monkeypatch):
-        """When huggingface_hub is not available, falls back to filesystem check."""
+        """Model files without voice presets are not considered downloaded."""
         import builtins
         real_import = builtins.__import__
 
@@ -49,7 +49,8 @@ class TestIsModelDownloaded:
         (model_dir / "snapshots" / "abc123" / "model.safetensors").write_text("fake")
 
         monkeypatch.setenv("HF_HOME", str(tmp_path))
-        assert VibeVoiceTTS.is_model_downloaded("microsoft/VibeVoice-Realtime-0.5B") is True
+        # Model weights exist but voice presets are missing, so not usable
+        assert VibeVoiceTTS.is_model_downloaded("microsoft/VibeVoice-Realtime-0.5B") is False
 
     def test_filesystem_fallback_without_safetensors(self, tmp_path, monkeypatch):
         """When HF cache exists but no safetensors files, returns False."""

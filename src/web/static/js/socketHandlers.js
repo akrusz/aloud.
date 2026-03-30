@@ -2,7 +2,7 @@
 
 import { state, dom, socket } from './state.js';
 import { addMessage, addContinuation, showTyping, hideTyping, scrollToBottom, stopTimer, setStatus, showErrorToast } from './ui.js';
-import { speak, stopServerAudio } from './tts.js';
+import { speak, stopServerAudio, queueAudioChunk } from './tts.js';
 import { handleTranscription, applySessionConfig } from './audio.js';
 import { buildVoiceList } from './voice.js';
 import { notingState, stopCircle } from './noting.js';
@@ -37,7 +37,7 @@ export function registerSocketHandlers(deactivateVoiceFn) {
         addMessage('facilitator', data.text);
         if (dom.ttsToggle.classList.contains('active')) {
             if (data.audio) {
-                // Audio included — play immediately
+                // Audio included inline (e.g. opener) — play immediately
                 if (state.voiceActive) {
                     speak(data.text, data.audio);
                 } else {
@@ -45,8 +45,8 @@ export function registerSocketHandlers(deactivateVoiceFn) {
                     state.queuedAudio = data.audio;
                 }
             } else {
-                // No audio yet — wait briefly for a facilitator_audio event
-                // before falling back to browser TTS
+                // No audio — chunked audio will arrive via facilitator_audio.
+                // Set a fallback timer for browser TTS if audio never comes.
                 state._pendingSpeechText = data.text;
                 state._pendingSpeechTimer = setTimeout(function() {
                     if (state._pendingSpeechText) {
@@ -59,26 +59,20 @@ export function registerSocketHandlers(deactivateVoiceFn) {
                             state.queuedAudio = null;
                         }
                     }
-                }, 5000);
+                }, 8000);
             }
         }
     });
 
     socket.on('facilitator_audio', function (data) {
-        // Server-synthesized audio arriving after the text
+        // Chunked server audio — queue for sequential playback
         if (state._pendingSpeechTimer) {
             clearTimeout(state._pendingSpeechTimer);
             state._pendingSpeechTimer = null;
         }
-        var txt = state._pendingSpeechText || '';
         state._pendingSpeechText = null;
-        if (dom.ttsToggle.classList.contains('active')) {
-            if (state.voiceActive) {
-                speak(txt, data.audio);
-            } else {
-                state.queuedSpeech = txt;
-                state.queuedAudio = data.audio;
-            }
+        if (dom.ttsToggle.classList.contains('active') && state.voiceActive && data.audio) {
+            queueAudioChunk(data.audio);
         }
     });
 

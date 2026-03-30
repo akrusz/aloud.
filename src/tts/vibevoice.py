@@ -112,12 +112,22 @@ class VibeVoiceTTS:
         logger.info("Loading VibeVoice model on %s (dtype=%s, attn=%s)...", device, dtype, attn_impl)
 
         self._processor = VibeVoiceStreamingProcessor.from_pretrained(self.model_name)
-        self._model = VibeVoiceStreamingForConditionalGenerationInference.from_pretrained(
-            self.model_name,
-            torch_dtype=dtype,
-            device_map=device,
-            attn_implementation=attn_impl,
-        )
+        # Use device_map only for CUDA (accelerate handles multi-GPU dispatch).
+        # For MPS/CPU, load weights normally and .to(device) to avoid
+        # "Cannot copy out of meta tensor" errors.
+        if device == "cuda":
+            self._model = VibeVoiceStreamingForConditionalGenerationInference.from_pretrained(
+                self.model_name,
+                torch_dtype=dtype,
+                device_map=device,
+                attn_implementation=attn_impl,
+            )
+        else:
+            self._model = VibeVoiceStreamingForConditionalGenerationInference.from_pretrained(
+                self.model_name,
+                torch_dtype=dtype,
+                attn_implementation=attn_impl,
+            ).to(device)
         self._model.eval()
         self._model.set_ddpm_inference_steps(num_steps=self.num_steps)
         self._device = device
@@ -260,20 +270,30 @@ class VibeVoiceTTS:
 
     @staticmethod
     def is_model_downloaded(model_name: str = DEFAULT_MODEL) -> bool:
-        """Check if the VibeVoice model is cached locally."""
+        """Check if the VibeVoice model and voice presets are cached locally."""
+        has_model = False
         try:
             from huggingface_hub import try_to_load_from_cache, _CACHED_NO_EXIST
             result = try_to_load_from_cache(model_name, "config.json")
-            if result is not None and result is not _CACHED_NO_EXIST:
-                return True
-            return False
+            has_model = result is not None and result is not _CACHED_NO_EXIST
         except Exception:
             pass
-        # Fallback: check common HF cache locations
-        import os
-        hf_home = os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")
-        cache_dir = Path(hf_home) / "hub" / ("models--" + model_name.replace("/", "--"))
-        return cache_dir.exists() and any(cache_dir.rglob("*.safetensors"))
+        if not has_model:
+            # Fallback: check common HF cache locations
+            import os
+            hf_home = os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")
+            cache_dir = Path(hf_home) / "hub" / ("models--" + model_name.replace("/", "--"))
+            has_model = cache_dir.exists() and any(cache_dir.rglob("*.safetensors"))
+        if not has_model:
+            return False
+        # Also verify at least one voice preset exists
+        try:
+            from huggingface_hub import hf_hub_download
+            hf_hub_download(model_name, f"voices/streaming_model/{VIBEVOICE_VOICES[0]['file']}",
+                            local_files_only=True)
+            return True
+        except Exception:
+            return False
 
     def list_voices(self) -> list[dict]:
         """List available VibeVoice voice presets."""

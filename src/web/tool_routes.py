@@ -50,7 +50,7 @@ def register_tool_routes(app: Flask) -> None:
             from ..frozen import is_frozen
             if is_frozen():
                 return jsonify({"error": "Package install not available in desktop app"}), 400
-            packages = ["piper-tts"] if tool == "piper-tts" else ["vibevoice[streamingtts]", "torch"]
+            packages = ["piper-tts"] if tool == "piper-tts" else ["vibevoice @ git+https://github.com/microsoft/VibeVoice.git", "torch"]
             # Install into the same environment glooow is running in
             pip_cmd = shutil.which("uv")
             if pip_cmd:

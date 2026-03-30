@@ -5,6 +5,7 @@ Handles: user_message, check_resume_intent, noting_user_note, noting_turn, notin
 
 import asyncio
 import logging
+import re
 
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
@@ -12,6 +13,65 @@ from flask_socketio import SocketIO, emit
 from .socketio_handlers import get_session, speak_to_audio
 
 logger = logging.getLogger(__name__)
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Split text into sentences at natural boundaries.
+
+    Returns a list of 1+ non-empty strings.  Keeps punctuation attached
+    to the sentence that ends with it.
+    """
+    # Split on a single sentence-ending punctuation mark followed by whitespace
+    # (avoids splitting on ellipses like "I see...")
+    parts = re.split(r'(?<=[^.!?][.!?])\s+', text.strip())
+    return [p for p in parts if p.strip()]
+
+
+_CHUNK_ENGINES = ("PiperTTS", "VibeVoiceTTS")
+
+
+def _emit_chunked_audio(app, web_session, text: str) -> None:
+    """Synthesize TTS in chunks for local neural engines, single pass otherwise.
+
+    Only Piper and VibeVoice benefit from chunking — their synthesis time
+    scales with text length.  macOS/browser TTS is near-instant, and
+    ElevenLabs has per-request network overhead that makes chunking worse.
+
+    Emits ``facilitator_audio`` events with ``{"audio": ..., "final": bool}``.
+    """
+    # Only chunk for local neural TTS engines
+    tts = app.server_tts
+    engine_name = type(tts).__name__ if tts else ""
+    if engine_name not in _CHUNK_ENGINES:
+        audio = speak_to_audio(app, web_session, text)
+        if audio:
+            emit("facilitator_audio", {"audio": audio, "final": True})
+        return
+
+    sentences = _split_sentences(text)
+    if not sentences:
+        return
+
+    # If first sentence is less than 1/8 of total length, don't bother
+    # chunking — the pause would be noticeable for little gain.
+    min_first_chunk = len(text) // 8
+    if len(sentences) < 2 or len(sentences[0]) < min_first_chunk:
+        audio = speak_to_audio(app, web_session, text)
+        if audio:
+            emit("facilitator_audio", {"audio": audio, "final": True})
+        return
+
+    # First chunk: first sentence — synthesize and emit immediately
+    first = sentences[0]
+    audio = speak_to_audio(app, web_session, first)
+    if audio:
+        emit("facilitator_audio", {"audio": audio, "final": False})
+
+    # Remaining chunk: everything else
+    rest = " ".join(sentences[1:])
+    audio = speak_to_audio(app, web_session, rest)
+    if audio:
+        emit("facilitator_audio", {"audio": audio, "final": True})
 
 
 def register_message_handlers(socketio: SocketIO, app: Flask) -> None:
@@ -42,9 +102,9 @@ def register_message_handlers(socketio: SocketIO, app: Flask) -> None:
             response, hold_signal = asyncio.run(web_session.generate_response(text))
             # Emit text immediately so the user sees it while TTS synthesizes
             emit("facilitator_message", {"text": response, "type": "response"})
-            audio = speak_to_audio(app, web_session, response)
-            if audio:
-                emit("facilitator_audio", {"audio": audio})
+            # Chunked TTS: synthesize first sentence and emit immediately,
+            # then synthesize the rest while the first chunk plays.
+            _emit_chunked_audio(app, web_session, response)
             # Don't re-enter silence right after the user just exited it
             if hold_signal == "hold" and not was_silent:
                 web_session.pacing.enter_silence_mode()

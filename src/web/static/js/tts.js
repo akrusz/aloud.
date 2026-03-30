@@ -5,6 +5,46 @@ import { decodeAndPlay, setAudioPlaying } from './audio-utils.js';
 
 export var TTS_COOLDOWN_MS = 800;    // ignore mic for this long after TTS ends
 
+// ---- Audio chunk queue ----
+
+var audioQueue = [];
+var queuePlaying = false;
+
+function playNext() {
+    if (audioQueue.length === 0) {
+        queuePlaying = false;
+        setTimeout(function () {
+            state.ttsSpeaking = false;
+            if (state.onTtsDone) { var cb = state.onTtsDone; state.onTtsDone = null; cb(); }
+        }, TTS_COOLDOWN_MS);
+        return;
+    }
+    queuePlaying = true;
+    var chunk = audioQueue.shift();
+    decodeAndPlay(chunk, function () {
+        playNext();
+    }, function (err) {
+        console.warn('Audio chunk decode failed:', err);
+        playNext();
+    });
+}
+
+export function queueAudioChunk(audioBytes) {
+    audioQueue.push(audioBytes);
+    if (!queuePlaying) {
+        queuePlaying = true;
+        state.ttsSpeaking = true;
+        state.serverAudioPlaying = true;
+        playNext();
+    }
+}
+
+export function clearAudioQueue() {
+    audioQueue = [];
+}
+
+// ---- Speak (single audio or browser fallback) ----
+
 export function speak(text, audioBytes) {
     // Try server-generated audio first, fall back to browser speechSynthesis
     if (audioBytes && state.audioContext) {
@@ -67,6 +107,9 @@ export function playServerAudio(audioBytes, fallbackText) {
 }
 
 export function stopServerAudio() {
+    // Clear any queued chunks
+    clearAudioQueue();
+    queuePlaying = false;
     if (state.serverAudioSource) {
         try { state.serverAudioSource.stop(); } catch (e) { /* already stopped */ }
         state.serverAudioSource = null;

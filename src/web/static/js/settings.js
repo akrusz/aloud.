@@ -47,7 +47,6 @@ const TTS_ENGINE_HINTS = {
     browser: "Uses your browser's built-in speech synthesis. Quality varies by browser.",
     elevenlabs: "Cloud neural TTS with natural, expressive voices. Requires an API key and internet.",
     piper: 'Fast local neural TTS. Download voice models (~60\u2013100 MB each) from the voice picker. <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen to samples</a>',
-    vibevoice: "High-quality local neural TTS from Microsoft. 6 English voices, ~1.9 GB model download.",
 };
 const ttsEngineHintEl = document.getElementById('s-tts-engine-hint');
 
@@ -195,8 +194,6 @@ function downloadTtsModel(engine, voice, btn) {
                             const dlMB = (obj.completed / (1024 * 1024)).toFixed(0);
                             const totalMB = (obj.total / (1024 * 1024)).toFixed(0);
                             statusEl.textContent = dlMB + '/' + totalMB + ' MB';
-                        } else if (obj.status) {
-                            statusEl.textContent = obj.status;
                         }
                     } catch (e) {}
                 });
@@ -227,6 +224,8 @@ function downloadTtsModel(engine, voice, btn) {
             preview.classList.remove('preview-unavailable');
             preview.title = '';
         }
+        // Refresh voice list so global state reflects the download
+        setTimeout(fetchVoices, 500);
     }
 }
 
@@ -272,9 +271,8 @@ var NO_VOICES_HELP = {
 };
 
 // Engines that can be pip-installed from the UI
-var TTS_INSTALLABLE = {
-    vibevoice: { tool: 'vibevoice', name: 'VibeVoice', desc: 'High-quality neural TTS from Microsoft. Requires ~2 GB for dependencies + ~1.9 GB for the model.' },
-};
+// VibeVoice hidden until upstream issues resolved (meditation-pal-rkx)
+var TTS_INSTALLABLE = {};
 
 var ttsInstallSection = document.getElementById('s-tts-install');
 var ttsInstallRow = document.getElementById('s-tts-install-row');
@@ -329,7 +327,6 @@ function updateVoiceBtnState() {
 }
 
 updateTtsEngineHint();
-fetchVoices();
 
 // Refresh voices when language changes
 document.getElementById('s-language').addEventListener('change', fetchVoices);
@@ -1311,12 +1308,13 @@ function dismissVoiceQualityPermanent() {
 function showVoiceQualityHint() {
     var hintEl = document.getElementById('voice-quality-hint');
     var engine = ttsEngineSelect.value;
+    var openSettings = '<a href="#" onclick="window.open(\'x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech\'); return false;">Open Settings</a>';
     if (engine === 'piper') {
         hintEl.textContent = 'Choose and download a voice above to get started.';
     } else if (/Mac/.test(navigator.platform)) {
-        hintEl.textContent = piperAvailable
-            ? 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content, or switch the engine to Piper below.'
-            : 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content.';
+        hintEl.innerHTML = piperAvailable
+            ? 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content (' + openSettings + '), or switch the engine to Piper below.'
+            : 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content. ' + openSettings;
     } else if (piperAvailable) {
         hintEl.textContent = 'Tip: Switch the TTS engine to Piper for higher quality neural voices.';
     } else {

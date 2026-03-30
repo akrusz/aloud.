@@ -403,46 +403,48 @@ def register_provider_routes(app: Flask) -> None:
     @app.route("/api/providers")
     def api_providers():
         """Return provider availability based on env vars / proxy reachability."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         results = {}
 
         refresh = ' <a href="#" onclick="refreshProviders(); return false">Refresh</a>'
         proxy_binary = find_cli_proxy()
 
-        # claude_proxy — check if CLIProxyAPI is reachable
-        proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
-        try:
-            headers = {}
-            if app.meditation_config.llm.api_key:
-                headers["X-Api-Key"] = app.meditation_config.llm.api_key
-            resp = httpx.get(
-                f"{proxy_url.rstrip('/')}/v1/models",
-                headers=headers,
-                timeout=2.0,
-            )
-            if resp.status_code == 200:
-                results["claude_proxy"] = {"available": True, "installed": True, "hint": ""}
-            else:
-                results["claude_proxy"] = {
+        # --- Probe CLIProxyAPI and Ollama in parallel (each has a 2s timeout) ---
+
+        def _check_proxy():
+            proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
+            try:
+                headers = {}
+                if app.meditation_config.llm.api_key:
+                    headers["X-Api-Key"] = app.meditation_config.llm.api_key
+                resp = httpx.get(
+                    f"{proxy_url.rstrip('/')}/v1/models",
+                    headers=headers,
+                    timeout=2.0,
+                )
+                if resp.status_code == 200:
+                    return {"available": True, "installed": True, "hint": ""}
+                return {
                     "available": False, "installed": bool(proxy_binary),
                     "hint": (
                         "CLIProxyAPI rejected the connection. Check your config in "
                         "<code>~/.cli-proxy-api/config.yaml</code>." + refresh
                     ),
                 }
-        except Exception:
-            if proxy_binary:
-                start_btn = (
-                    ' <a href="#" onclick="startProxy(); return false" '
-                    'class="btn btn-small btn-primary" '
-                    'style="display:inline-block; margin-left:0.5rem; padding:0.15rem 0.6rem; '
-                    'font-size:0.875rem; vertical-align:baseline">Start</a>'
-                )
-                results["claude_proxy"] = {
-                    "available": False, "installed": True,
-                    "hint": "CLIProxyAPI is installed but not running." + start_btn,
-                }
-            else:
-                results["claude_proxy"] = {
+            except Exception:
+                if proxy_binary:
+                    start_btn = (
+                        ' <a href="#" onclick="startProxy(); return false" '
+                        'class="btn btn-small btn-primary" '
+                        'style="display:inline-block; margin-left:0.5rem; padding:0.15rem 0.6rem; '
+                        'font-size:0.875rem; vertical-align:baseline">Start</a>'
+                    )
+                    return {
+                        "available": False, "installed": True,
+                        "hint": "CLIProxyAPI is installed but not running." + start_btn,
+                    }
+                return {
                     "available": False, "installed": False,
                     "hint": (
                         "CLIProxyAPI is not installed. "
@@ -452,7 +454,22 @@ def register_provider_routes(app: Flask) -> None:
                     ),
                 }
 
-        # anthropic — needs ANTHROPIC_API_KEY
+        def _check_ollama():
+            ollama_url = app.meditation_config.llm.ollama_url or "http://localhost:11434"
+            try:
+                resp = httpx.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=2.0)
+                resp.raise_for_status()
+                return resp.json().get("models", [])
+            except Exception:
+                return None  # not running
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            proxy_future = pool.submit(_check_proxy)
+            ollama_future = pool.submit(_check_ollama)
+
+        results["claude_proxy"] = proxy_future.result()
+
+        # API key providers — instant, no network
         results["anthropic"] = {
             "available": bool(os.environ.get("ANTHROPIC_API_KEY")),
             "hint": (
@@ -461,7 +478,6 @@ def register_provider_routes(app: Flask) -> None:
             ),
         }
 
-        # openai — needs OPENAI_API_KEY
         results["openai"] = {
             "available": bool(os.environ.get("OPENAI_API_KEY")),
             "hint": (
@@ -470,7 +486,6 @@ def register_provider_routes(app: Flask) -> None:
             ),
         }
 
-        # openrouter — needs OPENROUTER_API_KEY
         results["openrouter"] = {
             "available": bool(os.environ.get("OPENROUTER_API_KEY")),
             "hint": (
@@ -479,7 +494,6 @@ def register_provider_routes(app: Flask) -> None:
             ),
         }
 
-        # venice — needs VENICE_API_KEY
         results["venice"] = {
             "available": bool(os.environ.get("VENICE_API_KEY")),
             "hint": (
@@ -488,7 +502,7 @@ def register_provider_routes(app: Flask) -> None:
             ),
         }
 
-        # ollama — check if server is running and list pulled models
+        # ollama — process the result from the parallel probe
         tiers = app.meditation_config.llm.ollama_tiers or DEFAULT_OLLAMA_TIERS
         ram_gb = _get_system_ram_gb()
         rec = _recommended_ollama_model(ram_gb, tiers)
@@ -512,13 +526,9 @@ def register_provider_routes(app: Flask) -> None:
             "tiers": tier_list,
         }
 
-        ollama_url = app.meditation_config.llm.ollama_url or "http://localhost:11434"
-        try:
-            resp = httpx.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=2.0)
-            resp.raise_for_status()
-            raw_models = resp.json().get("models", [])
+        raw_models = ollama_future.result()
+        if raw_models is not None:
             models = [m["name"] for m in raw_models]
-            # Build a name->disk-size map for pulled models
             model_sizes = {}
             for m in raw_models:
                 size_bytes = m.get("size", 0)
@@ -527,14 +537,12 @@ def register_provider_routes(app: Flask) -> None:
                     model_sizes[m["name"]] = (
                         f"{gb:.1f}GB" if gb >= 1 else f"{size_bytes / (1024**2):.0f}MB"
                     )
-            # Mark which tiers are already installed
             for t in rec_info["tiers"]:
                 tier_base = t["model"].split(":")[0]
                 t["installed"] = any(
                     n.split(":")[0] == tier_base and t["model"].split(":")[-1] in n
                     for n in models
                 )
-                # Use actual disk size if available (exact match only)
                 if t["model"] in model_sizes:
                     t["actual_disk"] = model_sizes[t["model"]]
 
@@ -554,7 +562,7 @@ def register_provider_routes(app: Flask) -> None:
                     ),
                     "recommendation": rec_info,
                 }
-        except Exception:
+        else:
             results["ollama"] = {
                 "available": False, "models": [],
                 "hint": (

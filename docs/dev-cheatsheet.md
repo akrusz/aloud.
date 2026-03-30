@@ -38,9 +38,6 @@ uv run python -m src.web --no-voices
 # Piper hidden from engine list & recommendations
 uv run python -m src.web --reset-piper
 
-# VibeVoice hidden from engine list
-uv run python -m src.web --reset-vibevoice
-
 # All LLM providers appear unavailable (test cold-start provider setup)
 uv run python -m src.web --no-providers
 
@@ -53,8 +50,8 @@ uv run python -m src.web --fresh --hide-premium
 # Full fresh-install with no voices at all
 uv run python -m src.web --fresh --no-voices
 
-# True cold-start: fresh install, no providers, no premium, no Piper/VibeVoice
-uv run python -m src.web --fresh --no-providers --hide-premium --reset-piper --reset-vibevoice
+# True cold-start: fresh install, no providers, no premium, no Piper
+uv run python -m src.web --fresh --no-providers --hide-premium --reset-piper
 
 # Test Ollama install flow with everything else available
 uv run python -m src.web --fresh --no-ollama
@@ -69,7 +66,6 @@ uv run python -m src.web --browser --fresh --hide-premium
 | `--hide-premium` | Filters out Premium/Enhanced voices from `/api/voices` so only basic voices appear |
 | `--no-voices` | `/api/voices` returns `[]` — tests the empty-voices state |
 | `--reset-piper` | Piper hidden from engine dropdown, voice quality modal, and hints |
-| `--reset-vibevoice` | VibeVoice hidden from engine dropdown |
 | `--no-providers` | All LLM providers return `available: false` — tests zero-provider setup UI |
 | `--no-ollama` | Ollama appears not installed/running — tests Ollama install flow |
 | `--debug` | Sets log level to DEBUG for all `src.*` loggers |

@@ -209,7 +209,7 @@
                 <p><strong>macOS</strong> &mdash; Built-in system voices. Zero latency, works offline. Quality varies by voice.</p>
                 <p><strong>Piper</strong> &mdash; Fast local neural TTS. Lightweight (~60&ndash;100 MB per voice), runs on CPU.</p>
                 <p><strong>Browser</strong> &mdash; Uses your browser's speechSynthesis. No install needed, recommended on Edge browser or Windows app.</p>
-                <p><strong>VibeVoice</strong> &mdash; High-quality local neural TTS from Microsoft. 6 voices, ~1.9 GB download. Needs a GPU or Apple Silicon.</p>
+                <!-- <p><strong>VibeVoice</strong> &mdash; High-quality local neural TTS from Microsoft. 6 voices, ~1.9 GB download. Needs a GPU or Apple Silicon.</p> -->
                 <p><strong>ElevenLabs</strong> &mdash; Cloud TTS with the most natural voices. Requires an API key and internet.</p>
             </div>
             <div class="form-row">
@@ -219,7 +219,8 @@
                         <option value="macos">macOS (built-in 'say')</option>
                         <option value="piper">Piper (local neural TTS)</option>
                         <option value="browser">Browser (speechSynthesis)</option>
-                        <option value="vibevoice">VibeVoice (local neural TTS)</option>
+                        <!-- VibeVoice hidden until upstream packaging issues are resolved (meditation-pal-rkx) -->
+                        <!-- <option value="vibevoice">VibeVoice (local neural TTS)</option> -->
                         <option value="elevenlabs">ElevenLabs (API)</option>
                     </select>
                     <span class="form-hint" id="s-tts-engine-hint"></span>
@@ -431,7 +432,7 @@
             <p>glooow sounds best with a high-quality voice.</p>
             <div class="vq-option hidden" id="vq-macos-option">
                 <strong>Download a Premium macOS voice</strong>
-                <p class="form-hint" style="margin-top:0.25rem">System Settings &rarr; Accessibility &rarr; Spoken Content &rarr; System Voice &rarr; Manage Voices</p>
+                <p class="form-hint" style="margin-top:0.25rem">System Settings &rarr; Accessibility &rarr; Spoken Content &rarr; Manage Voices. <a href="#" onclick="window.open('x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech'); return false;">Open Settings</a></p>
             </div>
             <div class="vq-option" id="vq-piper-option">
                 <strong id="vq-piper-title">Try Piper neural TTS</strong>
@@ -448,6 +449,6 @@
 {% endblock %}
 
 {% block scripts %}
-<div id="settings-data" data-first-run="{{ 'true' if first_run else 'false' }}" data-frozen="{{ 'true' if is_frozen else 'false' }}" data-piper-available="{{ 'true' if piper_available else 'false' }}" data-vibevoice-available="{{ 'true' if vibevoice_available else 'false' }}"></div>
+<div id="settings-data" data-first-run="{{ 'true' if first_run else 'false' }}" data-frozen="{{ 'true' if is_frozen else 'false' }}" data-piper-available="{{ 'true' if piper_available else 'false' }}"></div>
 <script type="module" src="{{ url_for('static', filename='js/settings.js') }}"></script>
 {% endblock %}

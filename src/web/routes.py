@@ -50,12 +50,9 @@ def register_routes(app: Flask) -> None:
     def settings_page():
         first_run = _is_first_run()
         from ..tts.piper import PiperTTS
-        from ..tts.vibevoice import VibeVoiceTTS
         piper_available = PiperTTS.is_available() and not getattr(app, "reset_piper", False)
-        vibevoice_available = VibeVoiceTTS.is_available() and not getattr(app, "reset_vibevoice", False)
         return render_template("settings.html", first_run=first_run,
-                               piper_available=piper_available,
-                               vibevoice_available=vibevoice_available)
+                               piper_available=piper_available)
 
     # ---- Window management ----
 
@@ -172,7 +169,7 @@ def register_routes(app: Flask) -> None:
                 v for v in voices
                 if not re.search(r"Premium|Enhanced", v.get("name", ""), re.IGNORECASE)
             ]
-        if getattr(app, "reset_piper", False) or getattr(app, "reset_vibevoice", False):
+        if getattr(app, "reset_piper", False):
             for v in voices:
                 if v.get("needs_download"):
                     v["downloaded"] = False
@@ -280,10 +277,17 @@ def register_routes(app: Flask) -> None:
                     yield _json.dumps({"status": "done"}) + "\n"
 
                 elif engine == "vibevoice":
-                    # VibeVoice downloads via huggingface_hub
+                    # VibeVoice voices all share one model — download by model ID,
+                    # not by voice name (voice is e.g. "Emma", model is the HF repo)
+                    from ..tts.vibevoice import VibeVoiceTTS, DEFAULT_MODEL as VV_MODEL
                     from huggingface_hub import snapshot_download
                     import threading
                     import queue
+
+                    model_id = VV_MODEL
+                    if VibeVoiceTTS.is_model_downloaded(model_id) and not getattr(app, "reset_vibevoice", False):
+                        yield _json.dumps({"status": "already_downloaded"}) + "\n"
+                        return
 
                     progress_q = queue.Queue()
                     error = [None]
@@ -291,7 +295,7 @@ def register_routes(app: Flask) -> None:
                     def do_download():
                         try:
                             snapshot_download(
-                                voice,  # "microsoft/VibeVoice-Realtime-0.5B"
+                                model_id,
                                 local_files_only=False,
                             )
                         except Exception as e:

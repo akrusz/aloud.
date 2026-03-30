@@ -49,15 +49,15 @@ function cleanup() {
 }
 
 function hideTour() {
-    if (overlayEl) overlayEl.style.display = 'none';
-    if (spotlightEl) spotlightEl.style.display = 'none';
-    if (cardEl) cardEl.style.display = 'none';
+    if (overlayEl && overlayEl.parentNode) overlayEl.remove();
+    if (spotlightEl && spotlightEl.parentNode) spotlightEl.remove();
+    if (cardEl && cardEl.parentNode) cardEl.remove();
 }
 
 function showTour() {
-    if (overlayEl) overlayEl.style.display = '';
-    if (spotlightEl) spotlightEl.style.display = '';
-    if (cardEl) cardEl.style.display = '';
+    // Re-attach elements to DOM
+    if (overlayEl && !overlayEl.parentNode) document.body.appendChild(overlayEl);
+    if (spotlightEl && !spotlightEl.parentNode) document.body.appendChild(spotlightEl);
 }
 
 function showCard(html, className) {
@@ -333,7 +333,7 @@ function showVoiceStep() {
         if (tourOptions.isMac) {
             html += '<button class="tour-choice" data-action="voice" data-value="macos">';
             html += '<strong>Premium macOS voices</strong>';
-            html += '<small>Download from System Settings \u2192 Accessibility \u2192 Spoken Content \u2192 Manage Voices</small>';
+            html += '<small>Download from System Settings \u2192 Accessibility \u2192 Spoken Content. <a href="#" onclick="window.open(\'x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech\'); return false;">Open Settings</a></small>';
             html += '</button>';
         }
 
