@@ -3,14 +3,10 @@
 
 import { state, dom, socket } from './state.js';
 import {
-    scoreVoiceName, buildScoredVoiceList, renderVoiceList,
+    buildScoredVoiceList, renderVoiceList,
     updateVoiceSelection, previewVoice as sharedPreview, stopPreview,
     getSavedVoice, setSavedVoice,
-    MACOS_QUALITY_VOICES, TIER_LABELS, PREVIEW_PHRASE,
 } from './voice-picker.js';
-
-// Re-export constants for any existing consumers
-export { scoreVoiceName, MACOS_QUALITY_VOICES, TIER_LABELS, PREVIEW_PHRASE };
 
 export function buildVoiceList() {
     var includeBrowser = !state.ttsEngine || state.ttsEngine === 'browser';

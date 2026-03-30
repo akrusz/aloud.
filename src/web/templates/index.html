@@ -236,7 +236,7 @@
 {% block scripts %}
 <script type="module">
     import {
-        scoreVoiceName, buildScoredVoiceList, renderVoiceList,
+        buildScoredVoiceList, renderVoiceList,
         updateVoiceSelection, previewVoice as sharedPreview, stopPreview,
         getSavedVoice, setSavedVoice, getSavedSpeed, setSavedSpeed,
     } from '{{ url_for("static", filename="js/voice-picker.js") }}';
@@ -651,7 +651,7 @@
         const previewBtn = e.target.closest('.voice-row-preview');
         if (previewBtn) {
             e.stopPropagation();
-            sharedPreview(previewBtn.dataset.voiceName);
+            sharedPreview(previewBtn.dataset.voiceName, setupSpeedSlider.value);
             return;
         }
 

@@ -12,13 +12,14 @@ var _previewAudio = null;
 
 // ---- Scoring ----
 
-export function scoreVoiceName(name) {
+export function scoreVoice(name, engine) {
     var baseName = name.replace(/\s*\(.*\)$/, '');
     if (/Premium/i.test(name)) return 3;
     if (/Enhanced/i.test(name)) return 2;
     if (/Online|Natural/i.test(name)) return 2;
     if (/^Google/i.test(name)) return 1;
     if (MACOS_QUALITY_VOICES.test(baseName)) return 1;
+    if (engine === 'piper') return 1;
     return 0;
 }
 
@@ -54,7 +55,7 @@ export function buildScoredVoiceList(serverVoices, includeBrowserVoices) {
             var vLang = (sv.lang || '').split(/[-_]/)[0];
             if (vLang !== 'en' && vLang !== langPrefix) continue;
 
-            var score = scoreVoiceName(sv.name);
+            var score = scoreVoice(sv.name, sv.engine);
 
             // If browser has this voice, attach the real object (enables preview)
             var browserVoice = browserByName[sv.name];
@@ -90,7 +91,7 @@ export function buildScoredVoiceList(serverVoices, includeBrowserVoices) {
         var vLang = (v.lang || '').split(/[-_]/)[0];
         if (vLang !== 'en' && vLang !== langPrefix) continue;
 
-        var score = scoreVoiceName(v.name);
+        var score = scoreVoice(v.name);
         if (!v.localService) score = Math.max(score, 2);
         scored.push({ name: v.name, lang: v.lang, score: score, voice: v });
         seen[v.name] = true;

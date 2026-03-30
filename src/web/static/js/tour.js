@@ -338,12 +338,15 @@ function showVoiceStep() {
         if (tourOptions.isMac) {
             html += '<button class="tour-choice" data-action="voice" data-value="macos">';
             html += '<strong>Premium macOS voices</strong>';
-            html += '<small>Download from System Settings \u2192 Accessibility \u2192 Spoken Content. <a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Open Settings</a></small>';
+            html += '<small>Download from System Settings \u2192 Accessibility \u2192 Spoken Content. In the System Voice row, click the <b>ⓘ</b> then click Voice. <a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Open Settings</a></small>';
             html += '</button>';
         }
 
-        if (!tourOptions.piperAvailable && !tourOptions.isMac) {
-            html += '<p>Pick a TTS engine and voice from the controls above.</p>';
+        if (!tourOptions.isMac) {
+            html += '<button class="tour-choice" data-action="voice" data-value="skip">';
+            html += '<strong>Browser voices</strong>';
+            html += '<small>On Windows, Edge and the desktop app include high-quality natural voices.</small>';
+            html += '</button>';
         }
 
         html += '<button class="tour-choice" data-action="voice" data-value="skip">';

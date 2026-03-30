@@ -13,23 +13,30 @@ import logging
 import tempfile
 import wave
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .macos import MacOSTTS
 
 logger = logging.getLogger(__name__)
 
 
 # Popular Piper voice models — used by list_voices() so users see real choices.
 # Recommended voices are shown first in the voice picker.
+#
+# Multi-speaker voices use "model" + "speaker" fields.  All speakers share
+# a single download; is_model_downloaded / _voice_hf_urls resolve via the
+# model name.  The "name" is what appears in the voice picker.
 PIPER_VOICES = [
-    # Recommended
-    {"name": "en_US-joe-medium", "lang": "en_US", "size_mb": 63, "recommended": True},
-    {"name": "en_US-kristin-medium", "lang": "en_US", "size_mb": 63, "recommended": True},
-    {"name": "en_US-norman-medium", "lang": "en_US", "size_mb": 63, "recommended": True},
-    {"name": "en_US-libritts-high", "lang": "en_US", "size_mb": 105, "recommended": True},
+    # Recommended — curated libritts-high speakers (one 105 MB download for all)
+    {"name": "Libritts p3922 (F)", "lang": "en_US", "size_mb": 105, "recommended": True,
+     "model": "en_US-libritts-high", "speaker": "p3922"},
+    {"name": "Libritts p4356 (F)", "lang": "en_US", "size_mb": 105, "recommended": True,
+     "model": "en_US-libritts-high", "speaker": "p4356"},
+    {"name": "Libritts p3368 (M)", "lang": "en_US", "size_mb": 105, "recommended": True,
+     "model": "en_US-libritts-high", "speaker": "p3368"},
+    {"name": "Libritts p2053 (M)", "lang": "en_US", "size_mb": 105, "recommended": True,
+     "model": "en_US-libritts-high", "speaker": "p2053"},
     # Other voices
+    {"name": "en_US-joe-medium", "lang": "en_US", "size_mb": 63},
+    {"name": "en_US-kristin-medium", "lang": "en_US", "size_mb": 63},
+    {"name": "en_US-norman-medium", "lang": "en_US", "size_mb": 63},
     {"name": "en_US-lessac-medium", "lang": "en_US", "size_mb": 63},
     {"name": "en_US-lessac-high", "lang": "en_US", "size_mb": 105},
     {"name": "en_US-amy-medium", "lang": "en_US", "size_mb": 63},
@@ -48,9 +55,25 @@ def _get_piper_models_dir() -> Path:
     return get_user_config_dir() / "piper-models"
 
 
+def _resolve_voice(voice_name: str) -> tuple[str, str | None]:
+    """Resolve a voice name to (model_name, speaker_key).
+
+    Multi-speaker voices in PIPER_VOICES have a ``model`` field pointing
+    to the shared .onnx file and a ``speaker`` field for the speaker key
+    in the model's speaker_id_map.  Single-speaker voices just return
+    (voice_name, None).
+    """
+    for v in PIPER_VOICES:
+        if v["name"] == voice_name and "model" in v:
+            return v["model"], v.get("speaker")
+    return voice_name, None
+
+
 def _voice_hf_urls(voice_name: str) -> list[tuple[str, str]]:
     """Return [(url, filename), ...] for a piper voice's model files."""
-    parts = voice_name.split("-")
+    # Resolve multi-speaker display names to the actual model name
+    model_name, _ = _resolve_voice(voice_name)
+    parts = model_name.split("-")
     locale = parts[0]       # en_US
     quality = parts[-1]     # medium
     speaker = "-".join(parts[1:-1])  # lessac, jenny_dioco, etc.
@@ -58,8 +81,8 @@ def _voice_hf_urls(voice_name: str) -> list[tuple[str, str]]:
     lang = locale.split("_")[0]
     base = f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{lang}/{locale}/{speaker}/{quality}"
     return [
-        (f"{base}/{voice_name}.onnx", f"{voice_name}.onnx"),
-        (f"{base}/{voice_name}.onnx.json", f"{voice_name}.onnx.json"),
+        (f"{base}/{model_name}.onnx", f"{model_name}.onnx"),
+        (f"{base}/{model_name}.onnx.json", f"{model_name}.onnx.json"),
     ]
 
 
@@ -89,12 +112,14 @@ class PiperTTS:
         self._speaking = False
         self._piper_voice = None      # cached PiperVoice instance
         self._loaded_model_path = None  # path of the cached model
+        # Resolve multi-speaker voice → model + speaker
+        self._model_name, self._speaker = _resolve_voice(voice)
 
     def _get_model_path(self) -> str | None:
         """Resolve the model path for the current voice."""
         if self.model_path:
             return self.model_path
-        local_path = _get_piper_models_dir() / f"{self.voice}.onnx"
+        local_path = _get_piper_models_dir() / f"{self._model_name}.onnx"
         return str(local_path) if local_path.exists() else None
 
     def _load_voice(self):
@@ -120,8 +145,22 @@ class PiperTTS:
             return None
 
     def _length_scale(self) -> float:
-        """Convert WPM rate to Piper length_scale (inverse relationship)."""
-        return 180.0 / max(self.rate, 1)
+        """Convert WPM rate to Piper length_scale (inverse relationship).
+
+        Piper's native pace at length_scale 1.0 is roughly 220 WPM.
+        """
+        return 220.0 / max(self.rate, 1)
+
+    def _get_speaker_id(self) -> int | None:
+        """Look up the numeric speaker_id from the model's JSON config."""
+        if not self._speaker:
+            return None
+        config_path = _get_piper_models_dir() / f"{self._model_name}.onnx.json"
+        if not config_path.exists():
+            return None
+        import json
+        config = json.loads(config_path.read_text())
+        return config.get("speaker_id_map", {}).get(self._speaker)
 
     def _synthesize_wav_bytes(self, text: str) -> bytes | None:
         """Synthesize text to WAV bytes using the piper library."""
@@ -130,7 +169,10 @@ class PiperTTS:
             return None
         try:
             from piper.config import SynthesisConfig
-            syn_config = SynthesisConfig(length_scale=self._length_scale())
+            syn_config = SynthesisConfig(
+                speaker_id=self._get_speaker_id(),
+                length_scale=self._length_scale(),
+            )
             buf = io.BytesIO()
             with wave.open(buf, "wb") as wav_file:
                 pv.synthesize_wav(text, wav_file, syn_config=syn_config)
@@ -198,13 +240,15 @@ class PiperTTS:
     @staticmethod
     def is_model_downloaded(voice: str) -> bool:
         """Check if a voice model is already downloaded."""
-        model_path = _get_piper_models_dir() / f"{voice}.onnx"
+        model_name, _ = _resolve_voice(voice)
+        model_path = _get_piper_models_dir() / f"{model_name}.onnx"
         return model_path.exists()
 
     @staticmethod
     def get_model_path(voice: str) -> str:
         """Return the full path to a downloaded model."""
-        return str(_get_piper_models_dir() / f"{voice}.onnx")
+        model_name, _ = _resolve_voice(voice)
+        return str(_get_piper_models_dir() / f"{model_name}.onnx")
 
     def list_voices(self) -> list[dict]:
         """List available Piper voice models (empty if piper not installed)."""
@@ -228,9 +272,10 @@ class PiperTTS:
         """Set the voice/model to use.
 
         Args:
-            voice: Voice model name
+            voice: Voice name (may be a multi-speaker display name)
         """
         self.voice = voice
+        self._model_name, self._speaker = _resolve_voice(voice)
 
     def set_rate(self, rate: float) -> None:
         """Set the speaking rate.
@@ -239,28 +284,3 @@ class PiperTTS:
             rate: Rate multiplier (1.0 = normal)
         """
         self.rate = rate
-
-
-def create_tts(
-    engine: str = "macos",
-    voice: str = "Samantha",
-    rate: int = 180,
-) -> "MacOSTTS | PiperTTS":
-    """Factory function to create TTS engine.
-
-    Args:
-        engine: TTS engine ("macos" or "piper")
-        voice: Voice name/model
-        rate: Speaking rate
-
-    Returns:
-        TTS engine instance
-    """
-    from .macos import MacOSTTS
-
-    if engine == "macos":
-        return MacOSTTS(voice=voice, rate=rate)
-    elif engine == "piper":
-        return PiperTTS(voice=voice, rate=float(rate) / 180.0)
-    else:
-        raise ValueError(f"Unknown TTS engine: {engine}")

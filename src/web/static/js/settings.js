@@ -1,7 +1,7 @@
 // Settings page — extracted from inline <script> in settings.html
 
 import {
-    scoreVoiceName, buildScoredVoiceList, renderVoiceList,
+    buildScoredVoiceList, renderVoiceList,
     updateVoiceSelection, previewVoice as sharedPreview, stopPreview,
     getSavedVoice, setSavedVoice, getSavedSpeed, setSavedSpeed,
 } from './voice-picker.js';
@@ -42,10 +42,10 @@ textScaleSlider.addEventListener('input', function() {
 });
 
 // TTS engine hints
-var _openSettingsLink = ' <a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Download Premium voices</a>';
+var _openSettingsLink = ' <a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Download Premium voices</a> \u2014 in the System Voice row, click the <b>ⓘ</b> then click Voice.';
 const TTS_ENGINE_HINTS = {
     macos: 'Built-in macOS voices. Zero latency, works offline.' + (/Mac/.test(navigator.platform) ? _openSettingsLink : ''),
-    browser: "Uses your browser's built-in speech synthesis. Quality varies by browser.",
+    browser: "Uses your browser's built-in speech synthesis. On Windows, Edge and the desktop app include high-quality natural voices.",
     elevenlabs: "Cloud neural TTS with natural, expressive voices. Requires an API key and internet.",
     piper: 'Fast local neural TTS. Download voice models (~60\u2013100 MB each) from the voice picker. <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen to samples</a>',
 };
@@ -1307,9 +1307,10 @@ function showVoiceQualityHint() {
     var hintEl = document.getElementById('voice-quality-hint');
     var openSettings = '<a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Open Settings</a>';
     if (/Mac/.test(navigator.platform)) {
+        var vqInstructions = 'In the System Voice row, click the <b>ⓘ</b> then click Voice.';
         hintEl.innerHTML = piperAvailable
-            ? 'Tip: Download a Premium macOS voice (' + openSettings + ') or a Piper voice from the voice picker.'
-            : 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content. ' + openSettings;
+            ? 'Tip: Download a Premium macOS voice (' + openSettings + ' \u2014 ' + vqInstructions + ') or a Piper voice from the voice picker.'
+            : 'Tip: Download a Premium voice from System Settings \u2192 Accessibility \u2192 Spoken Content. ' + vqInstructions + ' ' + openSettings;
     } else if (piperAvailable) {
         hintEl.textContent = 'Tip: Download a Piper voice from the voice picker for better quality.';
     } else {
