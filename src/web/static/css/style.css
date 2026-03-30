@@ -1719,13 +1719,16 @@ body:has(.session-container) {
 }
 
 .voice-row-engine {
-    font-size: 0.65rem;
+    display: inline-block;
+    font-size: 0.8rem;
     color: var(--text-muted);
     background: var(--bg-secondary);
     border-radius: var(--radius-sm);
-    padding: 0.05rem 0.35rem;
-    flex-shrink: 0;
+    padding: 0.1rem 0.35rem;
+    margin-left: 0.4rem;
     white-space: nowrap;
+    position: relative;
+    top: -1px;
 }
 
 .voice-row-uninstall {

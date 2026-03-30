@@ -179,15 +179,14 @@ function _renderVoiceRow(listEl, entry, selectedName, opts) {
     var nameSpan = document.createElement('span');
     nameSpan.className = 'voice-row-name';
     nameSpan.textContent = entry.name;
-    row.appendChild(nameSpan);
-
-    // Engine badge (e.g. "Piper", "macOS")
+    // Engine badge inline after the name (e.g. "Samantha  macOS")
     if (opts && opts.showEngine && entry.engine) {
         var engineBadge = document.createElement('span');
         engineBadge.className = 'voice-row-engine';
         engineBadge.textContent = ENGINE_LABELS[entry.engine] || entry.engine;
-        row.appendChild(engineBadge);
+        nameSpan.appendChild(engineBadge);
     }
+    row.appendChild(nameSpan);
 
     if (entry.name === selectedName) {
         var check = document.createElement('span');
