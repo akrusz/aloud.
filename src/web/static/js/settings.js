@@ -101,8 +101,9 @@ var suppressDirty = false;
 var saveBtn = document.querySelector('button[type="submit"][form="settings-form"]');
 var saveBtnBaseText = saveBtn.textContent;
 
-function markDirty() {
+function markDirty(e) {
     if (!trackChanges || suppressDirty || formDirty) return;
+    if (e && e.target && e.target.closest('.text-scale-preview')) return;
     formDirty = true;
     saveBtn.textContent = saveBtnBaseText + ' *';
     saveBtn.classList.add('btn-dirty');

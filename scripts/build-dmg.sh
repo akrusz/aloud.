@@ -40,10 +40,33 @@ if [ ! -d "$APP_PATH" ]; then
     exit 1
 fi
 
-# ── Step 2: Ad-hoc code sign ─────────────────────
+# ── Step 2: Code sign ───────────────────────────
+# Use CODESIGN_IDENTITY env var for a stable identity (preserves macOS
+# permissions like microphone access across updates).  Falls back to
+# ad-hoc signing when unset.
+#
+# To create a self-signed identity (one-time, free):
+#   1. Open Keychain Access → Certificate Assistant → Create a Certificate…
+#   2. Name: "Glooow Dev"  ·  Type: Code Signing  ·  Create
+#   3. Export: CODESIGN_IDENTITY="Glooow Dev"
 
-echo "==> Code signing $APP_NAME.app..."
-codesign --deep --force --sign - "$APP_PATH"
+ENTITLEMENTS="$PROJECT_DIR/assets/entitlements.plist"
+
+# Prefer CODESIGN_IDENTITY env var, then look for a "Glooow Dev" cert in
+# the keychain, then fall back to ad-hoc.  A stable identity preserves
+# macOS permissions (e.g. microphone) across app updates.
+if [ -n "${CODESIGN_IDENTITY:-}" ]; then
+    SIGN_ID="$CODESIGN_IDENTITY"
+elif security find-identity -v -p codesigning | grep -q '"Glooow Dev"'; then
+    SIGN_ID="Glooow Dev"
+else
+    SIGN_ID="-"
+fi
+
+echo "==> Code signing $APP_NAME.app (identity: ${SIGN_ID})..."
+codesign --deep --force --options runtime \
+    --entitlements "$ENTITLEMENTS" \
+    --sign "$SIGN_ID" "$APP_PATH"
 
 # ── Step 3: Create DMG ───────────────────────────
 

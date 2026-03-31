@@ -66,11 +66,11 @@ function initSessionControls(params) {
         e.preventDefault();
         if (!state.sessionActive) { window.location.href = '/'; return; }
         socket.emit('prefetch_summary');
+        state.pendingNavigation = '/';
         showConfirm('Start a new session? This will end your current session.', function () {
-            state.pendingNavigation = '/';
             dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
-        });
+        }, { showSkipSave: true });
     });
 
     // History navigation
@@ -82,7 +82,7 @@ function initSessionControls(params) {
             state.pendingNavigation = '/history';
             dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
-        });
+        }, { showSkipSave: true });
     });
 
     // Restore saved speed

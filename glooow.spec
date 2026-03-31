@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec for Glooow desktop app."""
 
+import os
 import re
 import sys
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files
@@ -96,7 +97,8 @@ if sys.platform == "darwin":
         name='Glooow.app',
         icon='assets/glooow.icns',
         bundle_identifier='com.glooow.app',
-        codesign_identity='-',  # ad-hoc sign (required for native libs on macOS)
+        codesign_identity=os.environ.get('CODESIGN_IDENTITY', '-'),
+        entitlements_file='assets/entitlements.plist',
         info_plist={
             'NSMicrophoneUsageDescription':
                 'Glooow needs microphone access for voice-based meditation sessions.',

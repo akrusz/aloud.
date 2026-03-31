@@ -232,6 +232,7 @@ export function showConfirm(message, onConfirm, opts) {
 export function hideConfirm() {
     dom.confirmOverlay.classList.add('hidden');
     state.pendingConfirmAction = null;
+    state.pendingNavigation = null;
 }
 
 // ---- End session ----
