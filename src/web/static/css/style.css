@@ -978,6 +978,15 @@ option.provider-unavailable {
     cursor: not-allowed;
 }
 
+.btn-begin.btn-dirty {
+    animation: btn-dirty-pulse 2s ease-in-out infinite;
+}
+
+@keyframes btn-dirty-pulse {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 10px var(--accent-glow, rgba(212, 135, 58, 0.4)); }
+}
+
 /* ============================================
    Session Page
    ============================================ */
@@ -2674,6 +2683,12 @@ body::before {
 .info-panel p:last-child {
     margin-bottom: 0;
 }
+.info-panel a {
+    color: var(--accent);
+}
+.info-panel a:hover {
+    text-decoration: underline;
+}
 
 .settings-desc {
     color: var(--text-muted);
@@ -3240,7 +3255,7 @@ body::before {
 .tour-tooltip {
     position: fixed;
     z-index: 102;
-    max-width: 480px;
+    max-width: 520px;
     width: calc(100vw - 2rem);
     background: var(--bg-card);
     border: 1px solid var(--accent);
@@ -3400,6 +3415,12 @@ body::before {
 .tour-choice small {
     color: var(--text-muted);
     font-size: 0.8rem;
+}
+.tour-choice a {
+    color: var(--accent);
+}
+.tour-choice a:hover {
+    text-decoration: underline;
 }
 
 

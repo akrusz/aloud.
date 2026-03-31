@@ -73,6 +73,7 @@ function selectSettingsVoice(name) {
     voiceBtn.textContent = name + ' \u00b7 ' + rateSlider.value + ' wpm';
     updateVoiceSelection(voiceModalList, name);
     _syncEngineFromVoice();
+    markDirty();
 }
 
 // Speed slider in voice modal
@@ -86,12 +87,35 @@ function updateRateDisplay() {
         voiceBtn.textContent = 'Choose a voice';
     }
 }
-rateSlider.addEventListener('input', updateRateDisplay);
+rateSlider.addEventListener('input', function() { updateRateDisplay(); markDirty(); });
 
 // Voice modal events
 let settingsNoVoicesMode = false;
 var configLoaded = false;
 var tourActive = false;
+
+// ---- Unsaved-changes indicator ----
+var formDirty = false;
+var trackChanges = false;
+var suppressDirty = false;
+var saveBtn = document.querySelector('button[type="submit"][form="settings-form"]');
+var saveBtnBaseText = saveBtn.textContent;
+
+function markDirty() {
+    if (!trackChanges || suppressDirty || formDirty) return;
+    formDirty = true;
+    saveBtn.textContent = saveBtnBaseText + ' *';
+    saveBtn.classList.add('btn-dirty');
+}
+
+function clearDirty() {
+    formDirty = false;
+    saveBtn.textContent = saveBtnBaseText;
+    saveBtn.classList.remove('btn-dirty');
+}
+
+form.addEventListener('input', markDirty);
+form.addEventListener('change', markDirty);
 var vqModalShown = false;
 var VQ_PROMPTED_KEY = 'glooow-voice-quality-prompted';
 voiceBtn.addEventListener('click', function() {
@@ -996,7 +1020,9 @@ fetch('/api/config')
             langSelect.value = cfgLang;
         }
         configLoaded = true;
+        suppressDirty = true;
         fetchVoices();
+        trackChanges = true;
 
         // Start onboarding tour on first run
         if (firstRun) {
@@ -1054,12 +1080,15 @@ fetch('/api/config')
                     if (modelSelect.options[i].value === targetModel) {
                         modelSelect.value = targetModel;
                         clearInterval(selectModel);
+                        suppressDirty = false;
                         return;
                     }
                 }
                 attempts++;
-                if (attempts >= 20) clearInterval(selectModel);
+                if (attempts >= 20) { clearInterval(selectModel); suppressDirty = false; }
             }, 200);
+        } else {
+            suppressDirty = false;
         }
     })
     .catch(function(err) {
@@ -1179,6 +1208,7 @@ form.addEventListener('submit', function(e) {
             }
         }
 
+        clearDirty();
         if (firstRun) {
             window.location.href = '/';
         } else {

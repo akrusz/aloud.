@@ -215,7 +215,7 @@ function showLLMStep() {
         // Ollama
         var ollamaDesc = 'Free &amp; private. Runs AI entirely on your computer.';
         if (tourOptions.ollamaRec) {
-            ollamaDesc += ' We recommend <strong>' + tourOptions.ollamaRec + '</strong> for your hardware.';
+            ollamaDesc += ' Recommended model: <strong>' + tourOptions.ollamaRec + '</strong>';
         }
         html += '<button class="tour-choice" data-action="provider" data-value="ollama">';
         html += '<strong>Ollama \u2014 free, runs locally</strong>';
