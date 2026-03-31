@@ -96,6 +96,7 @@ def register_message_handlers(socketio: SocketIO, app: Flask) -> None:
             web_session.pacing.exit_silence_mode()
             emit("silence_mode", {"active": False})
 
+        web_session.pacing.on_speech_end()
         emit("facilitator_typing", {"typing": True})
 
         try:

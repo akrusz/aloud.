@@ -54,6 +54,7 @@ def _check_in_loop(app, socketio) -> None:
                     "type": "response",
                     "audio": audio,
                 }, to=sid)
+                web_session.pacing.on_check_in()
                 web_session.pacing.on_response_end()
 
 
