@@ -2689,6 +2689,10 @@ body::before {
 .info-panel a:hover {
     text-decoration: underline;
 }
+.info-panel-link {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
 
 .settings-desc {
     color: var(--text-muted);
@@ -3466,6 +3470,12 @@ body::before {
     border-color: var(--accent);
     color: var(--accent);
     background: var(--bg-card);
+}
+
+/* Elevate spotlighted sections above the overlay during guided tour */
+.guide-elevated {
+    position: relative;
+    z-index: 96;
 }
 
 @media (max-width: 600px) {

@@ -15,6 +15,12 @@
         <div class="tab-bar">
             <button type="button" class="tab-btn active" data-tab="exploration">Exploration</button>
             <button type="button" class="tab-btn" data-tab="noting">Noting</button>
+            <button type="button" class="info-btn" data-info="methods" aria-label="About meditation methods">?</button>
+        </div>
+        <div class="info-panel hidden" id="info-methods">
+            <p><strong>Exploration</strong> is open, responsive meditation. Instead of following a script, the AI facilitator meets you where you are &mdash; noticing what you notice, offering gentle suggestions, and supporting whatever arises. It draws on somatic meditation, Internal Family Systems, and the creative, playful approach to practice emphasized by Rob Burbea.</p>
+            <p><strong>Noting</strong> is a structured practice of labeling what arises. Participants take turns noting aspects of their experience &mdash; a sensation, a thought, an emotion. Rooted in the Mahasi tradition and shaped by teachers like Shinzen Young, noting develops clear awareness and equanimity.</p>
+            <p class="info-panel-link"><a href="#" id="start-guide-link">Take the full tour &rarr;</a></p>
         </div>
     </div>
 
@@ -63,7 +69,14 @@
             </div>
 
             <div class="form-group">
-                <label>Attention Focus</label>
+                <label>Attention Focus <button type="button" class="info-btn" data-info="focus" aria-label="About attention focus">?</button></label>
+                <div class="info-panel hidden" id="info-focus">
+                    <p>These guide where the facilitator draws your attention during meditation.</p>
+                    <p><strong>Body &amp; sensations</strong> &mdash; Physical experience: texture, warmth, movement, pressure. Often the most direct doorway into the present moment.</p>
+                    <p><strong>Emotions &amp; feeling tone</strong> &mdash; The emotional landscape underneath: what's warm, contracted, alive, or wanting to move.</p>
+                    <p><strong>Parts &amp; inner world</strong> &mdash; Different aspects of yourself that carry their own perspectives &mdash; protectors, younger parts, inner critics. Inspired by Internal Family Systems (IFS).</p>
+                    <p>Select multiple or leave all unchecked to keep things open.</p>
+                </div>
                 <div class="modifier-toggles">
                     <label class="modifier-toggle">
                         <input type="checkbox" name="focus" value="body_sensations">
@@ -90,7 +103,12 @@
             </div>
 
             <div class="form-group">
-                <label>Vibe</label>
+                <label>Vibe <button type="button" class="info-btn" data-info="vibe" aria-label="About vibes">?</button></label>
+                <div class="info-panel hidden" id="info-vibe">
+                    <p>Vibes color the tone of facilitation. Select any combination &mdash; they blend naturally.</p>
+                    <p><strong>Playful</strong> brings lightness and spontaneity. <strong>Spacious</strong> leaves more breathing room and silence. <strong>Effortless</strong> invites letting go rather than trying.</p>
+                    <p>There's no wrong choice. Pick whatever matches where you are today, or leave them all unchecked for a neutral tone.</p>
+                </div>
                 <div class="modifier-toggles">
                     <label class="modifier-toggle">
                         <input type="checkbox" name="quality" value="playful">
@@ -240,6 +258,9 @@
         updateVoiceSelection, previewVoice as sharedPreview, stopPreview,
         getSavedVoice, setSavedVoice, getSavedSpeed, setSavedSpeed,
     } from '{{ url_for("static", filename="js/voice-picker.js") }}';
+    import {
+        autoStart as autoStartGuide, resetAndStart as resetGuide,
+    } from '{{ url_for("static", filename="js/index-guide.js") }}';
 
     // ---- Tab switching ----
     let activeTab = localStorage.getItem('glooow-tab') || 'exploration';
@@ -1151,5 +1172,15 @@
         sessionStorage.setItem('sessionParams', JSON.stringify(params));
         window.location.href = '/session';
     });
+
+    // ---- Guide ----
+    var guideLink = document.getElementById('start-guide-link');
+    if (guideLink) {
+        guideLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            resetGuide();
+        });
+    }
+    autoStartGuide();
 </script>
 {% endblock %}
