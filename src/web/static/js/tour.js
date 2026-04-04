@@ -225,7 +225,7 @@ function showLLMStep() {
         // Claude subscription
         html += '<button class="tour-choice" data-action="provider" data-value="claude_proxy">';
         html += '<strong>I have a Claude subscription</strong>';
-        html += '<small>Uses your existing plan via CLIProxyAPI. No extra cost.</small>';
+        html += '<small>Uses your existing plan via CLIProxyAPI. <em>May draw from extra-use budget as per ToS</em>.</small>';
         html += '</button>';
 
         // API key
