@@ -2918,6 +2918,13 @@ body::before {
     margin-top: 0.25rem;
 }
 
+.ollama-others-heading {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
 .ollama-tier-row {
     display: flex;
     align-items: center;

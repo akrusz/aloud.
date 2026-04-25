@@ -4,7 +4,7 @@ your voice is an overpowered and underrated tool for meditation and inner work.
 
 **glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses your mic for voice input, whisper.cpp for speech recognition, an LLM to guide you, and speaks using text-to-speech.
 
-glooow works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription (may draw from extra-use credits as per new ToS), or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page. the app will also help you set up text-to-speech if necessary.
+glooow works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription (may draw from extra-use), or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page. the app will also help you set up text-to-speech if necessary.
 
 ![glooow screenshot](docs/glooow-screen.png)
 
@@ -41,6 +41,10 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 - **macOS**: TTS uses the `say` command with access to all system voices. You can download better system voices by going to System Settings > Accessibility > Spoken Content, click the dropdown next to System Voice, select Manage Voices, and download Enhanced or Premium voices.
 - **windows**: if using browser mode, for best voice quality use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis.
 - **linux**: for server-side TTS, install piper-tts and set the TTS Engine to Piper on the settings page. otherwise TTS falls back to browser speechSynthesis. Note that some browsers don't have built in speech synthesis.
+
+### claude subscription notes
+
+to use the **Anthropic (Subscription)** provider, install the Claude Code CLI first — glooow runs the local `claude` command to route through your subscription, so no API key is needed. in my testing, this did *not* draw from extra-use credits, but there have been communications from Anthropic to the effect that it would do so. also note that extra-use credits on your Claude subscription are not the same as API credits; if you only have one or the other, be sure to use the appropriate provider setting.
 
 ## tips
 

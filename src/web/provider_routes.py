@@ -412,12 +412,23 @@ def register_provider_routes(app: Flask) -> None:
                     model_sizes[m["name"]] = (
                         f"{gb:.1f}GB" if gb >= 1 else f"{size_bytes / (1024**2):.0f}MB"
                     )
+            claimed = set()
             for t in rec_info["tiers"]:
                 tier_base = t["model"].split(":")[0]
-                t["installed"] = any(
-                    n.split(":")[0] == tier_base and t["model"].split(":")[-1] in n
-                    for n in models
-                )
+                suffix = t["model"].split(":")[-1]
+                matches = [
+                    n for n in models
+                    if n.split(":")[0] == tier_base and suffix in n
+                ]
+                t["installed"] = bool(matches)
+                claimed.update(matches)
+
+            # Installed models the user pulled themselves, outside our curated tiers.
+            other_installed = [
+                {"model": n, "size": model_sizes.get(n, "")}
+                for n in models if n not in claimed
+            ]
+            rec_info["other_installed"] = other_installed
 
             if models:
                 results["ollama"] = {

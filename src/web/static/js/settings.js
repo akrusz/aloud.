@@ -890,6 +890,30 @@ function fetchModels(provider) {
                         html += '</div>';
                     });
                     html += '</div>';
+
+                    // Other installed Ollama models the user pulled themselves
+                    const others = rec.other_installed || [];
+                    if (others.length) {
+                        html += '<div class="ollama-others-heading">Other installed models</div>';
+                        html += '<div class="ollama-tiers">';
+                        others.forEach(function(o) {
+                            const sizeText = o.size ? o.size + ' on disk' : '';
+                            html += '<div class="ollama-tier-row">';
+                            html += '<div class="ollama-tier-info">';
+                            html += '<strong>' + o.model + '</strong>';
+                            if (sizeText) {
+                                html += '<div class="ollama-tier-size">' + sizeText + '</div>';
+                            }
+                            html += '</div>';
+                            html += '<div class="ollama-tier-actions">';
+                            html += '<span class="ollama-tier-installed">Installed</span>';
+                            html += '<button type="button" class="btn-ollama btn-ollama-remove" data-model="' + o.model + '">Remove</button>';
+                            html += '</div>';
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                    }
+
                     recEl.innerHTML = html;
 
                     // Attach download handlers
