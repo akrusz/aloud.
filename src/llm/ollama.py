@@ -162,7 +162,6 @@ PROVIDERS: dict[str, dict] = {
         "default_model": "claude-sonnet-4-6",
         "kwargs_fn": lambda a: {
             "proxy_url": a["proxy_url"] or "http://127.0.0.1:8317",
-            "api_key": a["api_key"],
         },
     },
     "anthropic": {

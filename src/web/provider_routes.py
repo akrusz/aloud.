@@ -11,6 +11,7 @@ import httpx
 from flask import Flask, request, jsonify, Response
 
 from ..config import DEFAULT_OLLAMA_TIERS
+from ..llm.claude_proxy import PROXY_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -213,9 +214,7 @@ def _fetch_anthropic_models() -> list[dict]:
 
 def _fetch_claude_proxy_models(config) -> list[dict]:
     proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
-    headers = {}
-    if config.llm.api_key:
-        headers["X-Api-Key"] = config.llm.api_key
+    headers = {"X-Api-Key": PROXY_API_KEY}
     resp = httpx.get(
         f"{proxy_url.rstrip('/')}/v1/models",
         headers=headers,
@@ -298,9 +297,7 @@ def register_provider_routes(app: Flask) -> None:
 
         running = False
         proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
-        headers = {}
-        if app.meditation_config.llm.api_key:
-            headers["X-Api-Key"] = app.meditation_config.llm.api_key
+        headers = {"X-Api-Key": PROXY_API_KEY}
         try:
             resp = httpx.get(
                 f"{proxy_url.rstrip('/')}/v1/models",
@@ -326,9 +323,7 @@ def register_provider_routes(app: Flask) -> None:
 
         # Check if already running
         proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
-        headers = {}
-        if app.meditation_config.llm.api_key:
-            headers["X-Api-Key"] = app.meditation_config.llm.api_key
+        headers = {"X-Api-Key": PROXY_API_KEY}
         try:
             resp = httpx.get(
                 f"{proxy_url.rstrip('/')}/v1/models",
@@ -415,9 +410,7 @@ def register_provider_routes(app: Flask) -> None:
         def _check_proxy():
             proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
             try:
-                headers = {}
-                if app.meditation_config.llm.api_key:
-                    headers["X-Api-Key"] = app.meditation_config.llm.api_key
+                headers = {"X-Api-Key": PROXY_API_KEY}
                 resp = httpx.get(
                     f"{proxy_url.rstrip('/')}/v1/models",
                     headers=headers,

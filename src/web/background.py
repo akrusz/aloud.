@@ -80,10 +80,9 @@ def _auto_start_proxy(app, config: Config) -> None:
     if not binary:
         return
 
+    from ..llm.claude_proxy import PROXY_API_KEY
     proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
-    headers = {}
-    if config.llm.api_key:
-        headers["X-Api-Key"] = config.llm.api_key
+    headers = {"X-Api-Key": PROXY_API_KEY}
 
     # Check if already running
     try:
