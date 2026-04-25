@@ -16,27 +16,14 @@ def register_tool_routes(app: Flask) -> None:
         """Stream the installation of an external tool."""
         import json as _json
 
-        valid_tools = {"cliproxyapi", "ollama", "piper-tts"}
+        valid_tools = {"ollama", "piper-tts"}
         if tool not in valid_tools:
             return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
         system = platform.system()
         has_homebrew = shutil.which("brew") is not None
 
-        if tool == "cliproxyapi":
-            if system == "Windows":
-                return jsonify({
-                    "error": "Download CLIProxyAPI manually on Windows",
-                    "download_url": "https://github.com/router-for-me/CLIProxyAPI/releases",
-                }), 400
-            if has_homebrew:
-                cmd = ["brew", "install", "cliproxyapi"]
-            else:
-                cmd = [
-                    "/bin/bash", "-c",
-                    "curl -fsSL https://raw.githubusercontent.com/brokechubb/cliproxyapi-installer/refs/heads/master/cliproxyapi-installer | bash",
-                ]
-        elif tool == "ollama":
+        if tool == "ollama":
             if system == "Windows":
                 return jsonify({
                     "error": "Download Ollama manually on Windows",

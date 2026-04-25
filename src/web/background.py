@@ -3,26 +3,19 @@
 Extracted from app.py to keep create_app() focused on app configuration.
 """
 
-import atexit
 import logging
-import subprocess
-import time
-
-import httpx
 
 from ..config import Config
 from ..facilitation.pacing import TurnDecision
 from ..updater import check_for_updates
-from .provider_routes import find_cli_proxy
 
 logger = logging.getLogger(__name__)
 
 
 def start_background_tasks(app, socketio, config: Config) -> None:
-    """Kick off all background tasks: check-in loop, update check, proxy, whisper."""
+    """Kick off all background tasks: check-in loop, update check, whisper."""
     socketio.start_background_task(_check_in_loop, app, socketio)
     socketio.start_background_task(_startup_update_check)
-    socketio.start_background_task(_auto_start_proxy, app, config)
     socketio.start_background_task(_load_whisper, app, socketio)
 
 
@@ -69,71 +62,6 @@ def _startup_update_check() -> None:
                 logger.info("Update available (%d commit(s) behind)", status.commits_behind)
     except Exception as e:
         logger.debug("Startup update check failed: %s", e)
-
-
-def _auto_start_proxy(app, config: Config) -> None:
-    """Auto-start CLIProxyAPI if configured, installed, and not already running."""
-    if not config.web.auto_start_proxy:
-        return
-
-    binary = find_cli_proxy()
-    if not binary:
-        return
-
-    from ..llm.claude_proxy import PROXY_API_KEY
-    proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
-    headers = {"X-Api-Key": PROXY_API_KEY}
-
-    # Check if already running
-    try:
-        resp = httpx.get(
-            f"{proxy_url.rstrip('/')}/v1/models",
-            headers=headers,
-            timeout=2.0,
-        )
-        if resp.status_code == 200:
-            logger.info("CLIProxyAPI already running")
-            return
-    except Exception as e:
-        logger.debug("CLIProxyAPI not reachable, will attempt start: %s", e)
-
-    # Start it
-    try:
-        proc = subprocess.Popen(
-            [binary],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        app.proxy_process = proc
-
-        def _cleanup():
-            if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=3)
-                except Exception as e:
-                    logger.debug("Proxy did not exit gracefully, killing: %s", e)
-                    proc.kill()
-
-        atexit.register(_cleanup)
-
-        # Wait briefly for it to come up
-        for _ in range(10):
-            time.sleep(0.5)
-            try:
-                resp = httpx.get(
-                    f"{proxy_url.rstrip('/')}/v1/models",
-                    headers=headers,
-                    timeout=1.0,
-                )
-                if resp.status_code == 200:
-                    logger.info("Auto-started CLIProxyAPI (pid=%d)", proc.pid)
-                    return
-            except Exception:
-                continue
-        logger.info("Auto-started CLIProxyAPI (pid=%d) — not responding yet", proc.pid)
-    except Exception as e:
-        logger.warning("Failed to auto-start CLIProxyAPI: %s", e)
 
 
 def _load_whisper(app, socketio) -> None:

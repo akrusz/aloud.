@@ -159,10 +159,8 @@ PROVIDERS: dict[str, dict] = {
     "claude_proxy": {
         "module": ".claude_proxy",
         "class_name": "ClaudeProxyProvider",
-        "default_model": "claude-sonnet-4-6",
-        "kwargs_fn": lambda a: {
-            "proxy_url": a["proxy_url"] or "http://127.0.0.1:8317",
-        },
+        "default_model": "sonnet",
+        "kwargs_fn": lambda a: {},
     },
     "anthropic": {
         "module": ".anthropic",
@@ -216,7 +214,6 @@ PROVIDERS: dict[str, dict] = {
 def create_llm_provider(
     provider: str,
     model: str | None = None,
-    proxy_url: str | None = None,
     ollama_url: str | None = None,
     api_key: str | None = None,
     max_tokens: int = 300,
@@ -227,7 +224,6 @@ def create_llm_provider(
     Args:
         provider: Provider name ("claude_proxy", "anthropic", "openai", "ollama", "openrouter", "venice")
         model: Model name (uses provider default if not specified)
-        proxy_url: CLIProxyAPI URL (for claude_proxy)
         ollama_url: Ollama server URL (for ollama)
         api_key: API key (for anthropic/openai/openrouter)
         max_tokens: Maximum response tokens
@@ -251,7 +247,6 @@ def create_llm_provider(
 
     # Build kwargs: start with provider-specific ones, then add common ones
     factory_args = {
-        "proxy_url": proxy_url,
         "ollama_url": ollama_url,
         "api_key": api_key,
         "base_url": base_url,

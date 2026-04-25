@@ -390,31 +390,23 @@ function showGroupsFor(select, groupMap) {
 
 function checkProxyStatus() {
     const statusEl = document.getElementById('s-proxy-status');
-    const installEl = document.getElementById('s-proxy-install');
-    const proxyRow = statusEl.closest('.form-row');
+    if (!statusEl) return;
     if (providerSelect.value !== 'claude_proxy') {
         statusEl.innerHTML = '';
-        if (proxyRow) proxyRow.classList.add('hidden');
-        if (installEl) installEl.classList.add('hidden');
         return;
     }
-    if (proxyRow) proxyRow.classList.remove('hidden');
-    statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Checking...</span>';
-    fetch('/api/proxy/status')
+    statusEl.innerHTML = '<span style="color:var(--text-muted)">Checking for <code>claude</code> CLI...</span>';
+    fetch('/api/system-info')
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            if (data.running) {
-                statusEl.innerHTML = 'Proxy Status: <span style="color:var(--success)">Connected</span>';
-                if (installEl) installEl.classList.add('hidden');
-            } else if (data.installed) {
-                statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Not running </span>'
-                    + '<a href="#" onclick="window.startProxyFromSettings(); return false" '
-                    + 'class="btn btn-small btn-primary" '
-                    + 'style="padding:0.15rem 0.6rem; font-size:0.875rem">Start</a>';
-                if (installEl) installEl.classList.add('hidden');
+            const installed = data.tools && data.tools.claude_cli && data.tools.claude_cli.installed;
+            if (installed) {
+                statusEl.innerHTML = '<span style="color:var(--success)">Claude Code CLI detected</span>';
             } else {
-                statusEl.innerHTML = '';
-                if (installEl) installEl.classList.remove('hidden');
+                statusEl.innerHTML =
+                    '<span style="color:var(--danger)">Claude Code CLI not found.</span> ' +
+                    '<a href="https://claude.com/product/claude-code" target="_blank" rel="noopener">Install Claude Code</a>, ' +
+                    'then run <code>claude</code> once in a terminal to log in with your subscription.';
             }
         })
         .catch(function() {
@@ -422,25 +414,7 @@ function checkProxyStatus() {
         });
 }
 
-window.startProxyFromSettings = function() {
-    const statusEl = document.getElementById('s-proxy-status');
-    statusEl.innerHTML = 'Proxy Status: <span style="color:var(--text-muted)">Starting...</span>';
-    fetch('/api/proxy/start', { method: 'POST' })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.ok) {
-                checkProxyStatus();
-                fetchModels('claude_proxy');
-            } else {
-                statusEl.innerHTML = '<span style="color:var(--danger)">' + data.message + '</span>';
-            }
-        })
-        .catch(function() {
-            statusEl.innerHTML = '<span style="color:var(--danger)">Failed to start</span>';
-        });
-};
-
-// Shared tool install function (CLIProxyAPI, Ollama)
+// Shared tool install function (Ollama, Piper TTS)
 function installTool(tool, btn) {
     const progressEl = document.getElementById('install-progress-' + tool);
     const statusEl = progressEl ? progressEl.querySelector('.tool-install-status') : null;
@@ -481,7 +455,6 @@ function installTool(tool, btn) {
                         }
                         // Refresh status
                         refreshSettingsProviders();
-                        if (tool === 'cliproxyapi') checkProxyStatus();
                         if (tool === 'ollama') fetchModels('ollama');
                         return;
                     }
@@ -547,9 +520,6 @@ document.getElementById('llm-info-btn').addEventListener('click', function() {
     document.getElementById('llm-info-panel').classList.toggle('hidden');
 });
 
-document.getElementById('btn-install-cliproxyapi').addEventListener('click', function() {
-    installTool('cliproxyapi', this);
-});
 document.getElementById('btn-install-ollama').addEventListener('click', function() {
     installTool('ollama', this);
 });
@@ -629,7 +599,6 @@ fetch('/api/system-info')
         if (!info.tools.ollama.installed) {
             document.getElementById('s-ollama-install').classList.remove('hidden');
         }
-        // CLIProxyAPI install visibility is handled by checkProxyStatus()
         if (info.platform === 'windows') {
             const btns = document.querySelectorAll('.btn-tool-install');
             btns.forEach(function(btn) { btn.textContent = 'Download'; });
@@ -699,10 +668,6 @@ providerSelect.addEventListener('change', function() {
     fetchModels(providerSelect.value);
     checkProxyStatus();
     updateSettingsProviderHint();
-});
-
-document.getElementById('s-proxy-url-reset').addEventListener('click', function() {
-    document.getElementById('s-proxy-url').value = 'http://127.0.0.1:8317';
 });
 
 ttsEngineSelect.addEventListener('change', function() {
@@ -894,16 +859,17 @@ function fetchModels(provider) {
                     }
                     html += '<div class="ollama-tiers">';
                     rec.tiers.forEach(function(t) {
+                        // Hide tiers the system can't run, when RAM is known.
+                        // (If RAM detection failed, show everything so the user can choose.)
+                        if (rec.ram_gb && t.fits === false) return;
                         const isRec = t.model === rec.recommended_model;
-                        const diskInfo = t.actual_disk ? t.actual_disk + ' on disk' : t.disk + ' on disk';
-                        const sizeText = t.download + ' download, ' + diskInfo + ', ' + t.ram + ' in memory';
-                        const ramNote = t.fits === false ? ' (needs ' + t.min_gb + 'GB+ RAM)' : '';
+                        const sizeText = t.download + ' download, ' + t.ram + ' in memory';
                         const recBadge = isRec ? ' <span class="ollama-rec-badge">recommended</span>' : '';
 
                         html += '<div class="ollama-tier-row' + (isRec ? ' ollama-tier-recommended' : '') + '">';
                         html += '<div class="ollama-tier-info">';
                         html += '<strong>' + t.model + '</strong> — ' + t.label + recBadge;
-                        html += '<div class="ollama-tier-size">' + sizeText + ramNote + '</div>';
+                        html += '<div class="ollama-tier-size">' + sizeText + '</div>';
                         if (t.note) {
                             html += '<div class="ollama-tier-note">' + t.note + '</div>';
                         }
@@ -978,11 +944,10 @@ fetch('/api/config')
     .then(function(r) { return r.json(); })
     .then(function(cfg) {
         // LLM
-        providerSelect.value = cfg.llm?.provider || 'claude_proxy';
+        providerSelect.value = cfg.llm?.provider || 'ollama';
         showGroupsFor(providerSelect, providerKeyGroups);
         checkProxyStatus();
 
-        document.getElementById('s-proxy-url').value = cfg.llm?.proxy_url || 'http://127.0.0.1:8317';
         document.getElementById('s-ollama-url').value = cfg.llm?.ollama_url || 'http://localhost:11434';
 
         // Show saved API key indicator for the configured provider
@@ -1055,7 +1020,6 @@ fetch('/api/config')
         document.getElementById('s-window-mode').value = cfg.web?.window_mode || 'remember';
         document.getElementById('s-frameless').checked = cfg.web?.frameless !== false;
         document.getElementById('s-theme-mode').value = cfg.web?.theme_mode || 'auto';
-        document.getElementById('s-auto-start-proxy').checked = cfg.web?.auto_start_proxy !== false;
 
         // Config folder button
         if (cfg._config_path) {
@@ -1115,7 +1079,6 @@ form.addEventListener('submit', function(e) {
     const data = {
         llm: {
             provider: provider,
-            proxy_url: document.getElementById('s-proxy-url').value,
             ollama_url: document.getElementById('s-ollama-url').value,
         },
         tts: {
@@ -1139,7 +1102,6 @@ form.addEventListener('submit', function(e) {
             window_mode: document.getElementById('s-window-mode').value,
             frameless: document.getElementById('s-frameless').checked,
             theme_mode: document.getElementById('s-theme-mode').value,
-            auto_start_proxy: document.getElementById('s-auto-start-proxy').checked,
         },
     };
 
@@ -1190,6 +1152,13 @@ form.addEventListener('submit', function(e) {
             setSavedVoice(savedVoice);
         }
         setSavedSpeed(parseInt(rateSlider.value, 10));
+
+        // Apply text scale immediately so the rest of the page reflects the
+        // new size without a reload (the inline --text-scale on <html> was
+        // baked in at render time from the old config).
+        document.documentElement.style.setProperty(
+            '--text-scale', parseFloat(textScaleSlider.value)
+        );
 
         // Apply theme preference
         var themeMode = document.getElementById('s-theme-mode').value;

@@ -44,27 +44,30 @@ class TTSConfig:
 
 
 DEFAULT_OLLAMA_TIERS: list[dict] = [
-    {"model": "qwen3.5:35b-a3b", "label": "Best", "min_gb": 24,
-     "download": "~20GB", "disk": "~20GB", "ram": "~22GB",
-     "note": "Large model but uses a clever trick to stay fast. Best quality by far"},
-    {"model": "qwen3.5:9b", "label": "Better", "min_gb": 16,
-     "download": "~5.5GB", "disk": "~5.5GB", "ram": "~9GB",
-     "note": "Slower responses than 4B but noticeably higher quality"},
-    {"model": "qwen3.5:4b", "label": "Good", "min_gb": 0,
-     "download": "~2.5GB", "disk": "~2.5GB", "ram": "~5GB",
-     "note": "Fast on any hardware"},
+    {"model": "gemma4:31b", "label": "Best But Slow", "min_gb": 32,
+     "download": "~20GB", "ram": "~24GB",
+     "auto_recommend": False,
+     "note": "Highest quality. Dense model that's excellent with nuance, but slow even on serious hardware (~15 words/sec on an M5 MacBook Pro). Only for very fast machines."},
+    {"model": "gemma4:26b", "label": "Great", "min_gb": 24,
+     "download": "~18GB", "ram": "~22GB",
+     "note": "Mixture-of-experts model; rich knowledge but stays fast. Noted to have a warm conversational tone well-suited for meditation."},
+    {"model": "gemma4:e4b", "label": "Good", "min_gb": 16,
+     "download": "~9.6GB", "ram": "~10GB",
+     "note": "Google's edge model, surprisingly capable for its size. Solid balance of warmth and speed."},
+    {"model": "qwen3.5:4b", "label": "Decent", "min_gb": 0,
+     "download": "~3.4GB", "ram": "~5GB",
+     "note": "Smallest size and fast on any hardware. Reliable choice even on systems with low memory."},
 ]
 
 
 @dataclass
 class LLMConfig:
-    provider: str = "claude_proxy"
-    model: str = "claude-sonnet-4-6"
-    proxy_url: str = "http://127.0.0.1:8317"
+    provider: str = "ollama"
+    model: str = "sonnet"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"
     ollama_tiers: list[dict] = field(default_factory=lambda: DEFAULT_OLLAMA_TIERS)
-    api_key: str | None = "glooow"  # default for claude_proxy; overridden by config file
+    api_key: str | None = None
     openai_base_url: str | None = None
     context_strategy: str = "full"
     window_size: int = 100
@@ -128,7 +131,6 @@ class WebConfig:
     frameless: bool = True
     theme_mode: str = "auto"  # auto, dark, light
     text_scale: float = 1.0
-    auto_start_proxy: bool = True
 
 
 @dataclass

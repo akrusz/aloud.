@@ -28,8 +28,8 @@ tts:
   # similarity_boost: 0.75
 
 llm:
-  provider: claude_proxy  # ollama, claude_proxy, anthropic, openai, openrouter, venice
-  model: claude-sonnet-4-6
+  provider: ollama  # ollama, claude_proxy, anthropic, openai, openrouter, venice
+  model: sonnet
 
   # API key — uses env var substitution so keys stay out of the file.
   # Set the matching env var for your provider:
@@ -37,40 +37,15 @@ llm:
   #   openai:      OPENAI_API_KEY
   #   openrouter:  OPENROUTER_API_KEY
   #   venice:      VENICE_API_KEY
-  #   claude_proxy: uses the fixed key below (localhost only)
-  api_key: glooow
-
-  # For claude_proxy (CLIProxyAPI)
-  proxy_url: http://127.0.0.1:8317
+  #   claude_proxy: shells out to the local `claude` CLI; no key needed
+  api_key:
 
   # For Ollama
   ollama_url: http://localhost:11434
   ollama_model: qwen3.5:4b
 
-  # Recommended Ollama model tiers (shown in settings UI and setup script).
-  # Edit this list when better models become available.
-  ollama_tiers:
-    - model: "qwen3.5:35b-a3b"
-      label: Best
-      min_gb: 24
-      download: "~20GB"
-      disk: "~20GB"
-      ram: "~22GB"
-      note: "Large model but uses a clever trick to stay fast. Best quality by far"
-    - model: "qwen3.5:9b"
-      label: Better
-      min_gb: 16
-      download: "~5.5GB"
-      disk: "~5.5GB"
-      ram: "~9GB"
-      note: "Slower responses than 4B but noticeably higher quality"
-    - model: "qwen3.5:4b"
-      label: Good
-      min_gb: 0
-      download: "~2.5GB"
-      disk: "~2.5GB"
-      ram: "~5GB"
-      note: "Fast on any hardware"
+  # Recommended Ollama model tiers are defined in src/config.py (DEFAULT_OLLAMA_TIERS).
+  # To override them per-deployment, uncomment and customize an `ollama_tiers:` block here.
 
   context:
     strategy: full  # full, rolling

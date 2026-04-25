@@ -41,7 +41,7 @@ Both share the same backend modules for facilitation, LLM, STT, and TTS.
 | Module | Purpose |
 |--------|---------|
 | `facilitation/` | Core logic: `PacingController` (turn-taking state machine), `PromptBuilder` (composable system prompts), `SessionManager` (conversation history) |
-| `llm/` | Protocol-based LLM providers: claude_proxy, anthropic, openai, openrouter, venice, ollama |
+| `llm/` | Protocol-based LLM providers: claude_proxy (subprocess to `claude` CLI for subscription routing), anthropic, openai, openrouter, venice, ollama |
 | `stt/whisper.py` | Whisper speech-to-text, loads model in background |
 | `tts/` | Protocol-based TTS engines: macos, piper, elevenlabs; falls back to browser speechSynthesis |
 | `audio/` | Audio I/O and `VoiceActivityDetector` (energy-based with adaptive noise floor) |

@@ -33,7 +33,7 @@
             <h2>LLM Provider <button type="button" class="info-btn" id="llm-info-btn" aria-label="LLM provider info">?</button></h2>
             <div class="info-panel hidden" id="llm-info-panel">
                 <p><strong>What is an LLM?</strong> &mdash; A large language model is the AI that listens to what you say and generates thoughtful responses to guide your meditation.</p>
-                <p><strong>Anthropic (Subscription)</strong> &mdash; Uses your existing Claude subscription via CLIProxyAPI. May draw from extra-use budget as per ToS changes 4/2026. Claude Opus is generally the most emotionally intelligent model.</p>
+                <p><strong>Anthropic (Subscription)</strong> &mdash; Uses your existing Claude Pro or Max subscription via the locally-installed <code>claude</code> CLI (Claude Code). Quota counts against your subscription, not API credits. Claude Opus is generally the most emotionally intelligent model.</p>
                 <p><strong>Ollama (Local)</strong> &mdash; Free and private. Runs the AI entirely on your computer. We'll recommend the smartest model that your computer can run.</p>
                 <p><strong>Anthropic / OpenAI / OpenRouter / Venice (via API Key)</strong> &mdash; Pay-per-use cloud AI. You sign up with the provider, get an API key, and paste it here. Costs a small amount per session which depends on which model you choose.</p>
             </div>
@@ -43,8 +43,8 @@
                 <div class="form-group form-group-half">
                     <label for="s-provider">Default Provider</label>
                     <select id="s-provider" name="provider">
-                        <option value="claude_proxy">Anthropic (Subscription / CLIProxyAPI)</option>
                         <option value="ollama">Ollama (Local)</option>
+                        <option value="claude_proxy">Anthropic (Subscription)</option>
                         <option value="anthropic">Anthropic (API Key)</option>
                         <option value="openai">OpenAI (API Key)</option>
                         <option value="openrouter">OpenRouter (API Key)</option>
@@ -81,42 +81,12 @@
             </div>
 
             <div class="form-group api-key-group hidden" id="s-proxy-group">
-                <label for="s-proxy-url">CLIProxyAPI URL</label>
-                <div class="input-with-action">
-                    <input type="text" id="s-proxy-url" placeholder="http://127.0.0.1:8317">
-                    <button type="button" class="btn btn-small btn-secondary" id="s-proxy-url-reset" title="Reset to default">Reset</button>
-                </div>
-                <span class="form-hint">Only change this if you've configured CLIProxyAPI on a different address</span>
-                <div class="form-row" style="margin-top:0.5rem; align-items:center">
-                    <div class="form-group form-group-half" style="margin:0">
-                        <label class="checkbox-label" style="margin:0">
-                            <input type="checkbox" id="s-auto-start-proxy" checked>
-                            <span>Auto-start on launch</span>
-                        </label>
-                    </div>
-                    <div class="form-group form-group-half" style="margin:0">
-                        <span id="s-proxy-status"></span>
-                    </div>
-                </div>
-                <div id="s-proxy-install" class="hidden">
-                    <div class="tool-install-row" id="s-proxy-install-row">
-                        <div class="tool-install-info">
-                            <strong>CLIProxyAPI</strong> is not installed.
-                            <div class="form-hint">A local proxy that lets glooow use your Claude Pro or Max subscription.</div>
-                        </div>
-                        <button type="button" class="btn-tool-install" id="btn-install-cliproxyapi">Install</button>
-                    </div>
-                    <div class="tool-install-progress hidden" id="install-progress-cliproxyapi">
-                        <div class="tool-install-bar"><div class="tool-install-bar-fill"></div></div>
-                        <span class="tool-install-status"></span>
-                    </div>
-                    <div class="tool-install-done hidden" id="install-done-cliproxyapi">
-                        <span style="color:var(--success)">Installed!</span>
-                        <div class="form-hint" style="margin-top:0.25rem">
-                            Open a terminal and run <code>CLIProxyAPI</code> to authorize with your Anthropic account.
-                            This is a one-time step that opens your browser for login.
-                        </div>
-                    </div>
+                <span class="form-hint">
+                    Uses your Claude Pro or Max subscription via the local
+                    <code>claude</code> CLI (Claude Code). No API credits needed.
+                </span>
+                <div style="margin-top:0.5rem">
+                    <span id="s-proxy-status"></span>
                 </div>
             </div>
 

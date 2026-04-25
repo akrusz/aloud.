@@ -18,8 +18,11 @@
             <button type="button" class="info-btn" data-info="methods" aria-label="About meditation methods">?</button>
         </div>
         <div class="info-panel hidden" id="info-methods">
-            <p><strong>Exploration</strong> is open, responsive meditation. Instead of following a script, the AI facilitator meets you where you are &mdash; noticing what you notice, offering gentle suggestions, and supporting whatever arises.</p>
-            <p><strong>Noting</strong> is a structured practice of labeling what arises. Participants take turns noting aspects of their experience &mdash; a sensation, a thought, an emotion.</p>
+            <p><strong>exploration</strong>: this is a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore.</p>
+            <p>in this mode, you optionally set an intention and then mix and match <strong>attention focuses</strong> (body, emotions, parts work) with <strong>vibes</strong> (playful, compassionate, loving, spacious, effortless, feel-good). presets give you quick starting points, or you can build your own style. there's a directiveness slider so you can dial in how much guidance you want. in my personal experience, this sort of exploration has been helpful in experiencing jhana states if approached with enough openheartedness.</p>
+            <p>thanks to <a href="https://lovingawakening.net/" target="_blank" rel="noopener">Maija Haavisto</a> and <a href="https://www.jhourney.io/" target="_blank" rel="noopener">Jhourney</a> for guiding me in similar practices.</p>
+            <p><strong>noting</strong>: you specify what participants you'd like, if any &mdash; AIs, fixed phrases, or sound effects. then starting with you, each participant notes a sensation in their "awareness" (ideally 1&ndash;2 words) or plays their fixed phrase or sound. yes, AIs noting their experience seems kind of silly, but I've actually found it helpful to observe the mental and somatic processes that happen in the cycle of resting -&gt; hearing my cue -&gt; observing -&gt; speaking. if there are no other participants, it'll just briefly introduce the method and then record what you note.</p>
+            <p>thanks to <a href="https://www.buddhistgeeks.org/" target="_blank" rel="noopener">Vince Horn</a> and again to <a href="https://www.jhourney.io/" target="_blank" rel="noopener">Jhourney</a> for inspiration.</p>
             <p class="info-panel-link"><a href="#" id="start-guide-link">Take the full tour &rarr;</a></p>
         </div>
     </div>
@@ -221,8 +224,8 @@
             <div class="form-group form-group-half">
                 <label for="provider">Provider</label>
                 <select id="provider" name="provider">
-                    <option value="claude_proxy" selected>Anthropic (Subscription)</option>
-                    <option value="ollama">Ollama (Local)</option>
+                    <option value="ollama" selected>Ollama (Local)</option>
+                    <option value="claude_proxy">Anthropic (Subscription)</option>
                     <option value="anthropic">Anthropic (API Key)</option>
                     <option value="openai">OpenAI (API Key)</option>
                     <option value="openrouter">OpenRouter (API Key)</option>
@@ -260,6 +263,7 @@
     } from '{{ url_for("static", filename="js/voice-picker.js") }}';
     import {
         autoStart as autoStartGuide, resetAndStart as resetGuide,
+        closeIfActive as closeGuide,
     } from '{{ url_for("static", filename="js/index-guide.js") }}';
 
     // ---- Tab switching ----
@@ -277,7 +281,10 @@
     }
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => applyTab(btn.dataset.tab));
+        btn.addEventListener('click', () => {
+            closeGuide();
+            applyTab(btn.dataset.tab);
+        });
     });
 
     // Restore saved tab on load
@@ -488,44 +495,9 @@
             });
     }
 
-    function startProxy() {
-        modelSelect.innerHTML = '<option value="">Starting CLIProxyAPI...</option>';
-        providerHint.classList.add('hidden');
-        providerSelect.value = 'claude_proxy';
-        fetch('/api/proxy/start', { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok) {
-                    // Mark claude_proxy as available without re-sorting the dropdown
-                    providerStatus.claude_proxy = { available: true, installed: true, hint: '' };
-                    // Clean up the marker
-                    for (const opt of providerSelect.options) {
-                        if (opt.value === 'claude_proxy') {
-                            opt.textContent = opt.textContent.replace(/ [\u2718\u2731]$/, '');
-                            opt.classList.remove('provider-unavailable');
-                            break;
-                        }
-                    }
-                    providerHint.classList.add('hidden');
-                    // Fetch models for claude_proxy
-                    delete liveModels.claude_proxy;
-                    fetchAndShowModels('claude_proxy');
-                } else {
-                    providerHint.innerHTML = data.message;
-                    providerHint.classList.remove('hidden');
-                    modelSelect.innerHTML = '<option value="">No models available</option>';
-                }
-            })
-            .catch(() => {
-                providerHint.innerHTML = 'Failed to start CLIProxyAPI.';
-                providerHint.classList.remove('hidden');
-                modelSelect.innerHTML = '<option value="">No models available</option>';
-            });
-    }
 
     function applyProviderAvailability() {
         const available = [];   // fully working
-        const startable = [];   // installed but not running (e.g. CLIProxyAPI)
         const unavailable = []; // not configured at all
         for (const opt of providerSelect.options) {
             const info = providerStatus[opt.value];
@@ -546,6 +518,13 @@
                 available.push(opt);
             }
         }
+        // Promote claude_proxy to the top of the available list when it's working —
+        // a subscription is usually the user's preferred path if they have one.
+        available.sort((a, b) => {
+            if (a.value === 'claude_proxy') return -1;
+            if (b.value === 'claude_proxy') return 1;
+            return 0;
+        });
         // Sort: available/startable first, then unavailable
         for (const opt of [...available, ...unavailable]) {
             providerSelect.appendChild(opt);
@@ -570,7 +549,6 @@
 
     // Expose for inline onclick in provider hints
     window.refreshProviders = refreshProviders;
-    window.startProxy = startProxy;
 
     // Load saved provider preference, then refresh providers
     let savedProvider = null;

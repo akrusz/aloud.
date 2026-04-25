@@ -113,7 +113,6 @@ class WebMeditationSession:
         self._llm_params = dict(
             provider=effective_provider,
             model=effective_model,
-            proxy_url=config.llm.proxy_url,
             ollama_url=config.llm.ollama_url,
             api_key=api_key,
             max_tokens=config.llm.max_tokens,

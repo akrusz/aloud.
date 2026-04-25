@@ -13,7 +13,6 @@ foreach ($a in $args) {
 }
 
 $ConfigFile = "config/default.yaml"
-$ProxyProcess = $null
 
 # ── Helpers ──────────────────────────────────────
 
@@ -99,7 +98,7 @@ tts:
 
 llm:
   provider: ollama  # ollama, claude_proxy, anthropic, openai, openrouter, venice
-  model: claude-sonnet-4-6
+  model: sonnet
 
   # API key - uses env var substitution so keys stay out of the file.
   # Set the matching env var for your provider:
@@ -107,39 +106,14 @@ llm:
   #   openai:      OPENAI_API_KEY
   #   openrouter:  OPENROUTER_API_KEY
   #   venice:      VENICE_API_KEY
-  #   claude_proxy: uses the fixed key below (localhost only)
+  #   claude_proxy: shells out to the local `claude` CLI; no key needed
   # api_key: `${ANTHROPIC_API_KEY}
-
-  # For claude_proxy (CLIProxyAPI)
-  proxy_url: http://127.0.0.1:8317
 
   # For Ollama
   ollama_url: http://localhost:11434
   ollama_model: qwen3.5:4b
 
-  # Recommended Ollama model tiers (shown in settings UI).
-  ollama_tiers:
-    - model: "qwen3.5:35b-a3b"
-      label: Best
-      min_gb: 24
-      download: "~20GB"
-      disk: "~20GB"
-      ram: "~22GB"
-      note: "Large model but uses a clever trick to stay fast. Best quality by far"
-    - model: "qwen3.5:9b"
-      label: Better
-      min_gb: 16
-      download: "~5.5GB"
-      disk: "~5.5GB"
-      ram: "~9GB"
-      note: "Slower responses than 4B but noticeably higher quality"
-    - model: "qwen3.5:4b"
-      label: Good
-      min_gb: 0
-      download: "~2.5GB"
-      disk: "~2.5GB"
-      ram: "~5GB"
-      note: "Fast on any hardware"
+  # Recommended Ollama model tiers are defined in src/config.py (DEFAULT_OLLAMA_TIERS).
 
   context:
     strategy: full  # full, rolling
@@ -213,7 +187,6 @@ if (-not (Test-Path ".venv") -or -not (Test-Path $ConfigFile)) {
 $ConfigContent = Get-Content $ConfigFile -Raw
 $LlmProvider = if ($ConfigContent -match '(?m)^\s*provider:\s*(.+?)(\s*#.*)?$') { $Matches[1].Trim() } else { "" }
 $LlmModel    = if ($ConfigContent -match '(?m)^\s*model:\s*(.+?)(\s*#.*)?$')    { $Matches[1].Trim() } else { "" }
-$ProxyUrl    = if ($ConfigContent -match '(?m)^\s*proxy_url:\s*(.+?)(\s*#.*)?$') { $Matches[1].Trim() } else { "" }
 $OllamaUrl   = if ($ConfigContent -match '(?m)^\s*ollama_url:\s*(.+?)(\s*#.*)?$') { $Matches[1].Trim() } else { "http://localhost:11434" }
 
 # For TTS engine, skip the first 'engine:' (which is under stt) and get the second
@@ -228,11 +201,6 @@ if ($EngineMatches.Count -ge 2) {
 $CleanupBlock = {
     Write-Host ""
     Info "Shutting down..."
-    if ($ProxyProcess -and -not $ProxyProcess.HasExited) {
-        Info "Stopping CLIProxyAPI (pid $($ProxyProcess.Id))..."
-        Stop-Process -Id $ProxyProcess.Id -Force -ErrorAction SilentlyContinue
-        Ok "CLIProxyAPI stopped"
-    }
     Ok "Done."
 }
 
@@ -248,50 +216,6 @@ try {
     Info "Config: $ConfigFile"
     Write-Host ""
 
-    # ── Auto-start CLIProxyAPI if needed ─────────────
-
-    if ($LlmProvider -eq "claude_proxy") {
-        # Extract port and API key for health checks
-        $ProxyPort = "8317"
-        if ($ProxyUrl -match ':(\d+)$') {
-            $ProxyPort = $Matches[1]
-        }
-        $ProxyApiKey = if ($ConfigContent -match '(?m)^\s*api_key:\s*(.+?)(\s*#.*)?$') { $Matches[1].Trim() } else { "" }
-        $ProxyHeaders = @{}
-        if ($ProxyApiKey -and -not $ProxyApiKey.StartsWith('$')) {
-            $ProxyHeaders["X-Api-Key"] = $ProxyApiKey
-        }
-
-        $ProxyRunning = $false
-        try {
-            $null = Invoke-RestMethod -Uri "http://127.0.0.1:${ProxyPort}/v1/models" -Headers $ProxyHeaders -TimeoutSec 2
-            $ProxyRunning = $true
-        } catch {}
-
-        if ($ProxyRunning) {
-            Ok "CLIProxyAPI already running on port $ProxyPort"
-        } else {
-            if (Get-Command CLIProxyAPI -ErrorAction SilentlyContinue) {
-                Info "Starting CLIProxyAPI on port $ProxyPort..."
-                $ProxyProcess = Start-Process CLIProxyAPI -PassThru -WindowStyle Hidden
-
-                # Wait for it to be ready (up to 10 seconds)
-                $Ready = $false
-                for ($i = 1; $i -le 20; $i++) {
-                    try {
-                        $null = Invoke-RestMethod -Uri "http://127.0.0.1:${ProxyPort}/v1/models" -Headers $ProxyHeaders -TimeoutSec 1
-                        Ok "CLIProxyAPI ready (pid $($ProxyProcess.Id))"
-                        $Ready = $true
-                        break
-                    } catch {}
-                    Start-Sleep -Milliseconds 500
-                }
-                if (-not $Ready) {
-                    Warn "CLIProxyAPI didn't respond in 10s - it may still be loading"
-                }
-            }
-        }
-    }
 
     # ── Auto-start Ollama if needed ──────────────────
 

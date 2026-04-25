@@ -16,7 +16,6 @@ for arg in "$@"; do
 done
 
 CONFIG_FILE="config/default.yaml"
-PROXY_PID=""
 OS="$(uname -s)"
 
 # ── Helpers ──────────────────────────────────────
@@ -156,7 +155,7 @@ tts:
 
 llm:
   provider: ollama  # ollama, claude_proxy, anthropic, openai, openrouter, venice
-  model: claude-sonnet-4-6
+  model: sonnet
 
   # API key — uses env var substitution so keys stay out of the file.
   # Set the matching env var for your provider:
@@ -164,39 +163,14 @@ llm:
   #   openai:      OPENAI_API_KEY
   #   openrouter:  OPENROUTER_API_KEY
   #   venice:      VENICE_API_KEY
-  #   claude_proxy: uses the fixed key below (localhost only)
+  #   claude_proxy: shells out to the local `claude` CLI; no key needed
   # api_key: ${ANTHROPIC_API_KEY}
-
-  # For claude_proxy (CLIProxyAPI)
-  proxy_url: http://127.0.0.1:8317
 
   # For Ollama
   ollama_url: http://localhost:11434
   ollama_model: qwen3.5:4b
 
-  # Recommended Ollama model tiers (shown in settings UI).
-  ollama_tiers:
-    - model: "qwen3.5:35b-a3b"
-      label: Best
-      min_gb: 24
-      download: "~20GB"
-      disk: "~20GB"
-      ram: "~22GB"
-      note: "Large model but uses a clever trick to stay fast. Best quality by far"
-    - model: "qwen3.5:9b"
-      label: Better
-      min_gb: 16
-      download: "~5.5GB"
-      disk: "~5.5GB"
-      ram: "~9GB"
-      note: "Slower responses than 4B but noticeably higher quality"
-    - model: "qwen3.5:4b"
-      label: Good
-      min_gb: 0
-      download: "~2.5GB"
-      disk: "~2.5GB"
-      ram: "~5GB"
-      note: "Fast on any hardware"
+  # Recommended Ollama model tiers are defined in src/config.py (DEFAULT_OLLAMA_TIERS).
 
   context:
     strategy: full  # full, rolling
@@ -274,7 +248,6 @@ LLM_PROVIDER=$(grep '^\s*provider:' "$CONFIG_FILE" | head -1 | sed 's/.*provider
 LLM_MODEL=$(grep '^\s*model:' "$CONFIG_FILE" | head -1 | sed 's/.*model:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 OLLAMA_MODEL=$(grep '^\s*ollama_model:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_model:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 TTS_ENGINE=$(grep '^\s*engine:' "$CONFIG_FILE" | head -2 | tail -1 | sed 's/.*engine:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-PROXY_URL=$(grep '^\s*proxy_url:' "$CONFIG_FILE" | head -1 | sed 's/.*proxy_url:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 OLLAMA_URL=$(grep '^\s*ollama_url:' "$CONFIG_FILE" | head -1 | sed 's/.*ollama_url:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
 
@@ -286,12 +259,6 @@ cleanup() {
     CLEANED_UP=1
     echo ""
     info "Shutting down..."
-    if [ -n "$PROXY_PID" ]; then
-        info "Stopping CLIProxyAPI (pid $PROXY_PID)..."
-        kill "$PROXY_PID" 2>/dev/null || true
-        wait "$PROXY_PID" 2>/dev/null || true
-        ok "CLIProxyAPI stopped"
-    fi
     ok "Done."
     if [ "${GLOOOW_APP:-}" = "1" ]; then
         echo ""
@@ -317,38 +284,6 @@ if [ "${QUIET:-}" != "1" ]; then
     info "TTS:    $TTS_ENGINE"
     info "Config: $CONFIG_FILE"
     echo ""
-fi
-
-# ── Auto-start CLIProxyAPI if needed ─────────────
-
-if [ "$LLM_PROVIDER" = "claude_proxy" ]; then
-    # Extract port and API key for health checks
-    PROXY_PORT=$(echo "$PROXY_URL" | grep -oE ':[0-9]+$' | tr -d ':')
-    PROXY_PORT="${PROXY_PORT:-8317}"
-    PROXY_API_KEY=$(grep '^\s*api_key:' "$CONFIG_FILE" | head -1 | sed 's/.*api_key:\s*//' | sed 's/\s*#.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    PROXY_CURL_OPTS=(-sf)
-    if [ -n "$PROXY_API_KEY" ] && [[ ! "$PROXY_API_KEY" =~ ^\$ ]]; then
-        PROXY_CURL_OPTS+=(-H "X-Api-Key: $PROXY_API_KEY")
-    fi
-
-    if curl "${PROXY_CURL_OPTS[@]}" "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
-        ok "CLIProxyAPI already running on port $PROXY_PORT"
-    elif command -v CLIProxyAPI &>/dev/null; then
-        info "Starting CLIProxyAPI on port $PROXY_PORT..."
-        CLIProxyAPI >/dev/null 2>&1 &
-        PROXY_PID=$!
-
-        for i in $(seq 1 20); do
-            if curl "${PROXY_CURL_OPTS[@]}" "http://127.0.0.1:${PROXY_PORT}/v1/models" >/dev/null 2>&1; then
-                ok "CLIProxyAPI ready (pid $PROXY_PID)"
-                break
-            fi
-            if [ "$i" -eq 20 ]; then
-                warn "CLIProxyAPI didn't respond in 10s — it may still be loading"
-            fi
-            sleep 0.5
-        done
-    fi
 fi
 
 # ── Auto-start Ollama if needed ──────────────────

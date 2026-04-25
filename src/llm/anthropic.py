@@ -10,7 +10,7 @@ class AnthropicProvider(BaseLLMProvider):
 
     Useful for:
     - Using Haiku 4.5 for cost efficiency ($1/$5 per MTok)
-    - When CLIProxyAPI is not available
+    - When the local `claude` CLI subscription path isn't available
     - Production deployments
     """
 

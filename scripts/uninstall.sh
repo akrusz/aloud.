@@ -88,20 +88,6 @@ if command -v ollama &>/dev/null; then
     fi
 fi
 
-# ── Remove CLIProxyAPI ─────────────────────────
-
-if command -v CLIProxyAPI &>/dev/null; then
-    echo ""
-    if ask_yn "Uninstall CLIProxyAPI?" "n"; then
-        if [ "$OS" = "Darwin" ] && command -v brew &>/dev/null; then
-            brew uninstall cliproxyapi 2>/dev/null || true
-            ok "CLIProxyAPI uninstalled via Homebrew"
-        else
-            warn "Could not auto-uninstall CLIProxyAPI on this platform. Remove it manually."
-        fi
-    fi
-fi
-
 # ── Remove Whisper model cache ──────────────────
 
 WHISPER_CACHE="$HOME/.cache/whisper"

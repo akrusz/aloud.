@@ -21,7 +21,7 @@ class TestDefaults:
         assert config.audio.sample_rate == 16000
         assert config.stt.engine == "whisper"
         assert config.tts.engine == "macos"
-        assert config.llm.provider == "claude_proxy"
+        assert config.llm.provider == "ollama"
         assert config.pacing.response_delay_ms == 2000
         assert config.session.auto_save is True
         assert config.web.port == 4649
@@ -72,7 +72,7 @@ class TestLoadConfig:
     def test_load_nonexistent_returns_defaults(self, tmp_path):
         config = load_config(tmp_path / "nonexistent.yaml")
         assert config.audio.sample_rate == 16000
-        assert config.llm.provider == "claude_proxy"
+        assert config.llm.provider == "ollama"
 
     def test_load_yaml(self, tmp_path):
         yaml_content = """

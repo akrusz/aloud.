@@ -1,61 +1,36 @@
-"""Claude provider using CLIProxyAPI for Pro/Max subscription routing.
+"""Claude provider using the local `claude` CLI for subscription routing.
 
-CLIProxyAPI exposes your Claude subscription as an API endpoint.
-Uses the native Anthropic Messages format (/v1/messages) so that
-prompt caching via cache_control passes through to Anthropic.
-https://github.com/router-for-me/CLIProxyAPI
+Shells out to `claude -p` (headless mode) so the user's Pro/Max subscription
+quota is used rather than API credits. Each completion spawns a fresh
+subprocess, passes the system prompt via --system-prompt (which fully
+replaces Claude Code's default), and parses the JSON response.
+
+The class name and module name are kept from the previous CLIProxyAPI-based
+implementation so existing user configs with `provider: claude_proxy` keep
+working without migration.
 """
 
+import asyncio
+import json
 import logging
-
-import httpx
+import shutil
 
 from .base import BaseLLMProvider, Message, CompletionResult
 
 logger = logging.getLogger(__name__)
 
-# Fixed key for the localhost proxy. Hardcoded rather than read from
-# config.llm.api_key so switching providers can't poison this value.
-PROXY_API_KEY = "glooow"
-
 
 class ClaudeProxyProvider(BaseLLMProvider):
-    """LLM provider using CLIProxyAPI to route through a Claude subscription.
-
-    Uses the native Anthropic /v1/messages endpoint (not the OpenAI-compatible
-    one) so we can pass cache_control on the system prompt. CLIProxyAPI
-    forwards these requests to Anthropic unchanged.
-    """
+    """LLM provider that shells out to the local `claude` CLI."""
 
     def __init__(
         self,
-        proxy_url: str = "http://127.0.0.1:8317",
-        model: str = "claude-sonnet-4-6",
+        model: str = "sonnet",
         max_tokens: int = 300,
-        timeout: float = 60.0,
+        timeout: float = 90.0,
     ):
-        """Initialize Claude proxy provider.
-
-        Args:
-            proxy_url: URL of the CLIProxyAPI server
-            model: Model to use
-            max_tokens: Maximum tokens in response
-            timeout: Request timeout in seconds
-        """
         super().__init__(model=model, max_tokens=max_tokens)
-        self.proxy_url = proxy_url.rstrip("/")
         self.timeout = timeout
-
-    def _make_client(self) -> httpx.AsyncClient:
-        """Create a new HTTP client."""
-        headers = {
-            "Content-Type": "application/json",
-            "X-Api-Key": PROXY_API_KEY,
-        }
-        return httpx.AsyncClient(
-            timeout=httpx.Timeout(self.timeout, connect=5.0),
-            headers=headers,
-        )
 
     async def complete(
         self,
@@ -63,60 +38,64 @@ class ClaudeProxyProvider(BaseLLMProvider):
         system: str | None = None,
         max_tokens: int | None = None,
     ) -> CompletionResult:
-        """Generate a completion using CLIProxyAPI's native Anthropic endpoint.
-
-        Uses /v1/messages with cache_control on the system prompt so the
-        large facilitation prompt is cached across exchanges within a session.
-        """
-        # Build Anthropic-native messages (user/assistant only)
-        anthropic_messages = []
-        for msg in messages:
-            if msg.role != "system":
-                anthropic_messages.append({
-                    "role": msg.role,
-                    "content": msg.content,
-                })
-
-        # System prompt with cache_control — after the first exchange,
-        # subsequent requests get a cache hit (~90% fewer input tokens).
-        system_param = None
-        if system:
-            system_param = [{
-                "type": "text",
-                "text": system,
-                "cache_control": {"type": "ephemeral"},
-            }]
-
-        body = {
-            "model": self.model,
-            "max_tokens": max_tokens or self.max_tokens,
-            "messages": anthropic_messages,
-        }
-        if system_param:
-            body["system"] = system_param
-
-        # Make request to proxy's native Anthropic endpoint
-        async with self._make_client() as client:
-            response = await client.post(
-                f"{self.proxy_url}/v1/messages",
-                json=body,
+        binary = shutil.which("claude")
+        if not binary:
+            raise RuntimeError(
+                "claude CLI not found on PATH. Install Claude Code to use "
+                "the Anthropic Subscription provider."
             )
-            response.raise_for_status()
 
-            data = response.json()
+        prompt = _format_history(messages)
 
-        # Extract response (Anthropic format)
-        text = ""
-        if data.get("content"):
-            for block in data["content"]:
-                if block.get("type") == "text":
-                    text = block.get("text", "")
-                    break
+        cmd = [
+            binary,
+            "-p",
+            "--tools", "",
+            "--no-session-persistence",
+            "--disable-slash-commands",
+            "--output-format", "json",
+            "--model", self.model,
+        ]
+        if system:
+            cmd.extend(["--system-prompt", system])
+        cmd.append(prompt)
 
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=self.timeout
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise
+
+        if proc.returncode != 0:
+            err = stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(
+                f"claude CLI failed (exit {proc.returncode}): {err}"
+            )
+
+        try:
+            data = json.loads(stdout)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"claude CLI returned invalid JSON: {e}") from e
+
+        if data.get("is_error"):
+            raise RuntimeError(
+                f"claude CLI error: {data.get('result') or data.get('api_error_status') or 'unknown'}"
+            )
+
+        text = data.get("result", "")
         finish_reason = data.get("stop_reason")
 
         tokens_used = None
-        usage = data.get("usage", {})
+        usage = data.get("usage") or {}
         if usage:
             input_tokens = usage.get("input_tokens", 0)
             output_tokens = usage.get("output_tokens", 0)
@@ -125,11 +104,33 @@ class ClaudeProxyProvider(BaseLLMProvider):
             cache_read = usage.get("cache_read_input_tokens", 0)
             cache_create = usage.get("cache_creation_input_tokens", 0)
             if cache_read or cache_create:
-                logger.debug("Cache read=%d create=%d input=%d output=%d",
-                             cache_read, cache_create, input_tokens, output_tokens)
+                logger.debug(
+                    "Cache read=%d create=%d input=%d output=%d",
+                    cache_read, cache_create, input_tokens, output_tokens,
+                )
 
         return CompletionResult(
             text=text,
             finish_reason=finish_reason,
             tokens_used=tokens_used,
         )
+
+
+def _format_history(messages: list[Message]) -> str:
+    """Encode multi-turn history as a single prompt string.
+
+    The claude CLI takes one prompt argument, so prior turns are passed
+    inline as a User:/Assistant: transcript. System messages are skipped
+    here — the system prompt is set via --system-prompt instead.
+    """
+    convo = [m for m in messages if m.role != "system"]
+    if not convo:
+        return ""
+    if len(convo) == 1 and convo[0].role == "user":
+        return convo[0].content
+
+    lines = []
+    for msg in convo:
+        role = "User" if msg.role == "user" else "Assistant"
+        lines.append(f"{role}: {msg.content}")
+    return "\n\n".join(lines)

@@ -225,7 +225,7 @@ function showLLMStep() {
         // Claude subscription
         html += '<button class="tour-choice" data-action="provider" data-value="claude_proxy">';
         html += '<strong>I have a Claude subscription</strong>';
-        html += '<small>Uses your existing plan via CLIProxyAPI. <em>May draw from extra-use budget as per ToS</em>.</small>';
+        html += '<small>Uses your Pro or Max plan via the locally-installed <code>claude</code> CLI (Claude Code).</small>';
         html += '</button>';
 
         // API key
@@ -281,10 +281,12 @@ function chooseProvider(value) {
             return m.value && text !== 'Loading...' && text !== 'No models available';
         }, resumeToVoice);
     } else if (value === 'claude_proxy') {
-        // Wait for proxy to show "Connected"
+        // Wait for the model dropdown to populate (claude CLI detected, models loaded)
         waitForCondition(function() {
-            var el = document.getElementById('s-proxy-status');
-            return el && el.textContent.indexOf('Connected') !== -1;
+            var m = document.getElementById('s-model');
+            if (!m || m.options.length === 0) return false;
+            var text = m.options[0].textContent;
+            return m.value && text !== 'Loading...' && text !== 'No models available';
         }, resumeToVoice);
     } else {
         // API key provider — wait for key field to be filled

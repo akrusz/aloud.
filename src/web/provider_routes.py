@@ -11,7 +11,6 @@ import httpx
 from flask import Flask, request, jsonify, Response
 
 from ..config import DEFAULT_OLLAMA_TIERS
-from ..llm.claude_proxy import PROXY_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +56,15 @@ def _has_fast_gpu(min_vram_gb: int = 20) -> bool:
 
 
 def _recommended_ollama_model(ram_gb: int | None, tiers: list[dict]) -> dict:
-    """Pick the best Ollama model tier for the given RAM."""
+    """Pick the best Ollama model tier for the given RAM.
+
+    Tiers with ``auto_recommend: False`` (e.g. dense models that are too slow
+    even on machines with enough RAM) are visible in the UI but skipped here.
+    """
     if ram_gb is None:
         return tiers[-1]  # default to smallest
     for tier in tiers:
-        if ram_gb >= tier["min_gb"]:
+        if tier.get("auto_recommend", True) and ram_gb >= tier["min_gb"]:
             return tier
     return tiers[-1]
 
@@ -83,22 +86,22 @@ def _is_ollama_installed(app) -> bool:
         return False
 
 
-def find_cli_proxy() -> str | None:
-    """Find CLIProxyAPI, searching beyond the app bundle's limited PATH."""
-    binary = shutil.which("CLIProxyAPI")
+def find_claude_cli() -> str | None:
+    """Find the `claude` CLI binary, searching beyond the app bundle's limited PATH."""
+    binary = shutil.which("claude")
     if binary:
         return binary
     # macOS app bundles have a minimal PATH — ask the user's login shell
     try:
         result = subprocess.run(
-            ["/bin/zsh", "-lc", "which CLIProxyAPI"],
+            ["/bin/zsh", "-lc", "which claude"],
             capture_output=True, text=True, timeout=5,
         )
         path = result.stdout.strip()
         if result.returncode == 0 and path and os.path.isfile(path):
             return path
     except Exception as e:
-        logger.debug("Shell lookup for CLIProxyAPI failed: %s", e)
+        logger.debug("Shell lookup for claude CLI failed: %s", e)
     return None
 
 
@@ -213,24 +216,19 @@ def _fetch_anthropic_models() -> list[dict]:
 
 
 def _fetch_claude_proxy_models(config) -> list[dict]:
-    proxy_url = config.llm.proxy_url or "http://127.0.0.1:8317"
-    headers = {"X-Api-Key": PROXY_API_KEY}
-    resp = httpx.get(
-        f"{proxy_url.rstrip('/')}/v1/models",
-        headers=headers,
-        timeout=3,
-    )
-    resp.raise_for_status()
-    raw = resp.json().get("data", [])
-    models = []
-    for m in raw:
-        mid = m.get("id", "")
-        label = m.get("display_name", "") or mid
-        created = m.get("created_at", m.get("created", ""))
-        models.append({"value": mid, "label": label, "sort": created})
+    """Static model list for the Claude subscription provider.
 
-    models.sort(key=lambda x: x["sort"], reverse=True)
-    return [{"value": m["value"], "label": m["label"]} for m in models]
+    Uses the `claude` CLI's stable model aliases — these always resolve
+    to the latest version of each tier, so this list never goes stale
+    even when Anthropic ships new models. Includes Opus 3 as a pinned
+    legacy option since some users specifically prefer it.
+    """
+    return [
+        {"value": "opus", "label": "Opus (latest)"},
+        {"value": "sonnet", "label": "Sonnet (latest)"},
+        {"value": "haiku", "label": "Haiku (latest)"},
+        {"value": "claude-3-opus-20240229", "label": "Opus 3"},
+    ]
 
 
 def _fetch_openrouter_models() -> list[dict]:
@@ -287,106 +285,22 @@ def _fetch_venice_models() -> list[dict]:
 # ---- Route registration ----
 
 def register_provider_routes(app: Flask) -> None:
-    """Register provider, model, proxy, and Ollama routes."""
-
-    @app.route("/api/proxy/status")
-    def api_proxy_status():
-        """Check if CLIProxyAPI is installed and/or running."""
-        binary = find_cli_proxy()
-        installed = binary is not None
-
-        running = False
-        proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
-        headers = {"X-Api-Key": PROXY_API_KEY}
-        try:
-            resp = httpx.get(
-                f"{proxy_url.rstrip('/')}/v1/models",
-                headers=headers,
-                timeout=2.0,
-            )
-            running = resp.status_code == 200
-        except Exception as e:
-            logger.debug("Proxy status check failed: %s", e)
-
-        return jsonify({
-            "installed": installed,
-            "running": running,
-            "path": binary,
-        })
-
-    @app.route("/api/proxy/start", methods=["POST"])
-    def api_proxy_start():
-        """Start CLIProxyAPI if installed and not already running."""
-        binary = find_cli_proxy()
-        if not binary:
-            return jsonify({"ok": False, "message": "CLIProxyAPI not found on this system"}), 404
-
-        # Check if already running
-        proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
-        headers = {"X-Api-Key": PROXY_API_KEY}
-        try:
-            resp = httpx.get(
-                f"{proxy_url.rstrip('/')}/v1/models",
-                headers=headers,
-                timeout=2.0,
-            )
-            if resp.status_code == 200:
-                return jsonify({"ok": True, "message": "Already running"})
-        except Exception as e:
-            logger.debug("Proxy not running, will start: %s", e)
-
-        # Start as a child process — cleaned up when Glooow exits via atexit
-        try:
-            import atexit
-
-            proc = subprocess.Popen(
-                [binary],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            app.proxy_process = proc
-
-            def _cleanup_proxy():
-                if proc.poll() is None:
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=3)
-                    except Exception as e:
-                        logger.debug("Proxy did not exit gracefully, killing: %s", e)
-                        proc.kill()
-
-            atexit.register(_cleanup_proxy)
-            # Wait briefly for it to come up
-            for _ in range(10):
-                time.sleep(0.5)
-                try:
-                    resp = httpx.get(
-                        f"{proxy_url.rstrip('/')}/v1/models",
-                        headers=headers,
-                        timeout=1.0,
-                    )
-                    if resp.status_code == 200:
-                        return jsonify({"ok": True, "message": "Started"})
-                except Exception:
-                    continue
-            return jsonify({"ok": False, "message": "Started but not responding yet — try refreshing in a moment"})
-        except Exception as e:
-            return jsonify({"ok": False, "message": str(e)}), 500
+    """Register provider, model, and Ollama routes."""
 
     @app.route("/api/system-info")
     def api_system_info():
         """Return system platform info and tool availability."""
         system = platform.system()
         has_homebrew = shutil.which("brew") is not None
-        proxy_binary = find_cli_proxy()
+        claude_binary = find_claude_cli()
 
         return jsonify({
             "platform": system.lower(),
             "has_homebrew": has_homebrew,
             "tools": {
-                "cliproxyapi": {
-                    "installed": proxy_binary is not None,
-                    "path": proxy_binary,
+                "claude_cli": {
+                    "installed": claude_binary is not None,
+                    "path": claude_binary,
                 },
                 "ollama": {
                     "installed": _is_ollama_installed(app) and not getattr(app, "no_ollama", False),
@@ -397,55 +311,27 @@ def register_provider_routes(app: Flask) -> None:
 
     @app.route("/api/providers")
     def api_providers():
-        """Return provider availability based on env vars / proxy reachability."""
+        """Return provider availability based on env vars / claude CLI presence."""
         from concurrent.futures import ThreadPoolExecutor
 
         results = {}
 
         refresh = ' <a href="#" onclick="refreshProviders(); return false">Refresh</a>'
-        proxy_binary = find_cli_proxy()
+        claude_binary = find_claude_cli()
 
-        # --- Probe CLIProxyAPI and Ollama in parallel (each has a 2s timeout) ---
-
-        def _check_proxy():
-            proxy_url = app.meditation_config.llm.proxy_url or "http://127.0.0.1:8317"
-            try:
-                headers = {"X-Api-Key": PROXY_API_KEY}
-                resp = httpx.get(
-                    f"{proxy_url.rstrip('/')}/v1/models",
-                    headers=headers,
-                    timeout=2.0,
-                )
-                if resp.status_code == 200:
-                    return {"available": True, "installed": True, "hint": ""}
-                return {
-                    "available": False, "installed": bool(proxy_binary),
-                    "hint": (
-                        "CLIProxyAPI rejected the connection. Check your config in "
-                        "<code>~/.cli-proxy-api/config.yaml</code>." + refresh
-                    ),
-                }
-            except Exception:
-                if proxy_binary:
-                    start_btn = (
-                        ' <a href="#" onclick="startProxy(); return false" '
-                        'class="btn btn-small btn-primary" '
-                        'style="display:inline-block; margin-left:0.5rem; padding:0.15rem 0.6rem; '
-                        'font-size:0.875rem; vertical-align:baseline">Start</a>'
-                    )
-                    return {
-                        "available": False, "installed": True,
-                        "hint": "CLIProxyAPI is installed but not running." + start_btn,
-                    }
-                return {
-                    "available": False, "installed": False,
-                    "hint": (
-                        "CLIProxyAPI is not installed. "
-                        "<a href='/settings'>Install from Settings</a> or visit "
-                        "<a href='https://github.com/router-for-me/CLIProxyAPI' "
-                        "target='_blank'>GitHub</a>." + refresh
-                    ),
-                }
+        # claude CLI presence is a sync check — Ollama probe runs in parallel below.
+        if claude_binary:
+            results["claude_proxy"] = {"available": True, "installed": True, "hint": ""}
+        else:
+            results["claude_proxy"] = {
+                "available": False, "installed": False,
+                "hint": (
+                    "Claude Code CLI is not installed. "
+                    "<a href='https://claude.com/product/claude-code' target='_blank'>"
+                    "Install Claude Code</a>, then run <code>claude</code> once to log in "
+                    "with your Pro/Max subscription." + refresh
+                ),
+            }
 
         def _check_ollama():
             ollama_url = app.meditation_config.llm.ollama_url or "http://localhost:11434"
@@ -456,11 +342,8 @@ def register_provider_routes(app: Flask) -> None:
             except Exception:
                 return None  # not running
 
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            proxy_future = pool.submit(_check_proxy)
+        with ThreadPoolExecutor(max_workers=1) as pool:
             ollama_future = pool.submit(_check_ollama)
-
-        results["claude_proxy"] = proxy_future.result()
 
         # API key providers — instant, no network
         results["anthropic"] = {
@@ -507,8 +390,7 @@ def register_provider_routes(app: Flask) -> None:
                 note += ". May be slow with your current GPU" if note else "May be slow with your current GPU"
             tier_list.append({
                 "model": t["model"], "label": t["label"],
-                "download": t["download"], "disk": t["disk"],
-                "ram": t["ram"], "note": note,
+                "download": t["download"], "ram": t["ram"], "note": note,
                 "min_gb": t["min_gb"],
                 "fits": ram_gb is not None and ram_gb >= t["min_gb"],
             })
@@ -536,8 +418,6 @@ def register_provider_routes(app: Flask) -> None:
                     n.split(":")[0] == tier_base and t["model"].split(":")[-1] in n
                     for n in models
                 )
-                if t["model"] in model_sizes:
-                    t["actual_disk"] = model_sizes[t["model"]]
 
             if models:
                 results["ollama"] = {

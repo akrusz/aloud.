@@ -292,6 +292,7 @@ body {
     display: flex;
     gap: 0;
     justify-content: center;
+    align-items: center;
 }
 
 .tab-btn {
@@ -2301,7 +2302,9 @@ body::before {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 90;
+    /* Above tour elements (95-102) so the About box reads cleanly when the
+       tour is open. Stays below toast notifications (10000). */
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2690,8 +2693,9 @@ body::before {
     text-decoration: underline;
 }
 .info-panel-link {
-    margin-top: 0.5rem;
-    font-size: 0.8rem;
+    margin-top: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 600;
 }
 
 .settings-desc {
@@ -3035,7 +3039,7 @@ body::before {
     min-width: 5rem;
 }
 
-/* Tool install shared styles (CLIProxyAPI, Ollama) */
+/* Tool install shared styles (Ollama, Piper TTS) */
 
 .tool-install-row {
     display: flex;

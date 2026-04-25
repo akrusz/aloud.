@@ -175,18 +175,6 @@ def _set_macos_app_name(name: str) -> None:
         logger.debug("Could not set macOS app name: %s", e)
 
 
-def _stop_proxy(app) -> None:
-    """Terminate CLIProxyAPI if we started it."""
-    proc = getattr(app, "proxy_process", None)
-    if proc and proc.poll() is None:
-        proc.terminate()
-        try:
-            proc.wait(timeout=3)
-        except Exception as e:
-            logger.debug("Proxy did not exit gracefully, killing: %s", e)
-            proc.kill()
-
-
 def _save_active_sessions(flask_app) -> None:
     """Auto-save any active meditation sessions before exit."""
     try:
@@ -216,16 +204,6 @@ def _shutdown_all(flask_app=None) -> None:
     # Save any active meditation sessions before we tear everything down
     if flask_app:
         _save_active_sessions(flask_app)
-
-    # Kill CLIProxyAPI immediately if we started it
-    if flask_app:
-        proc = getattr(flask_app, "proxy_process", None)
-        if proc and proc.poll() is None:
-            try:
-                proc.kill()
-                proc.wait(timeout=1)
-            except Exception:
-                pass
 
     # Force exit — os._exit bypasses all cleanup, atexit, threads, etc.
     # This is intentional: the Flask server thread would otherwise keep
@@ -494,7 +472,6 @@ def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
             return
         _shutting_down[0] = True
         _restore_terminal()
-        _stop_proxy(app)
         print("\n  Shutting down...", flush=True)
         sys.exit(0)
 

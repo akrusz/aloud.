@@ -27,13 +27,17 @@ function toggleInfo(id) {
     if (wasHidden) panel.classList.remove('hidden');
 }
 
-document.querySelectorAll('.info-btn[data-info]').forEach(function(btn) {
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (guideActive) return;
-        toggleInfo(btn.dataset.info);
-    });
+// Delegated handler so ? clicks keep working regardless of any DOM
+// manipulation during the tour (the buttons themselves don't get
+// re-rendered, but delegation removes any chance of stale per-element
+// listeners blocking clicks after a partial tour close).
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.info-btn[data-info]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (guideActive) return;
+    toggleInfo(btn.dataset.info);
 });
 
 // ---- Tour state ----
@@ -148,7 +152,12 @@ function scrollToSection(el, cb) {
     var rect = el.getBoundingClientRect();
     var scrollTarget = window.scrollY + rect.top - getNavHeight();
     window.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
-    setTimeout(cb, 300);
+    setTimeout(function() {
+        // Bail if the tour was closed while we were waiting — otherwise
+        // the cb would re-create cardEl after cleanup and leak the tour.
+        if (!guideActive) return;
+        cb();
+    }, 300);
 }
 
 function ensureExplorationTab() {
@@ -310,7 +319,7 @@ function onKeyDown(e) {
 
 // ---- Entry points ----
 
-export function startGuide() {
+export function startGuide(startStep) {
     if (guideActive) return;
     guideActive = true;
     currentStep = 0;
@@ -318,17 +327,31 @@ export function startGuide() {
     window.addEventListener('resize', onResizeDebounced);
     window.addEventListener('scroll', onScroll);
     document.addEventListener('keydown', onKeyDown);
-    showWelcome();
+    if (typeof startStep === 'number' && startStep > 0) {
+        goToStep(startStep);
+    } else {
+        showWelcome();
+    }
 }
 
+// "Take the full tour" link — user has explicitly opted in, so skip the
+// welcome screen and jump straight to the first section.
 export function resetAndStart() {
     localStorage.removeItem(GUIDE_DONE_KEY);
     sessionStorage.removeItem(GUIDE_REMIND_KEY);
-    startGuide();
+    startGuide(1);
 }
 
 export function autoStart() {
     if (localStorage.getItem(GUIDE_DONE_KEY)) return;
     if (sessionStorage.getItem(GUIDE_REMIND_KEY)) return;
+    // If the user has already started at least one session, they know the
+    // app — don't pop up the tour. (glooow-client-id is set on first
+    // session start in session.js.)
+    if (localStorage.getItem('glooow-client-id')) return;
     setTimeout(function() { startGuide(); }, 600);
+}
+
+export function closeIfActive() {
+    if (guideActive) cleanup();
 }
