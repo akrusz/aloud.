@@ -6,6 +6,7 @@ import platform
 import shutil
 import subprocess
 import time
+from pathlib import Path
 
 import httpx
 from flask import Flask, request, jsonify, Response
@@ -91,10 +92,24 @@ def find_claude_cli() -> str | None:
     binary = shutil.which("claude")
     if binary:
         return binary
-    # macOS app bundles have a minimal PATH — ask the user's login shell
+
+    # Common install locations — Claude Code defaults to ~/.local/bin.
+    # Hit these before invoking a shell so we work even when the user's PATH
+    # entry lives only in .zshrc (interactive-only, not sourced by `zsh -l`).
+    home = Path.home()
+    for candidate in (
+        home / ".local" / "bin" / "claude",
+        Path("/opt/homebrew/bin/claude"),
+        Path("/usr/local/bin/claude"),
+        home / "bin" / "claude",
+    ):
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+
+    # Fall back to the user's interactive login shell so .zshrc is sourced too.
     try:
         result = subprocess.run(
-            ["/bin/zsh", "-lc", "which claude"],
+            ["/bin/zsh", "-ilc", "which claude"],
             capture_output=True, text=True, timeout=5,
         )
         path = result.stdout.strip()

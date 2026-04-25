@@ -44,7 +44,7 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 
 ### claude subscription notes
 
-to use the **Anthropic (Subscription)** provider, install the Claude Code CLI first — glooow runs the local `claude` command to route through your subscription, so no API key is needed. in my testing, this did *not* draw from extra-use credits, but there have been communications from Anthropic to the effect that it would do so. also note that extra-use credits on your Claude subscription are not the same as API credits; if you only have one or the other, be sure to use the appropriate provider setting.
+to use the **Anthropic (Subscription)** provider, install the Claude Code CLI first, then run `claude` once in a terminal to log in with your subscription — glooow shells out to the local `claude` command to route through your account, so no API key is needed. in my testing, this did *not* draw from extra-use credits, but there have been communications from Anthropic to the effect that it would do so. also note that extra-use credits on your Claude subscription are not the same as API credits; if you only have one or the other, be sure to use the appropriate provider setting.
 
 ## tips
 
