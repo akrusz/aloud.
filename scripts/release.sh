@@ -13,6 +13,10 @@
 
 set -e
 
+# Run from project root so relative paths (src/, tests/, README.md) resolve
+# regardless of the caller's cwd.
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
 # Check for uncommitted changes before prompting for anything
 if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "Error: uncommitted changes — commit or stash first" >&2
