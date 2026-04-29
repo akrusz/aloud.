@@ -122,6 +122,7 @@ export function setStatus(text) {
 export var EMBER_COUNTS = [0, 3, 6, 12, 24, 48];
 export var EMBER_COLORS_DARK = ['#e8a840', '#d4873a', '#c07830', '#e0a038', '#cc8030'];
 export var EMBER_COLORS_LIGHT = ['#fed025', '#f6b818', '#fcc430', '#f0a80e', '#f8c020'];
+export var EMBER_COLORS_RAINBOW = ['#f7a8c4', '#f4b8a0', '#f5e6a0', '#a8e6cf', '#a0e0f0', '#c4b4f0', '#e8a0d8'];
 export var EMBER_SHRINK_RATE = 0.3; // px/s — constant for all embers
 
 export function hexGlow(hex) {
@@ -139,16 +140,47 @@ export function setEmberLevel(level) {
     regenerateEmbers();
 }
 
+function gracefullyEndEmbers() {
+    var existing = dom.emberContainer.querySelectorAll('.ember');
+    for (var i = 0; i < existing.length; i++) {
+        var el = existing[i];
+        if (el.dataset.finishing) continue;
+        el.dataset.finishing = '1';
+        var anims = el.getAnimations();
+        if (!anims.length) { el.remove(); continue; }
+        var a = anims[0];
+        try {
+            var timing = a.effect.getTiming();
+            var dur = timing.duration;
+            var delay = timing.delay || 0;
+            var elapsed = (a.currentTime || 0) - delay;
+            var iters = elapsed < 0 ? 1 : Math.floor(elapsed / dur) + 1;
+            a.effect.updateTiming({ iterations: iters });
+            a.onfinish = (function (e) { return function () {
+                e.remove();
+                if (state.emberLevel === 0 && !dom.emberContainer.querySelector('.ember')) {
+                    dom.emberContainer.classList.remove('active');
+                }
+            }; })(el);
+        } catch (err) {
+            el.remove();
+        }
+    }
+}
+
 export function regenerateEmbers() {
-    dom.emberContainer.innerHTML = '';
+    gracefullyEndEmbers();
     if (state.emberLevel === 0) {
-        dom.emberContainer.classList.remove('active');
+        if (!dom.emberContainer.querySelector('.ember')) {
+            dom.emberContainer.classList.remove('active');
+        }
         return;
     }
     dom.emberContainer.classList.add('active');
     var count = EMBER_COUNTS[state.emberLevel];
     var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    var palette = isLight ? EMBER_COLORS_LIGHT : EMBER_COLORS_DARK;
+    var palette = state.orbRainbow ? EMBER_COLORS_RAINBOW
+        : (isLight ? EMBER_COLORS_LIGHT : EMBER_COLORS_DARK);
     for (var i = 0; i < count; i++) {
         var span = document.createElement('span');
         span.className = 'ember';
@@ -183,7 +215,8 @@ export function regenerateEmbers() {
 
 export function burstEmbers(count) {
     var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    var palette = isLight ? EMBER_COLORS_LIGHT : EMBER_COLORS_DARK;
+    var palette = state.orbRainbow ? EMBER_COLORS_RAINBOW
+        : (isLight ? EMBER_COLORS_LIGHT : EMBER_COLORS_DARK);
     dom.emberContainer.classList.add('active');
     for (var i = 0; i < count; i++) {
         var span = document.createElement('span');

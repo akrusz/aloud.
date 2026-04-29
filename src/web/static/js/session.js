@@ -155,12 +155,33 @@ function initSessionControls(params) {
 }
 
 function initKasinaMode() {
-    // Click orb in nav bar to enter kasina mode
+    var orbClickTimes = [];
+
+    // Click orb in nav bar to enter kasina mode; 4 quick clicks in kasina toggles rainbow
     dom.orbEl.addEventListener('click', function (e) {
+        // Suppress click that comes from the end of a drag
+        if (state.orbMoved) { state.orbMoved = false; return; }
         if (!dom.kasinaToggle.checked && !state.orbDragging) {
             e.stopPropagation();
             dom.kasinaToggle.checked = true;
             dom.kasinaToggle.dispatchEvent(new Event('change'));
+            return;
+        }
+        if (dom.kasinaToggle.checked) {
+            var nowClick = Date.now();
+            orbClickTimes.push(nowClick);
+            while (orbClickTimes.length && nowClick - orbClickTimes[0] > 1500) {
+                orbClickTimes.shift();
+            }
+            if (orbClickTimes.length >= 4) {
+                if (!state._rainbowCooldownUntil || nowClick >= state._rainbowCooldownUntil) {
+                    state.orbRainbow = !state.orbRainbow;
+                    dom.orbEl.classList.toggle('orb-rainbow', state.orbRainbow);
+                    regenerateEmbers();
+                    state._rainbowCooldownUntil = nowClick + 2000;
+                }
+                orbClickTimes = [];
+            }
         }
     });
 
@@ -193,7 +214,9 @@ function initKasinaMode() {
             }
         } else {
             dom.orbEl.classList.remove('orb-kasina', 'orb-rainbow');
+            var wasRainbow = state.orbRainbow;
             state.orbRainbow = false;
+            if (wasRainbow) regenerateEmbers();
             dom.orbEl.classList.add('orb-breathing', 'orb-nav');
             // Clear any drag positioning before moving back to nav
             dom.orbEl.style.left = '';
@@ -296,8 +319,8 @@ function initKasinaMode() {
         // Record position for shake detection
         var now = Date.now();
         shakeHistory.push({ x: clientX, y: clientY, time: now });
-        // Prune entries older than 500ms
-        while (shakeHistory.length && now - shakeHistory[0].time > 500) {
+        // Prune entries older than 1500ms
+        while (shakeHistory.length && now - shakeHistory[0].time > 1500) {
             shakeHistory.shift();
         }
         // Detect shake: count direction reversals with sufficient distance
@@ -310,7 +333,7 @@ function initKasinaMode() {
                 var dy2 = shakeHistory[i].y - shakeHistory[i - 1].y;
                 var dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
                 // Check for direction reversal with enough movement
-                if (dist > 10 && (dx1 * dx2 + dy1 * dy2) < 0) {
+                if (dist > 6 && (dx1 * dx2 + dy1 * dy2) < 0) {
                     reversals++;
                 }
             }
@@ -319,6 +342,7 @@ function initKasinaMode() {
                 if (!state._rainbowCooldownUntil || now >= state._rainbowCooldownUntil) {
                     state.orbRainbow = !state.orbRainbow;
                     dom.orbEl.classList.toggle('orb-rainbow', state.orbRainbow);
+                    regenerateEmbers();
                     state._rainbowCooldownUntil = now + 2000;
                 }
                 shakeHistory = [];

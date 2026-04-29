@@ -34,6 +34,7 @@ export function registerSocketHandlers(deactivateVoiceFn) {
 
     socket.on('facilitator_message', function (data) {
         hideTyping();
+        setFacilitatorStatus(null);
         addMessage('facilitator', data.text);
         if (dom.ttsToggle.classList.contains('active')) {
             if (data.audio) {

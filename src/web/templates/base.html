@@ -135,10 +135,11 @@
         var aboutModal = document.getElementById('aboutModal');
         window._glooowUpdateData = null;
 
-        // About modal — always opens (update-during-session guard is on the Update Now button)
+        // About modal — brand toggles open/closed (update-during-session guard is on the Update Now button)
         brand.addEventListener('click', function(e) {
             e.preventDefault();
-            aboutModal.classList.remove('hidden');
+            e.stopPropagation();
+            aboutModal.classList.toggle('hidden');
         });
         document.getElementById('aboutClose').addEventListener('click', function() {
             aboutModal.classList.add('hidden');
@@ -146,6 +147,17 @@
         aboutModal.addEventListener('click', function(e) {
             if (e.target === aboutModal) aboutModal.classList.add('hidden');
         });
+        // Clicking anywhere else on the nav (which now sits above the modal
+        // overlay) also dismisses About. Brand handler above stops propagation
+        // so it stays a toggle rather than open-then-close.
+        var navEl = document.querySelector('.nav');
+        if (navEl) {
+            navEl.addEventListener('click', function() {
+                if (!aboutModal.classList.contains('hidden')) {
+                    aboutModal.classList.add('hidden');
+                }
+            });
+        }
         var ethEl = document.querySelector('.about-eth');
         if (ethEl) {
             ethEl.addEventListener('click', function() {
