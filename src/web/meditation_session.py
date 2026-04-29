@@ -4,6 +4,8 @@ import logging
 import re
 import time
 
+import httpx
+
 from ..config import Config
 from ..llm.ollama import create_llm_provider
 from ..llm.base import Message
@@ -130,6 +132,29 @@ class WebMeditationSession:
         if self._llm_instance is None:
             self._llm_instance = create_llm_provider(**self._llm_params)
         return self._llm_instance
+
+    def llm_cold_load_message(self) -> str | None:
+        """If using Ollama and the configured model isn't currently loaded,
+        return a user-facing message about the upcoming cold-load wait.
+        Returns None for any other provider, or if the model is already loaded,
+        or if we can't determine load state.
+        """
+        if self._llm_params.get("provider") != "ollama":
+            return None
+        model = self._llm_params.get("model")
+        url = (self._llm_params.get("ollama_url") or "http://localhost:11434").rstrip("/")
+        try:
+            resp = httpx.get(f"{url}/api/ps", timeout=2.0)
+            if resp.status_code != 200:
+                return None
+            loaded_names = [m.get("name", "") for m in resp.json().get("models", [])]
+        except Exception:
+            return None
+        # Ollama tags loaded models with their full name (e.g. "gemma4:e4b").
+        # Match either exact or any tag of the same base.
+        if any(n == model or n.startswith(f"{model}:") for n in loaded_names):
+            return None
+        return f"Loading {model} into memory… first response can take a few seconds."
 
     def build_system_prompt(self) -> str:
         """Build system prompt, incorporating the meditator's intention."""

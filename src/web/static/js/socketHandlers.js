@@ -1,7 +1,7 @@
 /* socketHandlers.js — all socket.on() event handlers */
 
 import { state, dom, socket } from './state.js';
-import { addMessage, addContinuation, showTyping, hideTyping, scrollToBottom, stopTimer, setStatus, showErrorToast } from './ui.js';
+import { addMessage, addContinuation, showTyping, hideTyping, setFacilitatorStatus, scrollToBottom, stopTimer, setStatus, showErrorToast } from './ui.js';
 import { speak, stopServerAudio, queueAudioChunk } from './tts.js';
 import { handleTranscription, applySessionConfig } from './audio.js';
 import { buildVoiceList } from './voice.js';
@@ -81,7 +81,14 @@ export function registerSocketHandlers(deactivateVoiceFn) {
             showTyping();
         } else {
             hideTyping();
+            setFacilitatorStatus(null);
         }
+    });
+
+    socket.on('facilitator_status', function (data) {
+        // Transient hint shown alongside the typing indicator (e.g. "Loading
+        // model into memory…" on the first hit of an Ollama model).
+        setFacilitatorStatus(data && data.message ? data.message : null);
     });
 
     socket.on('session_ended', function (data) {

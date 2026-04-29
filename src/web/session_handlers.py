@@ -106,6 +106,9 @@ def register_session_handlers(socketio: SocketIO, app: Flask) -> None:
 
                 # Generate a continuation opener via the LLM
                 emit("facilitator_typing", {"typing": True})
+                cold_msg = web_session.llm_cold_load_message()
+                if cold_msg:
+                    emit("facilitator_status", {"message": cold_msg})
                 try:
                     continuation_note = (
                         "The meditator is returning to continue from a previous session. "
@@ -134,6 +137,9 @@ def register_session_handlers(socketio: SocketIO, app: Flask) -> None:
             opener = web_session.get_opener()
         else:
             emit("facilitator_typing", {"typing": True})
+            cold_msg = web_session.llm_cold_load_message()
+            if cold_msg:
+                emit("facilitator_status", {"message": cold_msg})
             try:
                 opener = asyncio.run(web_session.generate_opener())
             except Exception as e:

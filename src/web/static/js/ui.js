@@ -67,6 +67,23 @@ export function hideTyping() {
     dom.typingEl.classList.remove('visible');
 }
 
+export function setFacilitatorStatus(message) {
+    let el = document.getElementById('facilitator-status-hint');
+    if (!message) {
+        if (el) el.classList.remove('visible');
+        return;
+    }
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'facilitator-status-hint';
+        el.className = 'facilitator-status-hint';
+        dom.typingEl.insertAdjacentElement('afterend', el);
+    }
+    el.textContent = message;
+    el.classList.add('visible');
+    scrollToBottom();
+}
+
 // ---- Timer ----
 
 export function startTimer() {

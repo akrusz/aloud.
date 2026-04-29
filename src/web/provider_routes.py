@@ -16,6 +16,29 @@ from ..config import DEFAULT_OLLAMA_TIERS
 logger = logging.getLogger(__name__)
 
 
+# Minimum Ollama server version we consider current. Bump this when a recent
+# model (e.g. gemma4) requires a newer manifest format than older Ollamas
+# understand. Older servers fail pulls with HTTP 412 "requires newer Ollama".
+MIN_OLLAMA_VERSION = "0.21.0"
+
+
+def _parse_version(v: str) -> tuple[int, ...]:
+    """Parse a dotted version string into a tuple of ints. Returns () on failure."""
+    try:
+        return tuple(int(p) for p in v.strip().lstrip("v").split(".") if p.isdigit())
+    except Exception:
+        return ()
+
+
+def _ollama_version_outdated(version: str | None) -> bool:
+    """Return True if the given Ollama version string is below the minimum."""
+    if not version:
+        return False
+    parsed = _parse_version(version)
+    minimum = _parse_version(MIN_OLLAMA_VERSION)
+    return bool(parsed) and bool(minimum) and parsed < minimum
+
+
 # ---- System hardware detection ----
 
 def _get_system_ram_gb() -> int | None:
@@ -357,8 +380,18 @@ def register_provider_routes(app: Flask) -> None:
             except Exception:
                 return None  # not running
 
-        with ThreadPoolExecutor(max_workers=1) as pool:
+        def _check_ollama_version():
+            ollama_url = app.meditation_config.llm.ollama_url or "http://localhost:11434"
+            try:
+                resp = httpx.get(f"{ollama_url.rstrip('/')}/api/version", timeout=2.0)
+                resp.raise_for_status()
+                return resp.json().get("version")
+            except Exception:
+                return None
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
             ollama_future = pool.submit(_check_ollama)
+            ollama_version_future = pool.submit(_check_ollama_version)
 
         # API key providers — instant, no network
         results["anthropic"] = {
@@ -473,6 +506,13 @@ def register_provider_routes(app: Flask) -> None:
                 "recommendation": rec_info,
             }
 
+        # Attach Ollama version + outdated flag (for the upgrade prompt UI).
+        ollama_version = ollama_version_future.result()
+        if "ollama" in results:
+            results["ollama"]["version"] = ollama_version
+            results["ollama"]["outdated"] = _ollama_version_outdated(ollama_version)
+            results["ollama"]["min_version"] = MIN_OLLAMA_VERSION
+
         # --no-ollama: make Ollama appear not installed/running
         if getattr(app, "no_ollama", False) and "ollama" in results:
             results["ollama"]["available"] = False
@@ -520,6 +560,14 @@ def register_provider_routes(app: Flask) -> None:
                         if not line:
                             continue
                         obj = _json.loads(line)
+                        # Ollama can return errors inline in a 200-streamed body
+                        # (e.g. 412 "requires newer Ollama"). Forward those.
+                        if obj.get("error"):
+                            yield _json.dumps({
+                                "status": "error",
+                                "error": obj["error"],
+                            }) + "\n"
+                            continue
                         # Forward a simplified progress object
                         out = {"status": obj.get("status", "")}
                         if "total" in obj and "completed" in obj:

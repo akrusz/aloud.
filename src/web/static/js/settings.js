@@ -758,6 +758,146 @@ function removeOllamaModel(model, btn) {
 }
 
 // Pull an Ollama model with streaming progress
+function restartOllama(btn) {
+    const progressEl = document.getElementById('ollama-upgrade-progress');
+    const statusEl = progressEl ? progressEl.querySelector('.ollama-pull-status') : null;
+
+    btn.disabled = true;
+    btn.textContent = 'Restarting...';
+    if (progressEl) progressEl.classList.remove('hidden');
+    if (statusEl) statusEl.textContent = 'Stopping...';
+
+    fetch('/api/ollama/restart', { method: 'POST' }).then(function(resp) {
+        if (!resp.ok) {
+            btn.disabled = false;
+            btn.textContent = 'Restart Ollama';
+            if (statusEl) statusEl.textContent = 'Restart failed.';
+            return;
+        }
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let restartFailed = false;
+
+        function read() {
+            reader.read().then(function(result) {
+                if (result.done) {
+                    if (!restartFailed) {
+                        // Pull fresh provider info to clear the banner if the new version is current.
+                        setTimeout(function() { fetchModels('ollama'); }, 250);
+                    }
+                    return;
+                }
+                buffer += decoder.decode(result.value, {stream: true});
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+                lines.forEach(function(line) {
+                    if (!line.trim()) return;
+                    try {
+                        const obj = JSON.parse(line);
+                        if (obj.status === 'error') {
+                            restartFailed = true;
+                            btn.disabled = false;
+                            btn.textContent = 'Restart Ollama';
+                            if (statusEl) statusEl.textContent = obj.error || 'Restart failed';
+                            return;
+                        }
+                        if (obj.status === 'done') {
+                            btn.textContent = 'Restarted';
+                            if (statusEl) statusEl.textContent = obj.message || 'Ollama is back up.';
+                        } else if (obj.status) {
+                            if (statusEl) statusEl.textContent = obj.status;
+                        }
+                    } catch (e) {}
+                });
+                read();
+            });
+        }
+        read();
+    }).catch(function() {
+        btn.disabled = false;
+        btn.textContent = 'Restart Ollama';
+        if (statusEl) statusEl.textContent = 'Connection failed';
+    });
+}
+
+function upgradeOllama(btn) {
+    const progressEl = document.getElementById('ollama-upgrade-progress');
+    const statusEl = progressEl ? progressEl.querySelector('.ollama-pull-status') : null;
+
+    btn.disabled = true;
+    btn.textContent = 'Upgrading...';
+    if (progressEl) progressEl.classList.remove('hidden');
+    if (statusEl) statusEl.textContent = 'Starting...';
+
+    fetch('/api/ollama/upgrade', { method: 'POST' }).then(function(resp) {
+        // 400 with download_url means there's no automatic path on this platform.
+        if (!resp.ok) {
+            return resp.json().then(function(data) {
+                if (data.download_url) {
+                    window.open(data.download_url, '_blank', 'noopener');
+                    if (statusEl) statusEl.textContent = data.error || 'Opened the Ollama download page.';
+                } else if (statusEl) {
+                    statusEl.textContent = data.error || 'Upgrade failed.';
+                }
+                btn.disabled = false;
+                btn.textContent = 'Update Ollama';
+            });
+        }
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let upgradeFailed = false;
+
+        function read() {
+            reader.read().then(function(result) {
+                if (result.done) {
+                    if (upgradeFailed) return;
+                    btn.textContent = 'Done';
+                    if (statusEl) {
+                        statusEl.textContent = 'Upgrade complete. Restarting Ollama...';
+                    }
+                    // Auto-chain into restart so the running daemon picks up
+                    // the new version — otherwise the banner would still show
+                    // the old version even after a successful brew upgrade.
+                    const restartBtn = document.getElementById('btn-ollama-restart');
+                    if (restartBtn && !restartBtn.disabled) {
+                        restartOllama(restartBtn);
+                    }
+                    return;
+                }
+                buffer += decoder.decode(result.value, {stream: true});
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+                lines.forEach(function(line) {
+                    if (!line.trim()) return;
+                    try {
+                        const obj = JSON.parse(line);
+                        if (obj.status === 'error') {
+                            upgradeFailed = true;
+                            btn.textContent = 'Update Ollama';
+                            btn.disabled = false;
+                            if (statusEl) statusEl.textContent = obj.error || 'Upgrade failed';
+                            return;
+                        }
+                        if (obj.status === 'done' && obj.message) {
+                            if (statusEl) statusEl.textContent = obj.message;
+                        } else if (obj.status) {
+                            if (statusEl) statusEl.textContent = obj.status;
+                        }
+                    } catch (e) {}
+                });
+                read();
+            });
+        }
+        read();
+    }).catch(function() {
+        btn.disabled = false;
+        btn.textContent = 'Update Ollama';
+        if (statusEl) statusEl.textContent = 'Connection failed';
+    });
+}
+
 function pullOllamaModel(model, btn) {
     const safeId = model.replace(/[:.]/g, '-');
     const progressEl = document.getElementById('pull-progress-' + safeId);
@@ -768,6 +908,7 @@ function pullOllamaModel(model, btn) {
     btn.textContent = 'Downloading...';
     if (progressEl) progressEl.classList.remove('hidden');
 
+    let pullFailed = false;
     fetch('/api/ollama/pull', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -780,6 +921,7 @@ function pullOllamaModel(model, btn) {
         function read() {
             reader.read().then(function(result) {
                 if (result.done) {
+                    if (pullFailed) return;
                     btn.textContent = 'Done';
                     if (statusEl) statusEl.textContent = 'Complete';
                     if (barFill) barFill.style.width = '100%';
@@ -795,6 +937,7 @@ function pullOllamaModel(model, btn) {
                     try {
                         const obj = JSON.parse(line);
                         if (obj.status === 'error') {
+                            pullFailed = true;
                             btn.textContent = 'Error';
                             btn.disabled = false;
                             if (statusEl) statusEl.textContent = obj.error || 'Pull failed';
@@ -854,6 +997,22 @@ function fetchModels(provider) {
                 const recEl = document.getElementById('s-ollama-recommendation');
                 if (recEl && rec.tiers) {
                     let html = '';
+                    if (info.outdated) {
+                        html += '<div class="ollama-outdated-banner" id="ollama-outdated-banner">';
+                        html += '<div class="ollama-outdated-message">';
+                        html += 'Your Ollama (v' + (info.version || '?') + ') is outdated and may not be able to download recent models. ';
+                        html += 'Minimum recommended: v' + (info.min_version || '') + '. ';
+                        html += 'After updating, the running daemon needs a restart to take effect.';
+                        html += '</div>';
+                        html += '<div class="ollama-outdated-actions">';
+                        html += '<button type="button" class="btn-ollama" id="btn-ollama-upgrade">Update Ollama</button>';
+                        html += '<button type="button" class="btn-ollama" id="btn-ollama-restart">Restart Ollama</button>';
+                        html += '</div>';
+                        html += '<div class="ollama-pull-progress hidden" id="ollama-upgrade-progress">';
+                        html += '<span class="ollama-pull-status"></span>';
+                        html += '</div>';
+                        html += '</div>';
+                    }
                     if (rec.ram_gb) {
                         html += '<div style="margin-bottom:0.5rem">Your system has ' + rec.ram_gb + 'GB RAM.</div>';
                     }
@@ -924,6 +1083,15 @@ function fetchModels(provider) {
                     recEl.querySelectorAll('.btn-ollama-remove').forEach(function(btn) {
                         btn.addEventListener('click', function() { removeOllamaModel(btn.dataset.model, btn); });
                     });
+                    // Attach upgrade/restart handlers (only present when info.outdated)
+                    const upgradeBtn = document.getElementById('btn-ollama-upgrade');
+                    if (upgradeBtn) {
+                        upgradeBtn.addEventListener('click', function() { upgradeOllama(upgradeBtn); });
+                    }
+                    const restartBtn = document.getElementById('btn-ollama-restart');
+                    if (restartBtn) {
+                        restartBtn.addEventListener('click', function() { restartOllama(restartBtn); });
+                    }
                 } else if (recEl) {
                     recEl.innerHTML = '';
                 }

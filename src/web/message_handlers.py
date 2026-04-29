@@ -98,6 +98,9 @@ def register_message_handlers(socketio: SocketIO, app: Flask) -> None:
 
         web_session.pacing.on_speech_end()
         emit("facilitator_typing", {"typing": True})
+        cold_msg = web_session.llm_cold_load_message()
+        if cold_msg:
+            emit("facilitator_status", {"message": cold_msg})
 
         try:
             response, hold_signal = asyncio.run(web_session.generate_response(text))
