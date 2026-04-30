@@ -12,12 +12,17 @@ import {
     setEmberLevel, regenerateEmbers, burstEmbers, showConfirm, hideConfirm,
     endSession, doEndSession,
 } from './ui.js';
-import { initNoting, startCircle, stopCircle, handleUserNote, notingState } from './noting.js';
+import { initNoting, startCircle, stopCircle, handleUserNote, notingState, isNonSpeechOnly } from './noting.js';
 
 // ---- Messaging ----
 
 function sendText(text) {
     if (!text || !state.sessionActive) return;
+
+    // Drop transcriptions that are only Whisper's non-speech markers
+    // (e.g. "(coughing)", "[cough]", "*sighs*") — they shouldn't take
+    // the user's turn.
+    if (isNonSpeechOnly(text)) return;
 
     // Noting mode: route through the noting circle
     if (notingState.active) {

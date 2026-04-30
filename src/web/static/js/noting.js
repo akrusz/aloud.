@@ -154,6 +154,19 @@ export function resumeCircle() {
     }
 }
 
+// Whisper wraps non-speech sounds in brackets/parens/asterisks
+// (e.g. "(coughing)", "[cough]", "*sighs*").  Treat transcriptions
+// that are only those markers as silence — coughs and breaths
+// shouldn't end the user's turn.
+export function isNonSpeechOnly(text) {
+    if (!text) return true;
+    var stripped = text
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/\*[^*]*\*/g, '');
+    return !/\p{L}/u.test(stripped);
+}
+
 // Called by audio.js/session.js when user speaks during their turn
 export function handleUserNote(text) {
     if (!notingState.awaitingUser || !notingState.active) return false;
