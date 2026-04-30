@@ -17,7 +17,8 @@ var notingState = {
     userTurnCueSound: null,  // short name of sound for user turn cue
     turnOrder: [],       // ['user', 0, 1, 2, ...] indices into participants
     currentTurn: -1,
-    recentLabels: [],    // last N labels for reactive context
+    recentLabels: [],    // full circle history for reactive context
+    ownLabelsByIndex: {},// participant index -> their own past labels (for anti-repeat)
     userTurnStart: 0,
     userCadences: [],    // rolling window of user turn durations (ms)
     defaultCadenceMs: 4000,
@@ -56,6 +57,7 @@ export function initNoting(participants, userTurnCue, sendTextFn, userTurnCueSou
     notingState.active = true;
     notingState.paused = false;
     notingState.recentLabels = [];
+    notingState.ownLabelsByIndex = {};
     notingState.userCadences = [];
     notingState.currentTurn = -1;
     notingState.soundBuffers = {};
@@ -185,7 +187,6 @@ export function handleUserNote(text) {
     if (notingState.userCadences.length > 5) notingState.userCadences.shift();
 
     notingState.recentLabels.push(text);
-    if (notingState.recentLabels.length > 16) notingState.recentLabels.shift();
 
     addMessage('user', text, false, 'You');
 
@@ -280,6 +281,7 @@ function executeParticipantTurn(index, p) {
         startServerTimeout();
         socket.emit('noting_turn', {
             context: notingState.recentLabels.slice(),
+            own_labels: (notingState.ownLabelsByIndex[index] || []).slice(),
             reactive: p.reactive || 'none',
             participant_index: index,
             voice: p.voice || null,
@@ -288,7 +290,8 @@ function executeParticipantTurn(index, p) {
     } else if (p.type === 'fixed') {
         var phrase = p.phrase || 'breathing';
         notingState.recentLabels.push(phrase);
-        if (notingState.recentLabels.length > 16) notingState.recentLabels.shift();
+        if (!notingState.ownLabelsByIndex[index]) notingState.ownLabelsByIndex[index] = [];
+        notingState.ownLabelsByIndex[index].push(phrase);
         addMessage('facilitator', phrase, false, participantName(index));
 
         startServerTimeout();
@@ -318,7 +321,8 @@ function handleNotingLabel(data) {
     var label = data.text || 'breathing';
     var pIndex = data.participant_index;
     notingState.recentLabels.push(label);
-    if (notingState.recentLabels.length > 16) notingState.recentLabels.shift();
+    if (!notingState.ownLabelsByIndex[pIndex]) notingState.ownLabelsByIndex[pIndex] = [];
+    notingState.ownLabelsByIndex[pIndex].push(label);
 
     addMessage('facilitator', label, false, participantName(pIndex));
 

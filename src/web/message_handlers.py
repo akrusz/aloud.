@@ -161,12 +161,13 @@ def register_message_handlers(socketio: SocketIO, app: Flask) -> None:
             return
 
         context = data.get("context", [])
+        own_labels = data.get("own_labels", [])
         reactive = data.get("reactive", "none")
         participant_index = data.get("participant_index", 0)
         voice = data.get("voice")
 
         try:
-            label = asyncio.run(web_session.generate_noting_label(context, reactive))
+            label = asyncio.run(web_session.generate_noting_label(context, reactive, own_labels))
         except Exception:
             label = "breathing"
 

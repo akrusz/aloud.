@@ -13,7 +13,8 @@ from ..facilitation.pacing import PacingController
 from ..facilitation.prompts import PromptBuilder, PromptConfig, parse_hold_signal, RESUME_INTENT_SYSTEM_PROMPT
 from ..facilitation.noting_prompts import (
     NOTING_SYSTEM_PROMPT, NOTING_OPENER_PROMPT,
-    NOTING_LABEL_SYSTEM_PROMPT, NOTING_LABEL_REACTIVE_LOW, NOTING_LABEL_REACTIVE_HIGH,
+    NOTING_LABEL_SYSTEM_PROMPT, NOTING_LABEL_CONTEXT, NOTING_LABEL_AVOID_SELF_REPEAT,
+    NOTING_LABEL_REACTIVE_LOW, NOTING_LABEL_REACTIVE_HIGH, NOTING_LABEL_REACTIVE_NONE,
 )
 from ..facilitation.session import SessionManager
 
@@ -284,22 +285,34 @@ class WebMeditationSession:
         )
         return _strip_think_tags(result.text)
 
-    async def generate_noting_label(self, context: list[str], reactive: str = "none") -> str:
+    async def generate_noting_label(
+        self,
+        context: list[str],
+        reactive: str = "none",
+        own_labels: list[str] | None = None,
+    ) -> str:
         """Generate a 1-3 word noting label for the circle.
 
         Args:
-            context: Recent labels from the circle (last few turns).
+            context: All labels from the circle this session — used for
+                reactive context.  Echoing another participant is fine.
             reactive: Reactivity level — "none", "low", or "high".
+            own_labels: This participant's own past labels — used to
+                bias against self-repetition only.
         """
         system = NOTING_LABEL_SYSTEM_PROMPT
-        if reactive == "high" and context:
-            system += NOTING_LABEL_REACTIVE_HIGH.format(
-                context=", ".join(context[-12:]),
+        if context:
+            system += NOTING_LABEL_CONTEXT.format(context=", ".join(context))
+        if own_labels:
+            system += NOTING_LABEL_AVOID_SELF_REPEAT.format(
+                own_labels=", ".join(own_labels),
             )
-        elif reactive == "low" and context:
-            system += NOTING_LABEL_REACTIVE_LOW.format(
-                context=", ".join(context[-12:]),
-            )
+        if reactive == "high":
+            system += NOTING_LABEL_REACTIVE_HIGH
+        elif reactive == "low":
+            system += NOTING_LABEL_REACTIVE_LOW
+        else:
+            system += NOTING_LABEL_REACTIVE_NONE
 
         try:
             result = await self.llm.complete(

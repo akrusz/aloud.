@@ -2178,6 +2178,14 @@ body::before {
 .history-container h1 {
     font-size: 1.3rem;
     font-weight: 500;
+    margin: 0;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     margin-bottom: 1.5rem;
 }
 
@@ -2250,6 +2258,9 @@ body::before {
     gap: 0.75rem;
     max-height: 400px;
     overflow-y: auto;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
 }
 
 .transcript-message {
@@ -2283,6 +2294,7 @@ body::before {
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: flex-end;
+    gap: 0.5rem;
 }
 
 .loading-text {
