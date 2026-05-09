@@ -383,15 +383,17 @@
 <div class="settings-footer">
     <div class="settings-footer-inner">
         <button type="submit" form="settings-form" class="btn btn-primary btn-begin">
-            {% if first_run %}Save & Start{% else %}Save Settings{% endif %}
+            {% if first_run %}Save & Start{% else %}Save<span class="settings-word"> Settings</span>{% endif %}
         </button>
         {% if not first_run %}
         <span class="settings-saved hidden" id="settings-saved">Saved</span>
         {% endif %}
         <div id="settings-error" class="settings-error hidden"></div>
         <div class="settings-footer-spacer"></div>
-        <button type="button" class="tour-show-btn" id="btn-show-tour">Setup guide</button>
-        <button type="button" class="btn-config-path hidden" id="btn-open-config-folder">Open config folder</button>
+        <div class="settings-footer-secondary">
+            <button type="button" class="tour-show-btn" id="btn-show-tour">Setup guide</button>
+            <button type="button" class="btn-config-path hidden" id="btn-open-config-folder">Open config folder</button>
+        </div>
     </div>
 </div>
 

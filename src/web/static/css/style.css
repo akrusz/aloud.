@@ -147,6 +147,7 @@ body {
     transition: color var(--transition);
     padding-bottom: 2px;
     border-bottom: 2px solid transparent;
+    white-space: nowrap;
 }
 
 .nav-links a:hover {
@@ -3231,6 +3232,12 @@ body::before {
     flex: 1;
 }
 
+.settings-footer-secondary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
 /* Pad the bottom of the form so content isn't hidden behind the fixed footer */
 .setup-container {
     padding-bottom: 5rem;
@@ -3795,5 +3802,36 @@ body::before {
         font-family: inherit;
         font-size: 0.95rem;
         cursor: pointer;
+    }
+}
+
+/* Narrow-width rules below the main mobile breakpoint */
+
+@media (max-width: 530px) {
+    /* Save Settings → Save (the longer label wraps onto two lines below
+       this width; first-run "Save & Start" stays as-is). */
+    .settings-word {
+        display: none;
+    }
+
+    /* Ollama install/upgrade rows and per-model rows: stack the action
+       buttons below the descriptive text so neither side is squeezed. */
+    .tool-install-row,
+    .ollama-tier-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ollama-tier-actions {
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 410px) {
+    /* Settings footer: stack Setup guide + Open config folder vertically
+       so the row no longer overflows the viewport. */
+    .settings-footer-secondary {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
