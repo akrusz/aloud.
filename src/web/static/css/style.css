@@ -3572,3 +3572,201 @@ body::before {
         padding: 1rem;
     }
 }
+
+/* ============================================
+   Mobile bottom nav + utilities
+   ============================================ */
+
+.bottom-nav {
+    display: none;
+}
+
+.mobile-more-sheet {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    /* Top nav becomes a thin transparent floating header on mobile —
+       only the brand (left) and the session orb (right) remain visible. */
+    .nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 0.5rem 0.75rem;
+        background: transparent;
+        border-bottom: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        pointer-events: none;
+        z-index: 90;
+    }
+
+    .nav-start,
+    .nav-session-info {
+        pointer-events: auto;
+        justify-self: unset;
+        grid-column: auto;
+    }
+
+    .nav-brand {
+        font-size: 1rem;
+        background: var(--bg-secondary);
+        color: var(--accent);
+        padding: 0.25rem 0.6rem;
+        border-radius: var(--radius-sm);
+        opacity: 0.9;
+        backdrop-filter: blur(4px);
+    }
+
+    .nav-links {
+        display: none;
+    }
+
+    .nav-session-info {
+        background: var(--bg-secondary);
+        border-radius: 999px;
+        padding: 0.2rem;
+        opacity: 0.9;
+        backdrop-filter: blur(4px);
+    }
+
+    /* Reserve room for the bottom nav so content isn't hidden behind it */
+    .main {
+        padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+    }
+
+    /* Bottom nav itself */
+    .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-secondary);
+        border-top: 1px solid var(--border);
+        padding: 0.4rem 0.25rem calc(0.4rem + env(safe-area-inset-bottom));
+        z-index: 95;
+        justify-content: space-around;
+        align-items: stretch;
+    }
+
+    .bottom-nav-link {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.15rem;
+        padding: 0.4rem 0.25rem;
+        color: var(--text-secondary);
+        text-decoration: none;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.7rem;
+        line-height: 1;
+        min-height: 3rem;
+        transition: color var(--transition);
+    }
+
+    .bottom-nav-link:hover,
+    .bottom-nav-link:focus-visible {
+        color: var(--text-primary);
+    }
+
+    .bottom-nav-link.bottom-nav-active {
+        color: var(--accent);
+    }
+
+    .bottom-nav-icon {
+        display: block;
+    }
+
+    .bottom-nav-label {
+        font-weight: 500;
+        letter-spacing: 0.02em;
+    }
+
+    /* Mobile More sheet */
+    .mobile-more-sheet {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+    }
+
+    .mobile-more-sheet.hidden {
+        display: none;
+    }
+
+    .mobile-more-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-more-panel {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg-secondary);
+        border-top: 1px solid var(--border);
+        border-radius: 1rem 1rem 0 0;
+        padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        animation: mobile-more-slide-up 0.18s ease-out;
+    }
+
+    @keyframes mobile-more-slide-up {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+
+    .mobile-more-action {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.85rem 0.75rem;
+        background: none;
+        border: none;
+        border-radius: var(--radius-sm);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 0.95rem;
+        text-align: left;
+        cursor: pointer;
+        transition: background var(--transition);
+    }
+
+    .mobile-more-action:hover,
+    .mobile-more-action:focus-visible {
+        background: var(--bg-tertiary);
+    }
+
+    .mobile-more-glyph {
+        font-family: 'Lexend Exa', sans-serif;
+        color: var(--accent);
+        font-size: 0.85rem;
+        letter-spacing: 0.05em;
+        min-width: 18px;
+        text-align: center;
+    }
+
+    .mobile-more-cancel {
+        margin-top: 0.5rem;
+        padding: 0.85rem;
+        background: var(--bg-tertiary);
+        border: none;
+        border-radius: var(--radius-sm);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 0.95rem;
+        cursor: pointer;
+    }
+}

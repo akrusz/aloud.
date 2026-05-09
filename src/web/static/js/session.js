@@ -10,7 +10,7 @@ import { registerSocketHandlers } from './socketHandlers.js';
 import {
     addMessage, scrollToBottom, startTimer, stopTimer, setStatus,
     setEmberLevel, regenerateEmbers, burstEmbers, showConfirm, hideConfirm,
-    endSession, doEndSession,
+    doEndSession,
 } from './ui.js';
 import { initNoting, startCircle, stopCircle, handleUserNote, notingState, isNonSpeechOnly } from './noting.js';
 
@@ -60,19 +60,13 @@ function initSessionControls(params) {
         }
     });
 
-    // End session button
+    // End session button — confirms, saves, returns to start screen
     dom.endBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        endSession(deactivateVoice);
-    });
-
-    // New session navigation
-    dom.newSessionBtn.addEventListener('click', function (e) {
         e.preventDefault();
         if (!state.sessionActive) { window.location.href = '/'; return; }
         socket.emit('prefetch_summary');
         state.pendingNavigation = '/';
-        showConfirm('Start a new session? This will end your current session.', function () {
+        showConfirm('End this session?', function () {
             dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
         }, { showSkipSave: true });
@@ -556,6 +550,7 @@ function init() {
     state.sessionActive = true;
     // Expose for update indicator in base.html
     window._glooowSessionActive = true;
+    document.body.dataset.sessionActive = 'true';
     window._glooowConfirmEnd = function() {
         showConfirm('End session to install update?', function () {
             dom.savingOverlay.classList.remove('hidden');

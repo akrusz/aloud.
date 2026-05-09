@@ -9,7 +9,6 @@ export const dom = {
     voiceStatus: null,
     ttsToggle: null,
     endBtn: null,
-    newSessionBtn: null,
     historyBtn: null,
     voicePickerBtn: null,
     voiceModal: null,
@@ -26,7 +25,6 @@ export const dom = {
     confirmNo: null,
     confirmSkipSave: null,
     savingOverlay: null,
-    endedOverlay: null,
     kasinaToggle: null,
     emberBlocks: null,
     emberContainer: null,
@@ -40,7 +38,6 @@ export function initDOM() {
     dom.voiceStatus = document.getElementById('voice-status');
     dom.ttsToggle = document.getElementById('tts-toggle');
     dom.endBtn = document.getElementById('end-btn');
-    dom.newSessionBtn = document.getElementById('new-session-btn');
     dom.historyBtn = document.getElementById('history-btn');
     dom.voicePickerBtn = document.getElementById('voice-picker-btn');
     dom.voiceModal = document.getElementById('voice-modal');
@@ -57,7 +54,6 @@ export function initDOM() {
     dom.confirmNo = document.getElementById('confirm-no');
     dom.confirmSkipSave = document.getElementById('confirm-skip-save');
     dom.savingOverlay = document.getElementById('session-saving');
-    dom.endedOverlay = document.getElementById('session-ended');
     dom.kasinaToggle = document.getElementById('kasina-toggle');
     dom.emberBlocks = document.getElementById('ember-blocks');
     dom.emberContainer = document.getElementById('ember-container');

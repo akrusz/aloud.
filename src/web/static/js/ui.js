@@ -1,5 +1,5 @@
 /* ui.js — conversation display, typing indicator, timer, status,
-   ember system, kasina mode, confirm dialog, endSession */
+   ember system, kasina mode, confirm dialog, doEndSession */
 
 import { state, dom, socket } from './state.js';
 
@@ -286,14 +286,6 @@ export function hideConfirm() {
 }
 
 // ---- End session ----
-
-export function endSession(deactivateVoiceFn) {
-    if (!state.sessionActive) return;
-    showConfirm('End this session?', function () {
-        dom.savingOverlay.classList.remove('hidden');
-        doEndSession(deactivateVoiceFn);
-    }, { showSkipSave: true });
-}
 
 export function doEndSession(deactivateVoiceFn, skipSave) {
     if (state.voiceActive) {

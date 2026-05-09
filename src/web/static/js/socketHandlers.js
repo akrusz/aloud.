@@ -96,6 +96,7 @@ export function registerSocketHandlers(deactivateVoiceFn) {
         if (notingState.active) stopCircle();
         state.sessionActive = false;
         window._glooowSessionActive = false;
+        delete document.body.dataset.sessionActive;
         stopTimer();
 
         // If update was pending, show update modal after session ends
@@ -108,15 +109,9 @@ export function registerSocketHandlers(deactivateVoiceFn) {
             }
         }
 
-        // If navigating away (New Session / History), go immediately
-        if (state.pendingNavigation) {
-            var dest = state.pendingNavigation;
-            state.pendingNavigation = null;
-            window.location.href = dest;
-            return;
-        }
-
-        dom.endedOverlay.classList.remove('hidden');
+        var dest = state.pendingNavigation || '/';
+        state.pendingNavigation = null;
+        window.location.href = dest;
     });
 
     socket.on('silence_mode', function (data) {

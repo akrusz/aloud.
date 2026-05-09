@@ -73,6 +73,51 @@
         {% block content %}{% endblock %}
     </main>
 
+    <nav class="bottom-nav" aria-label="Primary">
+        <a href="/" class="bottom-nav-link {% if request.path == '/' %}bottom-nav-active{% endif %}">
+            <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+            <span class="bottom-nav-label">Session</span>
+        </a>
+        <a href="/history" class="bottom-nav-link {% if request.path == '/history' %}bottom-nav-active{% endif %}">
+            <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 15 14"/></svg>
+            <span class="bottom-nav-label">History</span>
+        </a>
+        <a href="/settings" class="bottom-nav-link {% if request.path == '/settings' %}bottom-nav-active{% endif %}">
+            <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+            <span class="bottom-nav-label">Settings</span>
+        </a>
+        <button type="button" class="bottom-nav-link" id="bottomNavMore" aria-haspopup="true" aria-controls="mobileMoreSheet">
+            <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+            <span class="bottom-nav-label">More</span>
+        </button>
+    </nav>
+
+    <!-- Mobile More sheet — utility actions surfaced on phones -->
+    <div class="mobile-more-sheet hidden" id="mobileMoreSheet" role="dialog" aria-label="More options" aria-modal="true">
+        <div class="mobile-more-backdrop" data-mobile-more-close></div>
+        <div class="mobile-more-panel">
+            <button type="button" class="mobile-more-action" data-proxy-click="aboutLink">
+                <span class="mobile-more-glyph">glooow</span>
+                <span>About</span>
+            </button>
+            <button type="button" class="mobile-more-action" data-proxy-click="themeToggle">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <span>Toggle theme</span>
+            </button>
+            <button type="button" class="mobile-more-action" data-proxy-click="fullscreenToggle">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                <span>Toggle full screen</span>
+            </button>
+            {% if frameless %}
+            <button type="button" class="mobile-more-action" data-proxy-click="windowCloseBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <span>Close window</span>
+            </button>
+            {% endif %}
+            <button type="button" class="mobile-more-cancel" data-mobile-more-close>Cancel</button>
+        </div>
+    </div>
+
     <!-- About Modal -->
     <div class="about-modal-overlay hidden" id="aboutModal">
         <div class="about-modal">
@@ -465,6 +510,42 @@
     })();
     </script>
     <script>
+    // Mobile bottom-nav "More" sheet — surfaces theme/fullscreen/about/close on phone.
+    // Sheet buttons proxy clicks to the existing top-nav buttons (single source of truth
+    // for handlers — they remain in the DOM even when the top nav is hidden on mobile).
+    (function() {
+        var sheet = document.getElementById('mobileMoreSheet');
+        var openBtn = document.getElementById('bottomNavMore');
+        if (!sheet || !openBtn) return;
+
+        function open() { sheet.classList.remove('hidden'); }
+        function close() { sheet.classList.add('hidden'); }
+
+        openBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            open();
+        });
+
+        sheet.addEventListener('click', function(e) {
+            if (e.target.closest('[data-mobile-more-close]')) {
+                close();
+                return;
+            }
+            var proxy = e.target.closest('[data-proxy-click]');
+            if (proxy) {
+                var targetId = proxy.getAttribute('data-proxy-click');
+                var target = document.getElementById(targetId);
+                close();
+                if (target) target.click();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !sheet.classList.contains('hidden')) close();
+        });
+    })();
+    </script>
+    <script>
     // Client-side navigation — swap <main> + page scripts without tearing down the nav
     (function() {
         var NAV_ROUTES = ['/', '/history', '/settings'];
@@ -511,12 +592,19 @@
                         activateScripts(oldScripts);
                     }
 
-                    // Update nav active state
+                    // Update nav active state (top + bottom)
                     var links = document.querySelectorAll('.nav-links a[href]');
                     for (var i = 0; i < links.length; i++) {
                         var href = links[i].getAttribute('href');
                         if (isNavRoute(href)) {
                             links[i].classList.toggle('nav-active', href === url);
+                        }
+                    }
+                    var bottomLinks = document.querySelectorAll('.bottom-nav a[href]');
+                    for (var k = 0; k < bottomLinks.length; k++) {
+                        var bhref = bottomLinks[k].getAttribute('href');
+                        if (isNavRoute(bhref)) {
+                            bottomLinks[k].classList.toggle('bottom-nav-active', bhref === url);
                         }
                     }
 
@@ -530,10 +618,10 @@
                 });
         }
 
-        // Intercept nav-link clicks to nav routes
+        // Intercept nav-link clicks to nav routes (top nav + bottom nav)
         document.addEventListener('click', function(e) {
             if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-            var a = e.target.closest('.nav-links a[href]');
+            var a = e.target.closest('.nav-links a[href], .bottom-nav a[href]');
             if (!a) return;
             var href = a.getAttribute('href');
             if (!isNavRoute(href) || href === location.pathname) return;

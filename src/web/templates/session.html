@@ -15,7 +15,6 @@
 
 {% block nav_items %}
 <a href="#" id="end-btn" class="nav-end-link">End<span class="nav-word-session"> Session</span></a>
-<a href="#" id="new-session-btn">New<span class="nav-word-session"> Session</span></a>
 <a href="#" id="history-btn">History</a>
 {% endblock %}
 
@@ -98,15 +97,6 @@
 <div class="session-ended-overlay hidden" id="session-saving">
     <div class="session-ended-content">
         <p>Saving session&hellip;</p>
-    </div>
-</div>
-
-<div class="session-ended-overlay hidden" id="session-ended">
-    <div class="session-ended-content">
-        <div class="session-ended-actions">
-            <a href="/" class="btn btn-primary">New Session</a>
-            <a href="/history" class="btn btn-secondary">View History</a>
-        </div>
     </div>
 </div>
 {% endblock %}
