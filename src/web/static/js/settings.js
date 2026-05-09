@@ -1201,7 +1201,15 @@ fetch('/api/config')
         document.getElementById('s-silence-base').value = (cfg.pacing?.silence_base_ms || 3000) / 1000;
         document.getElementById('s-silence-max').value = (cfg.pacing?.silence_max_ms || 7000) / 1000;
         document.getElementById('s-response-delay').value = (cfg.pacing?.response_delay_ms || 2000) / 1000;
-        document.getElementById('s-silence-sec').value = cfg.pacing?.extended_silence_sec || 300;
+        document.getElementById('s-silence-sec').value = cfg.pacing?.silence_checkin_sec || 300;
+        const checkinsEnabledEl = document.getElementById('s-silence-checkins-enabled');
+        checkinsEnabledEl.checked = cfg.pacing?.silence_checkins_enabled !== false;
+        document.getElementById('s-silence-mode-enabled').checked = cfg.pacing?.silence_mode_enabled !== false;
+        const updateCheckinSecState = function() {
+            document.getElementById('s-silence-sec-stepper').classList.toggle('is-disabled', !checkinsEnabledEl.checked);
+        };
+        checkinsEnabledEl.addEventListener('change', updateCheckinSecState);
+        updateCheckinSecState();
 
         // Display
         const textScale = cfg.web?.text_scale || 1;
@@ -1286,7 +1294,9 @@ form.addEventListener('submit', function(e) {
             silence_base_ms: Math.round(parseFloat(document.getElementById('s-silence-base').value) * 1000),
             silence_max_ms: Math.round(parseFloat(document.getElementById('s-silence-max').value) * 1000),
             response_delay_ms: Math.round(parseFloat(document.getElementById('s-response-delay').value) * 1000),
-            extended_silence_sec: parseInt(document.getElementById('s-silence-sec').value, 10),
+            silence_checkin_sec: parseInt(document.getElementById('s-silence-sec').value, 10),
+            silence_checkins_enabled: document.getElementById('s-silence-checkins-enabled').checked,
+            silence_mode_enabled: document.getElementById('s-silence-mode-enabled').checked,
         },
         web: {
             host: document.getElementById('s-host').value,

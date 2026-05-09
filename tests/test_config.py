@@ -31,7 +31,7 @@ class TestDefaults:
         config = PacingConfig()
         assert config.response_delay_ms == 2000
         assert config.min_speech_duration_ms == 500
-        assert config.extended_silence_sec == 300
+        assert config.silence_checkin_sec == 300
 
     def test_web_config_defaults(self):
         config = WebConfig()

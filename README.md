@@ -38,9 +38,9 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 
 ### platform notes
 
-- **macOS**: TTS uses the `say` command with access to all system voices. You can download better system voices by going to System Settings > Accessibility > Spoken Content, click the dropdown next to System Voice, select Manage Voices, and download Enhanced or Premium voices.
+- **macOS**: TTS can use the `say` command with access to all system voices. You can download better system voices by going to System Settings > Accessibility > Spoken Content, click the dropdown next to System Voice, select Manage Voices, and download Enhanced or Premium voices.
 - **windows**: if using browser mode, for best voice quality use Edge — it has access to Microsoft's natural voices (Ava, Jenny) through speechSynthesis.
-- **linux**: for server-side TTS, install piper-tts and set the TTS Engine to Piper on the settings page. otherwise TTS falls back to browser speechSynthesis. Note that some browsers don't have built in speech synthesis.
+- **linux**: your system probably doesn't have text-to-speech built in. I recommend installing piper-tts - you can do this directly on the settings page unless you're using something like Nix. otherwise TTS falls back to browser speechSynthesis. Note that some browsers don't have built in speech synthesis.
 
 ### claude subscription notes
 
@@ -56,7 +56,8 @@ to use the **Anthropic (Subscription)** provider, install the Claude Code CLI fi
 - click the voice name in the controls bar to open a voice/speed picker.
 - sessions auto-save as JSON and plain text, with a short LLM-generated summary.
 - you can continue any past session or access the saved sessions folder from the history page.
-- the AI can hold silence when requested and gently check in if you're quiet for a while. adjust timing in settings.
+- the AI can hold silence when requested - the orb dims when it's doing so. just ask it to come back when you want it to speak.
+- the AI gently checks in if you're quiet for a while. adjust timing or disable in settings.
 - one running copy of glooow can be made accessible to anyone on your local network by setting network access mode to "LAN Access" in settings
 - 🥚 there are a few easter eggs 🥚
 

@@ -29,3 +29,6 @@ result-*
 
 # Stray pip/uv output
 =*
+
+# Recreational Claude scratchpad
+recess.md

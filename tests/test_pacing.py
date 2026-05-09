@@ -79,15 +79,6 @@ class TestSilenceMode:
         assert result == TurnDecision.RESPOND
         assert not pacing_controller.is_in_silence_mode()
 
-    def test_speech_start_resets_check_in_count(self, pacing_controller):
-        pacing_controller.start_session()
-        pacing_controller.on_check_in()
-        pacing_controller.on_check_in()
-        assert pacing_controller._check_in_count == 2
-        pacing_controller.on_speech_start()
-        assert pacing_controller._check_in_count == 0
-
-
 class TestShouldRespond:
     def test_wait_when_no_speech(self, pacing_controller):
         pacing_controller.start_session()
@@ -114,39 +105,25 @@ class TestShouldRespond:
         assert pacing_controller._last_speech_end == 0
 
 
-class TestExponentialBackoff:
+class TestCheckInTiming:
     def test_check_in_after_extended_silence(self):
-        config = PacingConfig(extended_silence_sec=10)
+        config = PacingConfig(silence_checkin_sec=10)
         controller = PacingController(config)
         controller.start_session()
         controller._has_spoken = True
-        # Set last response time to 11 seconds ago
         controller._last_response_time = time.time() - 11
         assert controller.should_respond() == TurnDecision.CHECK_IN
 
-    def test_backoff_doubles_threshold(self):
-        config = PacingConfig(extended_silence_sec=10)
+    def test_no_check_in_below_threshold(self):
+        config = PacingConfig(silence_checkin_sec=10)
         controller = PacingController(config)
         controller.start_session()
         controller._has_spoken = True
-        controller.on_check_in()  # count = 1, threshold = 10 * 2^1 = 20s
-        controller._last_response_time = time.time() - 15
-        # 15s < 20s threshold, should wait
-        assert controller.should_respond() == TurnDecision.WAIT
-
-    def test_backoff_after_two_check_ins(self):
-        config = PacingConfig(extended_silence_sec=10)
-        controller = PacingController(config)
-        controller.start_session()
-        controller._has_spoken = True
-        controller.on_check_in()
-        controller.on_check_in()  # count = 2, threshold = 10 * 2^2 = 40s
-        controller._last_response_time = time.time() - 35
-        # 35s < 40s threshold
+        controller._last_response_time = time.time() - 5
         assert controller.should_respond() == TurnDecision.WAIT
 
     def test_no_check_in_before_first_speech(self):
-        config = PacingConfig(extended_silence_sec=10)
+        config = PacingConfig(silence_checkin_sec=10)
         controller = PacingController(config)
         controller.start_session()
         # _has_spoken is False

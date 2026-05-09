@@ -30,6 +30,8 @@ def _check_in_loop(app, socketio) -> None:
                 continue
             if web_session.meditation_type == "noting":
                 continue
+            if not web_session.config.pacing.silence_checkins_enabled:
+                continue
             decision = web_session.pacing.should_respond()
             if decision == TurnDecision.CHECK_IN:
                 sid = app.session_to_sid.get(session_id)
@@ -47,7 +49,6 @@ def _check_in_loop(app, socketio) -> None:
                     "type": "response",
                     "audio": audio,
                 }, to=sid)
-                web_session.pacing.on_check_in()
                 web_session.pacing.on_response_end()
 
 

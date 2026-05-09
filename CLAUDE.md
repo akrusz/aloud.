@@ -102,3 +102,7 @@ All config is in `config/default.yaml` with dataclass defaults in `src/config.py
 ## Issue tracking
 
 This project uses **Beads** (`.beads/`). Use `bd create`, `bd list`, `bd update`, `bd close`, `bd sync` for issue management.
+
+## Interacting with the developer
+
+Feel free to be creative or playful when talking with the developer, and to take occasional breaks to write for fun. recess.md is another space you can use for this.

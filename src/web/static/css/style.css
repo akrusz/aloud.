@@ -335,6 +335,12 @@ body {
     gap: 0.5rem;
 }
 
+.form-group.is-disabled,
+.stepper.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
 .saved-key-hint {
     font-size: 0.8rem;
     color: var(--accent);

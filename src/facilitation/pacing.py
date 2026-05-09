@@ -47,7 +47,6 @@ class PacingController:
         self._last_speech_end: float = 0
         self._last_response_time: float = 0
         self._silence_mode_start: float | None = None
-        self._check_in_count: int = 0
         self._has_spoken: bool = False
 
     @property
@@ -61,7 +60,6 @@ class PacingController:
         self._last_speech_end = 0
         self._last_response_time = time.time()
         self._silence_mode_start = None
-        self._check_in_count = 0
         self._has_spoken = False
 
     def end_session(self) -> None:
@@ -71,7 +69,6 @@ class PacingController:
     def on_speech_start(self) -> None:
         """Called when meditator starts speaking."""
         self._state = ConversationState.LISTENING
-        self._check_in_count = 0
 
     def on_speech_end(self) -> None:
         """Called when meditator stops speaking."""
@@ -107,9 +104,6 @@ class PacingController:
         """
         now = time.time()
 
-        # Exponential backoff: e.g. 240s, 480s, 960s, ...
-        check_in_threshold = self.config.extended_silence_sec * (2 ** self._check_in_count)
-
         # If in silence mode, hold indefinitely (no check-ins)
         if self._silence_mode_start is not None:
             return TurnDecision.HOLD
@@ -125,14 +119,10 @@ class PacingController:
         # Check for extended silence in normal mode (only after conversation has started)
         if self._has_spoken:
             time_since_response = now - self._last_response_time
-            if time_since_response >= check_in_threshold:
+            if time_since_response >= self.config.silence_checkin_sec:
                 return TurnDecision.CHECK_IN
 
         return TurnDecision.WAIT
-
-    def on_check_in(self) -> None:
-        """Record that a check-in occurred (increases backoff interval)."""
-        self._check_in_count += 1
 
     def on_response_start(self) -> None:
         """Called when facilitator starts responding."""

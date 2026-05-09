@@ -202,6 +202,9 @@ class WebMeditationSession:
 
         hold_signal, clean_response = parse_hold_signal(response)
 
+        if hold_signal == "hold" and not self.config.pacing.silence_mode_enabled:
+            hold_signal = "none"
+
         if hold_signal == "hold":
             self.in_silence_mode = True
 

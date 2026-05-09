@@ -44,17 +44,17 @@ class TTSConfig:
 
 
 DEFAULT_OLLAMA_TIERS: list[dict] = [
-    {"model": "gemma4:31b", "label": "Best But Slow", "min_gb": 32,
+    {"model": "gemma4:31b", "label": "Very Good But Slow", "min_gb": 32,
      "download": "~20GB", "ram": "~24GB",
      "auto_recommend": False,
      "note": "Highest quality. Dense model that's excellent with nuance, but slow even on serious hardware (~15 words/sec on an M5 MacBook Pro). Only for very fast machines."},
-    {"model": "gemma4:26b", "label": "Great", "min_gb": 24,
+    {"model": "gemma4:26b", "label": "Good", "min_gb": 24,
      "download": "~18GB", "ram": "~22GB",
      "note": "Mixture-of-experts model; rich knowledge but stays fast. Noted to have a warm conversational tone well-suited for meditation."},
-    {"model": "gemma4:e4b", "label": "Good", "min_gb": 16,
+    {"model": "gemma4:e4b", "label": "Decent", "min_gb": 16,
      "download": "~9.6GB", "ram": "~10GB",
      "note": "Google's edge model, surprisingly capable for its size. Solid balance of warmth and speed."},
-    {"model": "qwen3.5:4b", "label": "Decent", "min_gb": 0,
+    {"model": "qwen3.5:4b", "label": "Acceptable", "min_gb": 0,
      "download": "~3.4GB", "ram": "~5GB",
      "note": "Smallest size and fast on any hardware. Reliable choice even on systems with low memory."},
 ]
@@ -93,7 +93,9 @@ class LLMConfig:
 class PacingConfig:
     response_delay_ms: int = 2000
     min_speech_duration_ms: int = 500
-    extended_silence_sec: int = 300
+    silence_checkin_sec: int = 300
+    silence_checkins_enabled: bool = True
+    silence_mode_enabled: bool = True
     silence_base_ms: int = 3000   # client-side: pause before submitting speech
     silence_max_ms: int = 5000    # client-side: max pause tolerance after long speech
 

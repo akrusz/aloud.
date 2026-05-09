@@ -327,14 +327,26 @@
                     </div>
                     <span class="form-hint">Wait after transcription before LLM responds</span>
                 </div>
-                <div class="form-group form-group-half">
-                    <label>Check-in After (s)</label>
-                    <div class="stepper">
+                <div class="form-group form-group-half" id="s-silence-sec-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="s-silence-checkins-enabled" checked>
+                        <span>Check-in After Silence (s)</span>
+                    </label>
+                    <div class="stepper" id="s-silence-sec-stepper">
                         <button type="button" class="stepper-btn stepper-dec" data-target="s-silence-sec" aria-label="Decrease">&minus;</button>
                         <input type="number" id="s-silence-sec" class="stepper-value" min="30" max="3600" step="30" value="300">
                         <button type="button" class="stepper-btn stepper-inc" data-target="s-silence-sec" aria-label="Increase">+</button>
                     </div>
-                    <span class="form-hint">Extended silence before a gentle check-in</span>
+                    <span class="form-hint">Enables proactive check-ins after this much silence.</span>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="s-silence-mode-enabled" checked>
+                        <span>Enable holding-space mode</span>
+                    </label>
+                    <span class="form-hint">If requested, the facilitator will go silent until you ask it to come back. The orb color fades during this mode.<br>Note: some smaller models are slightly over-eager to use this.</span>
                 </div>
             </div>
         </section>
