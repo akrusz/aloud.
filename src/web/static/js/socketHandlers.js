@@ -97,6 +97,7 @@ export function registerSocketHandlers(deactivateVoiceFn) {
         state.sessionActive = false;
         window._glooowSessionActive = false;
         delete document.body.dataset.sessionActive;
+        window._glooowRequestEndSession = null;
         stopTimer();
 
         // If update was pending, show update modal after session ends

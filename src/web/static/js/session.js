@@ -558,6 +558,17 @@ function init() {
             window._glooowPendingUpdate = true;
         });
     };
+    // Bottom-nav links call this during an active session so the session
+    // ends + saves before navigating, instead of the session continuing
+    // in the background while we SPA-swap the page.
+    window._glooowRequestEndSession = function(destinationUrl) {
+        socket.emit('prefetch_summary');
+        state.pendingNavigation = destinationUrl || '/';
+        showConfirm('End this session?', function () {
+            dom.savingOverlay.classList.remove('hidden');
+            doEndSession(deactivateVoice);
+        }, { showSkipSave: true });
+    };
     state.sessionStart = Date.now();
     startTimer();
 

@@ -53,7 +53,7 @@
         {% block nav_center %}{% endblock %}
         <div class="nav-links">
             {% block nav_items %}
-            <a href="/" {% if request.path == '/' %}class="nav-active"{% endif %}>New Session</a>
+            <a href="/" {% if request.path == '/' %}class="nav-active"{% endif %}><span class="nav-word-new">New </span>Session</a>
             <a href="/history" {% if request.path == '/history' %}class="nav-active"{% endif %}>History</a>
             <a href="/settings" {% if request.path == '/settings' %}class="nav-active"{% endif %}>Settings</a>
             {% endblock %}
@@ -76,7 +76,7 @@
     <nav class="bottom-nav" aria-label="Primary">
         <a href="/" class="bottom-nav-link {% if request.path == '/' %}bottom-nav-active{% endif %}">
             <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
-            <span class="bottom-nav-label">Session</span>
+            <span class="bottom-nav-label">New Session</span>
         </a>
         <a href="/history" class="bottom-nav-link {% if request.path == '/history' %}bottom-nav-active{% endif %}">
             <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 15 14"/></svg>
@@ -626,6 +626,13 @@
             var href = a.getAttribute('href');
             if (!isNavRoute(href) || href === location.pathname) return;
             e.preventDefault();
+            // During an active session, run the end-session confirm flow
+            // instead of SPA-navigating away — otherwise the session keeps
+            // running in the background.
+            if (window._glooowSessionActive && window._glooowRequestEndSession) {
+                window._glooowRequestEndSession(href);
+                return;
+            }
             navigate(href);
         });
 

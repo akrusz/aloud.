@@ -2532,33 +2532,17 @@ body::before {
 /* ---- Responsive ---- */
 
 @media (max-width: 1000px) {
-    .nav-word-session {
+    .nav-word-session,
+    .nav-word-new {
         display: none;
     }
 }
 
-@media (max-width: 600px) {
-
-    .nav {
-        padding: 0.75rem 1rem;
-    }
-
-    .main {
-        padding: 1.5rem 1rem;
-    }
-
+/* Tablet-ish: stack form rows that would otherwise be tight */
+@media (max-width: 767px) {
     .form-row {
         flex-direction: column;
         gap: 1rem;
-    }
-
-    .session-container {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-
-    .message-content {
-        max-width: 95%;
     }
 }
 
@@ -3632,9 +3616,27 @@ body::before {
         backdrop-filter: blur(4px);
     }
 
-    /* Reserve room for the bottom nav so content isn't hidden behind it */
+    /* Reserve room: top space clears the floating brand/orb,
+       bottom space clears the fixed bottom nav. */
     .main {
-        padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+        padding: 3rem 1rem calc(4rem + env(safe-area-inset-bottom));
+    }
+
+    /* Session page: the .main host is padding:0 by design — push the
+       inner container down so chat doesn't underlap the floating chrome. */
+    .session-container {
+        padding: 2.75rem 1rem 0;
+    }
+
+    .message-content {
+        max-width: 95%;
+    }
+
+    /* Three-up grids collapse straight to single column on phone — skip
+       the awkward two-up intermediate step. */
+    .style-cards,
+    .modifier-toggles {
+        grid-template-columns: 1fr;
     }
 
     /* Bottom nav itself */
