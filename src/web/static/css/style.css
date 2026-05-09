@@ -2177,7 +2177,8 @@ body::before {
    ============================================ */
 
 .history-container {
-    width: 720px;
+    width: 100%;
+    max-width: 720px;
     margin: 0 auto;
 }
 
@@ -3595,7 +3596,7 @@ body::before {
     }
 
     .nav-brand {
-        font-size: 1rem;
+        font-size: 1.2rem;
         background: var(--bg-secondary);
         color: var(--accent);
         padding: 0.25rem 0.6rem;
@@ -3637,6 +3638,30 @@ body::before {
     .style-cards,
     .modifier-toggles {
         grid-template-columns: 1fr;
+    }
+
+    /* History header: stack title above the open-folder button instead
+       of letting them collide horizontally. */
+    .history-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    /* Session page: reserve room at the bottom of .main so input
+       controls (last child of .session-container) clear the fixed
+       bottom nav. The body is locked to 100dvh on this page so we
+       can't rely on document scroll. */
+    .main:has(.session-container) {
+        padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+    }
+
+    /* Settings: the fixed save bar must stack above the bottom nav,
+       and the form needs enough bottom padding to clear both. */
+    .settings-footer {
+        bottom: calc(3.75rem + env(safe-area-inset-bottom));
+    }
+    .setup-container {
+        padding-bottom: calc(5rem + 3.75rem + env(safe-area-inset-bottom));
     }
 
     /* Bottom nav itself */
@@ -3754,10 +3779,10 @@ body::before {
     .mobile-more-glyph {
         font-family: 'Lexend Exa', sans-serif;
         color: var(--accent);
-        font-size: 0.85rem;
+        font-size: 1.275rem;
         letter-spacing: 0.05em;
         min-width: 18px;
-        text-align: center;
+        text-align: left;
     }
 
     .mobile-more-cancel {
