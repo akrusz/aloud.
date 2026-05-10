@@ -3671,6 +3671,54 @@ body::before {
         grid-template-columns: 1fr;
     }
 
+    /* Tap targets — the form is built around a cursor; on phones we
+       need thumb-sized hit zones. Roughly aiming for 44px minimums on
+       the most-tapped controls. */
+    .tab-btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 1.05rem;
+    }
+    .style-card-inner {
+        padding: 0.85rem 0.95rem;
+    }
+    .modifier-toggle {
+        padding: 0.75rem 0.85rem;
+        gap: 0.6rem;
+    }
+    .modifier-toggle input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+    }
+    .modifier-toggle input[type="checkbox"]:checked::after {
+        left: 5px;
+        top: 1px;
+        width: 6px;
+        height: 11px;
+    }
+    .info-btn {
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 0.9rem;
+        margin-left: 0.5rem;
+    }
+    .continue-banner-close {
+        font-size: 1.5rem;
+        padding: 0.25rem 0.5rem;
+    }
+    /* Bigger range thumb so the directiveness slider (and any other
+       range) is grabbable with a thumb, not just a cursor. */
+    input[type="range"] {
+        height: 14px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    input[type="range"]::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+    }
+
     /* History header: stack title above the open-folder button instead
        of letting them collide horizontally. */
     .history-header {
