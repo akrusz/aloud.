@@ -4051,14 +4051,12 @@ body[data-session-active] .mobile-more-sheet .mobile-more-divider {
     .display-controls {
         flex: 1 1 auto;
     }
-}
 
-@media (max-width: 460px) {
-    /* Session input row: at this width the status text would wrap to
-       4+ lines and crowd the timer/buttons next to it. Give the status
-       its own row at full width and let the timer + buttons drop to a
-       second row, spaced across the row to align with the controls
-       below it (.input-controls also has 0.25rem horizontal padding). */
+    /* Session input row: status text wraps onto 4+ lines around here
+       and crowds the timer/buttons next to it. Give the status its own
+       row at full width and let the timer + buttons drop to a second
+       row, spaced across the row to align with the controls below it
+       (.input-controls also has 0.25rem horizontal padding). */
     .input-row {
         flex-wrap: wrap;
         padding: 0 0.25rem;
@@ -4069,6 +4067,13 @@ body[data-session-active] .mobile-more-sheet .mobile-more-divider {
         height: auto;
         min-height: 0;
         padding: 0.2rem 0.75rem;
+    }
+
+    /* Voice picker: hide grayed-out Preview buttons (no audio sample
+       available for that voice). They add visual noise on a tight row
+       without offering anything tappable. */
+    .voice-row-preview.preview-unavailable {
+        display: none;
     }
 }
 
