@@ -3810,6 +3810,29 @@ body[data-session-active] .mobile-more-sheet .mobile-more-divider {
         align-items: flex-start;
     }
 
+    /* History session items: bigger header tap zone and a transcript
+       cap relative to viewport so a long session doesn't dominate the
+       phone screen when expanded. */
+    .session-item-header {
+        padding: 1rem;
+    }
+    .session-transcript {
+        max-height: 60vh;
+    }
+
+    /* Modals (voice picker, About, sound picker, info): shrink the
+       outer margin on phones so content has more usable width. */
+    .voice-modal,
+    .about-modal {
+        width: calc(100vw - 1.5rem);
+    }
+
+    /* Settings: tighten the welcome heading (first-run only) so it
+       doesn't push the form down too much on a small viewport. */
+    .settings-welcome h1 {
+        font-size: 1.5rem;
+    }
+
     /* Session page: reserve room at the bottom of .main so input
        controls (last child of .session-container) clear the fixed
        bottom nav. The body is locked to 100dvh on this page so we
