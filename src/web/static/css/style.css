@@ -3652,10 +3652,10 @@ body[data-session-active] .mobile-more-sheet .mobile-more-divider {
     }
 
     .nav-brand {
-        font-size: 1.2rem;
+        font-size: 1.4rem;
         background: var(--bg-secondary);
         color: var(--accent);
-        padding: 0.25rem 0.6rem;
+        padding: 0.3rem 0.7rem;
         border-radius: var(--radius-sm);
         opacity: 0.9;
         backdrop-filter: blur(4px);
@@ -4027,6 +4027,23 @@ body[data-session-active] .mobile-more-sheet .mobile-more-divider {
     }
     .display-controls {
         flex: 1 1 auto;
+    }
+}
+
+@media (max-width: 460px) {
+    /* Session input row: at this width the status text would wrap to
+       4+ lines and crowd the timer/buttons next to it. Give the status
+       its own row at full width and let the timer + buttons drop to
+       the next row. Status grows with content (no fixed height) but
+       keeps a 42px minimum to match its sibling buttons. */
+    .input-row {
+        flex-wrap: wrap;
+    }
+    .voice-status {
+        flex: 1 1 100%;
+        height: auto;
+        min-height: 42px;
+        padding: 0.4rem 1rem;
     }
 }
 
