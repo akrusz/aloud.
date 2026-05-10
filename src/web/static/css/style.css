@@ -3238,9 +3238,33 @@ body::before {
     gap: var(--space-sm);
 }
 
-/* Pad the bottom of the form so content isn't hidden behind the fixed footer */
+/* Setup-footer (index page) — same fixed-bar pattern as settings-footer
+   so the Begin Session button is always reachable, even mid-scroll. */
+.setup-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 0.5rem 1.5rem;
+    z-index: 30;
+}
+
+.setup-footer-inner {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.setup-footer .btn-begin {
+    width: 100%;
+}
+
+/* Pad the bottom of the form so content isn't hidden behind the fixed
+   footer (setup-footer on index, settings-footer on settings). 7rem
+   clears either footer plus a comfortable buffer. */
 .setup-container {
-    padding-bottom: 5rem;
+    padding-bottom: 7rem;
 }
 
 .settings-saved {
@@ -3662,13 +3686,16 @@ body::before {
         padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
     }
 
-    /* Settings: the fixed save bar must stack above the bottom nav,
-       and the form needs enough bottom padding to clear both. */
-    .settings-footer {
+    /* Settings + setup: fixed footers must stack above the bottom nav,
+       and forms need enough bottom padding to clear both. */
+    .settings-footer,
+    .setup-footer {
         bottom: calc(3.75rem + env(safe-area-inset-bottom));
     }
     .setup-container {
-        padding-bottom: calc(5rem + 3.75rem + env(safe-area-inset-bottom));
+        max-width: 550px;
+        margin: 0 auto;
+        padding-bottom: calc(7rem + 3.75rem + env(safe-area-inset-bottom));
     }
 
     /* Bottom nav itself */
@@ -3824,6 +3851,15 @@ body::before {
 
     .ollama-tier-actions {
         justify-content: flex-end;
+    }
+
+    /* Display section: move the style preview below the controls so
+       neither the controls nor the preview gets squeezed at this width. */
+    .display-layout {
+        flex-direction: column;
+    }
+    .display-controls {
+        flex: 1 1 auto;
     }
 }
 

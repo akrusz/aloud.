@@ -240,10 +240,6 @@
             </div>
         </div>
         <div id="provider-hint" class="provider-hint hidden"></div>
-
-        <button type="submit" class="btn btn-primary btn-begin">
-            Begin Session
-        </button>
     </form>
 
     {{ picker_modal("setup-voice-modal", "setup-voice-modal-close", "setup-voice-modal-list",
@@ -251,6 +247,14 @@
 
     {{ picker_modal("sound-modal", "sound-modal-close", "sound-modal-list",
         title="Choose Sound") }}
+</div>
+
+<div class="setup-footer">
+    <div class="setup-footer-inner">
+        <button type="submit" form="setup-form" class="btn btn-primary btn-begin">
+            Begin Session
+        </button>
+    </div>
 </div>
 {% endblock %}
 
