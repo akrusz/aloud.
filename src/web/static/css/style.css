@@ -3601,6 +3601,29 @@ body::before {
     display: none;
 }
 
+/* Session-only items in the more sheet (End session, History, divider)
+   are hidden until a session is active. */
+.mobile-more-sheet [data-session-only] {
+    display: none;
+}
+
+body[data-session-active] .mobile-more-sheet [data-session-only] {
+    display: flex;
+}
+
+body[data-session-active] .mobile-more-sheet .mobile-more-divider {
+    display: block;
+    height: 1px;
+    background: var(--border);
+    margin: 0.4rem 0.25rem;
+}
+
+/* Floating session hamburger — visible only on mobile during a session
+   (set up in the mobile breakpoint below). */
+.session-hamburger {
+    display: none;
+}
+
 @media (max-width: 767px) {
     /* Top nav becomes a thin transparent floating header on mobile —
        only the brand (left) and the session orb (right) remain visible. */
@@ -3763,6 +3786,41 @@ body::before {
        can't rely on document scroll. */
     .main:has(.session-container) {
         padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+    }
+
+    /* During an active session: hide the bottom nav (the floating
+       hamburger replaces it) and reclaim the space. */
+    body[data-session-active] .bottom-nav {
+        display: none;
+    }
+    body[data-session-active] .main:has(.session-container) {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Floating hamburger button — top-right, sharing a chip with the
+       orb in .nav-session-info. */
+    .session-hamburger {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        padding: 0.25rem;
+        margin-left: 0.25rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+    }
+    .session-hamburger:hover,
+    .session-hamburger:focus-visible {
+        color: var(--accent);
+        outline: none;
+    }
+
+    /* End-session entry in the sheet gets a subtle danger tint so it
+       doesn't blend with the neutral utility actions. */
+    .mobile-more-sheet .mobile-more-end {
+        color: var(--danger, #c0503e);
     }
 
     /* Settings + setup: fixed footers must stack above the bottom nav,

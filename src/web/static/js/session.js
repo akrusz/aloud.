@@ -13,6 +13,7 @@ import {
     doEndSession,
 } from './ui.js';
 import { initNoting, startCircle, stopCircle, handleUserNote, notingState, isNonSpeechOnly } from './noting.js';
+import { acquireWakeLock } from './wakelock.js';
 
 // ---- Messaging ----
 
@@ -551,6 +552,7 @@ function init() {
     // Expose for update indicator in base.html
     window._glooowSessionActive = true;
     document.body.dataset.sessionActive = 'true';
+    acquireWakeLock();
     window._glooowConfirmEnd = function() {
         showConfirm('End session to install update?', function () {
             dom.savingOverlay.classList.remove('hidden');

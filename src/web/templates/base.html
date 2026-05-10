@@ -86,16 +86,27 @@
             <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
             <span class="bottom-nav-label">Settings</span>
         </a>
-        <button type="button" class="bottom-nav-link" id="bottomNavMore" aria-haspopup="true" aria-controls="mobileMoreSheet">
+        <button type="button" class="bottom-nav-link" id="bottomNavMore" aria-haspopup="true" aria-controls="mobileMoreSheet" data-mobile-more-open>
             <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
             <span class="bottom-nav-label">More</span>
         </button>
     </nav>
 
-    <!-- Mobile More sheet — utility actions surfaced on phones -->
+    <!-- Mobile More sheet — utility actions surfaced on phones.
+         Items with data-session-only are shown only when a session is
+         active (body[data-session-active] flag set by session.js). -->
     <div class="mobile-more-sheet hidden" id="mobileMoreSheet" role="dialog" aria-label="More options" aria-modal="true">
         <div class="mobile-more-backdrop" data-mobile-more-close></div>
         <div class="mobile-more-panel">
+            <button type="button" class="mobile-more-action mobile-more-end" data-session-only data-proxy-click="end-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+                <span>End session</span>
+            </button>
+            <button type="button" class="mobile-more-action" data-session-only data-proxy-click="history-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 15 14"/></svg>
+                <span>History</span>
+            </button>
+            <div class="mobile-more-divider" data-session-only></div>
             <button type="button" class="mobile-more-action" data-proxy-click="aboutLink">
                 <span class="mobile-more-glyph">glooow</span>
                 <span>About</span>
@@ -515,15 +526,19 @@
     // for handlers — they remain in the DOM even when the top nav is hidden on mobile).
     (function() {
         var sheet = document.getElementById('mobileMoreSheet');
-        var openBtn = document.getElementById('bottomNavMore');
-        if (!sheet || !openBtn) return;
+        if (!sheet) return;
 
         function open() { sheet.classList.remove('hidden'); }
         function close() { sheet.classList.add('hidden'); }
 
-        openBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            open();
+        // Any element with data-mobile-more-open opens the sheet.
+        // Used by the bottom-nav More button on non-session pages and
+        // by the floating hamburger on the session page.
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('[data-mobile-more-open]')) {
+                e.preventDefault();
+                open();
+            }
         });
 
         sheet.addEventListener('click', function(e) {

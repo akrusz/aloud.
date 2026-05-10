@@ -6,6 +6,7 @@ import { speak, stopServerAudio, queueAudioChunk } from './tts.js';
 import { handleTranscription, applySessionConfig } from './audio.js';
 import { buildVoiceList } from './voice.js';
 import { notingState, stopCircle } from './noting.js';
+import { releaseWakeLock } from './wakelock.js';
 
 export function registerSocketHandlers(deactivateVoiceFn) {
 
@@ -98,6 +99,7 @@ export function registerSocketHandlers(deactivateVoiceFn) {
         window._glooowSessionActive = false;
         delete document.body.dataset.sessionActive;
         window._glooowRequestEndSession = null;
+        releaseWakeLock();
         stopTimer();
 
         // If update was pending, show update modal after session ends
