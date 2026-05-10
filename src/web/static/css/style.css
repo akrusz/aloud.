@@ -3917,7 +3917,7 @@ body[data-session-active] .mobile-more-sheet .mobile-more-divider {
         border: none;
         cursor: pointer;
         font-family: inherit;
-        font-size: 0.7rem;
+        font-size: 0.8rem;
         line-height: 1;
         min-height: 3rem;
         transition: color var(--transition);
