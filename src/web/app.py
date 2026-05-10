@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -281,8 +282,21 @@ def _grant_media_permissions() -> None:
         logger.warning("Could not patch media permissions: %s", e)
 
 
+def _resolve_window_bg(theme_mode: str) -> str:
+    """Pick a window background color matching the saved theme so the WKWebView
+    doesn't flash white before the first paint. Mirrors the FOUC bootstrap in
+    base.html: dark/light explicit, otherwise time-of-day (light 7am–7pm)."""
+    if theme_mode == "dark":
+        return "#110d08"
+    if theme_mode == "light":
+        return "#f5f0e8"
+    hour = datetime.now().hour
+    return "#f5f0e8" if 7 <= hour < 19 else "#110d08"
+
+
 def _run_webview(app, socketio, host: str, port: int, window_mode: str = "remember",
-                 frameless: bool = False, vibrancy: bool = False) -> None:
+                 frameless: bool = False, vibrancy: bool = False,
+                 theme_mode: str = "auto") -> None:
     """Run with a native pywebview window. Flask serves in a background thread."""
     import webview
 
@@ -312,6 +326,7 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
         "easy_drag": False,
         "vibrancy": vibrancy,
         "min_size": (390, 700),
+        "background_color": _resolve_window_bg(theme_mode),
     }
 
     if window_mode == "fullscreen":
@@ -562,7 +577,8 @@ def run_web(
         try:
             _run_webview(app, socketio, host, port,
                          window_mode=config.web.window_mode,
-                         frameless=config.web.frameless)
+                         frameless=config.web.frameless,
+                         theme_mode=config.web.theme_mode)
             return  # webview exited normally (window closed)
         except Exception as e:
             logger.warning("Native window failed (%s), falling back to browser mode", e)
