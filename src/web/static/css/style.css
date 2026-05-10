@@ -3719,6 +3719,37 @@ body::before {
         height: 24px;
     }
 
+    /* iOS Safari auto-zooms when focusing inputs with font-size < 16px.
+       Bump to 1rem (16px) to suppress that on phone. */
+    textarea,
+    select,
+    input[type="text"],
+    input[type="number"],
+    input[type="password"] {
+        font-size: 1rem;
+    }
+
+    /* Noting tab: parallel to .modifier-toggle, bump the inline checkbox
+       and surrounding controls so they're thumb-tappable. */
+    .noting-option input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+    }
+    .noting-option input[type="checkbox"]:checked::after {
+        left: 5px;
+        top: 1px;
+        width: 6px;
+        height: 11px;
+    }
+    .participant-remove {
+        font-size: 1.5rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .btn-small {
+        padding: 0.6rem 1rem;
+        font-size: 0.95rem;
+    }
+
     /* History header: stack title above the open-folder button instead
        of letting them collide horizontally. */
     .history-header {
