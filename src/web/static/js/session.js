@@ -61,9 +61,11 @@ function initSessionControls(params) {
         }
     });
 
-    // End session button — confirms, saves, returns to start screen
-    dom.endBtn.addEventListener('click', function (e) {
-        e.preventDefault();
+    // End / History flows extracted as named functions so the mobile
+    // hamburger sheet can call them by name (window._glooowRequestEnd /
+    // _glooowRequestHistory) instead of proxy-clicking a hidden button
+    // by ID — more robust to future renames.
+    function requestEnd() {
         if (!state.sessionActive) { window.location.href = '/'; return; }
         socket.emit('prefetch_summary');
         state.pendingNavigation = '/';
@@ -71,11 +73,8 @@ function initSessionControls(params) {
             dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
         }, { showSkipSave: true });
-    });
-
-    // History navigation
-    dom.historyBtn.addEventListener('click', function (e) {
-        e.preventDefault();
+    }
+    function requestHistory() {
         if (!state.sessionActive) { window.location.href = '/history'; return; }
         socket.emit('prefetch_summary');
         showConfirm('Leave session to view history? This will end your current session.', function () {
@@ -83,7 +82,11 @@ function initSessionControls(params) {
             dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
         }, { showSkipSave: true });
-    });
+    }
+    dom.endBtn.addEventListener('click', function (e) { e.preventDefault(); requestEnd(); });
+    dom.historyBtn.addEventListener('click', function (e) { e.preventDefault(); requestHistory(); });
+    window._glooowRequestEnd = requestEnd;
+    window._glooowRequestHistory = requestHistory;
 
     // Restore saved speed
     var savedSpeed = getSavedSpeed();

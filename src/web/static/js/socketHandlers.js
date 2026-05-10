@@ -99,6 +99,8 @@ export function registerSocketHandlers(deactivateVoiceFn) {
         window._glooowSessionActive = false;
         delete document.body.dataset.sessionActive;
         window._glooowRequestEndSession = null;
+        window._glooowRequestEnd = null;
+        window._glooowRequestHistory = null;
         releaseWakeLock();
         stopTimer();
 
