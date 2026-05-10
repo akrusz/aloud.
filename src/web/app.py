@@ -311,7 +311,7 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
         "frameless": frameless,
         "easy_drag": False,
         "vibrancy": vibrancy,
-        "min_size": (1024, 600),
+        "min_size": (390, 700),
     }
 
     if window_mode == "fullscreen":
