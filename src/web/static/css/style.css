@@ -3289,7 +3289,7 @@ body::before {
     font-size: 0.875rem;
     border: 1px solid var(--text-muted);
     border-radius: 4px;
-    background: var(--bg-card);
+    background: var(--bg-surface);
     color: var(--text-muted);
     cursor: pointer;
     white-space: nowrap;
@@ -3299,7 +3299,7 @@ body::before {
 .btn-config-path:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: var(--bg-card);
+    background: var(--bg-surface);
 }
 
 .settings-update-row {
@@ -3559,7 +3559,7 @@ body::before {
     font-family: var(--font);
     border: 1px solid var(--text-muted);
     border-radius: 4px;
-    background: var(--bg-card);
+    background: var(--bg-surface);
     color: var(--text-muted);
     cursor: pointer;
     white-space: nowrap;
@@ -3569,7 +3569,7 @@ body::before {
 .tour-show-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: var(--bg-card);
+    background: var(--bg-surface);
 }
 
 /* Elevate spotlighted sections above the overlay during guided tour */
@@ -3693,7 +3693,7 @@ body::before {
         bottom: calc(3.75rem + env(safe-area-inset-bottom));
     }
     .setup-container {
-        max-width: 550px;
+        max-width: 500px;
         margin: 0 auto;
         padding-bottom: calc(7rem + 3.75rem + env(safe-area-inset-bottom));
     }
