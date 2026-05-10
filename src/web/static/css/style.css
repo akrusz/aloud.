@@ -1271,13 +1271,14 @@ body:has(.session-container) {
 
 .voice-status {
     flex: 1;
-    padding: 0.6rem 1rem;
+    min-width: 0;
+    padding: 0 1rem;
     font-size: 0.9rem;
     color: var(--text-muted);
-    line-height: 42px;
     height: 42px;
-    padding-top: 0;
-    padding-bottom: 0;
+    line-height: 1.15;
+    display: flex;
+    align-items: center;
 }
 
 .btn-voice {
@@ -1465,8 +1466,9 @@ body:has(.session-container) {
 }
 
 .ember-block {
-    width: 12px;
-    height: 12px;
+    --ember-size: 12px;
+    width: var(--ember-size);
+    height: var(--ember-size);
     border: 1px solid var(--text-muted);
     border-radius: 2px;
     cursor: pointer;
@@ -1496,7 +1498,7 @@ body:has(.session-container) {
 
 @keyframes ember-block-grow {
     from { width: 0; border-width: 0; opacity: 0; }
-    to { width: 12px; border-width: 1px; opacity: 1; }
+    to { width: var(--ember-size); border-width: 1px; opacity: 1; }
 }
 
 .ember-block.growing {
@@ -1713,7 +1715,7 @@ body:has(.session-container) {
 }
 
 .voice-row-size {
-    font-size: 0.75rem;
+    font-size: 0.88rem;
     color: var(--text-muted);
     flex-shrink: 0;
     white-space: nowrap;
@@ -1724,9 +1726,9 @@ body:has(.session-container) {
     border: 1px solid var(--success, #5a9e6f);
     border-radius: var(--radius-sm);
     color: var(--success, #5a9e6f);
-    font-size: 0.75rem;
+    font-size: 0.88rem;
     font-family: var(--font);
-    padding: 0.15rem 0.45rem;
+    padding: 0.25rem 0.6rem;
     cursor: pointer;
     flex-shrink: 0;
     transition: all var(--transition);
@@ -1743,14 +1745,14 @@ body:has(.session-container) {
 }
 
 .voice-row-ready {
-    font-size: 0.75rem;
+    font-size: 0.88rem;
     color: var(--success, #5a9e6f);
     flex-shrink: 0;
 }
 
 .voice-row-engine {
     display: inline-block;
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     color: var(--text-muted);
     background: var(--bg-secondary);
     border-radius: var(--radius-sm);
@@ -1766,9 +1768,9 @@ body:has(.session-container) {
     border: 1px solid var(--text-muted);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
-    font-size: 0.7rem;
+    font-size: 0.88rem;
     font-family: var(--font);
-    padding: 0.1rem 0.35rem;
+    padding: 0.2rem 0.5rem;
     cursor: pointer;
     flex-shrink: 0;
     transition: all var(--transition);
@@ -3728,6 +3730,34 @@ body[data-session-active] .mobile-more-sheet .mobile-more-divider {
         font-size: 1.5rem;
         padding: 0.25rem 0.5rem;
     }
+    /* Session input controls (Embers / Kasina / Voice) — chunkier so
+       they're tappable, and allowed to wrap so they don't crash into
+       each other on the narrowest widths. */
+    .input-controls {
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+    }
+    .toggle-label input {
+        width: 20px;
+        height: 20px;
+    }
+    .toggle-label input:checked::after {
+        left: 5px;
+        top: 1px;
+        width: 5px;
+        height: 10px;
+    }
+    .ember-block {
+        --ember-size: 16px;
+    }
+    .ember-btn {
+        font-size: 1.15rem;
+        padding: 0.1rem 0.35rem;
+    }
+    .ember-level {
+        gap: 0.4rem;
+    }
+
     /* Bigger range thumb so the directiveness slider (and any other
        range) is grabbable with a thumb, not just a cursor. */
     input[type="range"] {
