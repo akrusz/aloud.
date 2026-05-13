@@ -348,6 +348,35 @@ body {
     margin-top: -0.25rem;
 }
 
+.api-key-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.4rem;
+}
+
+.api-key-actions .btn {
+    text-decoration: none;
+}
+
+.api-key-paste-status {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.api-key-paste-status.is-ok { color: var(--accent); }
+.api-key-paste-status.is-warn { color: #c87a00; }
+
+.api-key-actions.attention .api-key-paste-btn {
+    animation: api-key-pulse 1.1s ease-in-out 2;
+}
+
+@keyframes api-key-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--accent); transform: scale(1); }
+    50% { box-shadow: 0 0 0 4px rgba(255, 165, 0, 0.35); transform: scale(1.04); }
+}
+
 .form-group label {
     font-size: 0.9rem;
     font-weight: 500;

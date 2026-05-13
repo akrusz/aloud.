@@ -638,6 +638,93 @@ const providerKeyInfo = {
     venice: { env: 'VENICE_API_KEY', url: 'https://venice.ai/settings/api', label: 'venice.ai' }
 };
 
+// "Get a key" + "Paste from clipboard" action row for each API-key input.
+// `prefix` is a soft hint — pasting a non-matching value still works, we just warn.
+const apiKeyHelpers = [
+    { input: 's-anthropic-key',  url: providerKeyInfo.anthropic.url,  prefix: 'sk-ant-' },
+    { input: 's-openai-key',     url: providerKeyInfo.openai.url,     prefix: 'sk-' },
+    { input: 's-groq-key',       url: providerKeyInfo.groq.url,       prefix: 'gsk_' },
+    { input: 's-openrouter-key', url: providerKeyInfo.openrouter.url, prefix: 'sk-or-' },
+    { input: 's-venice-key',     url: providerKeyInfo.venice.url,     prefix: '' },
+    { input: 's-elevenlabs-key', url: 'https://elevenlabs.io/app/settings/api-keys', prefix: 'sk_' },
+];
+
+// Track which input the user last opened a "Get a key" tab for, so we can draw
+// attention to the matching Paste button when they switch back to glooow.
+let lastOpenedKeyInput = null;
+
+function attachKeyHelper(cfg) {
+    const input = document.getElementById(cfg.input);
+    if (!input) return;
+
+    const row = document.createElement('div');
+    row.className = 'api-key-actions';
+
+    const open = document.createElement('a');
+    open.href = cfg.url;
+    open.target = '_blank';
+    open.rel = 'noopener noreferrer';
+    open.className = 'btn btn-small btn-secondary api-key-open-btn';
+    open.textContent = 'Get a key ↗';
+    open.addEventListener('click', function() {
+        lastOpenedKeyInput = cfg.input;
+    });
+    row.appendChild(open);
+
+    const paste = document.createElement('button');
+    paste.type = 'button';
+    paste.className = 'btn btn-small btn-secondary api-key-paste-btn';
+    paste.textContent = 'Paste from clipboard';
+    row.appendChild(paste);
+
+    const status = document.createElement('span');
+    status.className = 'api-key-paste-status';
+    row.appendChild(status);
+
+    paste.addEventListener('click', async function() {
+        status.textContent = '';
+        status.classList.remove('is-warn', 'is-ok');
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+            status.textContent = 'Browser blocks clipboard read — paste manually (⌘/Ctrl+V).';
+            status.classList.add('is-warn');
+            return;
+        }
+        try {
+            const text = (await navigator.clipboard.readText()).trim();
+            if (!text) {
+                status.textContent = 'Clipboard is empty.';
+                status.classList.add('is-warn');
+                return;
+            }
+            input.value = text;
+            input.dispatchEvent(new Event('input'));
+            row.classList.remove('attention');
+            if (cfg.prefix && !text.startsWith(cfg.prefix)) {
+                status.textContent = `Pasted — but didn't start with "${cfg.prefix}". Double-check.`;
+                status.classList.add('is-warn');
+            } else {
+                status.textContent = 'Pasted ✓';
+                status.classList.add('is-ok');
+            }
+        } catch (e) {
+            status.textContent = "Couldn't read clipboard — paste manually (⌘/Ctrl+V).";
+            status.classList.add('is-warn');
+        }
+    });
+
+    input.parentNode.appendChild(row);
+}
+
+apiKeyHelpers.forEach(attachKeyHelper);
+
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState !== 'visible' || !lastOpenedKeyInput) return;
+    const input = document.getElementById(lastOpenedKeyInput);
+    if (!input) return;
+    const row = input.parentNode.querySelector('.api-key-actions');
+    if (row) row.classList.add('attention');
+});
+
 function updateSettingsProviderHint() {
     const key = providerSelect.value;
     const info = settingsProviderStatus[key];
