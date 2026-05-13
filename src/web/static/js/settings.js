@@ -657,29 +657,34 @@ function attachKeyHelper(cfg) {
     const input = document.getElementById(cfg.input);
     if (!input) return;
 
+    // Both actions are <button> elements (not <a>) so they render at exactly
+    // the same size — anchors and buttons disagree about default padding even
+    // when sharing a class.
     const row = document.createElement('div');
     row.className = 'api-key-actions';
 
-    const open = document.createElement('a');
-    open.href = cfg.url;
-    open.target = '_blank';
-    open.rel = 'noopener noreferrer';
+    const open = document.createElement('button');
+    open.type = 'button';
     open.className = 'btn btn-small btn-secondary api-key-open-btn';
     open.textContent = 'Get a key ↗';
+    open.title = cfg.url;
     open.addEventListener('click', function() {
         lastOpenedKeyInput = cfg.input;
+        window.open(cfg.url, '_blank', 'noopener,noreferrer');
     });
     row.appendChild(open);
 
     const paste = document.createElement('button');
     paste.type = 'button';
     paste.className = 'btn btn-small btn-secondary api-key-paste-btn';
-    paste.textContent = 'Paste from clipboard';
+    paste.textContent = 'Paste';
+    paste.title = 'Paste from clipboard';
     row.appendChild(paste);
 
+    // Status text lives below the input/buttons row so it doesn't fight
+    // for horizontal space.
     const status = document.createElement('span');
     status.className = 'api-key-paste-status';
-    row.appendChild(status);
 
     paste.addEventListener('click', async function() {
         status.textContent = '';
@@ -712,7 +717,10 @@ function attachKeyHelper(cfg) {
         }
     });
 
+    // Layout: label (full width) | input (col 1) actions (col 2) | status (full).
+    // CSS grid on .api-key-group handles the placement; we just append.
     input.parentNode.appendChild(row);
+    input.parentNode.appendChild(status);
 }
 
 apiKeyHelpers.forEach(attachKeyHelper);

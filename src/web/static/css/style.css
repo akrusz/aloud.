@@ -348,21 +348,44 @@ body {
     margin-top: -0.25rem;
 }
 
-.api-key-actions {
-    display: flex;
-    gap: 0.5rem;
+/* Put the input and its "Get a key" / "Paste" actions on the same row.
+   Label sits above (full width); status text sits below (full width). */
+.form-group.api-key-group {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    column-gap: 0.5rem;
+    row-gap: 0.4rem;
     align-items: center;
-    flex-wrap: wrap;
-    margin-top: 0.4rem;
 }
 
-.api-key-actions .btn {
-    text-decoration: none;
+.api-key-group > label,
+.api-key-group > .saved-key-hint,
+.api-key-group > .api-key-paste-status {
+    grid-column: 1 / -1;
+}
+
+.api-key-group > input {
+    /* Input shrinks/grows; buttons stay their natural size. */
+    min-width: 0;
+    margin: 0;
+}
+
+.api-key-actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
 }
 
 .api-key-paste-status {
     font-size: 0.8rem;
     color: var(--text-secondary);
+    /* margin-top: 0 — grid row-gap already spaces it. */
+    margin-top: 0;
+}
+
+.api-key-paste-status:empty {
+    /* Don't reserve a row when there's nothing to show. */
+    display: none;
 }
 
 .api-key-paste-status.is-ok { color: var(--accent); }
