@@ -657,6 +657,11 @@ function attachKeyHelper(cfg) {
     const input = document.getElementById(cfg.input);
     if (!input) return;
 
+    // Mark the form-group so our grid CSS only applies to actual API-key
+    // inputs — not other `.api-key-group` siblings (proxy/ollama groups) that
+    // borrow the class purely for show/hide toggling.
+    input.parentNode.classList.add('has-key-helper');
+
     // Both actions are <button> elements (not <a>) so they render at exactly
     // the same size — anchors and buttons disagree about default padding even
     // when sharing a class.

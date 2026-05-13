@@ -349,8 +349,10 @@ body {
 }
 
 /* Put the input and its "Get a key" / "Paste" actions on the same row.
+   Scoped via .has-key-helper (added in JS) so we don't touch the proxy/
+   ollama groups that share the .api-key-group class for show/hide only.
    Label sits above (full width); status text sits below (full width). */
-.form-group.api-key-group {
+.form-group.has-key-helper {
     display: grid;
     grid-template-columns: minmax(180px, 1fr) auto;
     column-gap: 0.5rem;
@@ -358,13 +360,13 @@ body {
     align-items: center;
 }
 
-.api-key-group > label,
-.api-key-group > .saved-key-hint,
-.api-key-group > .api-key-paste-status {
+.has-key-helper > label,
+.has-key-helper > .saved-key-hint,
+.has-key-helper > .api-key-paste-status {
     grid-column: 1 / -1;
 }
 
-.api-key-group > input {
+.has-key-helper > input {
     /* Input shrinks/grows; buttons stay their natural size. */
     min-width: 0;
     margin: 0;
