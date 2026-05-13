@@ -35,7 +35,7 @@
                 <p><strong>What is an LLM?</strong> &mdash; A large language model is the AI that listens to what you say and generates thoughtful responses to guide your meditation.</p>
                 <p><strong>Anthropic (Subscription)</strong> &mdash; Uses your existing Claude Pro or Max subscription via the locally-installed <code>claude</code> CLI (Claude Code). Quota counts against your subscription, not API credits. Claude Opus is generally the most emotionally intelligent model.</p>
                 <p><strong>Ollama (Local)</strong> &mdash; Free and private. Runs the AI entirely on your computer. We'll recommend the smartest model that your computer can run.</p>
-                <p><strong>Anthropic / OpenAI / OpenRouter / Venice (via API Key)</strong> &mdash; Pay-per-use cloud AI. You sign up with the provider, get an API key, and paste it here. Costs a small amount per session which depends on which model you choose.</p>
+                <p><strong>Anthropic / OpenAI / Groq / OpenRouter / Venice (via API Key)</strong> &mdash; Cloud AI. You sign up with the provider, get an API key, and paste it here. Most are pay-per-use (a small amount per session, depending on the model); Groq has a generous free tier (rate-limited).</p>
             </div>
             <p class="settings-desc">Choose how glooow connects to a language model. Most functions need AI.<br>If you don't have any AI subscriptions, choose Ollama (local) to set up a free AI on your computer.</p>
 
@@ -47,6 +47,7 @@
                         <option value="claude_proxy">Anthropic (Subscription)</option>
                         <option value="anthropic">Anthropic (API Key)</option>
                         <option value="openai">OpenAI (API Key)</option>
+                        <option value="groq">Groq (API Key)</option>
                         <option value="openrouter">OpenRouter (API Key)</option>
                         <option value="venice">Venice.ai (API Key)</option>
                     </select>
@@ -68,6 +69,11 @@
             <div class="form-group api-key-group hidden" id="s-openai-key-group">
                 <label for="s-openai-key">OpenAI API Key</label>
                 <input type="password" id="s-openai-key" placeholder="sk-..." autocomplete="off">
+            </div>
+
+            <div class="form-group api-key-group hidden" id="s-groq-key-group">
+                <label for="s-groq-key">Groq API Key</label>
+                <input type="password" id="s-groq-key" placeholder="gsk_..." autocomplete="off">
             </div>
 
             <div class="form-group api-key-group hidden" id="s-openrouter-key-group">

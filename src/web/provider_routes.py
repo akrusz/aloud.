@@ -179,6 +179,8 @@ def _do_fetch_models(provider: str, config) -> list[dict]:
         return _fetch_openrouter_models()
     elif provider == "venice":
         return _fetch_venice_models()
+    elif provider == "groq":
+        return _fetch_groq_models()
     # ollama is already dynamic in /api/providers
     return []
 
@@ -320,6 +322,40 @@ def _fetch_venice_models() -> list[dict]:
     return models
 
 
+def _groq_label(model_id: str) -> str:
+    """Turn a Groq model ID into a readable label (strips org prefix)."""
+    return model_id.split("/")[-1].replace("-", " ").title()
+
+
+def _fetch_groq_models() -> list[dict]:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return []
+    resp = httpx.get(
+        "https://api.groq.com/openai/v1/models",
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=5,
+    )
+    resp.raise_for_status()
+    raw = resp.json().get("data", [])
+
+    # Groq's catalog includes Whisper STT, PlayAI TTS and Llama Guard models —
+    # keep only chat-capable text models.
+    exclude_terms = ("whisper", "tts", "guard", "embed")
+    models = []
+    for m in raw:
+        mid = m.get("id", "")
+        if not mid or m.get("active") is False:
+            continue
+        if any(t in mid.lower() for t in exclude_terms):
+            continue
+        ctx = m.get("context_window", 0)
+        models.append({"value": mid, "label": _groq_label(mid), "ctx": ctx})
+
+    models.sort(key=lambda x: x["ctx"], reverse=True)
+    return [{"value": m["value"], "label": m["label"]} for m in models]
+
+
 # ---- Route registration ----
 
 def register_provider_routes(app: Flask) -> None:
@@ -423,6 +459,16 @@ def register_provider_routes(app: Flask) -> None:
             "hint": (
                 "Add your API key in <a href='/settings'>Settings</a> "
                 "or set <code>VENICE_API_KEY</code> in your environment."
+            ),
+        }
+
+        results["groq"] = {
+            "available": bool(os.environ.get("GROQ_API_KEY")),
+            "hint": (
+                "Add your API key in <a href='/settings'>Settings</a> "
+                "or set <code>GROQ_API_KEY</code> in your environment. "
+                "Groq has a free tier — get a key at "
+                "<a href='https://console.groq.com/keys' target='_blank'>console.groq.com</a>."
             ),
         }
 

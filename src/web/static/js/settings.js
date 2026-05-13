@@ -370,6 +370,7 @@ const providerKeyGroups = {
     claude_proxy: ['s-proxy-group'],
     anthropic: ['s-anthropic-key-group'],
     openai: ['s-openai-key-group'],
+    groq: ['s-groq-key-group'],
     openrouter: ['s-openrouter-key-group'],
     venice: ['s-venice-key-group'],
     ollama: ['s-ollama-group'],
@@ -632,6 +633,7 @@ function applySettingsProviderAvailability() {
 const providerKeyInfo = {
     anthropic: { env: 'ANTHROPIC_API_KEY', url: 'https://console.anthropic.com/settings/keys', label: 'console.anthropic.com' },
     openai: { env: 'OPENAI_API_KEY', url: 'https://platform.openai.com/api-keys', label: 'platform.openai.com' },
+    groq: { env: 'GROQ_API_KEY', url: 'https://console.groq.com/keys', label: 'console.groq.com' },
     openrouter: { env: 'OPENROUTER_API_KEY', url: 'https://openrouter.ai/keys', label: 'openrouter.ai' },
     venice: { env: 'VENICE_API_KEY', url: 'https://venice.ai/settings/api', label: 'venice.ai' }
 };
@@ -785,6 +787,7 @@ fetch('/api/config')
             const keyFieldMap = {
                 anthropic: 's-anthropic-key',
                 openai: 's-openai-key',
+                groq: 's-groq-key',
                 openrouter: 's-openrouter-key',
                 venice: 's-venice-key',
             };
@@ -959,6 +962,7 @@ form.addEventListener('submit', function(e) {
     const keyFields = {
         anthropic: 's-anthropic-key',
         openai: 's-openai-key',
+        groq: 's-groq-key',
         openrouter: 's-openrouter-key',
         venice: 's-venice-key',
     };

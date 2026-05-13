@@ -231,7 +231,7 @@ function showLLMStep() {
         // API key
         html += '<button class="tour-choice" data-action="show-api-keys">';
         html += '<strong>I have an API key</strong>';
-        html += '<small>Anthropic, OpenAI, OpenRouter, or Venice</small>';
+        html += '<small>Anthropic, OpenAI, Groq, OpenRouter, or Venice</small>';
         html += '</button>';
 
         html += '</div>';
@@ -250,6 +250,7 @@ function showApiKeyChoices() {
     html += '<div class="tour-choice-group">';
     html += '<button class="tour-choice-sm" data-action="provider" data-value="anthropic">Anthropic</button>';
     html += '<button class="tour-choice-sm" data-action="provider" data-value="openai">OpenAI</button>';
+    html += '<button class="tour-choice-sm" data-action="provider" data-value="groq">Groq</button>';
     html += '<button class="tour-choice-sm" data-action="provider" data-value="openrouter">OpenRouter</button>';
     html += '<button class="tour-choice-sm" data-action="provider" data-value="venice">Venice</button>';
     html += '</div>';
@@ -293,6 +294,7 @@ function chooseProvider(value) {
         var keyMap = {
             anthropic: 's-anthropic-key',
             openai: 's-openai-key',
+            groq: 's-groq-key',
             openrouter: 's-openrouter-key',
             venice: 's-venice-key',
         };

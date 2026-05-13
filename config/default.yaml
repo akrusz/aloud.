@@ -28,13 +28,14 @@ tts:
   # similarity_boost: 0.75
 
 llm:
-  provider: ollama  # ollama, claude_proxy, anthropic, openai, openrouter, venice
+  provider: ollama  # ollama, claude_proxy, anthropic, openai, groq, openrouter, venice
   model: sonnet
 
   # API key — uses env var substitution so keys stay out of the file.
   # Set the matching env var for your provider:
   #   anthropic:   ANTHROPIC_API_KEY
   #   openai:      OPENAI_API_KEY
+  #   groq:        GROQ_API_KEY  (has a free tier)
   #   openrouter:  OPENROUTER_API_KEY
   #   venice:      VENICE_API_KEY
   #   claude_proxy: shells out to the local `claude` CLI; no key needed

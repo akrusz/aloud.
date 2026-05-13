@@ -315,6 +315,7 @@ def sync_api_key_to_env(config: Config) -> None:
         "openai": "OPENAI_API_KEY",
         "openrouter": "OPENROUTER_API_KEY",
         "venice": "VENICE_API_KEY",
+        "groq": "GROQ_API_KEY",
     }
     env_var = env_map.get(config.llm.provider)
     if env_var:

@@ -200,6 +200,16 @@ PROVIDERS: dict[str, dict] = {
             "extra_body": {"venice_parameters": {"include_venice_system_prompt": False}},
         },
     },
+    "groq": {
+        "module": ".openai",
+        "class_name": "OpenAIProvider",
+        "default_model": "llama-3.3-70b-versatile",
+        "kwargs_fn": lambda a: {
+            "api_key": a["api_key"],
+            "base_url": "https://api.groq.com/openai/v1",
+            "env_key": "GROQ_API_KEY",
+        },
+    },
     "ollama": {
         "module": None,  # OllamaProvider is defined in this file
         "class_name": "OllamaProvider",
@@ -222,7 +232,7 @@ def create_llm_provider(
     """Factory function to create LLM provider.
 
     Args:
-        provider: Provider name ("claude_proxy", "anthropic", "openai", "ollama", "openrouter", "venice")
+        provider: Provider name ("claude_proxy", "anthropic", "openai", "ollama", "openrouter", "venice", "groq")
         model: Model name (uses provider default if not specified)
         ollama_url: Ollama server URL (for ollama)
         api_key: API key (for anthropic/openai/openrouter)
