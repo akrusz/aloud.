@@ -1,17 +1,20 @@
 /**
- * Top-level app — toggles between Setup and Session views.
+ * Top-level app — routes between Setup, Session, and History.
  *
- * Architecture deliberately minimal: each view is a mount function that
- * takes a root element and a "leave" callback. The router owns the
- * transition, not the views. Lets us add History and Settings later
- * without coupling views to each other.
+ * The session lifecycle owns the only persistent state (a running
+ * SessionManager); the other two views are stateless reads. We
+ * tear down a running session before switching views.
  */
 
 import { mountSetupView } from './views/setup.js';
 import { mountSessionView, type SessionViewHandle } from './views/session.js';
+import { mountHistoryView } from './views/history.js';
 import type { SessionSetup } from './settings.js';
 
+type View = 'setup' | 'session' | 'history';
+
 let currentSession: SessionViewHandle | null = null;
+let currentView: View = 'setup';
 
 function $<T extends HTMLElement>(id: string): T {
     const el = document.getElementById(id);
@@ -20,22 +23,56 @@ function $<T extends HTMLElement>(id: string): T {
 }
 
 export async function bootApp(): Promise<void> {
+    wireNav();
     const root = $('app-root');
-    await showSetup(root);
+    await goSetup(root);
 }
 
-async function showSetup(root: HTMLElement): Promise<void> {
+function wireNav(): void {
+    document.addEventListener('click', (e) => {
+        const target = (e.target as HTMLElement).closest<HTMLElement>('[data-nav]');
+        if (!target) return;
+        const view = target.dataset['nav'] as View | undefined;
+        if (!view) return;
+        e.preventDefault();
+        const root = $('app-root');
+        if (view === 'setup') void goSetup(root);
+        else if (view === 'history') void goHistory(root);
+    });
+}
+
+function setActiveNav(view: View): void {
+    currentView = view;
+    document.querySelectorAll<HTMLElement>('[data-nav]').forEach((el) => {
+        el.classList.toggle('active', el.dataset['nav'] === view);
+    });
+}
+
+async function goSetup(root: HTMLElement): Promise<void> {
     if (currentSession) {
         currentSession.teardown();
         currentSession = null;
     }
+    setActiveNav('setup');
     await mountSetupView(root, (setup) => {
-        void showSession(root, setup);
+        void goSession(root, setup);
     });
 }
 
-async function showSession(root: HTMLElement, setup: SessionSetup): Promise<void> {
+async function goSession(root: HTMLElement, setup: SessionSetup): Promise<void> {
+    setActiveNav('setup'); // session is still under Setup tab conceptually
     currentSession = await mountSessionView(root, setup, () => {
-        void showSetup(root);
+        void goSetup(root);
+    });
+}
+
+async function goHistory(root: HTMLElement): Promise<void> {
+    if (currentSession) {
+        currentSession.teardown();
+        currentSession = null;
+    }
+    setActiveNav('history');
+    await mountHistoryView(root, () => {
+        void goSetup(root);
     });
 }

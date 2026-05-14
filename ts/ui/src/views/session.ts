@@ -22,6 +22,7 @@ import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
 import { BrowserTtsEngine } from '../adapters/browser-tts.js';
 import { createBestStt, detectSttBackend } from '../adapters/stt-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
+import { sessionStore } from '../state.js';
 
 const ANTHROPIC_PROXY_URL = '/api/llm/anthropic/messages';
 const OLLAMA_PROXY_URL = '/ollama';
@@ -212,10 +213,30 @@ export async function mountSessionView(
     function endSession(): void {
         if (torn) return;
         torn = true;
-        session.endSession();
+        const finalState = session.endSession();
         void stt?.stop();
         void tts.cancel();
+
+        // Auto-save anything beyond just the empty seed state. We
+        // deliberately don't save sessions with zero user turns —
+        // those are usually accidental clicks.
+        if (finalState && hasUserContent(finalState.exchanges)) {
+            // Tag with the intention as notes so it shows up in history.
+            if (setup.intention.trim()) {
+                finalState.notes = setup.intention.trim();
+            }
+            void sessionStore.save(finalState).catch((err) => {
+                console.warn('Failed to save session', err);
+            });
+        }
+
         onEnd();
+    }
+
+    function hasUserContent(exchanges: ReadonlyArray<{ role: string }>): boolean {
+        // At least one real user turn — skip saving empty sessions
+        // started and immediately ended by an accidental click.
+        return exchanges.some((e) => e.role === 'user');
     }
 
     return {

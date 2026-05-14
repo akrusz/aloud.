@@ -48,6 +48,13 @@ body {
     flex-direction: column;
     gap: 1.5rem;
 }
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
 header h1 {
     margin: 0;
     font-size: 2.5rem;
@@ -58,6 +65,100 @@ header .tagline {
     margin: 0;
     color: var(--muted);
     font-size: 0.9rem;
+}
+
+.app-nav {
+    display: flex;
+    gap: 0.75rem;
+}
+.app-nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.3rem;
+    transition: color 100ms, background 100ms;
+}
+.app-nav a:hover {
+    color: var(--fg);
+}
+.app-nav a.active {
+    color: var(--fg);
+    background: var(--selected);
+}
+
+/* ---- History view ---- */
+
+.history-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--muted);
+}
+.history-empty .muted {
+    font-size: 0.85rem;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.history-row {
+    background: var(--assistant-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    overflow: hidden;
+}
+.history-row.expanded {
+    border-color: var(--accent);
+}
+.history-row-header {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+.history-row-header:hover {
+    background: var(--selected);
+}
+.history-row-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+.history-date {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.history-notes {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-style: italic;
+}
+.history-meta {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+.history-delete {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 1.4rem;
+    line-height: 1;
+    padding: 0 0.25rem;
+    cursor: pointer;
+}
+.history-delete:hover {
+    color: #c93c3c;
+}
+.history-transcript {
+    border-top: 1px solid var(--border);
+    margin: 0;
+    border-radius: 0;
+    max-height: 50vh;
 }
 
 /* ---- Setup view ---- */
