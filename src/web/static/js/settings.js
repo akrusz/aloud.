@@ -100,19 +100,22 @@ var formDirty = false;
 var trackChanges = false;
 var suppressDirty = false;
 var saveBtn = document.querySelector('button[type="submit"][form="settings-form"]');
-var saveBtnBaseText = saveBtn.textContent;
+// Toggle a dedicated marker element rather than rewriting textContent — that
+// way the .settings-word span survives and the narrow-width CSS rules can
+// reflow "Settings" onto its own line.
+var saveBtnDirtyMark = saveBtn.querySelector('.btn-begin-dirty');
 
 function markDirty(e) {
     if (!trackChanges || suppressDirty || formDirty) return;
     if (e && e.target && e.target.closest('.text-scale-preview')) return;
     formDirty = true;
-    saveBtn.textContent = saveBtnBaseText + ' *';
+    if (saveBtnDirtyMark) saveBtnDirtyMark.hidden = false;
     saveBtn.classList.add('btn-dirty');
 }
 
 function clearDirty() {
     formDirty = false;
-    saveBtn.textContent = saveBtnBaseText;
+    if (saveBtnDirtyMark) saveBtnDirtyMark.hidden = true;
     saveBtn.classList.remove('btn-dirty');
 }
 
@@ -700,8 +703,9 @@ function attachKeyHelper(cfg) {
 
     // Paste button only renders when the browser exposes the Web Clipboard
     // API. pywebview's WKWebView ships it but always rejects the read, so
-    // we drop the button on the first failure and fall back to the manual
-    // ⌘V/Ctrl+V hint that's baked into the placeholder.
+    // on the first failure we mark the button as unavailable (rather than
+    // removing it — buttons silently disappearing is disorienting) and fall
+    // back to the manual ⌘V/Ctrl+V hint baked into the placeholder.
     if (navigator.clipboard && navigator.clipboard.readText) {
         const paste = document.createElement('button');
         paste.type = 'button';
@@ -710,16 +714,27 @@ function attachKeyHelper(cfg) {
         paste.title = 'Paste from clipboard';
         row.appendChild(paste);
 
+        const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+        const shortcut = isMac ? '⌘V' : 'Ctrl+V';
+
+        function markPasteUnavailable() {
+            if (paste.dataset.unavailable) return;
+            paste.dataset.unavailable = '1';
+            paste.disabled = true;
+            paste.textContent = `Paste failed!`;
+            paste.title = "This browser blocked clipboard access. Click the field and press " + shortcut + " to paste.";
+            paste.classList.add('is-unavailable');
+            row.classList.remove('attention');
+            showManualPasteHint(input);
+        }
+
         // Where the Permissions API exposes 'clipboard-read' (Chromium),
-        // remove the button up front if it's denied. Safari/Firefox throw
-        // on that name and we just leave the button visible.
+        // flip the button to unavailable up front if it's denied. Safari/
+        // Firefox throw on that name and we just leave the button active.
         if (navigator.permissions && navigator.permissions.query) {
             navigator.permissions.query({ name: 'clipboard-read' })
                 .then(function(r) {
-                    if (r.state === 'denied') {
-                        paste.remove();
-                        showManualPasteHint(input);
-                    }
+                    if (r.state === 'denied') markPasteUnavailable();
                 })
                 .catch(function() { /* unsupported permission name */ });
         }
@@ -745,8 +760,7 @@ function attachKeyHelper(cfg) {
                     status.classList.add('is-ok');
                 }
             } catch (e) {
-                paste.remove();
-                showManualPasteHint(input);
+                markPasteUnavailable();
                 status.textContent = '';
             }
         });
