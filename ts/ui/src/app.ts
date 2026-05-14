@@ -25,9 +25,9 @@ import {
 } from '../../src/llm/index.js';
 import type { SttEngine, TtsEngine } from '../../src/platform/index.js';
 
-import { WebSpeechSttEngine, isWebSpeechSupported } from './adapters/web-speech-stt.js';
 import { BrowserTtsEngine } from './adapters/browser-tts.js';
 import { LocalStorageKv } from './adapters/localstorage-kv.js';
+import { createBestStt, detectSttBackend } from './adapters/stt-picker.js';
 
 const SETTINGS_KEY = 'preview:settings';
 const kv = new LocalStorageKv();
@@ -116,21 +116,23 @@ export async function bootApp(): Promise<void> {
     session.startSession();
 
     const tts: TtsEngine = new BrowserTtsEngine();
-    const sttSupported = isWebSpeechSupported();
-    const stt: SttEngine | null = sttSupported ? new WebSpeechSttEngine() : null;
+    const stt: SttEngine | null = await createBestStt();
+    const sttBackend = await detectSttBackend();
 
     const micBtn = $<HTMLButtonElement>('mic');
     const textInput = $<HTMLInputElement>('text-input');
     const textForm = $<HTMLFormElement>('text-form');
     const endBtn = $<HTMLButtonElement>('end');
 
-    if (!sttSupported) {
+    if (stt === null) {
         micBtn.disabled = true;
-        micBtn.title = 'Web Speech API not supported in this browser';
+        micBtn.title =
+            'No browser speech recognition available — Firefox/Safari need a Whisper backend (not yet wired into the TS preview). Type to use the app.';
         setStatus('Mic unavailable in this browser — type to begin');
     } else {
         micBtn.disabled = false;
-        setStatus('Press mic or type to begin');
+        const label = sttBackend === 'capacitor' ? 'native STT' : 'Web Speech API';
+        setStatus(`Press mic (${label}) or type to begin`);
     }
 
     let provider: LLMProvider;
