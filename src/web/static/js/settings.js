@@ -681,48 +681,58 @@ function attachKeyHelper(cfg) {
     });
     row.appendChild(open);
 
-    const paste = document.createElement('button');
-    paste.type = 'button';
-    paste.className = 'btn btn-small btn-secondary api-key-paste-btn';
-    paste.textContent = 'Paste';
-    paste.title = 'Paste from clipboard';
-    row.appendChild(paste);
-
     // Status text lives below the input/buttons row so it doesn't fight
     // for horizontal space.
     const status = document.createElement('span');
     status.className = 'api-key-paste-status';
 
-    paste.addEventListener('click', async function() {
-        status.textContent = '';
-        status.classList.remove('is-warn', 'is-ok');
-        if (!navigator.clipboard || !navigator.clipboard.readText) {
-            status.textContent = 'Browser blocks clipboard read — paste manually (⌘/Ctrl+V).';
-            status.classList.add('is-warn');
-            return;
+    // Only add the Paste button if the browser actually exposes the API.
+    // (Firefox, older Safari, and some embedded webviews don't.) If the
+    // permission is explicitly denied or a real read fails at click time,
+    // we drop the button — it's not coming back without a page reload.
+    if (navigator.clipboard && navigator.clipboard.readText) {
+        const paste = document.createElement('button');
+        paste.type = 'button';
+        paste.className = 'btn btn-small btn-secondary api-key-paste-btn';
+        paste.textContent = 'Paste';
+        paste.title = 'Paste from clipboard';
+        row.appendChild(paste);
+
+        // Where supported (Chromium), pre-check the permission. Safari/
+        // Firefox throw on this name and we just leave the button visible.
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'clipboard-read' })
+                .then(function(r) { if (r.state === 'denied') paste.remove(); })
+                .catch(function() { /* unsupported permission name */ });
         }
-        try {
-            const text = (await navigator.clipboard.readText()).trim();
-            if (!text) {
-                status.textContent = 'Clipboard is empty.';
+
+        paste.addEventListener('click', async function() {
+            status.textContent = '';
+            status.classList.remove('is-warn', 'is-ok');
+            try {
+                const text = (await navigator.clipboard.readText()).trim();
+                if (!text) {
+                    status.textContent = 'Clipboard is empty.';
+                    status.classList.add('is-warn');
+                    return;
+                }
+                input.value = text;
+                input.dispatchEvent(new Event('input'));
+                row.classList.remove('attention');
+                if (cfg.prefix && !text.startsWith(cfg.prefix)) {
+                    status.textContent = `Pasted — but didn't start with "${cfg.prefix}". Double-check.`;
+                    status.classList.add('is-warn');
+                } else {
+                    status.textContent = 'Pasted ✓';
+                    status.classList.add('is-ok');
+                }
+            } catch (e) {
+                paste.remove();
+                status.textContent = 'Clipboard access blocked — paste with ⌘/Ctrl+V.';
                 status.classList.add('is-warn');
-                return;
             }
-            input.value = text;
-            input.dispatchEvent(new Event('input'));
-            row.classList.remove('attention');
-            if (cfg.prefix && !text.startsWith(cfg.prefix)) {
-                status.textContent = `Pasted — but didn't start with "${cfg.prefix}". Double-check.`;
-                status.classList.add('is-warn');
-            } else {
-                status.textContent = 'Pasted ✓';
-                status.classList.add('is-ok');
-            }
-        } catch (e) {
-            status.textContent = "Couldn't read clipboard — paste manually (⌘/Ctrl+V).";
-            status.classList.add('is-warn');
-        }
-    });
+        });
+    }
 
     // Layout: label (full width) | input (col 1) actions (col 2) | status (full).
     // CSS grid on .api-key-group handles the placement; we just append.
