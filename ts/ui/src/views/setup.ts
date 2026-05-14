@@ -17,6 +17,8 @@ import {
     saveSetup,
 } from '../settings.js';
 import { PRESETS, findPreset } from '../presets.js';
+import { allVoices, groupVoices, type VoiceEntry } from '../voices.js';
+import { createTtsForVoice } from '../adapters/tts-picker.js';
 
 const FOCUSES: ReadonlyArray<{ value: Focus; name: string; description: string }> = [
     {
@@ -89,9 +91,47 @@ export async function mountSetupView(
     onBegin: (setup: SessionSetup) => void
 ): Promise<SetupViewHandle> {
     const setup = await loadSetup();
+    let voiceCatalog: VoiceEntry[] = [];
 
     function persist(): void {
         void saveSetup(setup);
+    }
+
+    async function loadVoiceCatalog(): Promise<void> {
+        // speechSynthesis voice list often loads async on first call;
+        // give it a tick before snapshotting.
+        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.getVoices().length === 0) {
+            await new Promise<void>((resolve) => {
+                const done = () => {
+                    speechSynthesis.removeEventListener('voiceschanged', done);
+                    resolve();
+                };
+                speechSynthesis.addEventListener('voiceschanged', done);
+                setTimeout(done, 600);
+            });
+        }
+        voiceCatalog = await allVoices();
+        populateVoiceSelect();
+    }
+
+    function populateVoiceSelect(): void {
+        const sel = root.querySelector<HTMLSelectElement>('#voice');
+        if (!sel) return;
+        const groups = groupVoices(voiceCatalog);
+        sel.innerHTML =
+            '<option value="">Browser default</option>' +
+            Array.from(groups.entries())
+                .map(
+                    ([label, voices]) =>
+                        `<optgroup label="${escapeAttr(label)}">${voices
+                            .map(
+                                (v) =>
+                                    `<option value="${escapeAttr(v.id)}">${escapeAttr(v.name)}</option>`
+                            )
+                            .join('')}</optgroup>`
+                )
+                .join('');
+        sel.value = setup.voice ?? '';
     }
 
     function render(): void {
@@ -191,9 +231,50 @@ export async function mountSetupView(
             persist();
         });
 
+        // Voice
+        const voiceSel = root.querySelector<HTMLSelectElement>('#voice')!;
+        voiceSel.value = setup.voice ?? '';
+        voiceSel.addEventListener('change', () => {
+            setup.voice = voiceSel.value || null;
+            persist();
+        });
+        const previewBtn = root.querySelector<HTMLButtonElement>('#voice-preview')!;
+        previewBtn.addEventListener('click', () => {
+            void previewVoice();
+        });
+
+        // Rate slider
+        const rateSlider = root.querySelector<HTMLInputElement>('#tts-rate')!;
+        const rateLabel = root.querySelector<HTMLElement>('#tts-rate-label')!;
+        rateSlider.value = String(setup.ttsRate);
+        rateLabel.textContent = `${setup.ttsRate} wpm`;
+        rateSlider.addEventListener('input', () => {
+            setup.ttsRate = Number(rateSlider.value);
+            rateLabel.textContent = `${setup.ttsRate} wpm`;
+            persist();
+        });
+
         // Begin session
         const beginBtn = root.querySelector<HTMLButtonElement>('#begin-btn')!;
         beginBtn.addEventListener('click', () => onBegin(setup));
+    }
+
+    async function previewVoice(): Promise<void> {
+        const previewBtn = root.querySelector<HTMLButtonElement>('#voice-preview');
+        const statusEl = root.querySelector<HTMLElement>('#voice-status');
+        if (!previewBtn) return;
+        previewBtn.disabled = true;
+        if (statusEl) statusEl.textContent = '';
+        try {
+            const { engine } = await createTtsForVoice(setup.voice);
+            await engine.speak("Hello — this is what I'll sound like in your session.", {
+                rate: setup.ttsRate,
+            });
+        } catch (err) {
+            if (statusEl) statusEl.textContent = `Preview failed: ${(err as Error).message}`;
+        } finally {
+            previewBtn.disabled = false;
+        }
     }
 
     function updatePresetHighlights(): void {
@@ -203,19 +284,26 @@ export async function mountSetupView(
     }
 
     render();
+    // Load voices asynchronously so the rest of the form is interactive
+    // immediately; server-side voices fetch in the background and the
+    // dropdown populates when ready.
+    void loadVoiceCatalog();
 
     return {
-        async show() { render(); },
+        async show() { render(); await loadVoiceCatalog(); },
         hide() { root.innerHTML = ''; },
         getSetup() { return setup; },
     };
 }
 
+function escapeAttr(s: string): string {
+    return s.replace(/[&<>"']/g, (c) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c)
+    );
+}
+
 function renderSetupHTML(): string {
-    const escapeHtml = (s: string): string =>
-        s.replace(/[&<>"']/g, (c) =>
-            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c)
-        );
+    const escapeHtml = escapeAttr;
 
     const presetCards = PRESETS.map(
         (p) => `
@@ -288,6 +376,22 @@ function renderSetupHTML(): string {
                 <label for="verbosity">Response Length</label>
                 <select id="verbosity">${verbosityOptions}</select>
             </div>
+        </div>
+
+        <div class="form-group">
+            <label for="voice">Voice</label>
+            <div class="voice-row">
+                <select id="voice" class="voice-select">
+                    <option value="">Browser default</option>
+                </select>
+                <button type="button" id="voice-preview" class="voice-preview">▶ Preview</button>
+            </div>
+            <div id="voice-status" class="voice-status"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="tts-rate">Speed <span id="tts-rate-label" class="optional">160 wpm</span></label>
+            <input type="range" id="tts-rate" min="80" max="280" step="10" value="160">
         </div>
 
         <details class="advanced-settings">

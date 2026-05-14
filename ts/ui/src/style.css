@@ -282,6 +282,26 @@ input[type='range'] {
     font-size: 0.8rem;
 }
 
+.voice-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.voice-select {
+    flex: 1;
+}
+.voice-preview {
+    flex-shrink: 0;
+    background: transparent;
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.voice-status {
+    color: var(--muted);
+    font-size: 0.85rem;
+    min-height: 1.2em;
+}
+
 .advanced-settings {
     background: var(--assistant-bg);
     border: 1px solid var(--border);

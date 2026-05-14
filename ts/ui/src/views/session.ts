@@ -20,12 +20,12 @@ import {
 } from '../../../src/llm/index.js';
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
 
-import { BrowserTtsEngine } from '../adapters/browser-tts.js';
 import {
     createBestStt,
     detectSttBackend,
     invalidateSttBackendCache,
 } from '../adapters/stt-picker.js';
+import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
 import { sessionStore } from '../state.js';
 
@@ -70,7 +70,7 @@ export async function mountSessionView(
     session.startSession();
 
     const provider = buildProvider(setup);
-    const tts: TtsEngine = new BrowserTtsEngine();
+    const { engine: tts } = await createTtsForVoice(setup.voice);
     // Re-probe each time the user starts a session: Flask may have come up
     // (or gone down) since the last detection.
     invalidateSttBackendCache();
@@ -147,7 +147,7 @@ export async function mountSessionView(
 
             setStatus('Speaking…');
             try {
-                await tts.speak(cleanText);
+                await tts.speak(cleanText, { rate: setup.ttsRate });
             } catch {
                 /* non-fatal */
             }

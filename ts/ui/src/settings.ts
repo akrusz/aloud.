@@ -27,6 +27,13 @@ export interface SessionSetup {
     customInstructions: string;
     provider: Provider;
     model: string;
+    /**
+     * Voice ID from voices.ts. null = use the browser's default voice.
+     * Format: 'browser:<voiceURI>' or 'server:<engine-voice-name>'.
+     */
+    voice: string | null;
+    /** TTS rate in words-per-minute. Browser TTS normalizes; server TTS passes through. */
+    ttsRate: number;
 }
 
 export const DIRECTIVENESS_VALUES: readonly number[] = [0, 3, 5, 7, 10];
@@ -46,6 +53,8 @@ export const defaultSetup: SessionSetup = {
     customInstructions: '',
     provider: 'ollama',
     model: '',
+    voice: null,
+    ttsRate: 160,
 };
 
 const SETTINGS_KEY = 'preview:setup';
