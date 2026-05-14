@@ -12,6 +12,7 @@ from ..config import has_user_config
 from ..updater import check_for_updates, apply_update, download_release, UpdateStatus, _load_cache
 
 from .config_routes import register_config_routes
+from .llm_proxy import register_llm_proxy_routes
 from .provider_routes import register_provider_routes
 from .tool_routes import register_tool_routes
 
@@ -28,6 +29,7 @@ def register_routes(app: Flask) -> None:
     register_config_routes(app)
     register_provider_routes(app)
     register_tool_routes(app)
+    register_llm_proxy_routes(app)
 
     # ---- Page routes ----
 

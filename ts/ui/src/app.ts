@@ -35,7 +35,6 @@ const kv = new LocalStorageKv();
 interface Settings {
     provider: 'ollama' | 'anthropic';
     model: string;
-    apiKey: string;
     directiveness: number;
     focuses: Focus[];
 }
@@ -43,10 +42,14 @@ interface Settings {
 const defaultSettings: Settings = {
     provider: 'ollama',
     model: '',
-    apiKey: '',
     directiveness: 3,
     focuses: ['open_awareness'],
 };
+
+// Browser endpoints — both routed through Vite's dev proxy (or Flask in
+// production), so the browser sees same-origin requests.
+const ANTHROPIC_PROXY_URL = '/api/llm/anthropic/messages';
+const OLLAMA_PROXY_URL = '/ollama';
 
 async function loadSettings(): Promise<Settings> {
     const raw = await kv.get(SETTINGS_KEY);
@@ -84,15 +87,16 @@ function appendMessage(role: 'user' | 'assistant', text: string, partial = false
 
 function buildProvider(settings: Settings): LLMProvider {
     if (settings.provider === 'anthropic') {
-        if (!settings.apiKey) {
-            throw new Error('Anthropic provider needs an API key (set in Settings).');
-        }
+        // No apiKey here — the Flask proxy at ANTHROPIC_PROXY_URL injects it
+        // from the server-side ANTHROPIC_API_KEY env var, so it never lives
+        // in the browser.
         return new AnthropicProvider({
-            apiKey: settings.apiKey,
+            baseUrl: ANTHROPIC_PROXY_URL,
             ...(settings.model && { model: settings.model }),
         });
     }
     return new OllamaProvider({
+        baseUrl: OLLAMA_PROXY_URL,
         ...(settings.model && { model: settings.model }),
     });
 }
@@ -246,7 +250,6 @@ export async function bootApp(): Promise<void> {
 function hydrateSettingsUI(settings: Settings): void {
     ($('provider') as HTMLSelectElement).value = settings.provider;
     ($('model') as HTMLInputElement).value = settings.model;
-    ($('api-key') as HTMLInputElement).value = settings.apiKey;
     const dir = $('directiveness') as HTMLInputElement;
     dir.value = String(settings.directiveness);
     $('directiveness-value').textContent = String(settings.directiveness);
@@ -266,10 +269,6 @@ function wireSettingsUI(settings: Settings): void {
     });
     ($('model') as HTMLInputElement).addEventListener('change', (e) => {
         settings.model = (e.target as HTMLInputElement).value.trim();
-        persist();
-    });
-    ($('api-key') as HTMLInputElement).addEventListener('change', (e) => {
-        settings.apiKey = (e.target as HTMLInputElement).value.trim();
         persist();
     });
     ($('directiveness') as HTMLInputElement).addEventListener('input', (e) => {

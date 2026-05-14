@@ -45,10 +45,12 @@
                     Model
                     <input id="model" type="text" placeholder="qwen3.5:4b" />
                 </label>
-                <label>
-                    Anthropic API key
-                    <input id="api-key" type="password" placeholder="sk-…" />
-                </label>
+                <p class="settings-note">
+                    Anthropic API key is read server-side from
+                    <code>ANTHROPIC_API_KEY</code> — the browser talks to a
+                    proxy at <code>/api/llm/anthropic/messages</code>, no
+                    key in the page.
+                </p>
                 <label>
                     Directiveness
                     <input id="directiveness" type="range" min="0" max="10" value="3" />

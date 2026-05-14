@@ -14,10 +14,20 @@ const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TOKENS = 300;
 
 export interface AnthropicProviderOptions {
-    apiKey: string;
+    /**
+     * Anthropic API key. Required for direct calls to api.anthropic.com.
+     * Omit when pointing `baseUrl` at a proxy that supplies the key
+     * server-side — the proxy will reject browser requests carrying a
+     * fake key anyway, so it's cleaner to send no `x-api-key` header.
+     */
+    apiKey?: string;
     model?: string;
     maxTokens?: number;
-    /** Override the API URL for testing. */
+    /**
+     * Endpoint URL. Defaults to Anthropic's hosted API. Override with a
+     * proxy URL (e.g. "/api/llm/anthropic/messages") when running in
+     * the browser, since Anthropic blocks browser-origin CORS.
+     */
     baseUrl?: string;
     /** Override fetch for testing. */
     fetchImpl?: typeof fetch;
@@ -32,14 +42,16 @@ interface AnthropicMessagesResponse {
 export class AnthropicProvider implements LLMProvider {
     readonly model: string;
     readonly maxTokens: number;
-    private readonly apiKey: string;
+    private readonly apiKey: string | undefined;
     private readonly baseUrl: string;
     private readonly fetchImpl: typeof fetch;
 
-    constructor(options: AnthropicProviderOptions) {
-        if (!options.apiKey) {
+    constructor(options: AnthropicProviderOptions = {}) {
+        const usingProxy = options.baseUrl !== undefined && options.baseUrl !== ANTHROPIC_API_URL;
+        if (!options.apiKey && !usingProxy) {
             throw new Error(
-                'Anthropic API key required. Pass apiKey or set it from your env loader.'
+                'Anthropic API key required when calling api.anthropic.com directly. ' +
+                    'Pass apiKey, or set baseUrl to a proxy that injects the key server-side.'
             );
         }
         this.apiKey = options.apiKey;
@@ -71,13 +83,15 @@ export class AnthropicProvider implements LLMProvider {
         };
         if (systemParam) body['system'] = systemParam;
 
+        const headers: Record<string, string> = {
+            'content-type': 'application/json',
+            'anthropic-version': ANTHROPIC_API_VERSION,
+        };
+        if (this.apiKey) headers['x-api-key'] = this.apiKey;
+
         const response = await this.fetchImpl(this.baseUrl, {
             method: 'POST',
-            headers: {
-                'content-type': 'application/json',
-                'x-api-key': this.apiKey,
-                'anthropic-version': ANTHROPIC_API_VERSION,
-            },
+            headers,
             body: JSON.stringify(body),
         });
 

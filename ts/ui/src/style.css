@@ -168,6 +168,19 @@ button#end {
     flex-wrap: wrap;
 }
 
+.settings .settings-note {
+    margin: 0.5rem 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.settings code {
+    background: var(--user-bg);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
+    font-size: 0.8em;
+}
+
 .settings input[type='text'],
 .settings input[type='password'],
 .settings select {

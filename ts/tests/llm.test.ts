@@ -12,8 +12,24 @@ function mockJsonResponse(data: unknown, init: { ok?: boolean; status?: number }
 }
 
 describe('AnthropicProvider', () => {
-    it('throws if no API key provided', () => {
+    it('throws if no API key provided and no proxy URL', () => {
         expect(() => new AnthropicProvider({ apiKey: '' })).toThrow(/API key/);
+    });
+
+    it('accepts an empty apiKey when baseUrl points at a proxy', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({ content: [{ type: 'text', text: 'ok' }] })
+        );
+        const provider = new AnthropicProvider({
+            baseUrl: '/api/llm/anthropic/messages',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const [, init] = fetchImpl.mock.calls[0]!;
+        const headers = (init as RequestInit).headers as Record<string, string>;
+        // No x-api-key header — proxy injects it server-side
+        expect(headers['x-api-key']).toBeUndefined();
+        expect(headers['anthropic-version']).toBe('2023-06-01');
     });
 
     it('sends the system prompt with ephemeral cache_control and strips system from messages', async () => {
