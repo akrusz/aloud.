@@ -375,13 +375,22 @@ body {
 .api-key-actions {
     display: flex;
     gap: 0.4rem;
-    align-items: center;
+    align-items: stretch;
+}
+
+/* Force the <a> "Get a key" and <button> "Paste" to the same height.
+   <a> inherits body's line-height (1.6) while <button> defaults to "normal"
+   (~1.2), so without this they end up different heights despite identical
+   .btn padding. line-height: 1 + matching height keeps both pixel-identical. */
+.api-key-actions .btn {
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .api-key-paste-status {
-    font-size: 0.8rem;
+    /* Match body text — feedback should be at least main-text size. */
+    font-size: 1rem;
     color: var(--text-secondary);
-    /* margin-top: 0 — grid row-gap already spaces it. */
     margin-top: 0;
 }
 

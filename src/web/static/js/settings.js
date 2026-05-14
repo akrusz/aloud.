@@ -662,20 +662,22 @@ function attachKeyHelper(cfg) {
     // borrow the class purely for show/hide toggling.
     input.parentNode.classList.add('has-key-helper');
 
-    // Both actions are <button> elements (not <a>) so they render at exactly
-    // the same size — anchors and buttons disagree about default padding even
-    // when sharing a class.
+    // "Get a key" is an <a target="_blank"> rather than a button calling
+    // window.open() — pywebview intercepts anchor clicks and routes them to
+    // the system browser, but doesn't handle window.open. CSS in
+    // .api-key-actions normalises the visual size against the <button>.
     const row = document.createElement('div');
     row.className = 'api-key-actions';
 
-    const open = document.createElement('button');
-    open.type = 'button';
+    const open = document.createElement('a');
+    open.href = cfg.url;
+    open.target = '_blank';
+    open.rel = 'noopener noreferrer';
     open.className = 'btn btn-small btn-secondary api-key-open-btn';
     open.textContent = 'Get a key ↗';
     open.title = cfg.url;
     open.addEventListener('click', function() {
         lastOpenedKeyInput = cfg.input;
-        window.open(cfg.url, '_blank', 'noopener,noreferrer');
     });
     row.appendChild(open);
 
