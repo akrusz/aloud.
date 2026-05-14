@@ -9,7 +9,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./facilitation": "./src/facilitation/index.ts",
-        "./llm": "./src/llm/index.ts"
+        "./llm": "./src/llm/index.ts",
+        "./platform": "./src/platform/index.ts"
     },
     "scripts": {
         "build": "tsc -p tsconfig.json",
