@@ -28,6 +28,14 @@ export function decodeAndPlay(audioBytes, onEnded, onError) {
 
     setAudioPlaying(true);
 
+    // iOS Safari suspends the AudioContext when the page is backgrounded
+    // (and sometimes after a barge-in cancel even while foregrounded).
+    // Resume defensively here so TTS doesn't fail silently after the user
+    // switches tabs and returns. resume() on a running context is a no-op.
+    if (state.audioContext.state === 'suspended') {
+        state.audioContext.resume().catch(function () { /* ignore */ });
+    }
+
     state.audioContext.decodeAudioData(buffer.slice(0), function (decoded) {
         state.serverAudioSource = state.audioContext.createBufferSource();
         state.serverAudioSource.buffer = decoded;

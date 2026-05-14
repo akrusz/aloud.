@@ -14,6 +14,7 @@ import {
 } from './ui.js';
 import { initNoting, startCircle, stopCircle, handleUserNote, notingState, isNonSpeechOnly } from './noting.js';
 import { acquireWakeLock } from './wakelock.js';
+import { initMobileQuirks } from './mobile-quirks.js';
 
 // ---- Messaging ----
 
@@ -540,6 +541,7 @@ function init() {
     initSessionControls(params);
     initKasinaMode();
     initEmbers();
+    initMobileQuirks();
 
     // Pass saved voice so the server knows the voice from the first message.
     // Prefer the voice already in sessionParams (set on the index page) over
