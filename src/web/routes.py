@@ -95,6 +95,53 @@ def register_routes(app: Flask) -> None:
             webbrowser.open(url)
         return jsonify({"ok": True})
 
+    @app.route("/api/clipboard/read")
+    def api_clipboard_read():
+        """Read the system clipboard. Used by the Settings 'Paste' helper
+        when running in pywebview (WKWebView blocks navigator.clipboard).
+
+        Localhost-only: a LAN client (e.g. a phone connecting to the host's
+        HTTPS server) wants to paste from *its own* clipboard via
+        navigator.clipboard, not the host's — so we 403 those.
+        """
+        import shutil
+        import subprocess
+        import sys
+
+        remote = request.remote_addr or ""
+        if remote not in ("127.0.0.1", "::1"):
+            return jsonify({"error": "forbidden"}), 403
+
+        try:
+            if sys.platform == "darwin":
+                text = subprocess.check_output(["pbpaste"], text=True, timeout=2)
+            elif sys.platform == "win32":
+                text = subprocess.check_output(
+                    ["powershell", "-NoProfile", "-Command", "Get-Clipboard"],
+                    text=True, timeout=2,
+                ).rstrip("\r\n")
+            else:
+                # Linux: try Wayland first, then X11 tools. We don't bundle
+                # any of these, so if none are installed the user just has
+                # to paste manually.
+                cmd = None
+                for candidate in (
+                    ["wl-paste", "--no-newline"],
+                    ["xclip", "-selection", "clipboard", "-o"],
+                    ["xsel", "--clipboard", "--output"],
+                ):
+                    if shutil.which(candidate[0]):
+                        cmd = candidate
+                        break
+                if cmd is None:
+                    return jsonify({"error": "no clipboard tool installed"}), 501
+                text = subprocess.check_output(cmd, text=True, timeout=2)
+        except subprocess.CalledProcessError as e:
+            return jsonify({"error": f"clipboard read failed (exit {e.returncode})"}), 500
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        return jsonify({"text": text})
+
     # ---- Session history ----
 
     @app.route("/api/sessions")

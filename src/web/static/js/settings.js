@@ -686,11 +686,32 @@ function attachKeyHelper(cfg) {
     const status = document.createElement('span');
     status.className = 'api-key-paste-status';
 
-    // Only add the Paste button if the browser actually exposes the API.
-    // (Firefox, older Safari, and some embedded webviews don't.) If the
-    // permission is explicitly denied or a real read fails at click time,
-    // we drop the button — it's not coming back without a page reload.
-    if (navigator.clipboard && navigator.clipboard.readText) {
+    // When the page is served from localhost, the host's clipboard IS the
+    // user's clipboard — and the server endpoint works in pywebview's
+    // WKWebView where navigator.clipboard is blocked. On LAN (phone → host
+    // HTTPS) the user wants their phone's clipboard, so we use the browser
+    // API there instead.
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    const hasWebClipboard = !!(navigator.clipboard && navigator.clipboard.readText);
+
+    async function readClipboard() {
+        if (isLocal) {
+            const r = await fetch('/api/clipboard/read');
+            if (r.ok) {
+                const data = await r.json();
+                return (data.text || '').trim();
+            }
+            // Server endpoint failed (no clipboard tool on Linux, etc.) —
+            // fall through to the web API if it's there.
+        }
+        if (hasWebClipboard) {
+            return (await navigator.clipboard.readText()).trim();
+        }
+        throw new Error('clipboard-unavailable');
+    }
+
+    if (isLocal || hasWebClipboard) {
         const paste = document.createElement('button');
         paste.type = 'button';
         paste.className = 'btn btn-small btn-secondary api-key-paste-btn';
@@ -698,9 +719,10 @@ function attachKeyHelper(cfg) {
         paste.title = 'Paste from clipboard';
         row.appendChild(paste);
 
-        // Where supported (Chromium), pre-check the permission. Safari/
-        // Firefox throw on this name and we just leave the button visible.
-        if (navigator.permissions && navigator.permissions.query) {
+        // For LAN clients (no server fallback), pre-check the Permissions
+        // API where Chromium exposes 'clipboard-read'. Safari/Firefox throw
+        // on this name and we leave the button visible.
+        if (!isLocal && navigator.permissions && navigator.permissions.query) {
             navigator.permissions.query({ name: 'clipboard-read' })
                 .then(function(r) { if (r.state === 'denied') paste.remove(); })
                 .catch(function() { /* unsupported permission name */ });
@@ -710,7 +732,7 @@ function attachKeyHelper(cfg) {
             status.textContent = '';
             status.classList.remove('is-warn', 'is-ok');
             try {
-                const text = (await navigator.clipboard.readText()).trim();
+                const text = await readClipboard();
                 if (!text) {
                     status.textContent = 'Clipboard is empty.';
                     status.classList.add('is-warn');
