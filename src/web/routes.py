@@ -42,6 +42,20 @@ def register_routes(app: Flask) -> None:
     def session_page():
         return render_template("session.html")
 
+    @app.route("/sw.js")
+    def service_worker():
+        # Served from the origin root so the service worker's scope is '/'
+        # — required to control all pages, not just /static/.
+        body = render_template("sw.js")
+        response = Response(body, mimetype="application/javascript")
+        # SW spec requires the registration response not be served from
+        # HTTP cache so users pick up changes promptly. We also set
+        # Service-Worker-Allowed in case a future move puts the file
+        # under a sub-path.
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Service-Worker-Allowed"] = "/"
+        return response
+
     @app.route("/history")
     def history_page():
         return render_template("history.html")

@@ -411,6 +411,29 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
     });
 })();
 
+// ---- Service worker registration (PWA offline shell) ----
+// Skipped in pywebview so the in-app updater (which depends on fresh HTML
+// from a Flask reload) is never sitting behind a SW cache. pywebview
+// injects window.pywebview asynchronously, so we wait briefly for it
+// before deciding.
+(function() {
+    if (!('serviceWorker' in navigator)) return;
+
+    function register() {
+        if (window.pywebview) return;
+        navigator.serviceWorker.register('/sw.js').catch(function() {
+            // Registration failure is non-fatal; the app still works
+            // online without offline shell caching.
+        });
+    }
+
+    if (document.readyState === 'complete') {
+        setTimeout(register, 500);
+    } else {
+        window.addEventListener('load', function() { setTimeout(register, 500); });
+    }
+})();
+
 // ---- Client-side navigation ----
 // Swap <main> + page scripts without tearing down the nav.
 (function() {
