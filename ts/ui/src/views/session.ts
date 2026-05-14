@@ -90,11 +90,16 @@ export async function mountSessionView(
     if (stt === null) {
         micBtn.disabled = true;
         micBtn.title =
-            'No browser speech recognition available — Firefox/Safari need a Whisper backend (not yet wired into the TS preview). Type to use the app.';
+            'No mic backend available — start Flask (uv run python -m src.web) for server Whisper, or use Chrome/Edge for Web Speech.';
         setStatus('Mic unavailable — type to begin');
     } else {
         micBtn.disabled = false;
-        const label = sttBackend === 'capacitor' ? 'native STT' : 'Web Speech';
+        const label =
+            sttBackend === 'capacitor'
+                ? 'native STT'
+                : sttBackend === 'web-speech'
+                  ? 'Web Speech'
+                  : 'server Whisper';
         setStatus(`Ready (${label}). Press mic or type to begin`);
     }
 

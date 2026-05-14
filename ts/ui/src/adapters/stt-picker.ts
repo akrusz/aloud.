@@ -4,20 +4,44 @@
  *
  *   1. Capacitor native plugin   — best on iOS/Android (no network)
  *   2. Web Speech API            — fine on Chrome / Edge / Android Chrome
- *   3. null                      — fall back to text input; caller decides
+ *   3. Server Whisper            — universal fallback when Flask is up
+ *   4. null                      — text-only mode
  *
- * Detection is async because Capacitor's `isAvailable()` is async, but
- * the result is cached so the picker is cheap to call repeatedly.
+ * Server Whisper is preferred over `null` because it works on Firefox,
+ * Safari, and anywhere else the Web Speech API doesn't cover. It does
+ * require the Flask backend to be reachable — that's the user's
+ * desktop runtime, so it's reliable in development.
+ *
+ * Detection is async (Capacitor + server probe) and the result is
+ * cached so the picker stays cheap.
  */
 
 import type { SttEngine } from '../../../src/platform/stt.js';
 
 import { CapacitorSttEngine } from './capacitor-stt.js';
+import { ServerWhisperSttEngine } from './server-whisper-stt.js';
 import { WebSpeechSttEngine, isWebSpeechSupported } from './web-speech-stt.js';
 
-export type SttBackend = 'capacitor' | 'web-speech' | 'none';
+export type SttBackend = 'capacitor' | 'web-speech' | 'server-whisper' | 'none';
 
+const SERVER_WHISPER_PROBE_URL = '/api/stt/whisper';
 let cachedBackend: SttBackend | null = null;
+
+async function isServerWhisperReachable(): Promise<boolean> {
+    if (!ServerWhisperSttEngine.isAvailable()) return false;
+    try {
+        // OPTIONS or HEAD aren't routed by Flask for this endpoint; a tiny
+        // POST with no body gets us a 400 (route exists) or 503 (model
+        // loading) — both prove the endpoint is wired up.
+        const response = await fetch(SERVER_WHISPER_PROBE_URL, {
+            method: 'POST',
+            headers: { 'content-type': 'application/octet-stream' },
+        });
+        return response.status !== 404;
+    } catch {
+        return false;
+    }
+}
 
 /** Detect which STT path the current environment supports. */
 export async function detectSttBackend(): Promise<SttBackend> {
@@ -45,6 +69,11 @@ export async function detectSttBackend(): Promise<SttBackend> {
         return cachedBackend;
     }
 
+    if (await isServerWhisperReachable()) {
+        cachedBackend = 'server-whisper';
+        return cachedBackend;
+    }
+
     cachedBackend = 'none';
     return cachedBackend;
 }
@@ -60,6 +89,8 @@ export async function createBestStt(): Promise<SttEngine | null> {
             return new CapacitorSttEngine();
         case 'web-speech':
             return new WebSpeechSttEngine();
+        case 'server-whisper':
+            return new ServerWhisperSttEngine();
         case 'none':
             return null;
     }
