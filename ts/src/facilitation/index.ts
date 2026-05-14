@@ -7,11 +7,34 @@ export {
     type PacingControllerOptions,
 } from './pacing.js';
 
+// `Role` is also exported from ./llm — kept off the facilitation barrel
+// so `export * from` at the root doesn't collide. Import via `./llm` for
+// LLM message shapes; the session module narrows it internally.
 export {
     SessionManager,
     type Exchange,
     type SessionState,
     type ContextStrategy,
-    type Role,
     type SessionManagerOptions,
 } from './session.js';
+
+export {
+    PromptBuilder,
+    defaultPromptConfig,
+    parseHoldSignal,
+    realRandom,
+    BASE_SYSTEM_PROMPT,
+    FOCUS_PROMPTS,
+    QUALITY_PROMPTS,
+    DIRECTIVENESS_ADDITIONS,
+    VERBOSITY_ADDITIONS,
+    CHECK_IN_PROMPTS,
+    RESUME_INTENT_SYSTEM_PROMPT,
+    type PromptConfig,
+    type PromptBuilderOptions,
+    type Focus,
+    type Quality,
+    type Verbosity,
+    type HoldSignal,
+    type Random,
+} from './prompts.js';
