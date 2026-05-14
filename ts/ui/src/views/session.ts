@@ -11,6 +11,7 @@ import {
     PromptBuilder,
     SessionManager,
     parseHoldSignal,
+    generateSessionSummary,
 } from '../../../src/facilitation/index.js';
 import {
     AnthropicProvider,
@@ -20,7 +21,11 @@ import {
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
 
 import { BrowserTtsEngine } from '../adapters/browser-tts.js';
-import { createBestStt, detectSttBackend } from '../adapters/stt-picker.js';
+import {
+    createBestStt,
+    detectSttBackend,
+    invalidateSttBackendCache,
+} from '../adapters/stt-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
 import { sessionStore } from '../state.js';
 
@@ -66,6 +71,9 @@ export async function mountSessionView(
 
     const provider = buildProvider(setup);
     const tts: TtsEngine = new BrowserTtsEngine();
+    // Re-probe each time the user starts a session: Flask may have come up
+    // (or gone down) since the last detection.
+    invalidateSttBackendCache();
     const stt: SttEngine | null = await createBestStt();
     const sttBackend = await detectSttBackend();
 
@@ -90,9 +98,12 @@ export async function mountSessionView(
 
     if (stt === null) {
         micBtn.disabled = true;
-        micBtn.title =
-            'No mic backend available — start Flask (uv run python -m src.web) for server Whisper, or use Chrome/Edge for Web Speech.';
-        setStatus('Mic unavailable — type to begin');
+        const hint =
+            'No mic backend available. Start Flask in another terminal (uv run python -m src.web) ' +
+            'for server Whisper, or open the preview in Chrome/Edge for Web Speech, then start a ' +
+            'new session.';
+        micBtn.title = hint;
+        setStatus(`Mic unavailable — type to begin. ${hint}`);
     } else {
         micBtn.disabled = false;
         const label =
@@ -161,6 +172,7 @@ export async function mountSessionView(
         setStatus('Listening…');
 
         let finalText = '';
+        let micError: string | null = null;
         try {
             for await (const event of stt.start()) {
                 if (event.type === 'partial') {
@@ -172,7 +184,7 @@ export async function mountSessionView(
                 } else if (event.type === 'final') {
                     finalText = event.text;
                 } else if (event.type === 'error') {
-                    setStatus(`Mic error: ${String(event.error)}`);
+                    micError = describeSttError(event.error);
                 }
             }
         } finally {
@@ -187,8 +199,10 @@ export async function mountSessionView(
 
         if (finalText.trim()) {
             await respondTo(finalText.trim());
+        } else if (micError) {
+            setStatus(micError);
         } else {
-            setStatus('Didn’t catch that — try again');
+            setStatus('Didn’t catch that — try again, or speak a little louder');
         }
     }
 
@@ -206,28 +220,33 @@ export async function mountSessionView(
     });
 
     endBtn.addEventListener('click', () => {
-        endSession();
+        void endSession();
     });
 
     let torn = false;
-    function endSession(): void {
+    async function endSession(): Promise<void> {
         if (torn) return;
         torn = true;
         const finalState = session.endSession();
         void stt?.stop();
         void tts.cancel();
 
-        // Auto-save anything beyond just the empty seed state. We
-        // deliberately don't save sessions with zero user turns —
-        // those are usually accidental clicks.
         if (finalState && hasUserContent(finalState.exchanges)) {
-            // Tag with the intention as notes so it shows up in history.
-            if (setup.intention.trim()) {
-                finalState.notes = setup.intention.trim();
+            // Try to generate an LLM summary for the history row;
+            // fall back to intention (or empty) if the LLM call fails.
+            setStatus('Saving session…');
+            let summary = '';
+            try {
+                summary = await generateSessionSummary(provider, finalState.exchanges);
+            } catch {
+                /* fall through to fallback */
             }
-            void sessionStore.save(finalState).catch((err) => {
+            finalState.notes = summary || setup.intention.trim();
+            try {
+                await sessionStore.save(finalState);
+            } catch (err) {
                 console.warn('Failed to save session', err);
-            });
+            }
         }
 
         onEnd();
@@ -240,8 +259,23 @@ export async function mountSessionView(
     }
 
     return {
-        teardown(): void { endSession(); },
+        teardown(): void { void endSession(); },
     };
+}
+
+function describeSttError(err: unknown): string {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Common cases that benefit from plain-English status text.
+    if (/Whisper endpoint 5\d\d/.test(msg) || /failed to fetch/i.test(msg)) {
+        return 'Mic backend unreachable. Is Flask running? (uv run python -m src.web)';
+    }
+    if (/Whisper endpoint 503/.test(msg)) {
+        return 'Whisper model still loading — try again in a moment.';
+    }
+    if (/permission/i.test(msg) || /denied/i.test(msg) || /NotAllowed/.test(msg)) {
+        return 'Mic permission denied. Allow microphone access and try again.';
+    }
+    return `Mic error: ${msg}`;
 }
 
 function renderSessionHTML(): string {

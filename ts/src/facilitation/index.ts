@@ -18,6 +18,8 @@ export {
     type SessionManagerOptions,
 } from './session.js';
 
+export { generateSessionSummary } from './summary.js';
+
 export {
     PromptBuilder,
     defaultPromptConfig,

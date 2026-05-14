@@ -30,17 +30,28 @@ let cachedBackend: SttBackend | null = null;
 async function isServerWhisperReachable(): Promise<boolean> {
     if (!ServerWhisperSttEngine.isAvailable()) return false;
     try {
-        // OPTIONS or HEAD aren't routed by Flask for this endpoint; a tiny
-        // POST with no body gets us a 400 (route exists) or 503 (model
-        // loading) — both prove the endpoint is wired up.
+        // Empty POST → Flask returns 400 (route exists, body missing) or
+        // 503 (model still loading). Either proves Flask is up and the
+        // route is wired. A 5xx from Vite's proxy (ECONNREFUSED, etc.)
+        // means the backend is down — fail closed so we don't pretend
+        // the mic will work.
         const response = await fetch(SERVER_WHISPER_PROBE_URL, {
             method: 'POST',
             headers: { 'content-type': 'application/octet-stream' },
         });
-        return response.status !== 404;
+        return response.status === 400 || response.status === 503;
     } catch {
         return false;
     }
+}
+
+/**
+ * Force a re-probe on the next detectSttBackend / createBestStt call.
+ * Call this when Flask was started after the page loaded — otherwise
+ * the picker caches "none" and the user has to reload.
+ */
+export function invalidateSttBackendCache(): void {
+    cachedBackend = null;
 }
 
 /** Detect which STT path the current environment supports. */
