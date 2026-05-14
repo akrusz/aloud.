@@ -653,6 +653,18 @@ const apiKeyHelpers = [
 // attention to the matching Paste button when they switch back to glooow.
 let lastOpenedKeyInput = null;
 
+// When the Paste button isn't available (no API, permission denied, or the
+// read failed at click time), fold a "⌘V"/"Ctrl+V" hint into the input's
+// placeholder so the user knows they can paste manually.
+function showManualPasteHint(input) {
+    if (input.dataset.pasteHintApplied) return;
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+    const shortcut = isMac ? '⌘V' : 'Ctrl+V';
+    const current = input.placeholder || '';
+    input.placeholder = current ? `${current} · ${shortcut} to paste` : `${shortcut} to paste`;
+    input.dataset.pasteHintApplied = '1';
+}
+
 function attachKeyHelper(cfg) {
     const input = document.getElementById(cfg.input);
     if (!input) return;
@@ -686,32 +698,11 @@ function attachKeyHelper(cfg) {
     const status = document.createElement('span');
     status.className = 'api-key-paste-status';
 
-    // When the page is served from localhost, the host's clipboard IS the
-    // user's clipboard — and the server endpoint works in pywebview's
-    // WKWebView where navigator.clipboard is blocked. On LAN (phone → host
-    // HTTPS) the user wants their phone's clipboard, so we use the browser
-    // API there instead.
-    const host = window.location.hostname;
-    const isLocal = host === 'localhost' || host === '127.0.0.1';
-    const hasWebClipboard = !!(navigator.clipboard && navigator.clipboard.readText);
-
-    async function readClipboard() {
-        if (isLocal) {
-            const r = await fetch('/api/clipboard/read');
-            if (r.ok) {
-                const data = await r.json();
-                return (data.text || '').trim();
-            }
-            // Server endpoint failed (no clipboard tool on Linux, etc.) —
-            // fall through to the web API if it's there.
-        }
-        if (hasWebClipboard) {
-            return (await navigator.clipboard.readText()).trim();
-        }
-        throw new Error('clipboard-unavailable');
-    }
-
-    if (isLocal || hasWebClipboard) {
+    // Paste button only renders when the browser exposes the Web Clipboard
+    // API. pywebview's WKWebView ships it but always rejects the read, so
+    // we drop the button on the first failure and fall back to the manual
+    // ⌘V/Ctrl+V hint that's baked into the placeholder.
+    if (navigator.clipboard && navigator.clipboard.readText) {
         const paste = document.createElement('button');
         paste.type = 'button';
         paste.className = 'btn btn-small btn-secondary api-key-paste-btn';
@@ -719,12 +710,17 @@ function attachKeyHelper(cfg) {
         paste.title = 'Paste from clipboard';
         row.appendChild(paste);
 
-        // For LAN clients (no server fallback), pre-check the Permissions
-        // API where Chromium exposes 'clipboard-read'. Safari/Firefox throw
-        // on this name and we leave the button visible.
-        if (!isLocal && navigator.permissions && navigator.permissions.query) {
+        // Where the Permissions API exposes 'clipboard-read' (Chromium),
+        // remove the button up front if it's denied. Safari/Firefox throw
+        // on that name and we just leave the button visible.
+        if (navigator.permissions && navigator.permissions.query) {
             navigator.permissions.query({ name: 'clipboard-read' })
-                .then(function(r) { if (r.state === 'denied') paste.remove(); })
+                .then(function(r) {
+                    if (r.state === 'denied') {
+                        paste.remove();
+                        showManualPasteHint(input);
+                    }
+                })
                 .catch(function() { /* unsupported permission name */ });
         }
 
@@ -732,7 +728,7 @@ function attachKeyHelper(cfg) {
             status.textContent = '';
             status.classList.remove('is-warn', 'is-ok');
             try {
-                const text = await readClipboard();
+                const text = (await navigator.clipboard.readText()).trim();
                 if (!text) {
                     status.textContent = 'Clipboard is empty.';
                     status.classList.add('is-warn');
@@ -750,10 +746,12 @@ function attachKeyHelper(cfg) {
                 }
             } catch (e) {
                 paste.remove();
-                status.textContent = 'Clipboard access blocked — paste with ⌘/Ctrl+V.';
-                status.classList.add('is-warn');
+                showManualPasteHint(input);
+                status.textContent = '';
             }
         });
+    } else {
+        showManualPasteHint(input);
     }
 
     // Layout: label (full width) | input (col 1) actions (col 2) | status (full).
