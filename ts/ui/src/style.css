@@ -1,5 +1,5 @@
-/* Preview-only stylesheet. Not meant to match the final UI — just enough
-   structure to develop and test the orchestration core in a browser. */
+/* Preview-only stylesheet. Not the final glooow design — enough structure
+   to develop the TS UI in a real browser. */
 
 :root {
     color-scheme: light dark;
@@ -9,6 +9,8 @@
     --fg: #110d08;
     --muted: #8a8174;
     --accent: #c97a3c;
+    --accent-fg: #ffffff;
+    --selected: #e8d4b8;
     --user-bg: #e8e0d0;
     --assistant-bg: #ffffff;
     --border: #d0c6b4;
@@ -20,6 +22,8 @@
         --fg: #f5f0e8;
         --muted: #8a8174;
         --accent: #e09060;
+        --accent-fg: #110d08;
+        --selected: #3a2a18;
         --user-bg: #2a2218;
         --assistant-bg: #1a140c;
         --border: #3a3024;
@@ -29,7 +33,6 @@
 * {
     box-sizing: border-box;
 }
-
 body {
     margin: 0;
     background: var(--bg);
@@ -45,19 +48,191 @@ body {
     flex-direction: column;
     gap: 1.5rem;
 }
-
 header h1 {
     margin: 0;
     font-size: 2.5rem;
     font-weight: 400;
     letter-spacing: 0.05em;
 }
-
 header .tagline {
     margin: 0;
     color: var(--muted);
     font-size: 0.9rem;
 }
+
+/* ---- Setup view ---- */
+
+.setup-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.form-group > label {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.optional {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+.form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.form-row > .form-group {
+    flex: 1;
+    min-width: 180px;
+}
+
+textarea,
+input[type='text'],
+select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    background: var(--assistant-bg);
+    color: var(--fg);
+    font: inherit;
+    resize: vertical;
+}
+
+.style-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.5rem;
+}
+.style-card {
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    background: var(--assistant-bg);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: background 100ms, border-color 100ms;
+}
+.style-card:hover {
+    background: var(--selected);
+}
+.style-card.selected {
+    background: var(--selected);
+    border-color: var(--accent);
+}
+.style-name {
+    font-weight: 600;
+}
+.style-desc {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.modifier-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.modifier-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    background: var(--assistant-bg);
+    cursor: pointer;
+    transition: background 100ms, border-color 100ms;
+}
+.modifier-toggle:has(input:checked),
+.modifier-toggle.selected {
+    background: var(--selected);
+    border-color: var(--accent);
+}
+.modifier-toggle input[type='checkbox'] {
+    margin-top: 0.2rem;
+}
+.modifier-info {
+    display: flex;
+    flex-direction: column;
+}
+.modifier-name {
+    font-weight: 600;
+}
+.modifier-desc {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+input[type='range'] {
+    width: 100%;
+}
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.advanced-settings {
+    background: var(--assistant-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    padding: 0.5rem 0.75rem;
+}
+.advanced-settings summary {
+    cursor: pointer;
+    color: var(--muted);
+}
+.advanced-settings textarea {
+    margin-top: 0.5rem;
+}
+
+.setup-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+}
+
+/* ---- Buttons ---- */
+
+button,
+.btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    background: var(--assistant-bg);
+    color: var(--fg);
+    cursor: pointer;
+    font: inherit;
+}
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.btn-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: transparent;
+    font-weight: 600;
+}
+.btn-begin {
+    padding: 0.6rem 1.4rem;
+    font-size: 1rem;
+}
+.btn-end {
+    background: transparent;
+    color: var(--muted);
+}
+
+/* ---- Session view ---- */
 
 .status {
     padding: 0.75rem 1rem;
@@ -72,33 +247,36 @@ header .tagline {
     flex-direction: column;
     gap: 0.75rem;
     min-height: 8rem;
-    max-height: 50vh;
+    max-height: 55vh;
     overflow-y: auto;
     padding: 1rem;
     background: var(--assistant-bg);
     border: 1px solid var(--border);
     border-radius: 0.5rem;
 }
-
 .message {
     padding: 0.6rem 0.9rem;
     border-radius: 0.4rem;
     max-width: 85%;
 }
-
 .message.user {
     align-self: flex-end;
     background: var(--user-bg);
 }
-
 .message.assistant {
     align-self: flex-start;
     background: transparent;
 }
-
 .message.partial {
     color: var(--muted);
     font-style: italic;
+}
+.message.intention {
+    align-self: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    background: transparent;
 }
 
 .controls {
@@ -107,87 +285,16 @@ header .tagline {
     flex-wrap: wrap;
     align-items: center;
 }
-
 #text-form {
     flex: 1;
     display: flex;
     min-width: 200px;
 }
-
 #text-input {
     flex: 1;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.3rem;
-    background: var(--bg);
-    color: var(--fg);
-    font: inherit;
 }
-
-button {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 0.3rem;
-    background: var(--accent);
-    color: white;
-    cursor: pointer;
-    font: inherit;
-}
-
-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-button#mic.listening {
+#mic.listening {
     background: #c93c3c;
-}
-
-button#end {
-    background: transparent;
-    color: var(--muted);
-}
-
-.settings {
-    background: var(--assistant-bg);
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
-}
-
-.settings summary {
-    cursor: pointer;
-    color: var(--muted);
-}
-
-.settings label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0;
-    flex-wrap: wrap;
-}
-
-.settings .settings-note {
-    margin: 0.5rem 0;
-    color: var(--muted);
-    font-size: 0.85rem;
-}
-
-.settings code {
-    background: var(--user-bg);
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.2rem;
-    font-size: 0.8em;
-}
-
-.settings input[type='text'],
-.settings input[type='password'],
-.settings select {
-    padding: 0.3rem 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: 0.3rem;
-    background: var(--bg);
-    color: var(--fg);
-    font: inherit;
+    color: white;
+    border-color: transparent;
 }

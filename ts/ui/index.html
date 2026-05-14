@@ -10,62 +10,12 @@
         <main id="app">
             <header>
                 <h1>glooow</h1>
-                <p class="tagline">TS preview build</p>
+                <p class="tagline">TS preview</p>
             </header>
 
-            <section class="status">
-                <div id="status">Connecting…</div>
-            </section>
-
-            <section class="transcript" id="transcript" aria-live="polite"></section>
-
-            <section class="controls">
-                <button id="mic" type="button" disabled>Start listening</button>
-                <form id="text-form">
-                    <input
-                        id="text-input"
-                        type="text"
-                        placeholder="…or type here and press enter"
-                        autocomplete="off"
-                    />
-                </form>
-                <button id="end" type="button">End session</button>
-            </section>
-
-            <details class="settings">
-                <summary>Settings</summary>
-                <label>
-                    Provider
-                    <select id="provider">
-                        <option value="ollama">Ollama (local)</option>
-                        <option value="anthropic">Anthropic (API key)</option>
-                    </select>
-                </label>
-                <label>
-                    Model
-                    <input id="model" type="text" placeholder="qwen3.5:4b" />
-                </label>
-                <p class="settings-note">
-                    Anthropic API key is read server-side from
-                    <code>ANTHROPIC_API_KEY</code> — the browser talks to a
-                    proxy at <code>/api/llm/anthropic/messages</code>, no
-                    key in the page.
-                </p>
-                <label>
-                    Directiveness
-                    <input id="directiveness" type="range" min="0" max="10" value="3" />
-                    <span id="directiveness-value">3</span>
-                </label>
-                <label>
-                    Focuses
-                    <select id="focuses" multiple size="4">
-                        <option value="open_awareness" selected>open awareness</option>
-                        <option value="body_sensations">body sensations</option>
-                        <option value="emotions">emotions</option>
-                        <option value="inner_parts">inner parts</option>
-                    </select>
-                </label>
-            </details>
+            <div id="app-root">
+                <!-- Setup view and session view mount here. -->
+            </div>
         </main>
 
         <script type="module" src="/src/main.ts"></script>
