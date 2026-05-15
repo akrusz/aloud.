@@ -83,6 +83,12 @@ export async function mountSessionView(
     const textInput = root.querySelector<HTMLInputElement>('#text-input')!;
     const textForm = root.querySelector<HTMLFormElement>('#text-form')!;
     const endBtn = root.querySelector<HTMLButtonElement>('#end')!;
+    const orbEl = root.querySelector<HTMLElement>('#session-orb')!;
+
+    type OrbMode = 'idle' | 'listening' | 'thinking' | 'speaking' | 'holding';
+    function setOrb(mode: OrbMode): void {
+        orbEl.className = `orb orb-${mode}`;
+    }
 
     function setStatus(text: string): void {
         statusEl.textContent = text;
@@ -136,6 +142,7 @@ export async function mountSessionView(
             appendMessage('user', userText);
             session.addUserMessage(userText);
             setStatus('Thinking…');
+            setOrb('thinking');
 
             const systemPrompt = builder.buildSystemPrompt();
             const result = await provider.complete(session.getContextMessages(), {
@@ -146,6 +153,7 @@ export async function mountSessionView(
             appendMessage('assistant', cleanText);
 
             setStatus('Speaking…');
+            setOrb('speaking');
             try {
                 await tts.speak(cleanText, { rate: setup.ttsRate });
             } catch {
@@ -154,11 +162,14 @@ export async function mountSessionView(
             if (signal === 'hold') {
                 silenceMode = true;
                 setStatus('Holding space — anything you say resumes');
+                setOrb('holding');
             } else {
                 setStatus(stt ? 'Ready — mic or type' : 'Ready — type to continue');
+                setOrb('idle');
             }
         } catch (err) {
             setStatus(`Error: ${(err as Error).message}`);
+            setOrb('idle');
         } finally {
             busy = false;
         }
@@ -170,6 +181,7 @@ export async function mountSessionView(
         micBtn.classList.add('listening');
         micBtn.textContent = 'Listening…';
         setStatus('Listening…');
+        setOrb('listening');
 
         let finalText = '';
         let micError: string | null = null;
@@ -195,6 +207,7 @@ export async function mountSessionView(
                 currentPartial.remove();
                 currentPartial = null;
             }
+            if (!finalText.trim()) setOrb('idle');
         }
 
         if (finalText.trim()) {
@@ -280,7 +293,10 @@ function describeSttError(err: unknown): string {
 
 function renderSessionHTML(): string {
     return `
-    <section class="status"><div id="status">Connecting…</div></section>
+    <section class="session-stage">
+        <div class="orb orb-breathing" id="session-orb" aria-hidden="true"></div>
+        <div class="status"><div id="status">Connecting…</div></div>
+    </section>
 
     <section class="transcript" id="transcript" aria-live="polite"></section>
 

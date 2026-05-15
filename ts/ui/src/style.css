@@ -355,12 +355,74 @@ button:disabled {
 
 /* ---- Session view ---- */
 
+.session-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.orb {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: radial-gradient(
+        circle at 35% 30%,
+        var(--accent),
+        color-mix(in srgb, var(--accent) 60%, var(--bg)) 60%,
+        color-mix(in srgb, var(--accent) 30%, var(--bg))
+    );
+    box-shadow:
+        0 0 24px color-mix(in srgb, var(--accent) 60%, transparent),
+        0 0 60px color-mix(in srgb, var(--accent) 30%, transparent);
+    transition: box-shadow 400ms ease, filter 400ms ease, transform 400ms ease;
+}
+.orb-breathing,
+.orb-idle {
+    animation: orb-breathe 5s ease-in-out infinite;
+}
+.orb-listening {
+    animation: orb-pulse 1.4s ease-in-out infinite;
+    filter: hue-rotate(-20deg) saturate(1.2);
+}
+.orb-thinking {
+    animation: orb-think 1.2s ease-in-out infinite;
+    filter: saturate(0.5);
+}
+.orb-speaking {
+    animation: orb-speak 0.9s ease-in-out infinite;
+    filter: brightness(1.15);
+}
+.orb-holding {
+    animation: orb-breathe 9s ease-in-out infinite;
+    filter: saturate(0.6) brightness(0.85);
+}
+@keyframes orb-breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+}
+@keyframes orb-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 70%, transparent); }
+    50%      { transform: scale(1.08); box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 90%, transparent); }
+}
+@keyframes orb-think {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(0.95); }
+}
+@keyframes orb-speak {
+    0%, 100% { transform: scale(1); }
+    35%      { transform: scale(1.04); }
+    70%      { transform: scale(0.99); }
+}
+
 .status {
     padding: 0.75rem 1rem;
     background: var(--user-bg);
     border-radius: 0.5rem;
     color: var(--muted);
     font-size: 0.9rem;
+    text-align: center;
 }
 
 .transcript {

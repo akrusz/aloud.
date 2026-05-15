@@ -66,7 +66,7 @@ export class ServerTtsEngine implements TtsEngine {
         }
         if (abort.signal.aborted) return;
 
-        const ctx = this.ensureContext();
+        const ctx = await this.ensureContext();
         let audioBuffer: AudioBuffer;
         try {
             audioBuffer = await ctx.decodeAudioData(buffer.slice(0));
@@ -98,7 +98,7 @@ export class ServerTtsEngine implements TtsEngine {
         return [];
     }
 
-    private ensureContext(): AudioContext {
+    private async ensureContext(): Promise<AudioContext> {
         if (!this.context || this.context.state === 'closed') {
             const AC =
                 (globalThis as unknown as { AudioContext?: typeof AudioContext }).AudioContext ??
@@ -108,9 +108,14 @@ export class ServerTtsEngine implements TtsEngine {
             this.context = new AC();
         }
         if (this.context.state === 'suspended') {
-            // iOS Safari quirk — same fix mobile-quirks.js handles in the
-            // existing UI. resume() on a running context is a no-op.
-            this.context.resume().catch(() => {});
+            // Await resume so the first speak() doesn't drop samples
+            // while the audio engine is still warming up. iOS Safari is
+            // strictest about this, but Firefox can also be slow.
+            try {
+                await this.context.resume();
+            } catch {
+                /* will throw at start() if it's a real problem */
+            }
         }
         return this.context;
     }

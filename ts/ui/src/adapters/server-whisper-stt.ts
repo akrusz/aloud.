@@ -21,10 +21,18 @@ const FRAME_SIZE = 4096;
 export interface ServerWhisperSttEngineOptions {
     /** Endpoint URL. Default '/api/stt/whisper' — Vite proxies in dev. */
     endpointUrl?: string;
-    /** RMS energy above which a frame counts as speech. */
+    /** RMS energy floor below which a frame is counted as silence. */
     energyThreshold?: number;
-    /** Trailing silence required before submitting. */
-    silenceTimeoutMs?: number;
+    /**
+     * Base trailing silence before submitting (ms). Ramps up by
+     * `silenceRampRate * speechDurationMs` up to `silenceMaxMs` so longer
+     * sharing gets more patience for thinking pauses.
+     */
+    silenceBaseMs?: number;
+    /** Maximum tolerated silence after a long share. */
+    silenceMaxMs?: number;
+    /** Extra ms of silence allowed per ms of speech (0.12 ≈ 12% ramp). */
+    silenceRampRate?: number;
     /** Minimum total speech duration before we'll submit. */
     minSpeechDurationMs?: number;
     /** Hard cap on a single utterance — auto-submit after this. */
@@ -47,8 +55,10 @@ export class ServerWhisperSttEngine implements SttEngine {
         this.opts = {
             endpointUrl: options.endpointUrl ?? '/api/stt/whisper',
             energyThreshold: options.energyThreshold ?? 0.015,
-            silenceTimeoutMs: options.silenceTimeoutMs ?? 1500,
-            minSpeechDurationMs: options.minSpeechDurationMs ?? 500,
+            silenceBaseMs: options.silenceBaseMs ?? 3000,
+            silenceMaxMs: options.silenceMaxMs ?? 7000,
+            silenceRampRate: options.silenceRampRate ?? 0.12,
+            minSpeechDurationMs: options.minSpeechDurationMs ?? 800,
             maxUtteranceMs: options.maxUtteranceMs ?? 30_000,
             fetchImpl: options.fetchImpl ?? globalThis.fetch.bind(globalThis),
         };
@@ -98,6 +108,10 @@ export class ServerWhisperSttEngine implements SttEngine {
         let lastSpeechMs = 0;
         let utteranceDone = false;
         let wake: (() => void) | null = null;
+        // Adaptive noise floor — track ambient room sound so the speech
+        // threshold rides above background noise instead of a fixed cut.
+        let noiseFloor = 0.005;
+        let noiseSamples = 0;
         const nativeRate = this.context.sampleRate;
 
         this.processor.onaudioprocess = (e) => {
@@ -109,7 +123,14 @@ export class ServerWhisperSttEngine implements SttEngine {
             const energy = Math.sqrt(sum / frame.length);
             const now = performance.now();
 
-            if (energy > this.opts.energyThreshold) {
+            // Threshold is whichever is higher: the static floor, or
+            // 3x the running noise floor. The 3x multiplier matches the
+            // existing audio.js heuristic and gives reliable separation
+            // in normal rooms.
+            const threshold = Math.max(this.opts.energyThreshold, noiseFloor * 3);
+            const isSpeech = energy > threshold;
+
+            if (isSpeech) {
                 if (!speechStarted) {
                     speechStarted = true;
                     speechStartMs = now;
@@ -118,7 +139,14 @@ export class ServerWhisperSttEngine implements SttEngine {
                 chunks.push(frame);
             } else if (speechStarted) {
                 chunks.push(frame);
-                if (now - lastSpeechMs >= this.opts.silenceTimeoutMs) {
+                // Adaptive silence: each ms of speech buys silenceRampRate
+                // ms of additional patience, capped at silenceMaxMs.
+                const speechDur = lastSpeechMs - speechStartMs;
+                const needed = Math.min(
+                    this.opts.silenceBaseMs + speechDur * this.opts.silenceRampRate,
+                    this.opts.silenceMaxMs
+                );
+                if (now - lastSpeechMs >= needed) {
                     utteranceDone = true;
                     if (wake) {
                         const w = wake;
@@ -126,6 +154,13 @@ export class ServerWhisperSttEngine implements SttEngine {
                         w();
                     }
                 }
+            } else {
+                // Truly silent frame — update the noise floor. Fast
+                // adaptation for the first 100 samples (~9s at 4096-frame
+                // ScriptProcessor + 48kHz), then slow.
+                const alpha = noiseSamples < 100 ? 0.1 : 0.01;
+                noiseFloor = (1 - alpha) * noiseFloor + alpha * energy;
+                noiseSamples++;
             }
 
             if (speechStarted && now - speechStartMs >= this.opts.maxUtteranceMs) {
