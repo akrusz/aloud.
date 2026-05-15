@@ -20,8 +20,17 @@ import {
 } from '../settings.js';
 import type { SessionState } from '../../../src/facilitation/session.js';
 import { PRESETS, findPreset } from '../presets.js';
-import { allVoices, groupVoices, type VoiceEntry } from '../voices.js';
-import { createTtsForVoice } from '../adapters/tts-picker.js';
+import {
+    buildScoredVoiceList,
+    fetchServerVoices,
+    previewVoice as runPreview,
+    renderVoiceList,
+    renderVoiceModalHTML,
+    stopPreview,
+    updateVoiceSelection,
+    type ScoredVoice,
+    type ServerVoice,
+} from '../voice-picker.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { sessionStore } from '../state.js';
 
@@ -96,7 +105,9 @@ export async function mountSetupView(
     onBegin: (setup: SessionSetup, continueFrom: SessionState | null) => void
 ): Promise<SetupViewHandle> {
     const setup = await loadSetup();
-    let voiceCatalog: VoiceEntry[] = [];
+    // Scored voice list for the modal. Lazy-loaded; the setup form is
+    // interactive while voices fetch in the background.
+    let scoredVoices: ScoredVoice[] = [];
 
     // Pull a queued continuation off sessionStorage. Mirrors the Python
     // app — history view writes 'continueFrom' there and redirects to /,
@@ -118,10 +129,21 @@ export async function mountSetupView(
         void saveSetup(setup);
     }
 
+    /**
+     * Pull voices from `/api/voices` (when Flask is reachable) and from
+     * the browser's speechSynthesis API, score them, and store on
+     * scoredVoices. Includes browser voices since the TS preview can
+     * also drive browser TTS — when the session view runs server TTS
+     * exclusively the picker still shows the right set since server
+     * voices win for any overlapping name.
+     */
     async function loadVoiceCatalog(): Promise<void> {
         // speechSynthesis voice list often loads async on first call;
         // give it a tick before snapshotting.
-        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.getVoices().length === 0) {
+        if (
+            typeof speechSynthesis !== 'undefined' &&
+            speechSynthesis.getVoices().length === 0
+        ) {
             await new Promise<void>((resolve) => {
                 const done = () => {
                     speechSynthesis.removeEventListener('voiceschanged', done);
@@ -131,28 +153,97 @@ export async function mountSetupView(
                 setTimeout(done, 600);
             });
         }
-        voiceCatalog = await allVoices();
-        populateVoiceSelect();
+        const server: readonly ServerVoice[] | null = await fetchServerVoices();
+        scoredVoices = buildScoredVoiceList(server, true);
+        updateVoiceButtonLabel();
     }
 
-    function populateVoiceSelect(): void {
-        const sel = root.querySelector<HTMLSelectElement>('#voice');
-        if (!sel) return;
-        const groups = groupVoices(voiceCatalog);
-        sel.innerHTML =
-            '<option value="">Browser default</option>' +
-            Array.from(groups.entries())
-                .map(
-                    ([label, voices]) =>
-                        `<optgroup label="${escapeAttr(label)}">${voices
-                            .map(
-                                (v) =>
-                                    `<option value="${escapeAttr(v.id)}">${escapeAttr(v.name)}</option>`
-                            )
-                            .join('')}</optgroup>`
-                )
-                .join('');
-        sel.value = setup.voice ?? '';
+    function findVoice(name: string | null): ScoredVoice | null {
+        if (!name) return null;
+        return scoredVoices.find((v) => v.name === name) ?? null;
+    }
+
+    function updateVoiceButtonLabel(): void {
+        const btn = root.querySelector<HTMLButtonElement>('#setup-voice-btn');
+        if (!btn) return;
+        const selectedName = stripVoicePrefix(setup.voice);
+        const entry = findVoice(selectedName);
+        if (entry) {
+            btn.textContent = `${entry.name} · ${setup.ttsRate} wpm`;
+        } else if (selectedName) {
+            // Voice id is stored but we haven't loaded its details yet.
+            btn.textContent = `${selectedName} · ${setup.ttsRate} wpm`;
+        } else {
+            btn.textContent = scoredVoices.length > 0 ? 'Default' : 'Voice';
+        }
+    }
+
+    /**
+     * Open the voice modal — renders the scored list, wires up row
+     * clicks (select), preview clicks, the speed slider, and the close
+     * button. Re-running render() blows the modal away with the rest of
+     * the form, so the wiring lives inline here instead of in render().
+     */
+    function openVoiceModal(): void {
+        const modal = root.querySelector<HTMLElement>('#setup-voice-modal');
+        const listEl = root.querySelector<HTMLElement>('#setup-voice-modal-list');
+        const closeBtn = root.querySelector<HTMLButtonElement>('#setup-voice-modal-close');
+        const speedSlider = root.querySelector<HTMLInputElement>('#setup-speed-slider');
+        const speedLabel = root.querySelector<HTMLElement>('#setup-speed-label');
+        if (!modal || !listEl || !closeBtn || !speedSlider || !speedLabel) return;
+
+        const currentName = stripVoicePrefix(setup.voice);
+        renderVoiceList(listEl, scoredVoices, currentName, { showEngine: true });
+        speedSlider.value = String(setup.ttsRate);
+        speedLabel.textContent = `${setup.ttsRate} wpm`;
+        modal.classList.remove('hidden');
+
+        const onListClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            const row = target.closest<HTMLElement>('.voice-row');
+            if (!row) return;
+            const name = row.dataset['voiceName'];
+            if (!name) return;
+            if (target.closest('.voice-row-preview')) {
+                if (row.classList.contains('voice-row-locked')) return;
+                const entry = findVoice(name);
+                void runPreview(name, setup.ttsRate, entry?.engine);
+                return;
+            }
+            if (row.classList.contains('voice-row-locked')) return;
+            // Select the voice. Persist with engine prefix so the
+            // session view's createTtsForVoice picks the right backend.
+            const entry = findVoice(name);
+            const idPrefix = entry?.engine === 'browser' ? 'browser:' : 'server:';
+            setup.voice = `${idPrefix}${name}`;
+            persist();
+            updateVoiceSelection(listEl, name);
+            updateVoiceButtonLabel();
+        };
+        const onSpeedInput = () => {
+            const rate = Number(speedSlider.value);
+            setup.ttsRate = rate;
+            speedLabel.textContent = `${rate} wpm`;
+            persist();
+            updateVoiceButtonLabel();
+        };
+        const closeModal = () => {
+            modal.classList.add('hidden');
+            stopPreview();
+            listEl.removeEventListener('click', onListClick);
+            speedSlider.removeEventListener('input', onSpeedInput);
+            closeBtn.removeEventListener('click', closeModal);
+            modal.removeEventListener('click', onBackdrop);
+        };
+        const onBackdrop = (e: MouseEvent) => {
+            // Click on the overlay (but not the inner panel) closes.
+            if (e.target === modal) closeModal();
+        };
+
+        listEl.addEventListener('click', onListClick);
+        speedSlider.addEventListener('input', onSpeedInput);
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', onBackdrop);
     }
 
     function render(): void {
@@ -293,28 +384,11 @@ export async function mountSetupView(
             }
         })();
 
-        // Voice
-        const voiceSel = root.querySelector<HTMLSelectElement>('#voice')!;
-        voiceSel.value = setup.voice ?? '';
-        voiceSel.addEventListener('change', () => {
-            setup.voice = voiceSel.value || null;
-            persist();
-        });
-        const previewBtn = root.querySelector<HTMLButtonElement>('#voice-preview')!;
-        previewBtn.addEventListener('click', () => {
-            void previewVoice();
-        });
-
-        // Rate slider
-        const rateSlider = root.querySelector<HTMLInputElement>('#tts-rate')!;
-        const rateLabel = root.querySelector<HTMLElement>('#tts-rate-label')!;
-        rateSlider.value = String(setup.ttsRate);
-        rateLabel.textContent = `${setup.ttsRate} wpm`;
-        rateSlider.addEventListener('input', () => {
-            setup.ttsRate = Number(rateSlider.value);
-            rateLabel.textContent = `${setup.ttsRate} wpm`;
-            persist();
-        });
+        // Voice — single button opens the picker modal which also has
+        // the speed slider. Matches Python's index.html setup-voice-btn.
+        const voiceBtn = root.querySelector<HTMLButtonElement>('#setup-voice-btn')!;
+        updateVoiceButtonLabel();
+        voiceBtn.addEventListener('click', () => openVoiceModal());
 
         // Begin session — uses any queued continuation from sessionStorage
         // (set by the history view's "Continue" button) so the same Begin
@@ -353,24 +427,6 @@ export async function mountSetupView(
         })();
     }
 
-    async function previewVoice(): Promise<void> {
-        const previewBtn = root.querySelector<HTMLButtonElement>('#voice-preview');
-        const statusEl = root.querySelector<HTMLElement>('#voice-status');
-        if (!previewBtn) return;
-        previewBtn.disabled = true;
-        if (statusEl) statusEl.textContent = '';
-        try {
-            const { engine } = await createTtsForVoice(setup.voice);
-            await engine.speak("Hello — this is what I'll sound like in your session.", {
-                rate: setup.ttsRate,
-            });
-        } catch (err) {
-            if (statusEl) statusEl.textContent = `Preview failed: ${(err as Error).message}`;
-        } finally {
-            previewBtn.disabled = false;
-        }
-    }
-
     function updatePresetHighlights(): void {
         root.querySelectorAll<HTMLElement>('.style-card').forEach((card) => {
             card.classList.toggle('selected', card.dataset['preset'] === setup.preset);
@@ -399,6 +455,14 @@ function escapeAttr(s: string): string {
 function maskKey(key: string): string {
     if (key.length <= 8) return '••••';
     return key.slice(0, 4) + '••••' + key.slice(-4);
+}
+
+/** SessionSetup.voice carries a 'server:' or 'browser:' prefix; the voice
+ *  picker works with raw names. Strip the prefix on the way in. */
+function stripVoicePrefix(voice: string | null): string | null {
+    if (!voice) return null;
+    const m = /^(server|browser):(.*)$/.exec(voice);
+    return m ? (m[2] ?? null) : voice;
 }
 
 function renderSetupHTML(): string {
@@ -467,7 +531,7 @@ function renderSetupHTML(): string {
             <div class="modifier-toggles">${qualityToggles}</div>
         </div>
 
-        <div class="form-row">
+        <div class="form-row form-row-thirds">
             <div class="form-group">
                 <label for="directiveness">Guidance Level</label>
                 <input type="range" id="directiveness" min="0" max="${dirTickCount}" step="1" value="1">
@@ -480,22 +544,10 @@ function renderSetupHTML(): string {
                 <label for="verbosity">Response Length</label>
                 <select id="verbosity">${verbosityOptions}</select>
             </div>
-        </div>
-
-        <div class="form-group">
-            <label for="voice">Voice</label>
-            <div class="voice-row">
-                <select id="voice" class="voice-select">
-                    <option value="">Browser default</option>
-                </select>
-                <button type="button" id="voice-preview" class="voice-preview">▶ Preview</button>
+            <div class="form-group">
+                <label>Voice</label>
+                <button type="button" id="setup-voice-btn" class="setup-voice-btn">Default</button>
             </div>
-            <div id="voice-status" class="voice-status"></div>
-        </div>
-
-        <div class="form-group">
-            <label for="tts-rate">Speed <span id="tts-rate-label" class="optional">160 wpm</span></label>
-            <input type="range" id="tts-rate" min="80" max="280" step="10" value="160">
         </div>
 
         <details class="advanced-settings">
@@ -530,6 +582,15 @@ function renderSetupHTML(): string {
         </div>
 
     </form>
+
+    ${renderVoiceModalHTML({
+        modalId: 'setup-voice-modal',
+        closeId: 'setup-voice-modal-close',
+        listId: 'setup-voice-modal-list',
+        speedSliderId: 'setup-speed-slider',
+        speedLabelId: 'setup-speed-label',
+        speedValue: 110,
+    })}
 
     <!-- setup-footer is a sibling of the form so position: fixed (from
          the lifted CSS) anchors it to the viewport bottom; the inner
