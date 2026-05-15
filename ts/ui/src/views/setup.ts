@@ -31,6 +31,7 @@ import {
     type ScoredVoice,
     type ServerVoice,
 } from '../voice-picker.js';
+import { mountModelPicker } from '../model-picker.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { sessionStore } from '../state.js';
 
@@ -336,13 +337,21 @@ export async function mountSetupView(
             setup.provider = providerSel.value as Provider;
             persist();
             void refreshApiKeyRow();
+            void modelPicker.refresh(setup.provider);
         });
-        const modelInput = root.querySelector<HTMLInputElement>('#model')!;
-        modelInput.value = setup.model;
-        modelInput.addEventListener('change', () => {
-            setup.model = modelInput.value.trim();
-            persist();
-        });
+        // Model picker — fetches /api/models/<provider> (Flask-backed),
+        // falls back to a free-form text input when the endpoint isn't
+        // available. Same behavior as Python's setup.js dropdown.
+        const modelContainer = root.querySelector<HTMLElement>('#model-picker-slot')!;
+        const modelPicker = mountModelPicker(
+            modelContainer,
+            setup.provider,
+            setup.model,
+            (value) => {
+                setup.model = value;
+                persist();
+            }
+        );
 
         // API key entry — only shown for providers that need a key.
         // Stored separately from `setup` so we don't dump keys into the
@@ -568,8 +577,8 @@ function renderSetupHTML(): string {
                 </select>
             </div>
             <div class="form-group">
-                <label for="model">Model</label>
-                <input id="model" type="text" placeholder="qwen3.5:4b" />
+                <label for="model-select">Model</label>
+                <div id="model-picker-slot"></div>
             </div>
         </div>
 

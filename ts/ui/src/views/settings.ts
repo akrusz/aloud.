@@ -33,6 +33,7 @@ import {
 } from '../app-settings.js';
 import { ALL_PROVIDERS, providerNeedsKey, type Provider } from '../settings.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
+import { mountModelPicker } from '../model-picker.js';
 import {
     buildScoredVoiceList,
     fetchServerVoices,
@@ -83,14 +84,21 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             settings.defaultProvider = providerSel.value as Provider;
             persist();
             void refreshApiKeyRows();
+            void modelPicker.refresh(settings.defaultProvider);
         });
 
-        const modelInput = root.querySelector<HTMLInputElement>('#s-model')!;
-        modelInput.value = settings.defaultModel;
-        modelInput.addEventListener('change', () => {
-            settings.defaultModel = modelInput.value.trim();
-            persist();
-        });
+        // Model picker — same /api/models/<provider> backing as the
+        // setup view. Falls back to text input when Flask isn't there.
+        const modelContainer = root.querySelector<HTMLElement>('#s-model-slot')!;
+        const modelPicker = mountModelPicker(
+            modelContainer,
+            settings.defaultProvider,
+            settings.defaultModel,
+            (value) => {
+                settings.defaultModel = value;
+                persist();
+            }
+        );
 
         // Per-provider API key inputs. The change handler writes to the
         // shared api-keys module (also used by the setup view).
@@ -497,8 +505,8 @@ function renderProviderSection(s: AppSettings): string {
                 <select id="s-provider" name="provider">${providerOptions}</select>
             </div>
             <div class="form-group form-group-half">
-                <label for="s-model">Default Model</label>
-                <input type="text" id="s-model" name="model" placeholder="(use provider default)">
+                <label>Default Model</label>
+                <div id="s-model-slot"></div>
             </div>
         </div>
 
