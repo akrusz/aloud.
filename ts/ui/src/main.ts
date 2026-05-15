@@ -1,6 +1,6 @@
 import './style.css';
 import { bootApp } from './app.js';
-import { applyTheme, resolveTheme, toggleTheme } from './theme.js';
+import { applyTheme, initThemeToggle, resolveTheme } from './theme.js';
 import { initEmbers, regenerateEmbers } from './embers.js';
 
 // Apply theme before the app renders so the FOUC is invisible.
@@ -8,14 +8,26 @@ applyTheme(resolveTheme());
 // Init embers after theme so palette matches.
 initEmbers();
 
+// Wire the theme toggle once the DOM is ready. Listening on document
+// click and re-running setup is idempotent (initThemeToggle guards).
+function setupThemeButton(): void {
+    const btn = document.querySelector<HTMLElement>('[data-theme-toggle]');
+    if (btn) initThemeToggle(btn);
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupThemeButton, { once: true });
+} else {
+    setupThemeButton();
+}
+
+// Palette differs between light/dark — regenerate embers whenever the
+// theme flips so they switch immediately instead of waiting for the
+// current particles to expire naturally.
 document.addEventListener('click', (e) => {
-    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-theme-toggle]');
-    if (!target) return;
-    e.preventDefault();
-    toggleTheme();
-    // Palette changes between light/dark — regenerate so existing
-    // embers don't stay in the old palette until they expire.
-    regenerateEmbers();
+    if ((e.target as HTMLElement).closest('[data-theme-toggle]')) {
+        // initThemeToggle has already changed the theme; just refresh embers.
+        regenerateEmbers();
+    }
 });
 
 bootApp().catch((err) => {
