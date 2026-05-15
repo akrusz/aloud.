@@ -16,6 +16,10 @@ import {
 import {
     AnthropicProvider,
     OllamaProvider,
+    OpenAIProvider,
+    OpenRouterProvider,
+    VeniceProvider,
+    GroqProvider,
     type LLMProvider,
 } from '../../../src/llm/index.js';
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
@@ -28,27 +32,54 @@ import {
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
 import { sessionStore } from '../state.js';
+import { getApiKey } from '../api-keys.js';
 import {
     mountEmberContainer,
     unmountEmberContainer,
     wireEmberControls,
 } from '../embers.js';
 
+// Anthropic blocks browser-origin requests outright; the others (OpenAI,
+// OpenRouter, Venice, Groq) accept browser CORS. So Anthropic always
+// routes through the Flask proxy in browser preview; the rest go BYOK
+// direct from the browser. Mobile (Capacitor) will need a different
+// path for Anthropic — either @capacitor/http or a hosted proxy.
 const ANTHROPIC_PROXY_URL = '/api/llm/anthropic/messages';
 const OLLAMA_PROXY_URL = '/ollama';
 
-function buildProvider(setup: SessionSetup): LLMProvider {
-    if (setup.provider === 'anthropic') {
-        return new AnthropicProvider({
-            baseUrl: ANTHROPIC_PROXY_URL,
-            ...(setup.model && { model: setup.model }),
-        });
+async function buildProvider(setup: SessionSetup): Promise<LLMProvider> {
+    const modelOpt = setup.model ? { model: setup.model } : {};
+    if (setup.provider === 'ollama') {
+        return new OllamaProvider({ baseUrl: OLLAMA_PROXY_URL, ...modelOpt });
     }
-    return new OllamaProvider({
-        baseUrl: OLLAMA_PROXY_URL,
-        ...(setup.model && { model: setup.model }),
-    });
+    if (setup.provider === 'anthropic') {
+        // Browser-side Anthropic always goes through the Flask proxy
+        // (which injects the server-side key). If we ever need BYOK
+        // Anthropic in the browser, route it through @capacitor/http
+        // or a CORS-relaxed proxy.
+        return new AnthropicProvider({ baseUrl: ANTHROPIC_PROXY_URL, ...modelOpt });
+    }
+    // Remaining providers: BYOK direct from the browser.
+    const apiKey = await getApiKey(setup.provider);
+    if (!apiKey) {
+        throw new Error(
+            `No API key set for ${setup.provider}. ` +
+                `Add it in Setup, or pick a different provider.`
+        );
+    }
+    const opts = { apiKey, ...modelOpt };
+    switch (setup.provider) {
+        case 'openai':
+            return new OpenAIProvider(opts);
+        case 'openrouter':
+            return new OpenRouterProvider(opts);
+        case 'venice':
+            return new VeniceProvider(opts);
+        case 'groq':
+            return new GroqProvider(opts);
+    }
 }
+
 
 export interface SessionViewHandle {
     /** Tear down the running session and release resources. */
@@ -74,7 +105,25 @@ export async function mountSessionView(
     const session = new SessionManager({ contextStrategy: 'full' });
     session.startSession();
 
-    const provider = buildProvider(setup);
+    let provider: LLMProvider;
+    try {
+        provider = await buildProvider(setup);
+    } catch (err) {
+        root.innerHTML = `
+            <section class="session-stage">
+                <div class="status">
+                    <div id="status">${(err as Error).message}</div>
+                </div>
+            </section>
+            <section class="controls">
+                <button id="back" type="button" data-nav="setup">Back to setup</button>
+            </section>`;
+        return {
+            teardown() {
+                /* nothing to tear down */
+            },
+        };
+    }
     const { engine: tts } = await createTtsForVoice(setup.voice);
     // Re-probe each time the user starts a session: Flask may have come up
     // (or gone down) since the last detection.

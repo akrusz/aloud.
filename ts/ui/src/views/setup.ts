@@ -12,13 +12,16 @@ import type { Focus, Quality, Verbosity } from '../../../src/facilitation/index.
 import {
     type SessionSetup,
     type Provider,
+    ALL_PROVIDERS,
     DIRECTIVENESS_VALUES,
     loadSetup,
+    providerNeedsKey,
     saveSetup,
 } from '../settings.js';
 import { PRESETS, findPreset } from '../presets.js';
 import { allVoices, groupVoices, type VoiceEntry } from '../voices.js';
 import { createTtsForVoice } from '../adapters/tts-picker.js';
+import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 
 const FOCUSES: ReadonlyArray<{ value: Focus; name: string; description: string }> = [
     {
@@ -223,6 +226,7 @@ export async function mountSetupView(
         providerSel.addEventListener('change', () => {
             setup.provider = providerSel.value as Provider;
             persist();
+            void refreshApiKeyRow();
         });
         const modelInput = root.querySelector<HTMLInputElement>('#model')!;
         modelInput.value = setup.model;
@@ -230,6 +234,46 @@ export async function mountSetupView(
             setup.model = modelInput.value.trim();
             persist();
         });
+
+        // API key entry — only shown for providers that need a key.
+        // Stored separately from `setup` so we don't dump keys into the
+        // same blob `localStorage:preview:setup` everywhere.
+        const apiKeyRow = root.querySelector<HTMLElement>('#api-key-row')!;
+        const apiKeyInput = root.querySelector<HTMLInputElement>('#api-key')!;
+        const apiKeyStatus = root.querySelector<HTMLElement>('#api-key-status')!;
+
+        async function refreshApiKeyRow(): Promise<void> {
+            const needs = providerNeedsKey(setup.provider);
+            apiKeyRow.hidden = !needs;
+            if (!needs) return;
+            const existing = await getApiKey(setup.provider);
+            // Show a masked indicator if a key is already stored; the
+            // input itself stays empty so editing replaces the whole key
+            // rather than appending to the masked version.
+            apiKeyInput.value = '';
+            apiKeyInput.placeholder = existing
+                ? `Saved: ${maskKey(existing)} — type to replace`
+                : `Paste your ${setup.provider} API key`;
+            apiKeyStatus.textContent = existing ? 'Saved' : 'Not set';
+        }
+
+        apiKeyInput.addEventListener('change', async () => {
+            const raw = apiKeyInput.value.trim();
+            if (!raw) return;
+            await setApiKey(setup.provider, raw);
+            apiKeyInput.value = '';
+            await refreshApiKeyRow();
+        });
+
+        void refreshApiKeyRow();
+        // Surface a tiny warning if the user has selected a BYOK provider
+        // and hasn't entered a key, so the Begin button doesn't surprise
+        // them by erroring inside the session view.
+        void (async () => {
+            if (providerNeedsKey(setup.provider) && !(await hasApiKey(setup.provider))) {
+                apiKeyStatus.textContent = 'Required — session will fail to start';
+            }
+        })();
 
         // Voice
         const voiceSel = root.querySelector<HTMLSelectElement>('#voice')!;
@@ -300,6 +344,11 @@ function escapeAttr(s: string): string {
     return s.replace(/[&<>"']/g, (c) =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c)
     );
+}
+
+function maskKey(key: string): string {
+    if (key.length <= 8) return '••••';
+    return key.slice(0, 4) + '••••' + key.slice(-4);
 }
 
 function renderSetupHTML(): string {
@@ -406,14 +455,23 @@ function renderSetupHTML(): string {
             <div class="form-group">
                 <label for="provider">Provider</label>
                 <select id="provider">
-                    <option value="ollama">Ollama (local)</option>
-                    <option value="anthropic">Anthropic (proxy)</option>
+                    ${ALL_PROVIDERS.map(
+                        (p) => `<option value="${p.value}">${escapeHtml(p.label)}</option>`
+                    ).join('')}
                 </select>
             </div>
             <div class="form-group">
                 <label for="model">Model</label>
                 <input id="model" type="text" placeholder="qwen3.5:4b" />
             </div>
+        </div>
+
+        <div class="form-group" id="api-key-row" hidden>
+            <label for="api-key">API key
+                <span id="api-key-status" class="optional"></span>
+            </label>
+            <input id="api-key" type="password" autocomplete="off"
+                spellcheck="false" placeholder="Paste your API key" />
         </div>
 
     </form>

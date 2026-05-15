@@ -14,7 +14,26 @@ import type {
 } from '../../src/facilitation/index.js';
 import { LocalStorageKv } from './adapters/localstorage-kv.js';
 
-export type Provider = 'ollama' | 'anthropic';
+export type Provider =
+    | 'ollama'
+    | 'anthropic'
+    | 'openai'
+    | 'openrouter'
+    | 'venice'
+    | 'groq';
+
+export const ALL_PROVIDERS: ReadonlyArray<{ value: Provider; label: string; needsKey: boolean }> = [
+    { value: 'ollama', label: 'Ollama (local)', needsKey: false },
+    { value: 'anthropic', label: 'Anthropic Claude', needsKey: true },
+    { value: 'openai', label: 'OpenAI', needsKey: true },
+    { value: 'openrouter', label: 'OpenRouter', needsKey: true },
+    { value: 'venice', label: 'Venice', needsKey: true },
+    { value: 'groq', label: 'Groq', needsKey: true },
+];
+
+export function providerNeedsKey(p: Provider): boolean {
+    return ALL_PROVIDERS.find((x) => x.value === p)?.needsKey ?? false;
+}
 
 export interface SessionSetup {
     intention: string;
