@@ -8,7 +8,14 @@
  * at the bottom of this file bake those defaults in.
  */
 
-import type { CompletionOptions, CompletionResult, LLMProvider, Message } from './base.js';
+import type {
+    CompletionOptions,
+    CompletionResult,
+    LLMProvider,
+    Message,
+    StreamChunk,
+} from './base.js';
+import { iterateSseEvents } from './sse.js';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const DEFAULT_MODEL = 'gpt-5.4-mini';
@@ -69,10 +76,11 @@ export class OpenAIProvider implements LLMProvider {
         this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
     }
 
-    async complete(
+    private buildRequest(
         messages: Message[],
-        options: CompletionOptions = {}
-    ): Promise<CompletionResult> {
+        options: CompletionOptions,
+        stream: boolean
+    ): RequestInit {
         const openaiMessages: Array<{ role: string; content: string }> = [];
         if (options.system) {
             openaiMessages.push({ role: 'system', content: options.system });
@@ -85,6 +93,13 @@ export class OpenAIProvider implements LLMProvider {
             model: this.model,
             messages: openaiMessages,
             max_tokens: options.maxTokens ?? this.maxTokens,
+            ...(stream && {
+                stream: true,
+                // Some providers (Groq, Together) need this to send usage on
+                // the final chunk; OpenAI also recognizes it. Harmless when
+                // unsupported.
+                stream_options: { include_usage: true },
+            }),
         };
         if (this.extraBody) Object.assign(body, this.extraBody);
 
@@ -92,12 +107,17 @@ export class OpenAIProvider implements LLMProvider {
             'content-type': 'application/json',
         };
         if (this.apiKey) headers['authorization'] = `Bearer ${this.apiKey}`;
+        if (stream) headers['accept'] = 'text/event-stream';
 
-        const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body),
-        });
+        return { method: 'POST', headers, body: JSON.stringify(body) };
+    }
+
+    async complete(
+        messages: Message[],
+        options: CompletionOptions = {}
+    ): Promise<CompletionResult> {
+        const init = this.buildRequest(messages, options, false);
+        const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, init);
 
         if (!response.ok) {
             const detail = await response.text().catch(() => '');
@@ -114,6 +134,61 @@ export class OpenAIProvider implements LLMProvider {
             finishReason: choice?.finish_reason ?? null,
             tokensUsed,
         };
+    }
+
+    async *completeStream(
+        messages: Message[],
+        options: CompletionOptions = {}
+    ): AsyncIterable<StreamChunk> {
+        const init = this.buildRequest(messages, options, true);
+        const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, init);
+
+        if (!response.ok) {
+            const detail = await response.text().catch(() => '');
+            throw new Error(`OpenAI-compatible API error ${response.status}: ${detail}`);
+        }
+
+        // OpenAI SSE format:
+        //   data: {"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}
+        //   ...
+        //   data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{...}}
+        //   data: [DONE]
+        let finishReason: string | null = null;
+        let tokensUsed: number | null = null;
+
+        for await (const evt of iterateSseEvents(response)) {
+            const raw = evt.data.trim();
+            if (raw === '[DONE]') break;
+            const parsed = safeJson<OpenAIStreamChunk>(raw);
+            if (!parsed) continue;
+            const choice = parsed.choices?.[0];
+            const text = choice?.delta?.content;
+            if (typeof text === 'string' && text.length > 0) {
+                yield { text, done: false };
+            }
+            if (choice?.finish_reason) finishReason = choice.finish_reason;
+            if (parsed.usage?.total_tokens !== undefined) {
+                tokensUsed = parsed.usage.total_tokens;
+            }
+        }
+
+        yield { text: '', done: true, finishReason, tokensUsed };
+    }
+}
+
+interface OpenAIStreamChunk {
+    choices?: Array<{
+        delta?: { content?: string };
+        finish_reason?: string | null;
+    }>;
+    usage?: { total_tokens?: number };
+}
+
+function safeJson<T>(s: string): T | null {
+    try {
+        return JSON.parse(s) as T;
+    } catch {
+        return null;
     }
 }
 

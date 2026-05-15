@@ -27,6 +27,7 @@ import {
     type LLMProvider,
 } from '../../../src/llm/index.js';
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
+import { streamCompletionWithChunkedTts } from '../streaming-tts.js';
 
 import {
     createBestStt,
@@ -262,16 +263,29 @@ export async function mountSessionView(
             }
 
             const systemPrompt = builder.buildSystemPrompt();
-            const result = await provider.complete(session.getContextMessages(), {
-                system: systemPrompt,
-            });
-            const { signal, cleanText } = parseHoldSignal(result.text);
+            // Streaming + sentence-chunked TTS — falls back to non-streaming
+            // when the provider doesn't implement completeStream. The
+            // facilitator's first sentence starts speaking before the
+            // remainder finishes generating.
+            //
+            // We don't render the partial text into the transcript here
+            // because the [HOLD] prefix (if any) hasn't been stripped from
+            // the early deltas. Render the cleaned full text at the end.
+            setStatus('Speaking…');
+            const { text: rawText, ttsDone } = await streamCompletionWithChunkedTts(
+                provider,
+                tts,
+                session.getContextMessages(),
+                { system: systemPrompt, ttsOptions: { rate: setup.ttsRate } }
+            );
+            const { signal, cleanText } = parseHoldSignal(rawText);
             session.addAssistantMessage(cleanText);
             appendMessage('assistant', cleanText);
 
-            setStatus('Speaking…');
+            // Wait for any in-flight TTS chunks to finish so the next
+            // turn doesn't pile on top.
             try {
-                await tts.speak(cleanText, { rate: setup.ttsRate });
+                await ttsDone;
             } catch {
                 /* non-fatal */
             }
@@ -407,15 +421,21 @@ export async function mountSessionView(
                 ...session.getContextMessages(),
                 { role: 'user' as const, content: continuationNote },
             ];
-            const result = await provider.complete(messages, {
-                system: builder.buildSystemPrompt(),
-            });
-            const { cleanText } = parseHoldSignal(result.text);
+            setStatus('Speaking…');
+            const { text: rawText, ttsDone } = await streamCompletionWithChunkedTts(
+                provider,
+                tts,
+                messages,
+                {
+                    system: builder.buildSystemPrompt(),
+                    ttsOptions: { rate: setup.ttsRate },
+                }
+            );
+            const { cleanText } = parseHoldSignal(rawText);
             session.addAssistantMessage(cleanText);
             appendMessage('assistant', cleanText);
-            setStatus('Speaking…');
             try {
-                await tts.speak(cleanText, { rate: setup.ttsRate });
+                await ttsDone;
             } catch {
                 /* non-fatal */
             }

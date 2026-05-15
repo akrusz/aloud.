@@ -4,6 +4,7 @@ export type {
     LLMProvider,
     Message,
     Role,
+    StreamChunk,
 } from './base.js';
 
 export { AnthropicProvider, type AnthropicProviderOptions } from './anthropic.js';

@@ -8,6 +8,40 @@ import {
     VeniceProvider,
     GroqProvider,
 } from '../src/llm/openai.js';
+import type { StreamChunk } from '../src/llm/base.js';
+
+function mockSseResponse(events: string[]): Response {
+    // Each SSE event is joined as one or more lines, separated by blank line.
+    const body = events.map((e) => e.endsWith('\n\n') ? e : e + '\n\n').join('');
+    return new Response(body, {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+    });
+}
+
+function mockNdjsonResponse(lines: object[]): Response {
+    const body = lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
+    return new Response(body, {
+        status: 200,
+        headers: { 'content-type': 'application/x-ndjson' },
+    });
+}
+
+async function collectStream(
+    iter: AsyncIterable<StreamChunk>
+): Promise<{ text: string; finishReason: string | null; tokensUsed: number | null }> {
+    let text = '';
+    let finishReason: string | null = null;
+    let tokensUsed: number | null = null;
+    for await (const chunk of iter) {
+        text += chunk.text;
+        if (chunk.done) {
+            finishReason = chunk.finishReason ?? null;
+            tokensUsed = chunk.tokensUsed ?? null;
+        }
+    }
+    return { text, finishReason, tokensUsed };
+}
 
 function mockJsonResponse(data: unknown, init: { ok?: boolean; status?: number } = {}): Response {
     const body = JSON.stringify(data);
@@ -98,6 +132,35 @@ describe('AnthropicProvider', () => {
             fetchImpl: fetchImpl as unknown as typeof fetch,
         });
         await expect(provider.complete([{ role: 'user', content: 'hi' }])).rejects.toThrow(/429/);
+    });
+
+    it('completeStream yields incremental text deltas + final usage', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockSseResponse([
+                'event: message_start\ndata: {"type":"message_start"}',
+                'event: content_block_start\ndata: {"type":"content_block_start"}',
+                'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello"}}',
+                'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":" there."}}',
+                'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":10,"output_tokens":3}}',
+                'event: message_stop\ndata: {"type":"message_stop"}',
+            ])
+        );
+        const provider = new AnthropicProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await collectStream(
+            provider.completeStream([{ role: 'user', content: 'hi' }])
+        );
+        expect(result.text).toBe('Hello there.');
+        expect(result.finishReason).toBe('end_turn');
+        expect(result.tokensUsed).toBe(13);
+
+        // Request body should have stream: true
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        expect(body.stream).toBe(true);
     });
 });
 
@@ -216,6 +279,36 @@ describe('OllamaProvider', () => {
         });
         expect(await provider.coldLoadMessage()).toBeNull();
     });
+
+    it('completeStream yields NDJSON deltas with final usage', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockNdjsonResponse([
+                { message: { content: 'Hi' }, done: false },
+                { message: { content: ' there' }, done: false },
+                {
+                    message: { content: '' },
+                    done: true,
+                    done_reason: 'stop',
+                    prompt_eval_count: 10,
+                    eval_count: 4,
+                },
+            ])
+        );
+        const provider = new OllamaProvider({
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await collectStream(
+            provider.completeStream([{ role: 'user', content: 'hi' }])
+        );
+        expect(result.text).toBe('Hi there');
+        expect(result.finishReason).toBe('stop');
+        expect(result.tokensUsed).toBe(14);
+
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        expect(body.stream).toBe(true);
+    });
 });
 
 describe('OpenAIProvider', () => {
@@ -310,6 +403,33 @@ describe('OpenAIProvider', () => {
         await expect(
             provider.complete([{ role: 'user', content: 'hi' }])
         ).rejects.toThrow(/429/);
+    });
+
+    it('completeStream yields SSE deltas + [DONE] terminator', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockSseResponse([
+                'data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":null}]}',
+                'data: {"choices":[{"delta":{"content":" there."},"finish_reason":null}]}',
+                'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"total_tokens":7}}',
+                'data: [DONE]',
+            ])
+        );
+        const provider = new OpenAIProvider({
+            apiKey: 'sk-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await collectStream(
+            provider.completeStream([{ role: 'user', content: 'hi' }])
+        );
+        expect(result.text).toBe('Hi there.');
+        expect(result.finishReason).toBe('stop');
+        expect(result.tokensUsed).toBe(7);
+
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        expect(body.stream).toBe(true);
+        expect(body.stream_options).toEqual({ include_usage: true });
     });
 });
 
