@@ -11,6 +11,7 @@ html[data-theme='light'] {
     --muted: #8a8174;
     --accent: #c97a3c;
     --accent-fg: #ffffff;
+    --accent-glow: rgba(212, 135, 58, 0.3);
     --selected: #e8d4b8;
     --user-bg: #e8e0d0;
     --assistant-bg: #ffffff;
@@ -24,6 +25,7 @@ html[data-theme='dark'] {
     --muted: #8a8174;
     --accent: #e09060;
     --accent-fg: #110d08;
+    --accent-glow: rgba(246, 174, 90, 0.40);
     --selected: #3a2a18;
     --user-bg: #2a2218;
     --assistant-bg: #1a140c;
@@ -369,65 +371,167 @@ button:disabled {
 
 /* ---- Session view ---- */
 
+/* Session stage hosts the orb above the status line. In the existing
+   app the orb lives in the nav bar — when we lift base.html's nav into
+   the TS preview (meditation-pal-cfy), this layout can change. */
 .session-stage {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 1.25rem;
     padding: 1rem 0;
 }
 
+/* Orb — lifted from src/web/static/css/style.css (lines ~2030-2207 of
+   the existing app). Matches the breathing / holding / muted states the
+   original facilitator uses. Kasina + rainbow easter eggs are styled
+   here but their JS triggers (4-clicks / shake / drag) live in
+   meditation-pal-1au — port the interactions next pass.
+
+   NOTE(lift-first idea): we previously had multi-state listening /
+   thinking / speaking variants on the orb; deferred to meditation-pal-1au. */
+
+@property --orb-saturation {
+    syntax: '<number>';
+    initial-value: 1;
+    inherits: false;
+}
+@property --orb-brightness {
+    syntax: '<number>';
+    initial-value: 1;
+    inherits: false;
+}
+
 .orb {
-    width: 96px;
-    height: 96px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background: radial-gradient(
-        circle at 35% 30%,
-        var(--accent),
-        color-mix(in srgb, var(--accent) 60%, var(--bg)) 60%,
-        color-mix(in srgb, var(--accent) 30%, var(--bg))
-    );
-    box-shadow:
-        0 0 24px color-mix(in srgb, var(--accent) 60%, transparent),
-        0 0 60px color-mix(in srgb, var(--accent) 30%, transparent);
-    transition: box-shadow 400ms ease, filter 400ms ease, transform 400ms ease;
+    background: radial-gradient(circle at 40% 40%, #f0b030, #e08020, #b84818);
+    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(212, 135, 58, 0.1);
+    filter: saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
+    transition: --orb-saturation 3s ease;
 }
-.orb-breathing,
+
 .orb-idle {
-    animation: orb-breathe 5s ease-in-out infinite;
+    opacity: 0.6;
 }
-.orb-listening {
-    animation: orb-pulse 1.4s ease-in-out infinite;
-    filter: hue-rotate(-20deg) saturate(1.2);
+
+.orb-breathing {
+    animation: breathe 6s ease-in-out infinite, orbFlicker 3.7s ease-in-out infinite;
 }
-.orb-thinking {
-    animation: orb-think 1.2s ease-in-out infinite;
-    filter: saturate(0.5);
-}
-.orb-speaking {
-    animation: orb-speak 0.9s ease-in-out infinite;
-    filter: brightness(1.15);
-}
+
 .orb-holding {
-    animation: orb-breathe 9s ease-in-out infinite;
-    filter: saturate(0.6) brightness(0.85);
+    --orb-saturation: 0.3;
 }
-@keyframes orb-breathe {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.06); }
+
+.orb-muted {
+    --orb-saturation: 0;
 }
-@keyframes orb-pulse {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 70%, transparent); }
-    50%      { transform: scale(1.08); box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 90%, transparent); }
+
+.orb-holding.orb-breathing {
+    animation: breathe 10s ease-in-out infinite;
 }
-@keyframes orb-think {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(0.95); }
+
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(0.92);
+        opacity: 0.5;
+        box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(212, 135, 58, 0.05);
+    }
+    50% {
+        transform: scale(1.08);
+        opacity: 0.85;
+        box-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(212, 135, 58, 0.15);
+    }
 }
-@keyframes orb-speak {
-    0%, 100% { transform: scale(1); }
-    35%      { transform: scale(1.04); }
-    70%      { transform: scale(0.99); }
+
+/* Organic flicker — layered with breathe to break the perfect sine wave */
+@keyframes orbFlicker {
+    0%, 100% { --orb-brightness: 1; }
+    30% { --orb-brightness: 1.1; }
+    70% { --orb-brightness: 0.92; }
+}
+
+/* Kasina mode — fullscreen orb. Triggered by clicking the nav orb;
+   port the JS click handler in the lift-first follow-up. */
+.orb-kasina {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: 140px;
+    height: 140px;
+    z-index: 50;
+    cursor: grab;
+    background: radial-gradient(circle at 45% 45%, #fffbe0, #ffc040, #e89030, #b05020);
+    box-shadow:
+        0 0 60px rgba(255, 192, 64, 0.3),
+        0 0 120px rgba(232, 144, 48, 0.15),
+        0 0 200px rgba(176, 80, 32, 0.08);
+    animation: kasinaPulse 8s ease-in-out infinite, orbFlicker 4.3s ease-in-out infinite;
+    opacity: 1;
+}
+
+@keyframes kasinaPulse {
+    0%, 100% {
+        transform: scale(0.98);
+        box-shadow:
+            0 0 60px rgba(255, 192, 64, 0.3),
+            0 0 120px rgba(232, 144, 48, 0.15),
+            0 0 200px rgba(176, 80, 32, 0.08);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow:
+            0 0 70px rgba(255, 192, 64, 0.38),
+            0 0 140px rgba(232, 144, 48, 0.2),
+            0 0 240px rgba(176, 80, 32, 0.1);
+    }
+}
+
+/* Rainbow easter egg — triggered by shaking the kasina orb. JS for
+   the shake detection lives in meditation-pal-1au follow-up. */
+
+@keyframes rainbowRotate {
+    from { filter: hue-rotate(0deg); }
+    to   { filter: hue-rotate(360deg); }
+}
+
+@property --rainbow-shift {
+    syntax: '<percentage>';
+    inherits: false;
+    initial-value: 0%;
+}
+
+@keyframes rainbowFlow {
+    from { --rainbow-shift: 0%; }
+    to   { --rainbow-shift: 100%; }
+}
+
+.orb-rainbow {
+    background: radial-gradient(
+        circle at center,
+        #f7a8c4 calc(-100% + var(--rainbow-shift)),
+        #f4b8a0 calc(-86% + var(--rainbow-shift)),
+        #f5e6a0 calc(-71% + var(--rainbow-shift)),
+        #a8e6cf calc(-57% + var(--rainbow-shift)),
+        #a0e0f0 calc(-43% + var(--rainbow-shift)),
+        #c4b4f0 calc(-29% + var(--rainbow-shift)),
+        #e8a0d8 calc(-14% + var(--rainbow-shift)),
+        #f7a8c4 calc(0% + var(--rainbow-shift)),
+        #f4b8a0 calc(14% + var(--rainbow-shift)),
+        #f5e6a0 calc(29% + var(--rainbow-shift)),
+        #a8e6cf calc(43% + var(--rainbow-shift)),
+        #a0e0f0 calc(57% + var(--rainbow-shift)),
+        #c4b4f0 calc(71% + var(--rainbow-shift)),
+        #e8a0d8 calc(86% + var(--rainbow-shift)),
+        #f7a8c4 calc(100% + var(--rainbow-shift))
+    ) !important;
+    animation: kasinaPulse 8s ease-in-out infinite, rainbowRotate 3s linear infinite, rainbowFlow 6s linear infinite !important;
+    box-shadow:
+        0 0 60px rgba(200, 160, 220, 0.35),
+        0 0 120px rgba(168, 230, 207, 0.2),
+        0 0 200px rgba(196, 180, 240, 0.12) !important;
+    filter: hue-rotate(0deg) saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
 }
 
 .status {
