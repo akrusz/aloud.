@@ -12,6 +12,12 @@ const OLLAMA_URL = process.env['OLLAMA_URL'] ?? 'http://localhost:11434';
 export default defineConfig({
     root: __dirname,
     server: {
+        // Allow Vite to read CSS / TS sources from outside ui/ — we
+        // import the existing app's CSS verbatim from src/web/static/.
+        // Repo root is two levels up (../..).
+        fs: {
+            allow: [resolve(__dirname, '../..')],
+        },
         port: 5173,
         strictPort: false,
         proxy: {

@@ -1,46 +1,22 @@
-/* Preview-only stylesheet. Not the final glooow design — enough structure
-   to develop the TS UI in a real browser. */
+/* TS preview stylesheet.
+ *
+ * The big move: we import the existing app's stylesheet directly so the
+ * TS preview gets visual parity for free — same variables, same class
+ * names, same animations, same responsive rules. Any tweak the user
+ * makes in the existing app flows into the TS preview too.
+ *
+ * Everything below the @import is for TS-preview-specific concerns that
+ * don't exist in the original app (the in-page history view, partial-
+ * message styling for streaming Web Speech results, etc.). When a
+ * concept lands in the TS app that also exists in the original, we
+ * delete the override here so the existing rule takes over.
+ */
 
-:root,
-html[data-theme='light'] {
-    color-scheme: light;
-    font-family: system-ui, -apple-system, sans-serif;
-    line-height: 1.5;
-    --bg: #f5f0e8;
-    --fg: #110d08;
-    --muted: #8a8174;
-    --accent: #c97a3c;
-    --accent-fg: #ffffff;
-    --accent-glow: rgba(212, 135, 58, 0.3);
-    --selected: #e8d4b8;
-    --user-bg: #e8e0d0;
-    --assistant-bg: #ffffff;
-    --border: #d0c6b4;
-}
+@import url('../../../src/web/static/css/style.css');
 
-html[data-theme='dark'] {
-    color-scheme: dark;
-    --bg: #110d08;
-    --fg: #f5f0e8;
-    --muted: #8a8174;
-    --accent: #e09060;
-    --accent-fg: #110d08;
-    --accent-glow: rgba(246, 174, 90, 0.40);
-    --selected: #3a2a18;
-    --user-bg: #2a2218;
-    --assistant-bg: #1a140c;
-    --border: #3a3024;
-}
-
-* {
-    box-sizing: border-box;
-}
-body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--fg);
-    min-height: 100vh;
-}
+/* ============================================
+   TS-preview-only additions
+   ============================================ */
 
 #app {
     max-width: 720px;
@@ -50,6 +26,7 @@ body {
     flex-direction: column;
     gap: 1.5rem;
 }
+
 .header-row {
     display: flex;
     justify-content: space-between;
@@ -57,36 +34,31 @@ body {
     gap: 1rem;
     flex-wrap: wrap;
 }
-header h1 {
+.tagline {
     margin: 0;
-    font-size: 2.5rem;
-    font-weight: 400;
-    letter-spacing: 0.05em;
-}
-header .tagline {
-    margin: 0;
-    color: var(--muted);
+    color: var(--text-muted);
     font-size: 0.9rem;
 }
 
 .app-nav {
     display: flex;
     gap: 0.75rem;
+    align-items: center;
 }
 .app-nav a {
-    color: var(--muted);
+    color: var(--text-muted);
     text-decoration: none;
     font-size: 0.95rem;
     padding: 0.25rem 0.5rem;
-    border-radius: 0.3rem;
-    transition: color 100ms, background 100ms;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition), background var(--transition);
 }
 .app-nav a:hover {
-    color: var(--fg);
+    color: var(--text-primary);
 }
 .app-nav a.active {
-    color: var(--fg);
-    background: var(--selected);
+    color: var(--text-primary);
+    background: var(--accent-dim);
 }
 .theme-toggle {
     background: transparent;
@@ -95,285 +67,17 @@ header .tagline {
     width: 1.8rem;
     height: 1.8rem;
     padding: 0;
-    font-size: 1rem;
-    color: var(--muted);
+    color: var(--text-muted);
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .theme-toggle:hover {
-    color: var(--fg);
+    color: var(--text-primary);
 }
 
-/* ---- History view ---- */
-
-.history-empty {
-    padding: 2rem 1rem;
-    text-align: center;
-    color: var(--muted);
-}
-.history-empty .muted {
-    font-size: 0.85rem;
-}
-
-.history-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.history-row {
-    background: var(--assistant-bg);
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
-    overflow: hidden;
-}
-.history-row.expanded {
-    border-color: var(--accent);
-}
-.history-row-header {
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-}
-.history-row-header:hover {
-    background: var(--selected);
-}
-.history-row-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-}
-.history-date {
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-.history-notes {
-    color: var(--muted);
-    font-size: 0.9rem;
-    font-style: italic;
-}
-.history-meta {
-    color: var(--muted);
-    font-size: 0.8rem;
-}
-.history-delete {
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-size: 1.4rem;
-    line-height: 1;
-    padding: 0 0.25rem;
-    cursor: pointer;
-}
-.history-delete:hover {
-    color: #c93c3c;
-}
-.history-transcript {
-    border-top: 1px solid var(--border);
-    margin: 0;
-    border-radius: 0;
-    max-height: 50vh;
-}
-
-/* ---- Setup view ---- */
-
-.setup-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-.form-group > label {
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-.optional {
-    font-weight: 400;
-    color: var(--muted);
-    font-size: 0.85rem;
-}
-.form-row {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-.form-row > .form-group {
-    flex: 1;
-    min-width: 180px;
-}
-
-textarea,
-input[type='text'],
-select {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.3rem;
-    background: var(--assistant-bg);
-    color: var(--fg);
-    font: inherit;
-    resize: vertical;
-}
-
-.style-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.5rem;
-}
-.style-card {
-    padding: 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
-    background: var(--assistant-bg);
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    transition: background 100ms, border-color 100ms;
-}
-.style-card:hover {
-    background: var(--selected);
-}
-.style-card.selected {
-    background: var(--selected);
-    border-color: var(--accent);
-}
-.style-name {
-    font-weight: 600;
-}
-.style-desc {
-    color: var(--muted);
-    font-size: 0.85rem;
-}
-
-.modifier-toggles {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-.modifier-toggle {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.3rem;
-    background: var(--assistant-bg);
-    cursor: pointer;
-    transition: background 100ms, border-color 100ms;
-}
-.modifier-toggle:has(input:checked),
-.modifier-toggle.selected {
-    background: var(--selected);
-    border-color: var(--accent);
-}
-.modifier-toggle input[type='checkbox'] {
-    margin-top: 0.2rem;
-}
-.modifier-info {
-    display: flex;
-    flex-direction: column;
-}
-.modifier-name {
-    font-weight: 600;
-}
-.modifier-desc {
-    color: var(--muted);
-    font-size: 0.85rem;
-}
-
-input[type='range'] {
-    width: 100%;
-}
-.range-labels {
-    display: flex;
-    justify-content: space-between;
-    color: var(--muted);
-    font-size: 0.8rem;
-}
-
-.voice-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-.voice-select {
-    flex: 1;
-}
-.voice-preview {
-    flex-shrink: 0;
-    background: transparent;
-    color: var(--accent);
-    border-color: var(--accent);
-}
-.voice-status {
-    color: var(--muted);
-    font-size: 0.85rem;
-    min-height: 1.2em;
-}
-
-.advanced-settings {
-    background: var(--assistant-bg);
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
-    padding: 0.5rem 0.75rem;
-}
-.advanced-settings summary {
-    cursor: pointer;
-    color: var(--muted);
-}
-.advanced-settings textarea {
-    margin-top: 0.5rem;
-}
-
-.setup-footer {
-    display: flex;
-    justify-content: flex-end;
-    padding-top: 0.5rem;
-}
-
-/* ---- Buttons ---- */
-
-button,
-.btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 0.3rem;
-    background: var(--assistant-bg);
-    color: var(--fg);
-    cursor: pointer;
-    font: inherit;
-}
-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-.btn-primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-    border-color: transparent;
-    font-weight: 600;
-}
-.btn-begin {
-    padding: 0.6rem 1.4rem;
-    font-size: 1rem;
-}
-.btn-end {
-    background: transparent;
-    color: var(--muted);
-}
-
-/* ---- Session view ---- */
-
-/* Session stage hosts the orb above the status line. In the existing
-   app the orb lives in the nav bar — when we lift base.html's nav into
-   the TS preview (meditation-pal-cfy), this layout can change. */
+/* Setup view — extras the existing CSS doesn't cover */
 .session-stage {
     display: flex;
     flex-direction: column;
@@ -381,348 +85,14 @@ button:disabled {
     gap: 1.25rem;
     padding: 1rem 0;
 }
-
-.session-footer {
-    display: flex;
-    justify-content: flex-end;
-    padding: 0.25rem 0;
-}
-
-/* Ember level control — lifted from src/web/static/css/style.css */
-.ember-level {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: inherit;
-    color: var(--muted);
-}
-.ember-level .toggle-text {
-    margin-right: 0.1rem;
-    user-select: none;
-}
-.ember-btn {
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 1rem;
-    cursor: pointer;
-    padding: 0 0.15rem;
-    line-height: 1;
-    user-select: none;
-    font-family: inherit;
-    transition: color 100ms;
-}
-.ember-btn:hover { color: var(--accent); }
-.ember-blocks { display: flex; gap: 2px; }
-.ember-block {
-    --ember-size: 12px;
-    width: var(--ember-size);
-    height: var(--ember-size);
-    border: 1px solid var(--muted);
-    border-radius: 2px;
-    cursor: pointer;
-    transition: background 100ms, border-color 100ms;
-}
-.ember-block.filled {
-    background: var(--accent);
-    border-color: var(--accent);
-}
-.ember-block:hover { border-color: var(--accent); }
-@keyframes ember-shake {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-1.5px); }
-    40% { transform: translateX(1.5px); }
-    60% { transform: translateX(-1px); }
-    80% { transform: translateX(1px); }
-}
-.ember-blocks.shake { animation: ember-shake 0.25s ease; }
-@keyframes ember-block-grow {
-    from { width: 0; border-width: 0; opacity: 0; }
-    to { width: var(--ember-size); border-width: 1px; opacity: 1; }
-}
-.ember-block.growing {
-    animation: ember-block-grow 0.4s ease-out forwards;
-    overflow: hidden;
-}
-
-/* Ember Particles — lifted */
-.ember-container {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: -1;
-    overflow: hidden;
-    display: none;
-}
-.ember-container.active { display: block; }
-.ember {
-    position: absolute;
-    bottom: -10px;
-    border-radius: 50%;
-    opacity: 0;
-}
-html[data-theme='light'] .ember {
-    box-shadow: 0 0 6px 2px rgba(200, 130, 50, 0.5) !important;
-}
-
-/* ============================================
-   About Modal — lifted from src/web/static/css/style.css
-   ============================================ */
-
-.nav-brand {
-    color: var(--fg);
-    text-decoration: none;
-    font-size: 2.5rem;
-    font-weight: 400;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-}
-.hidden { display: none !important; }
-
-.about-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 80;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.15s ease;
-}
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-.about-modal {
-    max-width: 420px;
-    width: 90%;
-    background: var(--assistant-bg);
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    overflow: hidden;
-}
-.about-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border);
-}
-.about-modal-title {
-    font-weight: 500;
-    color: var(--fg);
-    font-size: 1.1rem;
-}
-.voice-modal-close {
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 1.5rem;
-    cursor: pointer;
-    line-height: 1;
-}
-.about-modal-body {
-    padding: 1.5rem 1rem;
-    text-align: center;
-}
-.about-app-name {
-    font-size: 2.2rem;
-    color: var(--accent);
-    margin-bottom: 0.25rem;
-}
-.about-version,
-.about-author {
-    font-size: 1.05rem;
-    color: var(--muted);
-    margin-bottom: 0.75rem;
-}
-.about-links {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    flex-wrap: wrap;
-    font-size: 1.05rem;
-}
-.about-donate-label {
-    color: var(--muted);
-    font-size: 1.1rem;
-    margin-top: 0.75rem;
-}
-.about-donate {
-    color: var(--muted);
-    margin-top: 0.25rem;
-    font-size: 1.05rem;
-}
-.about-links a,
-.about-eth {
-    color: var(--accent);
-    text-decoration: none;
-}
-.about-links a:hover,
-.about-eth:hover {
-    text-decoration: underline;
-}
-.about-eth { cursor: pointer; }
-
-/* Orb — lifted from src/web/static/css/style.css (lines ~2030-2207 of
-   the existing app). Matches the breathing / holding / muted states the
-   original facilitator uses. Kasina + rainbow easter eggs are styled
-   here but their JS triggers (4-clicks / shake / drag) live in
-   meditation-pal-1au — port the interactions next pass.
-
-   NOTE(lift-first idea): we previously had multi-state listening /
-   thinking / speaking variants on the orb; deferred to meditation-pal-1au. */
-
-@property --orb-saturation {
-    syntax: '<number>';
-    initial-value: 1;
-    inherits: false;
-}
-@property --orb-brightness {
-    syntax: '<number>';
-    initial-value: 1;
-    inherits: false;
-}
-
-.orb {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 40% 40%, #f0b030, #e08020, #b84818);
-    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(212, 135, 58, 0.1);
-    filter: saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
-    transition: --orb-saturation 3s ease;
-}
-
-.orb-idle {
-    opacity: 0.6;
-}
-
-.orb-breathing {
-    animation: breathe 6s ease-in-out infinite, orbFlicker 3.7s ease-in-out infinite;
-}
-
-.orb-holding {
-    --orb-saturation: 0.3;
-}
-
-.orb-muted {
-    --orb-saturation: 0;
-}
-
-.orb-holding.orb-breathing {
-    animation: breathe 10s ease-in-out infinite;
-}
-
-@keyframes breathe {
-    0%, 100% {
-        transform: scale(0.92);
-        opacity: 0.5;
-        box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(212, 135, 58, 0.05);
-    }
-    50% {
-        transform: scale(1.08);
-        opacity: 0.85;
-        box-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(212, 135, 58, 0.15);
-    }
-}
-
-/* Organic flicker — layered with breathe to break the perfect sine wave */
-@keyframes orbFlicker {
-    0%, 100% { --orb-brightness: 1; }
-    30% { --orb-brightness: 1.1; }
-    70% { --orb-brightness: 0.92; }
-}
-
-/* Kasina mode — fullscreen orb. Triggered by clicking the nav orb;
-   port the JS click handler in the lift-first follow-up. */
-.orb-kasina {
-    position: fixed;
-    inset: 0;
-    margin: auto;
-    width: 140px;
-    height: 140px;
-    z-index: 50;
-    cursor: grab;
-    background: radial-gradient(circle at 45% 45%, #fffbe0, #ffc040, #e89030, #b05020);
-    box-shadow:
-        0 0 60px rgba(255, 192, 64, 0.3),
-        0 0 120px rgba(232, 144, 48, 0.15),
-        0 0 200px rgba(176, 80, 32, 0.08);
-    animation: kasinaPulse 8s ease-in-out infinite, orbFlicker 4.3s ease-in-out infinite;
-    opacity: 1;
-}
-
-@keyframes kasinaPulse {
-    0%, 100% {
-        transform: scale(0.98);
-        box-shadow:
-            0 0 60px rgba(255, 192, 64, 0.3),
-            0 0 120px rgba(232, 144, 48, 0.15),
-            0 0 200px rgba(176, 80, 32, 0.08);
-    }
-    50% {
-        transform: scale(1.02);
-        box-shadow:
-            0 0 70px rgba(255, 192, 64, 0.38),
-            0 0 140px rgba(232, 144, 48, 0.2),
-            0 0 240px rgba(176, 80, 32, 0.1);
-    }
-}
-
-/* Rainbow easter egg — triggered by shaking the kasina orb. JS for
-   the shake detection lives in meditation-pal-1au follow-up. */
-
-@keyframes rainbowRotate {
-    from { filter: hue-rotate(0deg); }
-    to   { filter: hue-rotate(360deg); }
-}
-
-@property --rainbow-shift {
-    syntax: '<percentage>';
-    inherits: false;
-    initial-value: 0%;
-}
-
-@keyframes rainbowFlow {
-    from { --rainbow-shift: 0%; }
-    to   { --rainbow-shift: 100%; }
-}
-
-.orb-rainbow {
-    background: radial-gradient(
-        circle at center,
-        #f7a8c4 calc(-100% + var(--rainbow-shift)),
-        #f4b8a0 calc(-86% + var(--rainbow-shift)),
-        #f5e6a0 calc(-71% + var(--rainbow-shift)),
-        #a8e6cf calc(-57% + var(--rainbow-shift)),
-        #a0e0f0 calc(-43% + var(--rainbow-shift)),
-        #c4b4f0 calc(-29% + var(--rainbow-shift)),
-        #e8a0d8 calc(-14% + var(--rainbow-shift)),
-        #f7a8c4 calc(0% + var(--rainbow-shift)),
-        #f4b8a0 calc(14% + var(--rainbow-shift)),
-        #f5e6a0 calc(29% + var(--rainbow-shift)),
-        #a8e6cf calc(43% + var(--rainbow-shift)),
-        #a0e0f0 calc(57% + var(--rainbow-shift)),
-        #c4b4f0 calc(71% + var(--rainbow-shift)),
-        #e8a0d8 calc(86% + var(--rainbow-shift)),
-        #f7a8c4 calc(100% + var(--rainbow-shift))
-    ) !important;
-    animation: kasinaPulse 8s ease-in-out infinite, rainbowRotate 3s linear infinite, rainbowFlow 6s linear infinite !important;
-    box-shadow:
-        0 0 60px rgba(200, 160, 220, 0.35),
-        0 0 120px rgba(168, 230, 207, 0.2),
-        0 0 200px rgba(196, 180, 240, 0.12) !important;
-    filter: hue-rotate(0deg) saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
-}
-
 .status {
     padding: 0.75rem 1rem;
-    background: var(--user-bg);
-    border-radius: 0.5rem;
-    color: var(--muted);
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    color: var(--text-muted);
     font-size: 0.9rem;
     text-align: center;
+    width: 100%;
 }
 
 .transcript {
@@ -733,13 +103,13 @@ html[data-theme='light'] .ember {
     max-height: 55vh;
     overflow-y: auto;
     padding: 1rem;
-    background: var(--assistant-bg);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    border-radius: var(--radius);
 }
 .message {
     padding: 0.6rem 0.9rem;
-    border-radius: 0.4rem;
+    border-radius: var(--radius-sm);
     max-width: 85%;
 }
 .message.user {
@@ -748,15 +118,15 @@ html[data-theme='light'] .ember {
 }
 .message.assistant {
     align-self: flex-start;
-    background: transparent;
+    background: var(--facilitator-bg);
 }
 .message.partial {
-    color: var(--muted);
+    color: var(--text-muted);
     font-style: italic;
 }
 .message.intention {
     align-self: center;
-    color: var(--muted);
+    color: var(--text-muted);
     font-size: 0.85rem;
     font-style: italic;
     background: transparent;
@@ -775,9 +145,153 @@ html[data-theme='light'] .ember {
 }
 #text-input {
     flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: inherit;
 }
 #mic.listening {
-    background: #c93c3c;
+    background: var(--accent);
     color: white;
-    border-color: transparent;
+    border-color: var(--accent);
+}
+.btn-end {
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.session-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.25rem 0;
+}
+
+/* Voice picker preview row (TS preview's simple dropdown variant —
+   the modal lift from voice-picker.js lives in meditation-pal-cfy). */
+.voice-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.voice-select {
+    flex: 1;
+}
+.voice-preview {
+    flex-shrink: 0;
+}
+.voice-status {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    min-height: 1.2em;
+}
+
+/* Settings note (Anthropic key explainer). */
+.settings-note {
+    margin: 0.5rem 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.settings-note code {
+    background: var(--bg-input);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
+    font-size: 0.8em;
+}
+
+/* History view — TS-preview-only */
+.history-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+.history-empty .muted {
+    font-size: 0.85rem;
+}
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.history-row {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.history-row.expanded {
+    border-color: var(--accent);
+}
+.history-row-header {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+.history-row-header:hover {
+    background: var(--accent-dim);
+}
+.history-row-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+.history-date {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.history-notes {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-style: italic;
+}
+.history-meta {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+.history-delete {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.4rem;
+    line-height: 1;
+    padding: 0 0.25rem;
+    cursor: pointer;
+}
+.history-delete:hover {
+    color: var(--danger);
+}
+.history-transcript {
+    border-top: 1px solid var(--border);
+    margin: 0;
+    border-radius: 0;
+    max-height: 50vh;
+    padding: 1rem;
+}
+
+/* Setup view — light layout glue. The existing app uses .setup-container
+   class names verbatim so most styling cascades through the @import.
+   These rules only fill in the small layout pieces the existing CSS
+   relies on parent-container layout for (.setup-form etc.). */
+.setup-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.form-row > .form-group {
+    flex: 1;
+    min-width: 180px;
 }
