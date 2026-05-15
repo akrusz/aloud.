@@ -113,6 +113,7 @@ export async function mountSessionView(
             'for server Whisper, or open the preview in Chrome/Edge for Web Speech, then start a ' +
             'new session.';
         micBtn.title = hint;
+        micBtn.textContent = 'Mic unavailable';
         setStatus(`Mic unavailable — type to begin. ${hint}`);
     } else {
         micBtn.disabled = false;
@@ -122,7 +123,7 @@ export async function mountSessionView(
                 : sttBackend === 'web-speech'
                   ? 'Web Speech'
                   : 'server Whisper';
-        setStatus(`Ready (${label}). Press mic or type to begin`);
+        setStatus(`Listening (${label}). Speak when ready, or type.`);
     }
 
     // Show the intention as a faint first line of context, if set.
@@ -134,7 +135,9 @@ export async function mountSessionView(
     }
 
     let busy = false;
-    let listening = false;
+    let muted = false;
+    let listenLoopRunning = false;
+    let torn = false;
     let silenceMode = false;
     let currentPartial: HTMLElement | null = null;
 
@@ -169,7 +172,7 @@ export async function mountSessionView(
                 setStatus('Holding space — anything you say resumes');
                 setOrbHolding(true);
             } else {
-                setStatus(stt ? 'Ready — mic or type' : 'Ready — type to continue');
+                setStatus(stt ? 'Listening…' : 'Ready — type to continue');
             }
         } catch (err) {
             setStatus(`Error: ${(err as Error).message}`);
@@ -178,52 +181,95 @@ export async function mountSessionView(
         }
     }
 
-    async function runMicTurn(): Promise<void> {
-        if (!stt || listening) return;
-        listening = true;
-        micBtn.classList.add('listening');
-        micBtn.textContent = 'Listening…';
-        setStatus('Listening…');
-
-        let finalText = '';
-        let micError: string | null = null;
+    /**
+     * Always-on listening loop — matches the existing app's behavior.
+     * Each iteration runs a single STT utterance; when speech ends, we
+     * dispatch the transcription to respondTo() (which awaits TTS),
+     * then loop back. Pauses while busy (LLM call + TTS playback) so
+     * the mic doesn't pick up the speaker output as user input.
+     *
+     * Barge-in handling — interrupting TTS by speaking — is the real
+     * app's behavior and lives in meditation-pal-1au for a separate
+     * lift-first pass.
+     */
+    async function listenLoop(): Promise<void> {
+        if (!stt || listenLoopRunning) return;
+        listenLoopRunning = true;
         try {
-            for await (const event of stt.start()) {
-                if (event.type === 'partial') {
-                    if (!currentPartial) {
-                        currentPartial = appendMessage('user', event.text, true);
-                    } else {
-                        currentPartial.textContent = event.text;
-                    }
-                } else if (event.type === 'final') {
-                    finalText = event.text;
-                } else if (event.type === 'error') {
-                    micError = describeSttError(event.error);
+            while (!torn && !muted) {
+                while (busy && !torn && !muted) {
+                    await new Promise<void>((r) => setTimeout(r, 100));
                 }
+                if (torn || muted) break;
+
+                let finalText = '';
+                let micError: string | null = null;
+                try {
+                    for await (const event of stt.start()) {
+                        if (event.type === 'partial') {
+                            if (!currentPartial) {
+                                currentPartial = appendMessage('user', event.text, true);
+                            } else {
+                                currentPartial.textContent = event.text;
+                            }
+                        } else if (event.type === 'final') {
+                            finalText = event.text;
+                        } else if (event.type === 'error') {
+                            micError = describeSttError(event.error);
+                        }
+                    }
+                } catch (err) {
+                    micError = describeSttError(err);
+                }
+                if (currentPartial) {
+                    currentPartial.remove();
+                    currentPartial = null;
+                }
+                if (torn || muted) break;
+
+                if (finalText.trim()) {
+                    await respondTo(finalText.trim());
+                } else if (micError) {
+                    setStatus(micError);
+                    // Brief backoff so a broken mic doesn't tight-loop us.
+                    await new Promise<void>((r) => setTimeout(r, 2000));
+                }
+                // Empty utterance with no error: just loop and listen again.
             }
         } finally {
-            listening = false;
-            micBtn.classList.remove('listening');
-            micBtn.textContent = 'Start listening';
-            if (currentPartial) {
-                currentPartial.remove();
-                currentPartial = null;
-            }
-        }
-
-        if (finalText.trim()) {
-            await respondTo(finalText.trim());
-        } else if (micError) {
-            setStatus(micError);
-        } else {
-            setStatus('Didn’t catch that — try again, or speak a little louder');
+            listenLoopRunning = false;
         }
     }
 
+    function setMicButtonState(): void {
+        if (!stt) return;
+        micBtn.classList.toggle('listening', !muted);
+        micBtn.textContent = muted ? 'Unmute mic' : 'Mute mic';
+        micBtn.setAttribute(
+            'aria-label',
+            muted ? 'Unmute microphone' : 'Mute microphone'
+        );
+    }
+
     micBtn.addEventListener('click', () => {
-        if (listening) void stt?.stop();
-        else void runMicTurn();
+        if (!stt) return;
+        if (muted) {
+            muted = false;
+            setMicButtonState();
+            void listenLoop();
+        } else {
+            muted = true;
+            void stt.stop();
+            setMicButtonState();
+            setStatus('Muted — click Unmute mic or type to continue');
+        }
     });
+
+    // Kick off always-on listening when the view mounts.
+    if (stt) {
+        setMicButtonState();
+        void listenLoop();
+    }
 
     textForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -239,7 +285,6 @@ export async function mountSessionView(
 
     wireEmberControls(root);
 
-    let torn = false;
     async function endSession(): Promise<void> {
         if (torn) return;
         torn = true;

@@ -1,23 +1,22 @@
 /**
- * Server-side TTS adapter — fetches synthesized WAV bytes from Flask's
- * /api/voices/preview endpoint and plays them via AudioContext.
+ * Server-side TTS adapter — fetches a WAV from Flask's /api/voices/preview
+ * and plays it via an HTMLAudioElement.
  *
- * The endpoint is general (it accepts an arbitrary `text` param even
- * though "preview" is its historical name), so we can use it for
- * actual session TTS without adding a new route. Each speak() is one
- * HTTP request + one decodeAudioData + one buffer source playback.
+ * Previous iterations used Web Audio (AudioContext + BufferSource), which
+ * Firefox keeps re-suspending during the decode step. HTMLAudioElement is
+ * a regular media element with browser-managed lifecycle — no manual
+ * resume() dance, no suspension races. We swap to it here for stability.
+ *
+ * The server's `rate` query param already renders the WAV at the
+ * requested wpm, so we don't need to mess with playbackRate.
  */
 
 import type { TtsEngine, TtsOptions, TtsVoice } from '../../../src/platform/tts.js';
 
 export interface ServerTtsEngineOptions {
-    /** Voice id from /api/voices — required for the server to pick an engine. */
     voice: string;
-    /** Engine override; let the server auto-detect when omitted. */
     engine?: string;
-    /** Endpoint base. Defaults to '/api/voices/preview'. */
     endpointUrl?: string;
-    /** Override fetch (tests). */
     fetchImpl?: typeof fetch;
 }
 
@@ -27,8 +26,8 @@ export class ServerTtsEngine implements TtsEngine {
     private readonly endpointUrl: string;
     private readonly fetchImpl: typeof fetch;
 
-    private context: AudioContext | null = null;
-    private currentSource: AudioBufferSourceNode | null = null;
+    private currentAudio: HTMLAudioElement | null = null;
+    private currentUrl: string | null = null;
     private currentResolve: (() => void) | null = null;
     private currentAbort: AbortController | null = null;
 
@@ -50,7 +49,7 @@ export class ServerTtsEngine implements TtsEngine {
         const abort = new AbortController();
         this.currentAbort = abort;
 
-        let buffer: ArrayBuffer;
+        let blob: Blob;
         try {
             const response = await this.fetchImpl(`${this.endpointUrl}?${params.toString()}`, {
                 signal: abort.signal,
@@ -58,7 +57,7 @@ export class ServerTtsEngine implements TtsEngine {
             if (!response.ok) {
                 throw new Error(`Server TTS responded ${response.status}`);
             }
-            buffer = await response.arrayBuffer();
+            blob = await response.blob();
         } catch (err) {
             this.currentAbort = null;
             if ((err as Error).name === 'AbortError') return;
@@ -66,35 +65,36 @@ export class ServerTtsEngine implements TtsEngine {
         }
         if (abort.signal.aborted) return;
 
-        const ctx = await this.ensureContext();
-        let audioBuffer: AudioBuffer;
-        try {
-            audioBuffer = await ctx.decodeAudioData(buffer.slice(0));
-        } catch (err) {
-            // Some engines (server fell over, returned empty/bad bytes) — surface as a TTS error.
-            throw new Error(`Failed to decode TTS audio: ${(err as Error).message}`);
-        }
-        if (abort.signal.aborted) return;
-
-        // Firefox in particular can re-suspend the context during decode
-        // (a few hundred ms with no scheduled output), which makes start(0)
-        // play briefly and then go silent. Re-resume right before play.
-        if (ctx.state === 'suspended') {
-            try {
-                await ctx.resume();
-            } catch {
-                /* will throw at start() if it's a real problem */
-            }
-        }
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        // preload=auto so Firefox starts buffering before play(); reduces
+        // any small lead-in gap and keeps playback stable end-to-end.
+        audio.preload = 'auto';
 
         return new Promise<void>((resolve) => {
-            const source = ctx.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(ctx.destination);
-            this.currentSource = source;
+            const cleanup = () => {
+                URL.revokeObjectURL(url);
+                if (this.currentAudio === audio) {
+                    this.currentAudio = null;
+                    this.currentUrl = null;
+                    this.currentAbort = null;
+                }
+                const r = this.currentResolve;
+                this.currentResolve = null;
+                if (r) r();
+                else resolve();
+            };
+            audio.onended = cleanup;
+            audio.onerror = cleanup;
+            audio.onpause = () => {
+                // Pause without ending means we were cancelled — finalize.
+                if (audio.ended) return;
+                cleanup();
+            };
+            this.currentAudio = audio;
+            this.currentUrl = url;
             this.currentResolve = resolve;
-            source.onended = () => this.finish(source);
-            source.start(0);
+            audio.play().catch(() => cleanup());
         });
     }
 
@@ -104,31 +104,7 @@ export class ServerTtsEngine implements TtsEngine {
     }
 
     async listVoices(): Promise<TtsVoice[]> {
-        // Listing voices is the picker's job (it merges server + browser).
-        // The engine itself doesn't need to enumerate.
         return [];
-    }
-
-    private async ensureContext(): Promise<AudioContext> {
-        if (!this.context || this.context.state === 'closed') {
-            const AC =
-                (globalThis as unknown as { AudioContext?: typeof AudioContext }).AudioContext ??
-                (globalThis as unknown as { webkitAudioContext?: typeof AudioContext })
-                    .webkitAudioContext;
-            if (!AC) throw new Error('AudioContext unavailable');
-            this.context = new AC();
-        }
-        if (this.context.state === 'suspended') {
-            // Await resume so the first speak() doesn't drop samples
-            // while the audio engine is still warming up. iOS Safari is
-            // strictest about this, but Firefox can also be slow.
-            try {
-                await this.context.resume();
-            } catch {
-                /* will throw at start() if it's a real problem */
-            }
-        }
-        return this.context;
     }
 
     private cancelSync(): void {
@@ -136,27 +112,23 @@ export class ServerTtsEngine implements TtsEngine {
             this.currentAbort.abort();
             this.currentAbort = null;
         }
-        if (this.currentSource) {
+        if (this.currentAudio) {
             try {
-                this.currentSource.stop();
+                this.currentAudio.pause();
             } catch {
-                // Already stopped — fine.
+                // ignore
             }
-            this.currentSource.disconnect();
-            this.currentSource = null;
+            this.currentAudio.src = '';
+            this.currentAudio = null;
+        }
+        if (this.currentUrl) {
+            URL.revokeObjectURL(this.currentUrl);
+            this.currentUrl = null;
         }
         if (this.currentResolve) {
-            const resolve = this.currentResolve;
+            const r = this.currentResolve;
             this.currentResolve = null;
-            resolve();
+            r();
         }
-    }
-
-    private finish(source: AudioBufferSourceNode): void {
-        if (this.currentSource !== source) return;
-        this.currentSource = null;
-        const resolve = this.currentResolve;
-        this.currentResolve = null;
-        if (resolve) resolve();
     }
 }
