@@ -10,6 +10,7 @@ import { mountSetupView } from './views/setup.js';
 import { mountSessionView, type SessionViewHandle } from './views/session.js';
 import { mountHistoryView } from './views/history.js';
 import type { SessionSetup } from './settings.js';
+import type { SessionState } from '../../src/facilitation/session.js';
 
 type View = 'setup' | 'session' | 'history';
 
@@ -54,16 +55,25 @@ async function goSetup(root: HTMLElement): Promise<void> {
         currentSession = null;
     }
     setActiveNav('setup');
-    await mountSetupView(root, (setup) => {
-        void goSession(root, setup);
+    await mountSetupView(root, (setup, continueFrom) => {
+        void goSession(root, setup, continueFrom);
     });
 }
 
-async function goSession(root: HTMLElement, setup: SessionSetup): Promise<void> {
+async function goSession(
+    root: HTMLElement,
+    setup: SessionSetup,
+    continueFrom: SessionState | null = null
+): Promise<void> {
     setActiveNav('setup'); // session is still under Setup tab conceptually
-    currentSession = await mountSessionView(root, setup, () => {
-        void goSetup(root);
-    });
+    currentSession = await mountSessionView(
+        root,
+        setup,
+        () => {
+            void goSetup(root);
+        },
+        continueFrom
+    );
 }
 
 async function goHistory(root: HTMLElement): Promise<void> {

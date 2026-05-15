@@ -16,6 +16,7 @@ import {
     generateSessionSummary,
     defaultPacingConfig,
 } from '../../../src/facilitation/index.js';
+import type { SessionState } from '../../../src/facilitation/session.js';
 import {
     AnthropicProvider,
     OllamaProvider,
@@ -92,7 +93,8 @@ export interface SessionViewHandle {
 export async function mountSessionView(
     root: HTMLElement,
     setup: SessionSetup,
-    onEnd: () => void
+    onEnd: () => void,
+    continueFrom: SessionState | null = null
 ): Promise<SessionViewHandle> {
     root.innerHTML = renderSessionHTML();
 
@@ -107,6 +109,12 @@ export async function mountSessionView(
     });
     const session = new SessionManager({ contextStrategy: 'full' });
     session.startSession();
+
+    // If continuing from a previous session, hydrate the new session
+    // with the old exchanges so the LLM has context.
+    if (continueFrom && continueFrom.exchanges.length > 0) {
+        session.loadExchanges(continueFrom.exchanges);
+    }
 
     // Pacing config — for now we keep defaults; the setup view doesn't
     // surface these yet. The PacingController honors check-in cadence
@@ -192,6 +200,25 @@ export async function mountSessionView(
                   ? 'Web Speech'
                   : 'server Whisper';
         setStatus(`Listening (${label}). Speak when ready, or type.`);
+    }
+
+    // If continuing, render the old exchanges in the transcript with a
+    // "continuing from earlier" divider above them.
+    if (continueFrom && continueFrom.exchanges.length > 0) {
+        const divider = document.createElement('div');
+        divider.className = 'message intention';
+        const oldDate = new Date(continueFrom.startTime * 1000).toLocaleString();
+        divider.textContent = `continuing from ${oldDate}`;
+        transcript.appendChild(divider);
+        for (const ex of continueFrom.exchanges) {
+            if (ex.role === 'user' || ex.role === 'assistant') {
+                appendMessage(ex.role, ex.content);
+            }
+        }
+        const resumeDivider = document.createElement('div');
+        resumeDivider.className = 'message intention';
+        resumeDivider.textContent = '— resumed —';
+        transcript.appendChild(resumeDivider);
     }
 
     // Show the intention as a faint first line of context, if set.
@@ -351,6 +378,64 @@ export async function mountSessionView(
             setStatus('Muted — click Unmute mic or type to continue');
         }
     });
+
+    // Generate a warm continuation opener via the LLM when resuming.
+    // Fire before starting the listen loop; mark busy so the loop
+    // won't start hearing mic input until the opener has finished.
+    if (continueFrom && continueFrom.exchanges.length > 0) {
+        busy = true;
+        void (async () => {
+            try {
+                await generateContinuationOpener();
+            } finally {
+                busy = false;
+            }
+        })();
+    }
+
+    async function generateContinuationOpener(): Promise<void> {
+        const continuationNote =
+            'The meditator is returning to continue from a previous session. ' +
+            "Offer a brief, warm welcome back and gently acknowledge they're " +
+            'picking up where they left off.';
+        try {
+            setStatus('Welcoming you back…');
+            // Build the message list as: previous exchanges + the synthetic
+            // continuation note. Don't write the note to session history —
+            // it's a one-shot instruction, not a conversational turn.
+            const messages = [
+                ...session.getContextMessages(),
+                { role: 'user' as const, content: continuationNote },
+            ];
+            const result = await provider.complete(messages, {
+                system: builder.buildSystemPrompt(),
+            });
+            const { cleanText } = parseHoldSignal(result.text);
+            session.addAssistantMessage(cleanText);
+            appendMessage('assistant', cleanText);
+            setStatus('Speaking…');
+            try {
+                await tts.speak(cleanText, { rate: setup.ttsRate });
+            } catch {
+                /* non-fatal */
+            }
+            pacing.onResponseEnd();
+            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+        } catch (err) {
+            console.warn('Continuation opener failed', err);
+            // Fall back to a static welcome — better than nothing.
+            const fallback = 'Welcome back. Let’s continue.';
+            session.addAssistantMessage(fallback);
+            appendMessage('assistant', fallback);
+            try {
+                await tts.speak(fallback, { rate: setup.ttsRate });
+            } catch {
+                /* non-fatal */
+            }
+            pacing.onResponseEnd();
+            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+        }
+    }
 
     // Kick off always-on listening when the view mounts.
     if (stt) {

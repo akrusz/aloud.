@@ -18,10 +18,12 @@ import {
     providerNeedsKey,
     saveSetup,
 } from '../settings.js';
+import type { SessionState } from '../../../src/facilitation/session.js';
 import { PRESETS, findPreset } from '../presets.js';
 import { allVoices, groupVoices, type VoiceEntry } from '../voices.js';
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
+import { sessionStore } from '../state.js';
 
 const FOCUSES: ReadonlyArray<{ value: Focus; name: string; description: string }> = [
     {
@@ -91,10 +93,24 @@ export interface SetupViewHandle {
 
 export async function mountSetupView(
     root: HTMLElement,
-    onBegin: (setup: SessionSetup) => void
+    onBegin: (setup: SessionSetup, continueFrom: SessionState | null) => void
 ): Promise<SetupViewHandle> {
     const setup = await loadSetup();
     let voiceCatalog: VoiceEntry[] = [];
+
+    // Look up the most recent saved session for the "Continue" button.
+    // List comes back in insertion order; we sort by startTime so users
+    // see their most recent meditation regardless of how the index grew.
+    async function loadMostRecentSession(): Promise<SessionState | null> {
+        const ids = await sessionStore.list();
+        if (ids.length === 0) return null;
+        const states = await Promise.all(ids.map((id) => sessionStore.load(id)));
+        const valid = states.filter((s): s is SessionState => s !== null);
+        valid.sort((a, b) => b.startTime - a.startTime);
+        // Only offer continuation for sessions that have at least one
+        // turn — otherwise "continue" is meaningless.
+        return valid.find((s) => s.exchanges.length > 0) ?? null;
+    }
 
     function persist(): void {
         void saveSetup(setup);
@@ -300,7 +316,22 @@ export async function mountSetupView(
 
         // Begin session
         const beginBtn = root.querySelector<HTMLButtonElement>('#begin-btn')!;
-        beginBtn.addEventListener('click', () => onBegin(setup));
+        beginBtn.addEventListener('click', () => onBegin(setup, null));
+
+        // Continue button — hidden until we know whether there's a recent
+        // session worth resuming.
+        const continueBtn = root.querySelector<HTMLButtonElement>('#continue-btn');
+        if (continueBtn) {
+            void (async () => {
+                const recent = await loadMostRecentSession();
+                if (recent) {
+                    const when = new Date(recent.startTime * 1000).toLocaleString();
+                    continueBtn.hidden = false;
+                    continueBtn.title = `Resume the session from ${when}`;
+                    continueBtn.addEventListener('click', () => onBegin(setup, recent));
+                }
+            })();
+        }
     }
 
     async function previewVoice(): Promise<void> {
@@ -482,6 +513,8 @@ function renderSetupHTML(): string {
          the whole page on wide screens. Matches the original index.html. -->
     <div class="setup-footer">
         <div class="setup-footer-inner">
+            <button id="continue-btn" type="button"
+                class="btn btn-secondary btn-continue" hidden>Continue last</button>
             <button id="begin-btn" type="button"
                 class="btn btn-primary btn-begin">Begin Session</button>
         </div>
