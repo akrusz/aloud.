@@ -28,6 +28,7 @@ import {
 } from '../../../src/llm/index.js';
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
 import { streamCompletionWithChunkedTts } from '../streaming-tts.js';
+import { wrapTtsWithBargeIn } from '../barge-in.js';
 
 import {
     createBestStt,
@@ -143,7 +144,19 @@ export async function mountSessionView(
             },
         };
     }
-    const { engine: tts } = await createTtsForVoice(setup.voice);
+    const { engine: rawTts } = await createTtsForVoice(setup.voice);
+    // Wrap TTS with a barge-in listener so the user can interrupt the
+    // facilitator mid-sentence by speaking. The listener opens its own
+    // mic stream during speak() — separate from the STT adapter — and
+    // calls cancel() when energy crosses the threshold for a few
+    // consecutive frames.
+    const tts = wrapTtsWithBargeIn(rawTts, {
+        onBargeIn: () => {
+            // Visual cue: drop the holding-orb if it was up. The listen
+            // loop will pick up the user's next utterance naturally.
+            setOrbHolding(false);
+        },
+    });
     // Re-probe each time the user starts a session: Flask may have come up
     // (or gone down) since the last detection.
     invalidateSttBackendCache();
