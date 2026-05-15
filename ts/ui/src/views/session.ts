@@ -12,6 +12,7 @@ import {
     SessionManager,
     parseHoldSignal,
     generateSessionSummary,
+    defaultPacingConfig,
 } from '../../../src/facilitation/index.js';
 import {
     AnthropicProvider,
@@ -105,6 +106,11 @@ export async function mountSessionView(
     const session = new SessionManager({ contextStrategy: 'full' });
     session.startSession();
 
+    // Pacing config — for now we keep defaults; the setup view doesn't
+    // surface these yet. The PacingController honors check-in cadence
+    // and the [HOLD] kill switch; the STT adapter VAD reads the rest.
+    const pacingConfig = defaultPacingConfig;
+
     let provider: LLMProvider;
     try {
         provider = await buildProvider(setup);
@@ -128,7 +134,12 @@ export async function mountSessionView(
     // Re-probe each time the user starts a session: Flask may have come up
     // (or gone down) since the last detection.
     invalidateSttBackendCache();
-    const stt: SttEngine | null = await createBestStt();
+    const stt: SttEngine | null = await createBestStt({
+        silenceBaseMs: pacingConfig.silenceBaseMs,
+        silenceMaxMs: pacingConfig.silenceMaxMs,
+        silenceRampRate: pacingConfig.silenceRampRate,
+        minSpeechDurationMs: pacingConfig.minSpeechDurationMs,
+    });
     const sttBackend = await detectSttBackend();
 
     const transcript = root.querySelector<HTMLElement>('#transcript')!;
@@ -220,7 +231,11 @@ export async function mountSessionView(
             } catch {
                 /* non-fatal */
             }
-            if (signal === 'hold') {
+            // Honor pacingConfig.silenceModeEnabled — when false, the
+            // [HOLD] signal is dropped and we treat the response as a
+            // normal one.
+            const enterHold = signal === 'hold' && pacingConfig.silenceModeEnabled;
+            if (enterHold) {
                 silenceMode = true;
                 setStatus('Holding space — anything you say resumes');
                 setOrbHolding(true);

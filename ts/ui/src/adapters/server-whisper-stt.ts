@@ -14,27 +14,22 @@
  */
 
 import type { SttEngine, SttEvent } from '../../../src/platform/stt.js';
+import { defaultPacingConfig, type PacingConfig } from '../../../src/facilitation/pacing.js';
 
 const TARGET_SAMPLE_RATE = 16_000;
 const FRAME_SIZE = 4096;
 
-export interface ServerWhisperSttEngineOptions {
+/** The subset of PacingConfig fields the VAD here cares about. */
+type VadFields = Pick<
+    PacingConfig,
+    'silenceBaseMs' | 'silenceMaxMs' | 'silenceRampRate' | 'minSpeechDurationMs'
+>;
+
+export interface ServerWhisperSttEngineOptions extends Partial<VadFields> {
     /** Endpoint URL. Default '/api/stt/whisper' — Vite proxies in dev. */
     endpointUrl?: string;
     /** RMS energy floor below which a frame is counted as silence. */
     energyThreshold?: number;
-    /**
-     * Base trailing silence before submitting (ms). Ramps up by
-     * `silenceRampRate * speechDurationMs` up to `silenceMaxMs` so longer
-     * sharing gets more patience for thinking pauses.
-     */
-    silenceBaseMs?: number;
-    /** Maximum tolerated silence after a long share. */
-    silenceMaxMs?: number;
-    /** Extra ms of silence allowed per ms of speech (0.12 ≈ 12% ramp). */
-    silenceRampRate?: number;
-    /** Minimum total speech duration before we'll submit. */
-    minSpeechDurationMs?: number;
     /** Hard cap on a single utterance — auto-submit after this. */
     maxUtteranceMs?: number;
     /** Custom fetch (tests). */
@@ -55,10 +50,13 @@ export class ServerWhisperSttEngine implements SttEngine {
         this.opts = {
             endpointUrl: options.endpointUrl ?? '/api/stt/whisper',
             energyThreshold: options.energyThreshold ?? 0.015,
-            silenceBaseMs: options.silenceBaseMs ?? 3000,
-            silenceMaxMs: options.silenceMaxMs ?? 7000,
-            silenceRampRate: options.silenceRampRate ?? 0.12,
-            minSpeechDurationMs: options.minSpeechDurationMs ?? 800,
+            silenceBaseMs: options.silenceBaseMs ?? defaultPacingConfig.silenceBaseMs,
+            silenceMaxMs: options.silenceMaxMs ?? defaultPacingConfig.silenceMaxMs,
+            silenceRampRate: options.silenceRampRate ?? defaultPacingConfig.silenceRampRate,
+            // STT min-speech can be looser than facilitation min-speech;
+            // adopt the PacingConfig default but allow caller override.
+            minSpeechDurationMs:
+                options.minSpeechDurationMs ?? defaultPacingConfig.minSpeechDurationMs,
             maxUtteranceMs: options.maxUtteranceMs ?? 30_000,
             fetchImpl: options.fetchImpl ?? globalThis.fetch.bind(globalThis),
         };

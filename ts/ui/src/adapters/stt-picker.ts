@@ -17,10 +17,19 @@
  */
 
 import type { SttEngine } from '../../../src/platform/stt.js';
+import type { PacingConfig } from '../../../src/facilitation/pacing.js';
 
 import { CapacitorSttEngine } from './capacitor-stt.js';
 import { ServerWhisperSttEngine } from './server-whisper-stt.js';
 import { WebSpeechSttEngine, isWebSpeechSupported } from './web-speech-stt.js';
+
+/** VAD-tuning subset of PacingConfig the picker forwards to adapters. */
+type VadOpts = Partial<
+    Pick<
+        PacingConfig,
+        'silenceBaseMs' | 'silenceMaxMs' | 'silenceRampRate' | 'minSpeechDurationMs'
+    >
+>;
 
 export type SttBackend = 'capacitor' | 'web-speech' | 'server-whisper' | 'none';
 
@@ -92,8 +101,12 @@ export async function detectSttBackend(): Promise<SttBackend> {
 /**
  * Construct the best-available STT engine. Returns null when nothing is
  * available so the caller can switch the UI into text-only mode.
+ *
+ * Only the server-Whisper path implements client-side VAD, so the VAD
+ * tuning fields are silently ignored by the other adapters (Capacitor
+ * and Web Speech both auto-detect end-of-utterance themselves).
  */
-export async function createBestStt(): Promise<SttEngine | null> {
+export async function createBestStt(vadOpts: VadOpts = {}): Promise<SttEngine | null> {
     const backend = await detectSttBackend();
     switch (backend) {
         case 'capacitor':
@@ -101,7 +114,7 @@ export async function createBestStt(): Promise<SttEngine | null> {
         case 'web-speech':
             return new WebSpeechSttEngine();
         case 'server-whisper':
-            return new ServerWhisperSttEngine();
+            return new ServerWhisperSttEngine(vadOpts);
         case 'none':
             return null;
     }

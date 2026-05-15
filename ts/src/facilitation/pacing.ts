@@ -28,18 +28,50 @@ export type TurnDecision =
     (typeof TurnDecision)[keyof typeof TurnDecision];
 
 export interface PacingConfig {
+    // -----------------------------------------------------------------
+    // Facilitation-side pacing — used by PacingController itself.
+    // -----------------------------------------------------------------
+
     /** Milliseconds of silence after speech before responding. */
     responseDelayMs: number;
     /** Seconds of total silence before a gentle check-in. */
     silenceCheckinSec: number;
     /** If false, check-ins never fire. */
     silenceCheckinsEnabled: boolean;
+    /**
+     * If false, the [HOLD] signal from the LLM is ignored — the session
+     * never enters extended silence mode. Useful for users who find
+     * silence mode unsettling. The PacingController doesn't enforce
+     * this on its own; callers should treat a hold-signaled response
+     * as a normal one when this is false.
+     */
+    silenceModeEnabled: boolean;
+
+    // -----------------------------------------------------------------
+    // Client-side VAD tuning — used by STT adapters, not PacingController.
+    // Grouped here (matching the Python `PacingConfig`) so the user has
+    // one knob bag to tune. Adapters read only the fields they need.
+    // -----------------------------------------------------------------
+
+    /** Base trailing silence before submitting a transcribed utterance. */
+    silenceBaseMs: number;
+    /** Maximum tolerated silence after a long share. */
+    silenceMaxMs: number;
+    /** Extra ms of silence allowed per ms of speech (ramp from base to max). */
+    silenceRampRate: number;
+    /** Minimum total speech duration before an utterance can be submitted. */
+    minSpeechDurationMs: number;
 }
 
 export const defaultPacingConfig: PacingConfig = {
     responseDelayMs: 2000,
     silenceCheckinSec: 300,
     silenceCheckinsEnabled: true,
+    silenceModeEnabled: true,
+    silenceBaseMs: 3000,
+    silenceMaxMs: 5000,
+    silenceRampRate: 0.12,
+    minSpeechDurationMs: 500,
 };
 
 export interface PacingControllerOptions {

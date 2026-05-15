@@ -4,6 +4,7 @@ import {
     ConversationState,
     PacingController,
     TurnDecision,
+    defaultPacingConfig,
 } from '../src/facilitation/pacing.js';
 import { createFakeClock } from '../src/clock.js';
 
@@ -145,5 +146,30 @@ describe('PacingController — transcription', () => {
         controller.onTranscription("I'm ready");
         expect(controller.isInSilenceMode()).toBe(false);
         expect(controller.state).toBe(ConversationState.Listening);
+    });
+});
+
+describe('PacingConfig defaults', () => {
+    it('exposes the full set of facilitation + VAD knobs with sensible defaults', () => {
+        expect(defaultPacingConfig).toEqual({
+            responseDelayMs: 2000,
+            silenceCheckinSec: 300,
+            silenceCheckinsEnabled: true,
+            silenceModeEnabled: true,
+            silenceBaseMs: 3000,
+            silenceMaxMs: 5000,
+            silenceRampRate: 0.12,
+            minSpeechDurationMs: 500,
+        });
+    });
+
+    it('accepts a partial config override (other fields fall back to defaults)', () => {
+        const { controller } = makeController({
+            config: { silenceModeEnabled: false, silenceCheckinsEnabled: false },
+        });
+        expect(controller.config.silenceModeEnabled).toBe(false);
+        expect(controller.config.silenceCheckinsEnabled).toBe(false);
+        expect(controller.config.responseDelayMs).toBe(defaultPacingConfig.responseDelayMs);
+        expect(controller.config.silenceBaseMs).toBe(defaultPacingConfig.silenceBaseMs);
     });
 });
