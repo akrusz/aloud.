@@ -32,8 +32,18 @@ import {
     GroqProvider,
     type LLMProvider,
 } from './llm/index.js';
+// Node-only; imported directly so the browser-targeted index barrel
+// stays free of node:* specifiers.
+import { ClaudeProxyProvider } from './llm/claude-proxy.js';
 
-type ProviderName = 'anthropic' | 'ollama' | 'openai' | 'openrouter' | 'venice' | 'groq';
+type ProviderName =
+    | 'anthropic'
+    | 'ollama'
+    | 'openai'
+    | 'openrouter'
+    | 'venice'
+    | 'groq'
+    | 'claude_proxy';
 const VALID_PROVIDERS: readonly ProviderName[] = [
     'anthropic',
     'ollama',
@@ -41,6 +51,7 @@ const VALID_PROVIDERS: readonly ProviderName[] = [
     'openrouter',
     'venice',
     'groq',
+    'claude_proxy',
 ];
 
 interface CliArgs {
@@ -197,6 +208,8 @@ function buildProvider(args: CliArgs): LLMProvider {
             });
         case 'ollama':
             return new OllamaProvider(modelOption);
+        case 'claude_proxy':
+            return new ClaudeProxyProvider(modelOption);
     }
 }
 

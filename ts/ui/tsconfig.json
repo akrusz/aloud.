@@ -9,5 +9,10 @@
         "types": []
     },
     "include": ["src/**/*", "../src/**/*"],
-    "exclude": ["dist", "node_modules", "../src/cli.ts"]
+    "exclude": [
+        "dist",
+        "node_modules",
+        "../src/cli.ts",
+        "../src/llm/claude-proxy.ts"
+    ]
 }

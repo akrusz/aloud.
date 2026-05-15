@@ -16,3 +16,6 @@ export {
     GroqProvider,
     type OpenAIProviderOptions,
 } from './openai.js';
+// ClaudeProxyProvider is Node-only (uses node:child_process). Import
+// directly from './claude-proxy.js' from Node entrypoints — keeping it
+// off this barrel avoids dragging node:* into browser bundles.
