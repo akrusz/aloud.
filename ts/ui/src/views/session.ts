@@ -10,6 +10,8 @@
 import {
     PromptBuilder,
     SessionManager,
+    PacingController,
+    TurnDecision,
     parseHoldSignal,
     generateSessionSummary,
     defaultPacingConfig,
@@ -110,6 +112,8 @@ export async function mountSessionView(
     // surface these yet. The PacingController honors check-in cadence
     // and the [HOLD] kill switch; the STT adapter VAD reads the rest.
     const pacingConfig = defaultPacingConfig;
+    const pacing = new PacingController({ config: pacingConfig });
+    pacing.startSession();
 
     let provider: LLMProvider;
     try {
@@ -209,13 +213,26 @@ export async function mountSessionView(
         if (busy) return;
         busy = true;
         try {
+            // Speech-end event into the pacing controller — auto-exits
+            // silence mode if we were in it, returns RESPOND.
+            pacing.onSpeechEnd();
+            pacing.onTranscription(userText);
             if (silenceMode) {
                 silenceMode = false;
                 setOrbHolding(false);
             }
             appendMessage('user', userText);
             session.addUserMessage(userText);
-            setStatus('Thinking…');
+
+            // For Ollama: if the model isn't currently loaded into
+            // memory, surface that so the user knows why the first
+            // response is slow. Cheap (one HTTP call), and Ollama-only.
+            if (provider instanceof OllamaProvider) {
+                const coldMsg = await provider.coldLoadMessage();
+                setStatus(coldMsg ?? 'Thinking…');
+            } else {
+                setStatus('Thinking…');
+            }
 
             const systemPrompt = builder.buildSystemPrompt();
             const result = await provider.complete(session.getContextMessages(), {
@@ -237,11 +254,13 @@ export async function mountSessionView(
             const enterHold = signal === 'hold' && pacingConfig.silenceModeEnabled;
             if (enterHold) {
                 silenceMode = true;
+                pacing.enterSilenceMode();
                 setStatus('Holding space — anything you say resumes');
                 setOrbHolding(true);
             } else {
                 setStatus(stt ? 'Listening…' : 'Ready — type to continue');
             }
+            pacing.onResponseEnd();
         } catch (err) {
             setStatus(`Error: ${(err as Error).message}`);
         } finally {
@@ -339,6 +358,46 @@ export async function mountSessionView(
         void listenLoop();
     }
 
+    // Background check-in loop — polls the PacingController on a fixed
+    // cadence. When the controller decides it's been long enough since
+    // anything happened, we fire a gentle check-in ("I'm still here…")
+    // to remind the user the facilitator hasn't gone anywhere. Disabled
+    // when the user is in silence mode or has check-ins turned off.
+    const CHECK_IN_POLL_MS = 10_000;
+    const checkInTimer: ReturnType<typeof setInterval> | null = pacingConfig.silenceCheckinsEnabled
+        ? setInterval(() => {
+              if (torn || busy || muted) return;
+              const decision = pacing.shouldRespond();
+              if (decision !== TurnDecision.CheckIn) return;
+              const text = builder.getCheckInPrompt();
+              void respondWithFacilitatorLine(text);
+          }, CHECK_IN_POLL_MS)
+        : null;
+
+    /**
+     * Speak a facilitator-initiated line (check-in, not response to user
+     * input). Adds it to the transcript + session history + plays TTS.
+     * Does not call the LLM — the text is decided by the caller.
+     */
+    async function respondWithFacilitatorLine(text: string): Promise<void> {
+        if (busy) return;
+        busy = true;
+        try {
+            session.addAssistantMessage(text);
+            appendMessage('assistant', text);
+            setStatus('Speaking…');
+            try {
+                await tts.speak(text, { rate: setup.ttsRate });
+            } catch {
+                /* non-fatal */
+            }
+            pacing.onResponseEnd();
+            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+        } finally {
+            busy = false;
+        }
+    }
+
     textForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const text = textInput.value.trim();
@@ -357,6 +416,8 @@ export async function mountSessionView(
     async function endSession(): Promise<void> {
         if (torn) return;
         torn = true;
+        if (checkInTimer) clearInterval(checkInTimer);
+        pacing.endSession();
         const finalState = session.endSession();
         void stt?.stop();
         void tts.cancel();

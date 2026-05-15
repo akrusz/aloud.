@@ -182,6 +182,40 @@ describe('OllamaProvider', () => {
         });
         expect(await provider.checkModelAvailable()).toBe(false);
     });
+
+    it('coldLoadMessage returns null when the model is already loaded', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({ models: [{ name: 'qwen3.5:4b' }] })
+        );
+        const provider = new OllamaProvider({
+            model: 'qwen3.5',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(await provider.coldLoadMessage()).toBeNull();
+        expect(fetchImpl.mock.calls[0]?.[0]).toBe('http://localhost:11434/api/ps');
+    });
+
+    it('coldLoadMessage returns a status string when the model is not loaded', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({ models: [{ name: 'gemma:2b' }] })
+        );
+        const provider = new OllamaProvider({
+            model: 'qwen3.5:4b',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const msg = await provider.coldLoadMessage();
+        expect(msg).toContain('Loading qwen3.5:4b');
+    });
+
+    it('coldLoadMessage returns null when Ollama is unreachable', async () => {
+        const fetchImpl = vi.fn(async () => {
+            throw new Error('econnrefused');
+        });
+        const provider = new OllamaProvider({
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(await provider.coldLoadMessage()).toBeNull();
+    });
 });
 
 describe('OpenAIProvider', () => {

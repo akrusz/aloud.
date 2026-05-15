@@ -97,4 +97,35 @@ export class OllamaProvider implements LLMProvider {
             return false;
         }
     }
+
+    /**
+     * If the configured model isn't currently loaded in Ollama's memory,
+     * return a user-facing status string explaining the upcoming cold-load
+     * wait. Returns null when the model is already loaded, when Ollama
+     * isn't reachable, or when we can't determine load state — in all of
+     * those cases the caller has nothing useful to show.
+     *
+     * Cheap (one HTTP call, 2s timeout); fine to call before every
+     * completion. After first use the model stays loaded so subsequent
+     * checks return null and the status banner clears itself.
+     */
+    async coldLoadMessage(): Promise<string | null> {
+        try {
+            const response = await this.fetchImpl(`${this.baseUrl}/api/ps`);
+            if (!response.ok) return null;
+            const data = (await response.json()) as OllamaPsResponse;
+            const loaded = data.models?.map((m) => m.name) ?? [];
+            const isLoaded = loaded.some(
+                (n) => n === this.model || n.startsWith(`${this.model}:`)
+            );
+            if (isLoaded) return null;
+            return `Loading ${this.model} into memory… first response can take a few seconds.`;
+        } catch {
+            return null;
+        }
+    }
+}
+
+interface OllamaPsResponse {
+    models?: Array<{ name: string }>;
 }
