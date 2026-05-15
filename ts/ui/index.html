@@ -10,7 +10,7 @@
         <main id="app">
             <header>
                 <div class="header-row">
-                    <h1>glooow</h1>
+                    <a href="#" class="nav-brand" id="aboutLink" title="About glooow">glooow</a>
                     <nav class="app-nav">
                         <a href="#" data-nav="setup" class="active">New session</a>
                         <a href="#" data-nav="history">History</a>
@@ -25,6 +25,33 @@
                 <!-- Setup, session, and history views mount here. -->
             </div>
         </main>
+
+        <!-- About modal — lifted from base.html. Update checker omitted
+             (desktop-app-specific; tracked in meditation-pal-cfy). -->
+        <div class="about-modal-overlay hidden" id="aboutModal">
+            <div class="about-modal">
+                <div class="about-modal-header">
+                    <span class="about-modal-title">About</span>
+                    <button class="voice-modal-close" id="aboutClose">&times;</button>
+                </div>
+                <div class="about-modal-body">
+                    <div class="about-app-name">glooow</div>
+                    <div class="about-version" id="aboutVersion">TS preview</div>
+                    <div class="about-author">By Alex Krusz</div>
+                    <div class="about-links">
+                        <a href="https://krusz.net" target="_blank" rel="noopener">krusz.net</a>
+                        <a href="https://github.com/akrusz" target="_blank" rel="noopener">GitHub</a>
+                    </div>
+                    <div class="about-donate-label">donate</div>
+                    <div class="about-links about-donate">
+                        <a href="https://ko-fi.com/alexkrusz" target="_blank" rel="noopener">ko-fi</a>
+                        <a href="https://venmo.com/Alex-Krusz" target="_blank" rel="noopener">venmo</a>
+                        <span class="about-eth" title="Click to copy">krusz.eth</span>
+                        <a href="mailto:lexkrusz@gmail.com?subject=glooow">kind words</a>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script type="module" src="/src/main.ts"></script>
     </body>

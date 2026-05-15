@@ -2,6 +2,7 @@ import './style.css';
 import { bootApp } from './app.js';
 import { applyTheme, initThemeToggle, resolveTheme } from './theme.js';
 import { initEmbers, regenerateEmbers } from './embers.js';
+import { initAbout } from './about.js';
 
 // Apply theme before the app renders so the FOUC is invisible.
 applyTheme(resolveTheme());
@@ -10,14 +11,15 @@ initEmbers();
 
 // Wire the theme toggle once the DOM is ready. Listening on document
 // click and re-running setup is idempotent (initThemeToggle guards).
-function setupThemeButton(): void {
+function setupGlobalChrome(): void {
     const btn = document.querySelector<HTMLElement>('[data-theme-toggle]');
     if (btn) initThemeToggle(btn);
+    initAbout();
 }
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupThemeButton, { once: true });
+    document.addEventListener('DOMContentLoaded', setupGlobalChrome, { once: true });
 } else {
-    setupThemeButton();
+    setupGlobalChrome();
 }
 
 // Palette differs between light/dark — regenerate embers whenever the
