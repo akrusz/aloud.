@@ -28,6 +28,7 @@ import {
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
 import { sessionStore } from '../state.js';
+import { wireEmberControls } from '../embers.js';
 
 const ANTHROPIC_PROXY_URL = '/api/llm/anthropic/messages';
 const OLLAMA_PROXY_URL = '/ollama';
@@ -236,6 +237,8 @@ export async function mountSessionView(
         void endSession();
     });
 
+    wireEmberControls(root);
+
     let torn = false;
     async function endSession(): Promise<void> {
         if (torn) return;
@@ -307,5 +310,19 @@ function renderSessionHTML(): string {
                 placeholder="…or type here and press enter" autocomplete="off" />
         </form>
         <button id="end" type="button" class="btn-end">End session</button>
+    </section>
+
+    <section class="session-footer">
+        <div class="ember-level" title="Floating ember particles">
+            <span class="toggle-text">Embers</span>
+            <button class="ember-btn" id="ember-minus" type="button">−</button>
+            <div class="ember-blocks" id="ember-blocks">
+                <span class="ember-block" data-level="1"></span>
+                <span class="ember-block" data-level="2"></span>
+                <span class="ember-block" data-level="3"></span>
+                <span class="ember-block" data-level="4"></span>
+            </div>
+            <button class="ember-btn" id="ember-plus" type="button">+</button>
+        </div>
     </section>`;
 }

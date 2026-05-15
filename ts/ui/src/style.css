@@ -382,6 +382,89 @@ button:disabled {
     padding: 1rem 0;
 }
 
+.session-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.25rem 0;
+}
+
+/* Ember level control — lifted from src/web/static/css/style.css */
+.ember-level {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: inherit;
+    color: var(--muted);
+}
+.ember-level .toggle-text {
+    margin-right: 0.1rem;
+    user-select: none;
+}
+.ember-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 0.15rem;
+    line-height: 1;
+    user-select: none;
+    font-family: inherit;
+    transition: color 100ms;
+}
+.ember-btn:hover { color: var(--accent); }
+.ember-blocks { display: flex; gap: 2px; }
+.ember-block {
+    --ember-size: 12px;
+    width: var(--ember-size);
+    height: var(--ember-size);
+    border: 1px solid var(--muted);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 100ms, border-color 100ms;
+}
+.ember-block.filled {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.ember-block:hover { border-color: var(--accent); }
+@keyframes ember-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-1.5px); }
+    40% { transform: translateX(1.5px); }
+    60% { transform: translateX(-1px); }
+    80% { transform: translateX(1px); }
+}
+.ember-blocks.shake { animation: ember-shake 0.25s ease; }
+@keyframes ember-block-grow {
+    from { width: 0; border-width: 0; opacity: 0; }
+    to { width: var(--ember-size); border-width: 1px; opacity: 1; }
+}
+.ember-block.growing {
+    animation: ember-block-grow 0.4s ease-out forwards;
+    overflow: hidden;
+}
+
+/* Ember Particles — lifted */
+.ember-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+    display: none;
+}
+.ember-container.active { display: block; }
+.ember {
+    position: absolute;
+    bottom: -10px;
+    border-radius: 50%;
+    opacity: 0;
+}
+html[data-theme='light'] .ember {
+    box-shadow: 0 0 6px 2px rgba(200, 130, 50, 0.5) !important;
+}
+
 /* Orb — lifted from src/web/static/css/style.css (lines ~2030-2207 of
    the existing app). Matches the breathing / holding / muted states the
    original facilitator uses. Kasina + rainbow easter eggs are styled
