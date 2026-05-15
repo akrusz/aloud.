@@ -13,6 +13,7 @@ import type {
     Verbosity,
 } from '../../src/facilitation/index.js';
 import { LocalStorageKv } from './adapters/localstorage-kv.js';
+import { loadAppSettings } from './app-settings.js';
 
 export type Provider =
     | 'ollama'
@@ -80,13 +81,35 @@ const SETTINGS_KEY = 'preview:setup';
 const kv = new LocalStorageKv();
 
 export async function loadSetup(): Promise<SessionSetup> {
+    // Merge order: defaults < app-settings defaults < persisted session
+    // setup. So a fresh setup inherits the user's app-level defaults
+    // (provider, voice, rate) but a previously-tweaked per-session
+    // setup wins where they overlap.
+    const appSettings = await loadAppDefaults();
+    const base: SessionSetup = { ...defaultSetup, ...appSettings };
     const raw = await kv.get(SETTINGS_KEY);
-    if (!raw) return { ...defaultSetup };
+    if (!raw) return base;
     try {
-        return { ...defaultSetup, ...(JSON.parse(raw) as Partial<SessionSetup>) };
+        return { ...base, ...(JSON.parse(raw) as Partial<SessionSetup>) };
     } catch {
-        return { ...defaultSetup };
+        return base;
     }
+}
+
+/**
+ * Pluck the SessionSetup-shaped subset of fields out of AppSettings so
+ * the setup view can inherit them. The cycle (app-settings imports
+ * Provider type from here, this file imports loadAppSettings) is only
+ * at the type level — type-only imports don't cause runtime cycles.
+ */
+async function loadAppDefaults(): Promise<Partial<SessionSetup>> {
+    const s = await loadAppSettings();
+    return {
+        provider: s.defaultProvider,
+        model: s.defaultModel,
+        voice: s.defaultVoice,
+        ttsRate: s.defaultTtsRate,
+    };
 }
 
 export async function saveSetup(setup: SessionSetup): Promise<void> {

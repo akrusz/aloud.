@@ -37,6 +37,7 @@ import {
 } from '../adapters/stt-picker.js';
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
+import { loadAppSettings } from '../app-settings.js';
 import { sessionStore } from '../state.js';
 import { getApiKey } from '../api-keys.js';
 import {
@@ -128,10 +129,19 @@ export async function mountSessionView(
         session.loadExchanges(continueFrom.exchanges);
     }
 
-    // Pacing config — for now we keep defaults; the setup view doesn't
-    // surface these yet. The PacingController honors check-in cadence
-    // and the [HOLD] kill switch; the STT adapter VAD reads the rest.
-    const pacingConfig = defaultPacingConfig;
+    // Pacing config — read from persisted app settings so the values the
+    // user tunes in the settings page actually affect the running
+    // session. Falls back to defaults when nothing is persisted.
+    const appSettings = await loadAppSettings();
+    const pacingConfig = {
+        ...defaultPacingConfig,
+        responseDelayMs: appSettings.responseDelayMs,
+        silenceCheckinSec: appSettings.silenceCheckinSec,
+        silenceCheckinsEnabled: appSettings.silenceCheckinsEnabled,
+        silenceModeEnabled: appSettings.silenceModeEnabled,
+        silenceBaseMs: appSettings.silenceBaseMs,
+        silenceMaxMs: appSettings.silenceMaxMs,
+    };
     const pacing = new PacingController({ config: pacingConfig });
     pacing.startSession();
 

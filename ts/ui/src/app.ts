@@ -12,6 +12,7 @@ import { mountHistoryView } from './views/history.js';
 import { mountSettingsView } from './views/settings.js';
 import type { SessionSetup } from './settings.js';
 import type { SessionState } from '../../src/facilitation/session.js';
+import { applyChromeSettings, loadAppSettings } from './app-settings.js';
 
 type View = 'setup' | 'session' | 'history' | 'settings';
 
@@ -25,6 +26,11 @@ function $<T extends HTMLElement>(id: string): T {
 }
 
 export async function bootApp(): Promise<void> {
+    // Apply persisted theme/text-scale before the first view mounts so
+    // the user doesn't see a default-style flash.
+    const settings = await loadAppSettings();
+    applyChromeSettings(settings);
+
     wireNav();
     const root = $('app-root');
     await goSetup(root);
