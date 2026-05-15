@@ -341,7 +341,7 @@ function renderSetupHTML(): string {
     ).join('');
 
     return `
-    <div class="setup-container">
+    <form id="setup-form" class="setup-form setup-container">
         <div class="form-group">
             <label for="intention">Intention <span class="optional">(optional)</span></label>
             <textarea id="intention" rows="2"
@@ -416,10 +416,16 @@ function renderSetupHTML(): string {
             </div>
         </div>
 
-        <div class="setup-footer">
-            <button id="begin-btn" class="btn btn-primary btn-begin" type="button">
-                Begin Session
-            </button>
+    </form>
+
+    <!-- setup-footer is a sibling of the form so position: fixed (from
+         the lifted CSS) anchors it to the viewport bottom; the inner
+         wrapper caps width to 640 px so the Begin button doesn't span
+         the whole page on wide screens. Matches the original index.html. -->
+    <div class="setup-footer">
+        <div class="setup-footer-inner">
+            <button id="begin-btn" type="button"
+                class="btn btn-primary btn-begin">Begin Session</button>
         </div>
     </div>`;
 }

@@ -1,13 +1,15 @@
 import './style.css';
 import { bootApp } from './app.js';
 import { applyTheme, initThemeToggle, resolveTheme } from './theme.js';
-import { initEmbers, regenerateEmbers } from './embers.js';
+import { regenerateEmbers } from './embers.js';
 import { initAbout } from './about.js';
 
 // Apply theme before the app renders so the FOUC is invisible.
 applyTheme(resolveTheme());
-// Init embers after theme so palette matches.
-initEmbers();
+// Embers are session-only — the container is mounted by the session
+// view on entry (mirrors the original app's session.html-scoped
+// ember-container). regenerateEmbers is a no-op when no session is
+// active, so the theme toggle click handler is still safe to call it.
 
 // Wire the theme toggle once the DOM is ready. Listening on document
 // click and re-running setup is idempotent (initThemeToggle guards).

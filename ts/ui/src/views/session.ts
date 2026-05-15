@@ -28,7 +28,11 @@ import {
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
 import { sessionStore } from '../state.js';
-import { wireEmberControls } from '../embers.js';
+import {
+    mountEmberContainer,
+    unmountEmberContainer,
+    wireEmberControls,
+} from '../embers.js';
 
 const ANTHROPIC_PROXY_URL = '/api/llm/anthropic/messages';
 const OLLAMA_PROXY_URL = '/ollama';
@@ -283,6 +287,7 @@ export async function mountSessionView(
         void endSession();
     });
 
+    mountEmberContainer();
     wireEmberControls(root);
 
     async function endSession(): Promise<void> {
@@ -291,6 +296,8 @@ export async function mountSessionView(
         const finalState = session.endSession();
         void stt?.stop();
         void tts.cancel();
+        // Drop the ember container — embers are session-only.
+        unmountEmberContainer();
 
         if (finalState && hasUserContent(finalState.exchanges)) {
             // Try to generate an LLM summary for the history row;

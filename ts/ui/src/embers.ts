@@ -35,6 +35,7 @@ const state: EmberState = {
 };
 
 let containerEl: HTMLElement | null = null;
+let levelLoaded = false;
 
 function hexGlow(hex: string): string {
     return (
@@ -48,20 +49,51 @@ function hexGlow(hex: string): string {
     );
 }
 
-function ensureContainer(): HTMLElement {
+/**
+ * Resolve (or create) the ember container. Embers are session-only in
+ * the original app — the `<div class="ember-container">` lives inside
+ * session.html, not base.html. We mirror that: the container is
+ * created lazily inside the body the FIRST time a session view calls
+ * mountEmberContainer(). Once removed (when the session view tears
+ * down), regenerateEmbers / burstEmbers become no-ops.
+ */
+function existingContainer(): HTMLElement | null {
     if (containerEl && document.body.contains(containerEl)) return containerEl;
-    let el = document.querySelector<HTMLElement>('.ember-container');
-    if (!el) {
-        el = document.createElement('div');
-        el.className = 'ember-container';
-        document.body.appendChild(el);
+    containerEl = document.querySelector<HTMLElement>('.ember-container');
+    return containerEl;
+}
+
+/** Called by the session view on mount. */
+export function mountEmberContainer(): void {
+    if (existingContainer()) {
+        // Already there — likely a previous session that didn't tear down.
+        return;
     }
+    const el = document.createElement('div');
+    el.className = 'ember-container';
+    document.body.appendChild(el);
     containerEl = el;
-    return el;
+    if (!levelLoaded) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved !== null) {
+            const parsed = parseInt(saved, 10);
+            if (!Number.isNaN(parsed)) state.level = Math.min(parsed, 4);
+        }
+        levelLoaded = true;
+    }
+    setEmberLevel(state.level);
+}
+
+/** Called when the session view unmounts — clears particles + container. */
+export function unmountEmberContainer(): void {
+    const el = existingContainer();
+    if (el) el.remove();
+    containerEl = null;
 }
 
 function gracefullyEndEmbers(): void {
-    const container = ensureContainer();
+    const container = existingContainer();
+    if (!container) return;
     const existing = container.querySelectorAll<HTMLElement>('.ember');
     existing.forEach((el) => {
         if (el.dataset['finishing']) return;
@@ -93,7 +125,8 @@ function gracefullyEndEmbers(): void {
 }
 
 export function regenerateEmbers(): void {
-    const container = ensureContainer();
+    const container = existingContainer();
+    if (!container) return; // No session view mounted — nothing to do.
     gracefullyEndEmbers();
     if (state.level === 0) {
         if (!container.querySelector('.ember')) container.classList.remove('active');
@@ -152,7 +185,8 @@ export function regenerateEmbers(): void {
 }
 
 export function burstEmbers(count: number): void {
-    const container = ensureContainer();
+    const container = existingContainer();
+    if (!container) return;
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     const palette = state.rainbow
         ? EMBER_COLORS_RAINBOW
@@ -221,19 +255,6 @@ export function getEmberLevel(): number {
 export function setRainbow(rainbow: boolean): void {
     state.rainbow = rainbow;
     regenerateEmbers();
-}
-
-/**
- * Initialize the global ember state — call once at app boot. Restores
- * level from localStorage and renders the initial particles.
- */
-export function initEmbers(): void {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved !== null) {
-        const parsed = parseInt(saved, 10);
-        if (!Number.isNaN(parsed)) state.level = Math.min(parsed, 4);
-    }
-    setEmberLevel(state.level);
 }
 
 /**

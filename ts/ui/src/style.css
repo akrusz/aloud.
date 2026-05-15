@@ -18,13 +18,12 @@
    TS-preview-only additions
    ============================================ */
 
-#app {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+/* .main is supplied by the lifted CSS (max-width: 900px, etc.). We
+   only add the header / app-nav strip that the original UI doesn't
+   have an exact equivalent for. */
+
+.ts-preview-header {
+    margin-bottom: 1.5rem;
 }
 
 .header-row {
