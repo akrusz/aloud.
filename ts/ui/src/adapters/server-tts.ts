@@ -76,6 +76,17 @@ export class ServerTtsEngine implements TtsEngine {
         }
         if (abort.signal.aborted) return;
 
+        // Firefox in particular can re-suspend the context during decode
+        // (a few hundred ms with no scheduled output), which makes start(0)
+        // play briefly and then go silent. Re-resume right before play.
+        if (ctx.state === 'suspended') {
+            try {
+                await ctx.resume();
+            } catch {
+                /* will throw at start() if it's a real problem */
+            }
+        }
+
         return new Promise<void>((resolve) => {
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
