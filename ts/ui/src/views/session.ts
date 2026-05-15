@@ -45,6 +45,7 @@ import {
     unmountEmberContainer,
     wireEmberControls,
 } from '../embers.js';
+import { initThemeToggle } from '../theme.js';
 import {
     buildScoredVoiceList,
     fetchServerVoices,
@@ -222,6 +223,9 @@ export async function mountSessionView(
             <a href="#" data-nav="history">History</a>
             <button type="button" class="theme-toggle"
                 data-theme-toggle aria-label="Toggle theme"></button>`;
+        // Re-init the theme toggle since we just replaced its DOM node.
+        const themeBtn = navLinks.querySelector<HTMLElement>('[data-theme-toggle]');
+        if (themeBtn) initThemeToggle(themeBtn);
     }
 
     const conversation = root.querySelector<HTMLElement>('#conversation')!;
@@ -747,7 +751,13 @@ export async function mountSessionView(
         document.body.dataset['kasina'] = 'off';
         // Restore the global nav slots we replaced on mount.
         if (navCenter) navCenter.innerHTML = '';
-        if (navLinks && savedNavLinks !== null) navLinks.innerHTML = savedNavLinks;
+        if (navLinks && savedNavLinks !== null) {
+            navLinks.innerHTML = savedNavLinks;
+            // Re-init the theme toggle since its DOM node was just
+            // replaced by the restore.
+            const restoredThemeBtn = navLinks.querySelector<HTMLElement>('[data-theme-toggle]');
+            if (restoredThemeBtn) initThemeToggle(restoredThemeBtn);
+        }
 
         if (finalState && hasUserContent(finalState.exchanges)) {
             // Try to generate an LLM summary for the history row;

@@ -57,6 +57,20 @@ function setActiveNav(view: View): void {
         // applies the same class to mark the current page link.
         el.classList.toggle('nav-active', el.dataset['nav'] === view);
     });
+    // Nav center: setup and settings show an idle orb (Python's
+    // index.html / settings.html both put one there). History gets no
+    // orb. Session manages its own breathing orb.
+    const navCenter = document.getElementById('navCenter');
+    if (navCenter && view !== 'session') {
+        if (view === 'setup' || view === 'settings') {
+            navCenter.innerHTML = `
+                <div class="nav-session-info">
+                    <div class="orb orb-idle orb-nav" id="home-orb"></div>
+                </div>`;
+        } else {
+            navCenter.innerHTML = '';
+        }
+    }
 }
 
 async function goSetup(root: HTMLElement): Promise<void> {
