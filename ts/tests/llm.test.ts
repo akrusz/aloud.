@@ -2,6 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { AnthropicProvider } from '../src/llm/anthropic.js';
 import { OllamaProvider } from '../src/llm/ollama.js';
+import {
+    OpenAIProvider,
+    OpenRouterProvider,
+    VeniceProvider,
+    GroqProvider,
+} from '../src/llm/openai.js';
 
 function mockJsonResponse(data: unknown, init: { ok?: boolean; status?: number } = {}): Response {
     const body = JSON.stringify(data);
@@ -175,5 +181,182 @@ describe('OllamaProvider', () => {
             fetchImpl: fetchImpl as unknown as typeof fetch,
         });
         expect(await provider.checkModelAvailable()).toBe(false);
+    });
+});
+
+describe('OpenAIProvider', () => {
+    function mockChatResponse(text: string, extras: Record<string, unknown> = {}): Response {
+        return mockJsonResponse({
+            choices: [{ message: { content: text }, finish_reason: 'stop' }],
+            usage: { total_tokens: 42 },
+            ...extras,
+        });
+    }
+
+    it('throws if no API key and no proxy URL', () => {
+        expect(() => new OpenAIProvider({ apiKey: '' })).toThrow(/API key/);
+    });
+
+    it('accepts an empty apiKey when baseUrl points at a proxy', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse('ok'));
+        const provider = new OpenAIProvider({
+            baseUrl: '/api/llm/openai',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const [, init] = fetchImpl.mock.calls[0]!;
+        const headers = (init as RequestInit).headers as Record<string, string>;
+        // No bearer token — proxy injects it server-side
+        expect(headers['authorization']).toBeUndefined();
+    });
+
+    it('sends system as a leading message, bearer auth, and max_tokens', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse('Welcome.'));
+        const provider = new OpenAIProvider({
+            apiKey: 'sk-test',
+            model: 'gpt-5.4-mini',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+
+        const result = await provider.complete(
+            [{ role: 'user', content: 'hi' }],
+            { system: 'be warm', maxTokens: 150 }
+        );
+
+        expect(result.text).toBe('Welcome.');
+        expect(result.finishReason).toBe('stop');
+        expect(result.tokensUsed).toBe(42);
+
+        const [url, init] = fetchImpl.mock.calls[0]!;
+        expect(url).toBe('https://api.openai.com/v1/chat/completions');
+        const headers = (init as RequestInit).headers as Record<string, string>;
+        expect(headers['authorization']).toBe('Bearer sk-test');
+        const body = JSON.parse((init as RequestInit).body as string);
+        expect(body.model).toBe('gpt-5.4-mini');
+        expect(body.max_tokens).toBe(150);
+        expect(body.messages).toEqual([
+            { role: 'system', content: 'be warm' },
+            { role: 'user', content: 'hi' },
+        ]);
+    });
+
+    it('strips trailing slashes from baseUrl', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse(''));
+        const provider = new OpenAIProvider({
+            apiKey: 'k',
+            baseUrl: 'https://api.openai.com/v1////',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+            'https://api.openai.com/v1/chat/completions'
+        );
+    });
+
+    it('merges extraBody into the request body', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse(''));
+        const provider = new OpenAIProvider({
+            apiKey: 'k',
+            extraBody: { reasoning_effort: 'low' },
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        expect(body.reasoning_effort).toBe('low');
+    });
+
+    it('surfaces API errors with the status code', async () => {
+        const fetchImpl = vi.fn(async () => new Response('rate limited', { status: 429 }));
+        const provider = new OpenAIProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await expect(
+            provider.complete([{ role: 'user', content: 'hi' }])
+        ).rejects.toThrow(/429/);
+    });
+});
+
+describe('Preconfigured OpenAI-compatible providers', () => {
+    function mockChatResponse(): Response {
+        return new Response(
+            JSON.stringify({
+                choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+                usage: { total_tokens: 1 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } }
+        );
+    }
+
+    it('OpenRouter uses openrouter.ai with deepseek default model', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new OpenRouterProvider({
+            apiKey: 'sk-or-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(provider.model).toBe('deepseek/deepseek-v3.2');
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+            'https://openrouter.ai/api/v1/chat/completions'
+        );
+    });
+
+    it('Venice uses api.venice.ai and injects extraBody for system prompt suppression', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new VeniceProvider({
+            apiKey: 'sk-venice-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(provider.model).toBe('llama-3.3-70b');
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const [url, init] = fetchImpl.mock.calls[0]!;
+        expect(url).toBe('https://api.venice.ai/api/v1/chat/completions');
+        const body = JSON.parse((init as RequestInit).body as string);
+        expect(body.venice_parameters).toEqual({
+            include_venice_system_prompt: false,
+        });
+    });
+
+    it('Groq uses api.groq.com with llama default model', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new GroqProvider({
+            apiKey: 'gsk-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(provider.model).toBe('llama-3.3-70b-versatile');
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+            'https://api.groq.com/openai/v1/chat/completions'
+        );
+    });
+
+    it('caller can override the default model', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new GroqProvider({
+            apiKey: 'k',
+            model: 'mixtral-8x7b-32768',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(provider.model).toBe('mixtral-8x7b-32768');
+    });
+
+    it('caller-provided extraBody merges over the default extraBody', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new VeniceProvider({
+            apiKey: 'k',
+            extraBody: { foo: 'bar' },
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        // Both venice defaults and caller-added fields appear
+        expect(body.venice_parameters).toEqual({
+            include_venice_system_prompt: false,
+        });
+        expect(body.foo).toBe('bar');
     });
 });

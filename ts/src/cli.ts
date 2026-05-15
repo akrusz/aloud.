@@ -26,11 +26,25 @@ import {
 import {
     AnthropicProvider,
     OllamaProvider,
+    OpenAIProvider,
+    OpenRouterProvider,
+    VeniceProvider,
+    GroqProvider,
     type LLMProvider,
 } from './llm/index.js';
 
+type ProviderName = 'anthropic' | 'ollama' | 'openai' | 'openrouter' | 'venice' | 'groq';
+const VALID_PROVIDERS: readonly ProviderName[] = [
+    'anthropic',
+    'ollama',
+    'openai',
+    'openrouter',
+    'venice',
+    'groq',
+];
+
 interface CliArgs {
-    provider: 'anthropic' | 'ollama';
+    provider: ProviderName;
     model: string | undefined;
     focuses: Focus[];
     qualities: Quality[];
@@ -97,8 +111,8 @@ function parseCliArgs(): CliArgs {
     }
 
     const provider = values.provider;
-    if (provider !== 'anthropic' && provider !== 'ollama') {
-        die(`Invalid provider: "${provider}". Must be "anthropic" or "ollama".`);
+    if (!VALID_PROVIDERS.includes(provider as ProviderName)) {
+        die(`Invalid provider: "${provider}". Must be one of: ${VALID_PROVIDERS.join(', ')}.`);
     }
 
     const verbosity = values.verbosity;
@@ -112,7 +126,7 @@ function parseCliArgs(): CliArgs {
     }
 
     return {
-        provider,
+        provider: provider as ProviderName,
         model: values.model,
         focuses: parseList(values.focuses, VALID_FOCUSES, 'focus'),
         qualities: parseList(values.qualities, VALID_QUALITIES, 'quality'),
@@ -127,7 +141,7 @@ function printHelp(): void {
     console.log(`Usage: npm run cli -- [options]
 
 Options:
-  --provider=<name>          anthropic | ollama (default: ollama)
+  --provider=<name>          ${VALID_PROVIDERS.join(' | ')} (default: ollama)
   --model=<name>             override the provider's default model
   --focuses=<a,b>            ${VALID_FOCUSES.join(', ')}
   --qualities=<a,b>          ${VALID_QUALITIES.join(', ')}
@@ -139,24 +153,51 @@ Options:
 
 Env:
   ANTHROPIC_API_KEY          required when --provider=anthropic
+  OPENAI_API_KEY             required when --provider=openai
+  OPENROUTER_API_KEY         required when --provider=openrouter
+  VENICE_API_KEY             required when --provider=venice
+  GROQ_API_KEY               required when --provider=groq
 
 Type /quit (or Ctrl+C) at any time to end the session.`);
 }
 
+function requireKey(name: string): string {
+    const key = env[name];
+    if (!key) die(`${name} environment variable required.`);
+    return key;
+}
+
 function buildProvider(args: CliArgs): LLMProvider {
-    if (args.provider === 'anthropic') {
-        const apiKey = env['ANTHROPIC_API_KEY'];
-        if (!apiKey) {
-            die('ANTHROPIC_API_KEY environment variable required for the anthropic provider.');
-        }
-        return new AnthropicProvider({
-            apiKey,
-            ...(args.model !== undefined && { model: args.model }),
-        });
+    const modelOption = args.model !== undefined ? { model: args.model } : {};
+    switch (args.provider) {
+        case 'anthropic':
+            return new AnthropicProvider({
+                apiKey: requireKey('ANTHROPIC_API_KEY'),
+                ...modelOption,
+            });
+        case 'openai':
+            return new OpenAIProvider({
+                apiKey: requireKey('OPENAI_API_KEY'),
+                ...modelOption,
+            });
+        case 'openrouter':
+            return new OpenRouterProvider({
+                apiKey: requireKey('OPENROUTER_API_KEY'),
+                ...modelOption,
+            });
+        case 'venice':
+            return new VeniceProvider({
+                apiKey: requireKey('VENICE_API_KEY'),
+                ...modelOption,
+            });
+        case 'groq':
+            return new GroqProvider({
+                apiKey: requireKey('GROQ_API_KEY'),
+                ...modelOption,
+            });
+        case 'ollama':
+            return new OllamaProvider(modelOption);
     }
-    return new OllamaProvider({
-        ...(args.model !== undefined && { model: args.model }),
-    });
 }
 
 async function main(): Promise<void> {
