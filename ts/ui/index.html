@@ -13,20 +13,23 @@
         <link rel="stylesheet" href="/src/style.css" />
     </head>
     <body>
-        <main class="main">
-            <header class="ts-preview-header">
-                <div class="header-row">
-                    <a href="#" class="nav-brand" id="aboutLink" title="About glooow">glooow</a>
-                    <nav class="app-nav">
-                        <a href="#" data-nav="setup" class="active">New session</a>
-                        <a href="#" data-nav="history">History</a>
-                        <button type="button" class="theme-toggle"
-                            data-theme-toggle aria-label="Toggle theme"></button>
-                    </nav>
-                </div>
-                <p class="tagline">TS preview</p>
-            </header>
+        <nav class="nav">
+            <div class="nav-start">
+                <a href="#" class="nav-brand" id="aboutLink" title="About glooow">glooow</a>
+            </div>
+            <!-- nav-center is populated by the session view (orb + hamburger).
+                 Idle pages leave it empty. -->
+            <div class="nav-center" id="navCenter"></div>
+            <div class="nav-links" id="navLinks">
+                <a href="#" data-nav="setup" class="nav-active"><span class="nav-word-new">New </span>Session</a>
+                <a href="#" data-nav="history">History</a>
+                <a href="#" data-nav="settings">Settings</a>
+                <button type="button" class="theme-toggle"
+                    data-theme-toggle aria-label="Toggle theme"></button>
+            </div>
+        </nav>
 
+        <main class="main">
             <div id="app-root">
                 <!-- Setup, session, and history views mount here. -->
             </div>

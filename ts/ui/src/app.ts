@@ -9,10 +9,11 @@
 import { mountSetupView } from './views/setup.js';
 import { mountSessionView, type SessionViewHandle } from './views/session.js';
 import { mountHistoryView } from './views/history.js';
+import { mountSettingsView } from './views/settings.js';
 import type { SessionSetup } from './settings.js';
 import type { SessionState } from '../../src/facilitation/session.js';
 
-type View = 'setup' | 'session' | 'history';
+type View = 'setup' | 'session' | 'history' | 'settings';
 
 let currentSession: SessionViewHandle | null = null;
 let currentView: View = 'setup';
@@ -39,13 +40,16 @@ function wireNav(): void {
         const root = $('app-root');
         if (view === 'setup') void goSetup(root);
         else if (view === 'history') void goHistory(root);
+        else if (view === 'settings') void goSettings(root);
     });
 }
 
 function setActiveNav(view: View): void {
     currentView = view;
     document.querySelectorAll<HTMLElement>('[data-nav]').forEach((el) => {
-        el.classList.toggle('active', el.dataset['nav'] === view);
+        // Use `nav-active` to match the lifted CSS — Python's base.html
+        // applies the same class to mark the current page link.
+        el.classList.toggle('nav-active', el.dataset['nav'] === view);
     });
 }
 
@@ -85,4 +89,13 @@ async function goHistory(root: HTMLElement): Promise<void> {
     await mountHistoryView(root, () => {
         void goSetup(root);
     });
+}
+
+async function goSettings(root: HTMLElement): Promise<void> {
+    if (currentSession) {
+        currentSession.teardown();
+        currentSession = null;
+    }
+    setActiveNav('settings');
+    await mountSettingsView(root);
 }

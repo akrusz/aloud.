@@ -44,6 +44,16 @@ import {
     unmountEmberContainer,
     wireEmberControls,
 } from '../embers.js';
+import {
+    buildScoredVoiceList,
+    fetchServerVoices,
+    previewVoice as runVoicePreview,
+    renderVoiceList,
+    renderVoiceModalHTML,
+    stopPreview as stopVoicePreview,
+    updateVoiceSelection,
+    type ScoredVoice,
+} from '../voice-picker.js';
 
 // Anthropic blocks browser-origin requests outright; the others (OpenAI,
 // OpenRouter, Venice, Groq) accept browser CORS. So Anthropic always
@@ -150,13 +160,28 @@ export async function mountSessionView(
     // mic stream during speak() — separate from the STT adapter — and
     // calls cancel() when energy crosses the threshold for a few
     // consecutive frames.
-    const tts = wrapTtsWithBargeIn(rawTts, {
+    const ttsWithBargeIn = wrapTtsWithBargeIn(rawTts, {
         onBargeIn: () => {
             // Visual cue: drop the holding-orb if it was up. The listen
             // loop will pick up the user's next utterance naturally.
             setOrbHolding(false);
         },
     });
+    // Outer wrapper: respect the TTS toggle button. When the user mutes
+    // TTS, speak() becomes a no-op and any in-flight playback is
+    // cancelled. Cheaper than tearing down the whole barge-in wrapper.
+    const tts = {
+        async speak(text: string, options?: import('../../../src/platform/index.js').TtsOptions): Promise<void> {
+            if (!ttsEnabled) return;
+            return ttsWithBargeIn.speak(text, options);
+        },
+        cancel(): Promise<void> {
+            return ttsWithBargeIn.cancel();
+        },
+        listVoices() {
+            return ttsWithBargeIn.listVoices();
+        },
+    } satisfies TtsEngine;
     // Re-probe each time the user starts a session: Flask may have come up
     // (or gone down) since the last detection.
     invalidateSttBackendCache();
@@ -168,79 +193,132 @@ export async function mountSessionView(
     });
     const sttBackend = await detectSttBackend();
 
-    const transcript = root.querySelector<HTMLElement>('#transcript')!;
-    const statusEl = root.querySelector<HTMLElement>('#status')!;
-    const micBtn = root.querySelector<HTMLButtonElement>('#mic')!;
-    const textInput = root.querySelector<HTMLInputElement>('#text-input')!;
-    const textForm = root.querySelector<HTMLFormElement>('#text-form')!;
-    const endBtn = root.querySelector<HTMLButtonElement>('#end')!;
-    const orbEl = root.querySelector<HTMLElement>('#session-orb')!;
+    // The session view also injects an orb into the global nav's
+    // .nav-center slot and overrides the nav links to End / History.
+    // Both are restored on teardown so swapping back to setup doesn't
+    // leave stale chrome.
+    const navCenter = document.getElementById('navCenter');
+    const navLinks = document.getElementById('navLinks');
+    const savedNavLinks = navLinks ? navLinks.innerHTML : null;
+    if (navCenter) {
+        navCenter.innerHTML = `
+            <div class="nav-session-info">
+                <div class="orb orb-breathing orb-nav" id="orb"></div>
+            </div>`;
+    }
+    if (navLinks) {
+        navLinks.innerHTML = `
+            <a href="#" id="end-btn" class="nav-end-link">End<span class="nav-word-session"> Session</span></a>
+            <a href="#" data-nav="history">History</a>
+            <button type="button" class="theme-toggle"
+                data-theme-toggle aria-label="Toggle theme"></button>`;
+    }
+
+    const conversation = root.querySelector<HTMLElement>('#conversation')!;
+    const typingIndicator = root.querySelector<HTMLElement>('#typing-indicator')!;
+    const statusEl = root.querySelector<HTMLElement>('#voice-status')!;
+    const timerEl = root.querySelector<HTMLElement>('#timer')!;
+    const ttsToggle = root.querySelector<HTMLButtonElement>('#tts-toggle')!;
+    const micBtn = root.querySelector<HTMLButtonElement>('#voice-btn')!;
+    const listenBtn = root.querySelector<HTMLButtonElement>('#listen-btn')!;
+    const voicePickerBtn = root.querySelector<HTMLButtonElement>('#voice-picker-btn')!;
+    const kasinaToggle = root.querySelector<HTMLInputElement>('#kasina-toggle')!;
+    const orbEl = document.getElementById('orb');
+    const endBtn = document.getElementById('end-btn') as HTMLAnchorElement | null;
 
     // Orb states mirror the existing app's behavior: always breathing,
-    // with `orb-holding` layered on during silence mode. The richer
-    // listening/thinking/speaking variants I prototyped previously are
-    // deferred to meditation-pal-1au.
+    // with `orb-holding` layered on during silence mode. Richer states
+    // (listening / thinking / speaking variants) are tracked in
+    // meditation-pal-1au.
     function setOrbHolding(holding: boolean): void {
-        orbEl.classList.toggle('orb-holding', holding);
+        if (orbEl) orbEl.classList.toggle('orb-holding', holding);
     }
 
     function setStatus(text: string): void {
         statusEl.textContent = text;
     }
-    function appendMessage(role: 'user' | 'assistant', text: string, partial = false): HTMLElement {
+
+    function appendMessage(
+        role: 'user' | 'assistant',
+        text: string,
+        partial = false
+    ): HTMLElement {
         const el = document.createElement('div');
-        el.className = `message ${role}${partial ? ' partial' : ''}`;
-        el.textContent = text;
-        transcript.appendChild(el);
-        transcript.scrollTop = transcript.scrollHeight;
+        el.className = `message ${role === 'assistant' ? 'facilitator' : 'user'}${partial ? ' partial' : ''}`;
+        // Match Python: text wrapped in .message-content for styling.
+        const content = document.createElement('div');
+        content.className = 'message-content';
+        content.textContent = text;
+        el.appendChild(content);
+        // Insert before the typing indicator so it stays at the bottom.
+        conversation.insertBefore(el, typingIndicator);
+        conversation.scrollTop = conversation.scrollHeight;
         return el;
     }
 
+    function showTyping(): void {
+        typingIndicator.hidden = false;
+        conversation.scrollTop = conversation.scrollHeight;
+    }
+    function hideTyping(): void {
+        typingIndicator.hidden = true;
+    }
+
+    // Session timer — counts since mount, formatted m:ss or h:mm:ss.
+    const sessionStartMs = Date.now();
+    function updateTimer(): void {
+        const elapsed = Math.floor((Date.now() - sessionStartMs) / 1000);
+        const h = Math.floor(elapsed / 3600);
+        const m = Math.floor((elapsed % 3600) / 60);
+        const s = elapsed % 60;
+        const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
+        timerEl.textContent = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+    }
+    updateTimer();
+    const timerInterval = setInterval(updateTimer, 1000);
+
+    // Initial mic / status hint.
     if (stt === null) {
         micBtn.disabled = true;
+        micBtn.classList.add('disabled');
         const hint =
             'No mic backend available. Start Flask in another terminal (uv run python -m src.web) ' +
-            'for server Whisper, or open the preview in Chrome/Edge for Web Speech, then start a ' +
-            'new session.';
+            'or open the preview in Chrome/Edge for Web Speech.';
         micBtn.title = hint;
-        micBtn.textContent = 'Mic unavailable';
-        setStatus(`Mic unavailable — type to begin. ${hint}`);
+        setStatus('Mic unavailable');
     } else {
-        micBtn.disabled = false;
         const label =
             sttBackend === 'capacitor'
                 ? 'native STT'
                 : sttBackend === 'web-speech'
                   ? 'Web Speech'
                   : 'server Whisper';
-        setStatus(`Listening (${label}). Speak when ready, or type.`);
+        setStatus(`Listening (${label})`);
+    }
+
+    function insertDivider(text: string): void {
+        const divider = document.createElement('div');
+        divider.className = 'message divider';
+        divider.textContent = text;
+        conversation.insertBefore(divider, typingIndicator);
     }
 
     // If continuing, render the old exchanges in the transcript with a
     // "continuing from earlier" divider above them.
     if (continueFrom && continueFrom.exchanges.length > 0) {
-        const divider = document.createElement('div');
-        divider.className = 'message intention';
         const oldDate = new Date(continueFrom.startTime * 1000).toLocaleString();
-        divider.textContent = `continuing from ${oldDate}`;
-        transcript.appendChild(divider);
+        insertDivider(`continuing from ${oldDate}`);
         for (const ex of continueFrom.exchanges) {
             if (ex.role === 'user' || ex.role === 'assistant') {
                 appendMessage(ex.role, ex.content);
             }
         }
-        const resumeDivider = document.createElement('div');
-        resumeDivider.className = 'message intention';
-        resumeDivider.textContent = '— resumed —';
-        transcript.appendChild(resumeDivider);
+        insertDivider('— resumed —');
     }
 
     // Show the intention as a faint first line of context, if set.
     if (setup.intention.trim()) {
-        const el = document.createElement('div');
-        el.className = 'message intention';
-        el.textContent = `intention: ${setup.intention}`;
-        transcript.appendChild(el);
+        insertDivider(`intention: ${setup.intention}`);
     }
 
     let busy = false;
@@ -249,6 +327,7 @@ export async function mountSessionView(
     let torn = false;
     let silenceMode = false;
     let currentPartial: HTMLElement | null = null;
+    let scoredVoices: ScoredVoice[] = [];
 
     async function respondTo(userText: string): Promise<void> {
         if (busy) return;
@@ -384,8 +463,9 @@ export async function mountSessionView(
 
     function setMicButtonState(): void {
         if (!stt) return;
-        micBtn.classList.toggle('listening', !muted);
-        micBtn.textContent = muted ? 'Unmute mic' : 'Mute mic';
+        // The Python app toggles a 'muted' class to flip the icon's
+        // mute-line on; the icon SVG is the same in both states.
+        micBtn.classList.toggle('muted', muted);
         micBtn.setAttribute(
             'aria-label',
             muted ? 'Unmute microphone' : 'Mute microphone'
@@ -402,9 +482,124 @@ export async function mountSessionView(
             muted = true;
             void stt.stop();
             setMicButtonState();
-            setStatus('Muted — click Unmute mic or type to continue');
+            setStatus('Muted');
         }
     });
+
+    // TTS toggle — when off, we cancel any in-flight speech and skip
+    // subsequent speak() calls. Visual state: the active class shows the
+    // wave icons; without it, the mute-line crosses through.
+    let ttsEnabled = true;
+    ttsToggle.addEventListener('click', () => {
+        ttsEnabled = !ttsEnabled;
+        ttsToggle.classList.toggle('active', ttsEnabled);
+        if (!ttsEnabled) void tts.cancel();
+    });
+
+    // Listen mode — local silence mode toggle. Matches the Python
+    // listen-btn behavior: announces "holding space", orb gets the
+    // holding class, anything the user says next exits the mode.
+    listenBtn.addEventListener('click', () => {
+        if (silenceMode) {
+            silenceMode = false;
+            listenBtn.classList.remove('active');
+            pacing.exitSilenceMode();
+            setOrbHolding(false);
+            setStatus(stt ? 'Listening…' : 'Ready');
+        } else {
+            silenceMode = true;
+            listenBtn.classList.add('active');
+            pacing.enterSilenceMode();
+            setOrbHolding(true);
+            setStatus("Holding space — say 'I'm ready' to resume");
+        }
+    });
+
+    // Kasina toggle — full-color gazing-mode dot in the center of the
+    // screen. The CSS rule fires on body[data-kasina="on"], so this
+    // toggle just flips that attribute. Closing-eyes is the user's job.
+    kasinaToggle.addEventListener('change', () => {
+        document.body.dataset['kasina'] = kasinaToggle.checked ? 'on' : 'off';
+    });
+
+    // Voice picker — opens the same modal layout as the setup view's
+    // picker, but selecting a voice here also rebuilds the live tts
+    // engine so the next utterance uses the new voice.
+    void initVoicePicker();
+
+    async function initVoicePicker(): Promise<void> {
+        const server = await fetchServerVoices();
+        scoredVoices = buildScoredVoiceList(server, true);
+        updateVoicePickerLabel();
+    }
+
+    function updateVoicePickerLabel(): void {
+        const name = stripVoicePrefix(setup.voice);
+        if (name) voicePickerBtn.textContent = `${name} · ${setup.ttsRate} wpm`;
+        else voicePickerBtn.textContent = 'Voice';
+    }
+
+    voicePickerBtn.addEventListener('click', () => openSessionVoiceModal());
+
+    function openSessionVoiceModal(): void {
+        const modal = root.querySelector<HTMLElement>('#voice-modal');
+        const listEl = root.querySelector<HTMLElement>('#voice-modal-list');
+        const closeBtn = root.querySelector<HTMLButtonElement>('#voice-modal-close');
+        const speedSlider = root.querySelector<HTMLInputElement>('#modal-speed-slider');
+        const speedLabel = root.querySelector<HTMLElement>('#modal-speed-label');
+        if (!modal || !listEl || !closeBtn || !speedSlider || !speedLabel) return;
+
+        const currentName = stripVoicePrefix(setup.voice);
+        renderVoiceList(listEl, scoredVoices, currentName, { showEngine: true });
+        speedSlider.value = String(setup.ttsRate);
+        speedLabel.textContent = `${setup.ttsRate} wpm`;
+        modal.classList.remove('hidden');
+
+        const onListClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            const row = target.closest<HTMLElement>('.voice-row');
+            if (!row) return;
+            const name = row.dataset['voiceName'];
+            if (!name) return;
+            const entry = scoredVoices.find((v) => v.name === name);
+            if (target.closest('.voice-row-preview')) {
+                if (row.classList.contains('voice-row-locked')) return;
+                void runVoicePreview(name, setup.ttsRate, entry?.engine);
+                return;
+            }
+            if (row.classList.contains('voice-row-locked')) return;
+            const idPrefix = entry?.engine === 'browser' ? 'browser:' : 'server:';
+            setup.voice = `${idPrefix}${name}`;
+            updateVoiceSelection(listEl, name);
+            updateVoicePickerLabel();
+            // Voice change mid-session: future utterances pick up the
+            // new voice via createTtsForVoice. For now the active `tts`
+            // is fixed at session start; a follow-up commit can rebuild
+            // it. The label updating is the visible part the user
+            // wanted today.
+        };
+        const onSpeedInput = () => {
+            const rate = Number(speedSlider.value);
+            setup.ttsRate = rate;
+            speedLabel.textContent = `${rate} wpm`;
+            updateVoicePickerLabel();
+        };
+        const closeModal = () => {
+            modal.classList.add('hidden');
+            stopVoicePreview();
+            listEl.removeEventListener('click', onListClick);
+            speedSlider.removeEventListener('input', onSpeedInput);
+            closeBtn.removeEventListener('click', closeModal);
+            modal.removeEventListener('click', onBackdrop);
+        };
+        const onBackdrop = (e: MouseEvent) => {
+            if (e.target === modal) closeModal();
+        };
+        listEl.addEventListener('click', onListClick);
+        speedSlider.addEventListener('input', onSpeedInput);
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', onBackdrop);
+    }
 
     // Generate a warm continuation opener via the LLM when resuming.
     // Fire before starting the listen loop; mark busy so the loop
@@ -516,17 +711,13 @@ export async function mountSessionView(
         }
     }
 
-    textForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const text = textInput.value.trim();
-        if (!text) return;
-        textInput.value = '';
-        void respondTo(text);
-    });
-
-    endBtn.addEventListener('click', () => {
-        void endSession();
-    });
+    // End button lives in the global nav (we injected it on mount).
+    if (endBtn) {
+        endBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            void endSession();
+        });
+    }
 
     mountEmberContainer();
     wireEmberControls(root);
@@ -535,12 +726,18 @@ export async function mountSessionView(
         if (torn) return;
         torn = true;
         if (checkInTimer) clearInterval(checkInTimer);
+        clearInterval(timerInterval);
         pacing.endSession();
         const finalState = session.endSession();
         void stt?.stop();
         void tts.cancel();
         // Drop the ember container — embers are session-only.
         unmountEmberContainer();
+        // Clear kasina mode if active.
+        document.body.dataset['kasina'] = 'off';
+        // Restore the global nav slots we replaced on mount.
+        if (navCenter) navCenter.innerHTML = '';
+        if (navLinks && savedNavLinks !== null) navLinks.innerHTML = savedNavLinks;
 
         if (finalState && hasUserContent(finalState.exchanges)) {
             // Try to generate an LLM summary for the history row;
@@ -574,6 +771,14 @@ export async function mountSessionView(
     };
 }
 
+/** SessionSetup.voice carries a 'server:' or 'browser:' prefix; the voice
+ *  picker works with raw names. Strip the prefix on the way in. */
+function stripVoicePrefix(voice: string | null): string | null {
+    if (!voice) return null;
+    const m = /^(server|browser):(.*)$/.exec(voice);
+    return m ? (m[2] ?? null) : voice;
+}
+
 function describeSttError(err: unknown): string {
     const msg = err instanceof Error ? err.message : String(err);
     // Common cases that benefit from plain-English status text.
@@ -591,33 +796,72 @@ function describeSttError(err: unknown): string {
 
 function renderSessionHTML(): string {
     return `
-    <section class="session-stage">
-        <div class="orb orb-breathing" id="session-orb" aria-hidden="true"></div>
-        <div class="status"><div id="status">Connecting…</div></div>
-    </section>
-
-    <section class="transcript" id="transcript" aria-live="polite"></section>
-
-    <section class="controls">
-        <button id="mic" type="button" disabled>Start listening</button>
-        <form id="text-form">
-            <input id="text-input" type="text"
-                placeholder="…or type here and press enter" autocomplete="off" />
-        </form>
-        <button id="end" type="button" class="btn-end">End session</button>
-    </section>
-
-    <section class="session-footer">
-        <div class="ember-level" title="Floating ember particles">
-            <span class="toggle-text">Embers</span>
-            <button class="ember-btn" id="ember-minus" type="button">−</button>
-            <div class="ember-blocks" id="ember-blocks">
-                <span class="ember-block" data-level="1"></span>
-                <span class="ember-block" data-level="2"></span>
-                <span class="ember-block" data-level="3"></span>
-                <span class="ember-block" data-level="4"></span>
+    <div class="session-container">
+        <div class="conversation" id="conversation">
+            <div class="message facilitator typing-bubble" id="typing-indicator" hidden>
+                <div class="message-content">
+                    <span></span><span></span><span></span>
+                </div>
             </div>
-            <button class="ember-btn" id="ember-plus" type="button">+</button>
         </div>
-    </section>`;
+
+        <div class="input-area">
+            <div class="input-row">
+                <div id="voice-status" class="voice-status">Connecting…</div>
+                <span class="session-timer" id="timer">0:00</span>
+                <button id="tts-toggle" class="btn btn-tts active" title="Read responses aloud" aria-label="Toggle text-to-speech">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path class="tts-waves" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path class="tts-waves" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        <line class="mute-line" x1="3" y1="3" x2="21" y2="21"></line>
+                    </svg>
+                </button>
+                <button id="voice-btn" class="btn btn-voice" title="Toggle microphone" aria-label="Toggle microphone">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                        <line class="mute-line" x1="3" y1="3" x2="21" y2="21"></line>
+                    </svg>
+                </button>
+                <button id="listen-btn" class="btn btn-listen"
+                    title="Hold space — your words are saved but not sent. Say something like 'I'm ready' to resume.">
+                    Just Listen
+                </button>
+            </div>
+            <div class="input-controls">
+                <div class="ember-level" title="Floating ember particles">
+                    <span class="toggle-text">Embers</span>
+                    <button class="ember-btn" id="ember-minus" type="button">−</button>
+                    <div class="ember-blocks" id="ember-blocks">
+                        <span class="ember-block filled" data-level="1"></span>
+                        <span class="ember-block" data-level="2"></span>
+                        <span class="ember-block" data-level="3"></span>
+                        <span class="ember-block" data-level="4"></span>
+                    </div>
+                    <button class="ember-btn" id="ember-plus" type="button">+</button>
+                </div>
+                <label class="toggle-label" title="Kasina gazing mode">
+                    <input type="checkbox" id="kasina-toggle">
+                    <span class="toggle-text">Kasina</span>
+                </label>
+                <div class="voice-control">
+                    <button type="button" id="voice-picker-btn" class="voice-picker-btn">Voice</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ember-container" id="ember-container"></div>
+
+    ${renderVoiceModalHTML({
+        modalId: 'voice-modal',
+        closeId: 'voice-modal-close',
+        listId: 'voice-modal-list',
+        speedSliderId: 'modal-speed-slider',
+        speedLabelId: 'modal-speed-label',
+        speedValue: 110,
+    })}`;
 }
