@@ -21,6 +21,20 @@ export {
 export { generateSessionSummary } from './summary.js';
 
 export {
+    generateNotingLabel,
+    NOTING_SYSTEM_PROMPT,
+    NOTING_OPENER_PROMPT,
+    NOTING_CHECK_IN_PROMPTS,
+    NOTING_LABEL_SYSTEM_PROMPT,
+    NOTING_STATIC_OPENER,
+    type Participant,
+    type SoundParticipant,
+    type LlmParticipant,
+    type ReactiveLevel,
+    type GenerateLabelOptions,
+} from './noting.js';
+
+export {
     PromptBuilder,
     defaultPromptConfig,
     parseHoldSignal,
