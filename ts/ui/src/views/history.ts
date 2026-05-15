@@ -1,10 +1,12 @@
 /**
- * History view — lists past sessions saved by the session view and
- * lets the user read or delete them. Click a row to expand the
- * transcript inline; click again (or another row) to collapse.
+ * History view — list of past sessions with per-row Continue / Copy /
+ * Delete actions. Mirrors src/web/static/js/history.js and the
+ * .session-item markup in the lifted CSS.
  *
- * Uses the shared SessionStore, so saving a session in session.ts
- * shows up here without explicit coordination.
+ * Clicking a row expands it inline to show the transcript. Continue
+ * stashes the session id in sessionStorage and routes back to setup;
+ * the setup view picks the stash up and hydrates the next session
+ * with the old exchanges. Matches the Python continueSession() flow.
  */
 
 import type { SessionState, Exchange } from '../../../src/facilitation/index.js';
@@ -16,101 +18,197 @@ export interface HistoryViewHandle {
 
 export async function mountHistoryView(
     root: HTMLElement,
-    _onLeave: () => void
+    onLeave: () => void
 ): Promise<HistoryViewHandle> {
-    let expandedId: string | null = null;
+    const expanded = new Set<string>();
 
-    async function refresh(): Promise<void> {
+    async function loadAndRender(): Promise<void> {
         const ids = await sessionStore.list();
         const states = await Promise.all(ids.map((id) => sessionStore.load(id)));
         const sessions = states.filter((s): s is SessionState => s !== null);
-        // Most recent first.
+        // Newest first — Python sorts by saved_at descending; we sort by
+        // startTime since SessionStore doesn't carry a saved-at metadata
+        // field. Same effect for sessions you didn't backdate.
         sessions.sort((a, b) => b.startTime - a.startTime);
 
-        root.innerHTML = renderHistoryHTML(sessions, expandedId);
+        root.innerHTML = renderShellHTML(sessions);
         wireEvents(sessions);
     }
 
     function wireEvents(sessions: readonly SessionState[]): void {
         for (const session of sessions) {
-            const row = root.querySelector<HTMLElement>(
-                `[data-session-id="${cssEscape(session.sessionId)}"]`
+            const item = root.querySelector<HTMLElement>(
+                `.session-item[data-session-id="${cssEscape(session.sessionId)}"]`
             );
-            if (!row) continue;
+            if (!item) continue;
 
-            const header = row.querySelector<HTMLElement>('.history-row-header');
-            if (header) {
-                header.addEventListener('click', (e) => {
-                    if ((e.target as HTMLElement).closest('.history-delete')) return;
-                    expandedId = expandedId === session.sessionId ? null : session.sessionId;
-                    void refresh();
-                });
-            }
+            const header = item.querySelector<HTMLElement>('.session-item-header');
+            header?.addEventListener('click', () => {
+                toggleExpansion(item, session);
+            });
 
-            const deleteBtn = row.querySelector<HTMLButtonElement>('.history-delete');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    if (!confirm('Delete this session? This cannot be undone.')) return;
-                    await sessionStore.delete(session.sessionId);
-                    if (expandedId === session.sessionId) expandedId = null;
-                    await refresh();
-                });
+            const continueBtn = item.querySelector<HTMLButtonElement>('.btn-continue');
+            continueBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                continueSession(session);
+            });
+
+            const copyBtn = item.querySelector<HTMLButtonElement>('.btn-copy');
+            copyBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyTranscript(session, copyBtn);
+            });
+
+            const deleteBtn = item.querySelector<HTMLButtonElement>('.btn-delete');
+            deleteBtn?.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!confirm('Delete this session permanently?')) return;
+                await sessionStore.delete(session.sessionId);
+                // Fade-out animation, then re-render so other rows don't
+                // jump.
+                item.style.transition = 'opacity 0.3s';
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    expanded.delete(session.sessionId);
+                    void loadAndRender();
+                }, 300);
+            });
+        }
+    }
+
+    function toggleExpansion(item: HTMLElement, session: SessionState): void {
+        const id = session.sessionId;
+        const body = item.querySelector<HTMLElement>('.session-item-body');
+        if (!body) return;
+        if (expanded.has(id)) {
+            item.classList.remove('open');
+            body.classList.add('hidden');
+            expanded.delete(id);
+        } else {
+            item.classList.add('open');
+            body.classList.remove('hidden');
+            expanded.add(id);
+            // Lazy transcript fill (Python lazy-fetches; ours is in-memory
+            // already so just render).
+            const tx = body.querySelector<HTMLElement>('.session-transcript');
+            if (tx && tx.dataset['loaded'] !== '1') {
+                tx.innerHTML = renderTranscript(session.exchanges);
+                tx.dataset['loaded'] = '1';
             }
         }
     }
 
-    await refresh();
-    return { show: refresh };
+    function continueSession(session: SessionState): void {
+        // Stash the id on sessionStorage and route back to setup — the
+        // setup view picks it up via loadQueuedContinuation() and threads
+        // it through onBegin. Matches Python's window.continueSession().
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('continueFrom', session.sessionId);
+            const summary = session.notes ?? '';
+            if (summary) sessionStorage.setItem('continueFromSummary', summary);
+            else sessionStorage.removeItem('continueFromSummary');
+        }
+        onLeave();
+    }
+
+    function copyTranscript(session: SessionState, btn: HTMLButtonElement): void {
+        const lines: string[] = [];
+        for (const ex of session.exchanges) {
+            const role = ex.name ?? (ex.role === 'assistant' ? 'Facilitator' : 'You');
+            lines.push(`${role}\n${ex.content}`);
+        }
+        const text = lines.join('\n\n');
+        if (!text) return;
+        const original = btn.textContent;
+        const restore = () => setTimeout(() => (btn.textContent = original), 1500);
+        navigator.clipboard
+            .writeText(text)
+            .then(() => {
+                btn.textContent = 'Copied';
+                restore();
+            })
+            .catch(() => {
+                btn.textContent = 'Copy failed';
+                restore();
+            });
+    }
+
+    await loadAndRender();
+    return { show: loadAndRender };
 }
 
-function renderHistoryHTML(sessions: readonly SessionState[], expandedId: string | null): string {
+// ---- rendering ----
+
+function renderShellHTML(sessions: readonly SessionState[]): string {
     if (sessions.length === 0) {
         return `
-        <div class="history-empty">
-            <p>No saved sessions yet.</p>
-            <p class="muted">Sessions you end with at least one turn show up here.</p>
+        <div class="session-list-container">
+            <div id="empty-state" class="empty-state">
+                <p>No saved sessions yet.</p>
+                <p class="muted">Sessions you end with at least one turn show up here.</p>
+            </div>
         </div>`;
     }
 
-    const rows = sessions.map((s) => renderRow(s, s.sessionId === expandedId)).join('');
-    return `<div class="history-list">${rows}</div>`;
+    const rows = sessions.map(renderItem).join('');
+    return `
+    <div class="session-list-container">
+        <div id="session-list">${rows}</div>
+    </div>`;
 }
 
-function renderRow(session: SessionState, expanded: boolean): string {
-    const escape = htmlEscape;
-    const dateStr = new Date(session.startTime * 1000).toLocaleString();
-    const durationStr = formatDuration(session);
-    const turnCount = session.exchanges.filter((e) => e.role === 'user').length;
-    const turnLabel = turnCount === 1 ? '1 turn' : `${turnCount} turns`;
-    const notes = session.notes ? `<span class="history-notes">${escape(session.notes)}</span>` : '';
-
-    const transcript = expanded ? renderTranscript(session.exchanges) : '';
+function renderItem(session: SessionState): string {
+    const dateText = formatDate(session.startTime);
+    const durationText = formatDuration(session);
+    const turnCount = session.exchanges.length;
+    const summary = session.notes ?? '';
 
     return `
-    <div class="history-row${expanded ? ' expanded' : ''}" data-session-id="${escape(session.sessionId)}">
-        <div class="history-row-header">
-            <div class="history-row-main">
-                <div class="history-date">${escape(dateStr)}</div>
-                ${notes}
-                <div class="history-meta">${escape(durationStr)} · ${escape(turnLabel)}</div>
+    <div class="session-item" data-session-id="${attr(session.sessionId)}" data-summary="${attr(summary)}">
+        <div class="session-item-header">
+            <div class="session-item-info">
+                <span class="session-date">${escape(dateText)}</span>
+                <span class="session-meta">${escape(durationText)} · ${turnCount} exchanges</span>
+                ${summary ? `<span class="session-summary">${escape(summary)}</span>` : ''}
             </div>
-            <button class="history-delete" type="button" aria-label="Delete session">×</button>
+            <span class="session-expand">&#9662;</span>
         </div>
-        ${transcript}
+        <div class="session-item-body hidden">
+            <div class="session-transcript" data-loaded="0">
+                <p class="loading-text">Loading...</p>
+            </div>
+            <div class="session-actions">
+                <button type="button" class="btn btn-secondary btn-small btn-continue">Continue from here</button>
+                <button type="button" class="btn btn-secondary btn-small btn-copy">Copy text</button>
+                <button type="button" class="btn btn-danger btn-small btn-delete">Delete</button>
+            </div>
+        </div>
     </div>`;
 }
 
 function renderTranscript(exchanges: readonly Exchange[]): string {
-    const items = exchanges
-        .map(
-            (e) => `
-        <div class="message ${e.role}">
-            ${htmlEscape(e.content)}
-        </div>`
-        )
+    if (exchanges.length === 0) {
+        return '<p class="loading-text">No exchanges recorded.</p>';
+    }
+    return exchanges
+        .map((ex) => {
+            const role = ex.name ?? (ex.role === 'assistant' ? 'Facilitator' : 'You');
+            return `
+            <div class="transcript-message">
+                <div class="transcript-role ${ex.role}">${escape(role)}</div>
+                <div class="transcript-text">${escape(ex.content)}</div>
+            </div>`;
+        })
         .join('');
-    return `<div class="history-transcript transcript">${items}</div>`;
+}
+
+function formatDate(startTime: number): string {
+    const d = new Date(startTime * 1000);
+    return d.toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+    });
 }
 
 function formatDuration(s: SessionState): string {
@@ -122,15 +220,16 @@ function formatDuration(s: SessionState): string {
     return `${mins}m ${secs}s`;
 }
 
-function htmlEscape(s: string): string {
+function escape(s: string): string {
     return s.replace(/[&<>"']/g, (c) =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c)
     );
 }
 
+function attr(s: string): string {
+    return escape(s);
+}
+
 function cssEscape(s: string): string {
-    // Sessions IDs are generated via the SessionManager — letters,
-    // numbers, and hyphens. But be defensive for callers that pass
-    // their own IDs.
     return s.replace(/"/g, '\\"');
 }

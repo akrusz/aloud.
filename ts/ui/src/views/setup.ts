@@ -98,18 +98,20 @@ export async function mountSetupView(
     const setup = await loadSetup();
     let voiceCatalog: VoiceEntry[] = [];
 
-    // Look up the most recent saved session for the "Continue" button.
-    // List comes back in insertion order; we sort by startTime so users
-    // see their most recent meditation regardless of how the index grew.
-    async function loadMostRecentSession(): Promise<SessionState | null> {
-        const ids = await sessionStore.list();
-        if (ids.length === 0) return null;
-        const states = await Promise.all(ids.map((id) => sessionStore.load(id)));
-        const valid = states.filter((s): s is SessionState => s !== null);
-        valid.sort((a, b) => b.startTime - a.startTime);
-        // Only offer continuation for sessions that have at least one
-        // turn — otherwise "continue" is meaningless.
-        return valid.find((s) => s.exchanges.length > 0) ?? null;
+    // Pull a queued continuation off sessionStorage. Mirrors the Python
+    // app — history view writes 'continueFrom' there and redirects to /,
+    // setup view picks it up and threads it into onBegin. Returns null
+    // when nothing is queued or the referenced session is gone.
+    async function loadQueuedContinuation(): Promise<SessionState | null> {
+        if (typeof sessionStorage === 'undefined') return null;
+        const id = sessionStorage.getItem('continueFrom');
+        if (!id) return null;
+        const state = await sessionStore.load(id);
+        // One-shot — clear so a reload doesn't keep auto-continuing.
+        sessionStorage.removeItem('continueFrom');
+        sessionStorage.removeItem('continueFromSummary');
+        if (!state) return null;
+        return state;
     }
 
     function persist(): void {
@@ -314,24 +316,41 @@ export async function mountSetupView(
             persist();
         });
 
-        // Begin session
+        // Begin session — uses any queued continuation from sessionStorage
+        // (set by the history view's "Continue" button) so the same Begin
+        // path handles both fresh and continued sessions, matching the
+        // Python setup.js behavior.
         const beginBtn = root.querySelector<HTMLButtonElement>('#begin-btn')!;
-        beginBtn.addEventListener('click', () => onBegin(setup, null));
-
-        // Continue button — hidden until we know whether there's a recent
-        // session worth resuming.
-        const continueBtn = root.querySelector<HTMLButtonElement>('#continue-btn');
-        if (continueBtn) {
+        beginBtn.addEventListener('click', () => {
             void (async () => {
-                const recent = await loadMostRecentSession();
-                if (recent) {
-                    const when = new Date(recent.startTime * 1000).toLocaleString();
-                    continueBtn.hidden = false;
-                    continueBtn.title = `Resume the session from ${when}`;
-                    continueBtn.addEventListener('click', () => onBegin(setup, recent));
-                }
+                const queued = await loadQueuedContinuation();
+                onBegin(setup, queued);
             })();
-        }
+        });
+
+        // Continuation banner — shown when the history view has queued a
+        // session for continuation. Matches Python's #continue-banner.
+        void (async () => {
+            if (typeof sessionStorage === 'undefined') return;
+            const id = sessionStorage.getItem('continueFrom');
+            if (!id) return;
+            const state = await sessionStore.load(id);
+            if (!state) return;
+            const banner = root.querySelector<HTMLElement>('#continue-banner');
+            const text = root.querySelector<HTMLElement>('#continue-banner-text');
+            const cancel = root.querySelector<HTMLButtonElement>('#continue-cancel');
+            if (!banner || !text || !cancel) return;
+            const summary =
+                sessionStorage.getItem('continueFromSummary') ||
+                new Date(state.startTime * 1000).toLocaleString();
+            text.textContent = `Continuing from: ${summary}`;
+            banner.hidden = false;
+            cancel.addEventListener('click', () => {
+                sessionStorage.removeItem('continueFrom');
+                sessionStorage.removeItem('continueFromSummary');
+                banner.hidden = true;
+            });
+        })();
     }
 
     async function previewVoice(): Promise<void> {
@@ -421,6 +440,11 @@ function renderSetupHTML(): string {
     ).join('');
 
     return `
+    <div id="continue-banner" class="continue-banner" hidden>
+        <span id="continue-banner-text">Continuing from a previous session</span>
+        <button type="button" class="continue-banner-close" id="continue-cancel" aria-label="Cancel continuation">&times;</button>
+    </div>
+
     <form id="setup-form" class="setup-form setup-container">
         <div class="form-group">
             <label for="intention">Intention <span class="optional">(optional)</span></label>
@@ -513,8 +537,6 @@ function renderSetupHTML(): string {
          the whole page on wide screens. Matches the original index.html. -->
     <div class="setup-footer">
         <div class="setup-footer-inner">
-            <button id="continue-btn" type="button"
-                class="btn btn-secondary btn-continue" hidden>Continue last</button>
             <button id="begin-btn" type="button"
                 class="btn btn-primary btn-begin">Begin Session</button>
         </div>
