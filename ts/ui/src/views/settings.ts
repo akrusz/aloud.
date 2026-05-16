@@ -38,6 +38,7 @@ import { mountModelPicker } from '../model-picker.js';
 import {
     buildScoredVoiceList,
     fetchServerVoices,
+    invalidateServerVoicesCache,
     previewVoice as runPreview,
     renderVoiceList,
     renderVoiceModalHTML,
@@ -56,6 +57,17 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
     // and the env-var hints show up immediately.
     await detectIsDesktop();
     let scoredVoices: ScoredVoice[] = [];
+
+    // Pending chrome state — text scale + theme apply only to the
+    // preview pane until Save is clicked. The rest of the controls
+    // persist on change (provider/key entry, pacing knobs, etc.) to
+    // match the "auto-save settings" feel for everything that isn't
+    // visually disruptive.
+    const pendingChrome = {
+        textScale: settings.textScale,
+        themeMode: settings.themeMode,
+    };
+    let chromeDirty = false;
 
     function persist(): void {
         void saveAppSettings(settings);
@@ -301,7 +313,9 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             settings.ttsEngine = engineSel.value as TtsEngineChoice;
             persist();
             refreshElevenLabsRow();
+            updateTtsEngineHint();
         });
+        updateTtsEngineHint();
 
         const voiceBtn = root.querySelector<HTMLButtonElement>('#s-voice-btn')!;
         updateVoiceButtonLabel(voiceBtn);
@@ -317,6 +331,46 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         // the LLM provider rows. Only visible when TTS = elevenlabs.
         attachElevenLabsKeyHelpers();
         refreshElevenLabsRow();
+    }
+
+    /**
+     * Engine-specific hint text below the TTS engine dropdown. Mirrors
+     * src/web/static/js/settings.js::TTS_ENGINE_HINTS, including the
+     * "Download Premium voices" call-to-action when the user is on a
+     * Mac with macOS TTS — that's the key surface for getting good
+     * voices on Apple Silicon.
+     */
+    function updateTtsEngineHint(): void {
+        const hintEl = root.querySelector<HTMLElement>('#s-tts-engine-hint');
+        if (!hintEl) return;
+        const isMac = /Mac/.test(
+            typeof navigator !== 'undefined' ? navigator.platform || '' : ''
+        );
+        const openSettingsLink = isDesktopSync()
+            ? ' <a href="#" data-open-voice-settings>Download Premium voices</a> — in the System Voice row, click the <b>ⓘ</b> then click Voice.'
+            : '';
+        const hints: Record<TtsEngineChoice, string> = {
+            macos:
+                'Built-in macOS voices. Zero latency, works offline.' +
+                (isMac ? openSettingsLink : ''),
+            browser:
+                "Uses your browser's built-in speech synthesis. On Windows, Edge and the desktop app include high-quality natural voices.",
+            elevenlabs:
+                'Cloud neural TTS with natural, expressive voices. Requires an API key and internet.',
+            piper:
+                'Fast local neural TTS. Download voice models (~60–100 MB each) from the voice picker. <a href="https://rhasspy.github.io/piper-samples/" target="_blank" rel="noopener">Listen to samples</a>',
+        };
+        hintEl.innerHTML = hints[settings.ttsEngine];
+        // Wire the "Download Premium voices" link to the Flask
+        // /api/open-voice-settings route — opens macOS System Settings
+        // straight to Accessibility → Spoken Content.
+        const link = hintEl.querySelector<HTMLAnchorElement>('[data-open-voice-settings]');
+        if (link) {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                void fetch('/api/open-voice-settings', { method: 'POST' });
+            });
+        }
     }
 
     function refreshElevenLabsRow(): void {
@@ -414,6 +468,47 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         row.appendChild(status);
     }
 
+    /**
+     * Uninstall a downloaded Piper voice via Flask's
+     * /api/tts/uninstall-model endpoint. Mirrors Python's settings.js
+     * behavior — confirmation, POST, then re-fetch voices so the row
+     * flips to "Download" state.
+     */
+    async function uninstallVoice(
+        btn: HTMLButtonElement,
+        name: string,
+        engine: string | undefined
+    ): Promise<void> {
+        if (!confirm(`Uninstall the voice "${name}"?`)) return;
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Removing…';
+        try {
+            const resp = await fetch('/api/tts/uninstall-model', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ voice: name, engine: engine ?? '' }),
+            });
+            if (!resp.ok) throw new Error(`server returned ${resp.status}`);
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = original ?? 'Uninstall';
+            alert(`Could not uninstall: ${(err as Error).message}`);
+            return;
+        }
+        // Drop the cached /api/voices response so the re-fetch sees
+        // the Piper model as un-downloaded again.
+        invalidateServerVoicesCache();
+        await loadVoiceCatalog();
+        const listEl = root.querySelector<HTMLElement>('#settings-voice-modal-list');
+        if (listEl) {
+            renderVoiceList(listEl, scoredVoices, stripVoicePrefix(settings.defaultVoice), {
+                showEngine: true,
+                showUninstall: true,
+            });
+        }
+    }
+
     async function loadVoiceCatalog(): Promise<void> {
         if (
             typeof speechSynthesis !== 'undefined' &&
@@ -449,7 +544,12 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         if (!modal || !listEl || !closeBtn || !speedSlider || !speedLabel) return;
 
         const currentName = stripVoicePrefix(settings.defaultVoice);
-        renderVoiceList(listEl, scoredVoices, currentName, { showEngine: true });
+        // Settings is the "manage voices" surface — show Uninstall on
+        // downloaded Piper voices so users can free up space.
+        renderVoiceList(listEl, scoredVoices, currentName, {
+            showEngine: true,
+            showUninstall: true,
+        });
         speedSlider.value = String(settings.defaultTtsRate);
         speedLabel.textContent = `${settings.defaultTtsRate} wpm`;
         modal.classList.remove('hidden');
@@ -464,6 +564,16 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             if (target.closest('.voice-row-preview')) {
                 if (row.classList.contains('voice-row-locked')) return;
                 void runPreview(name, settings.defaultTtsRate, entry?.engine);
+                return;
+            }
+            // Uninstall button — POST to Flask's tts uninstall endpoint
+            // and re-render the list so the voice flips back to a
+            // downloadable state (or disappears entirely if it was a
+            // multi-speaker model whose shared .onnx got removed).
+            const uninstallBtn = target.closest<HTMLButtonElement>('.voice-row-uninstall');
+            if (uninstallBtn) {
+                e.preventDefault();
+                void uninstallVoice(uninstallBtn, name, entry?.engine);
                 return;
             }
             if (row.classList.contains('voice-row-locked')) return;
@@ -500,42 +610,68 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
     // ---- Display -------------------------------------------------------
 
     function wireDisplaySection(): void {
+        // Text scale + theme are preview-only until Save: dragging the
+        // slider or changing the theme select updates the preview pane
+        // and the pending state, but the rest of the page keeps the
+        // last-saved values until the user commits via the Save button.
+        // Matches Python's settings.js — see syncPreview() at :513 and
+        // the textScale handler at :39.
         const textScale = root.querySelector<HTMLInputElement>('#s-text-scale')!;
         const textScaleLabel = root.querySelector<HTMLElement>('#s-text-scale-label')!;
         const previewInner = root.querySelector<HTMLElement>('#text-scale-preview-inner');
-        textScale.value = String(settings.textScale);
-        textScaleLabel.textContent = `${Math.round(settings.textScale * 100)}%`;
-        // Drive the preview's base font-size off the slider — matches
-        // settings.js:42 (`previewInner.style.fontSize = 18*scale + 'px'`).
+        const previewBox = root.querySelector<HTMLElement>('#text-scale-preview');
+        textScale.value = String(pendingChrome.textScale);
+        textScaleLabel.textContent = `${Math.round(pendingChrome.textScale * 100)}%`;
         if (previewInner) {
-            previewInner.style.fontSize = `${18 * settings.textScale}px`;
+            previewInner.style.fontSize = `${18 * pendingChrome.textScale}px`;
         }
         textScale.addEventListener('input', () => {
-            settings.textScale = Number(textScale.value);
-            textScaleLabel.textContent = `${Math.round(settings.textScale * 100)}%`;
+            pendingChrome.textScale = Number(textScale.value);
+            textScaleLabel.textContent = `${Math.round(pendingChrome.textScale * 100)}%`;
             if (previewInner) {
-                previewInner.style.fontSize = `${18 * settings.textScale}px`;
+                previewInner.style.fontSize = `${18 * pendingChrome.textScale}px`;
             }
-            persist();
-            applyChromeSettings(settings);
+            markChromeDirty();
         });
 
         const themeSel = root.querySelector<HTMLSelectElement>('#s-theme-mode')!;
-        themeSel.value = settings.themeMode;
+        themeSel.value = pendingChrome.themeMode;
+        if (previewBox) {
+            previewBox.setAttribute('data-preview-theme', resolvePreviewTheme(pendingChrome.themeMode));
+        }
         themeSel.addEventListener('change', () => {
-            settings.themeMode = themeSel.value as ThemeMode;
-            persist();
-            applyChromeSettings(settings);
+            pendingChrome.themeMode = themeSel.value as ThemeMode;
+            if (previewBox) {
+                previewBox.setAttribute(
+                    'data-preview-theme',
+                    resolvePreviewTheme(pendingChrome.themeMode)
+                );
+            }
+            markChromeDirty();
         });
 
-        // Window mode / frameless are desktop-shell concerns. The
-        // controls are present for parity but disabled until the shell
-        // story lands (Tauri 2 or Electron). The hint below makes that
-        // visible to the user.
+        // Window mode / frameless are desktop-shell concerns and stay
+        // disabled until that ships. No explanatory text — disabled is
+        // visible enough.
         const windowMode = root.querySelector<HTMLSelectElement>('#s-window-mode');
         const frameless = root.querySelector<HTMLInputElement>('#s-frameless');
         if (windowMode) windowMode.disabled = true;
         if (frameless) frameless.disabled = true;
+    }
+
+    function resolvePreviewTheme(mode: ThemeMode): 'dark' | 'light' {
+        if (mode === 'dark' || mode === 'light') return mode;
+        // Auto — match the same FOUC logic the index.html script uses.
+        if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light';
+        if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
+        const hour = new Date().getHours();
+        return hour >= 7 && hour < 19 ? 'light' : 'dark';
+    }
+
+    function markChromeDirty(): void {
+        chromeDirty = true;
+        const dot = root.querySelector<HTMLElement>('.btn-begin-dirty');
+        if (dot) dot.hidden = false;
     }
 
     // ---- Pacing --------------------------------------------------------
@@ -624,15 +760,23 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
     // ---- Footer --------------------------------------------------------
 
     function wireFooter(): void {
-        // No global Save button — each field persists on change. The
-        // footer still renders for visual parity, but the button is a
-        // no-op + flash to confirm the user that changes are saved.
+        // Save commits the pending chrome state (text scale + theme)
+        // into the live document — preview-only until this point so
+        // the user can audition without yanking the page layout.
+        // Other settings already persist on change.
         const saveBtn = root.querySelector<HTMLButtonElement>('#s-save');
         const savedEl = root.querySelector<HTMLElement>('#settings-saved');
+        const dirtyDot = root.querySelector<HTMLElement>('.btn-begin-dirty');
         saveBtn?.addEventListener('click', (e) => {
             e.preventDefault();
+            if (chromeDirty) {
+                settings.textScale = pendingChrome.textScale;
+                settings.themeMode = pendingChrome.themeMode;
+                applyChromeSettings(settings);
+                chromeDirty = false;
+                if (dirtyDot) dirtyDot.hidden = true;
+            }
             persist();
-            applyChromeSettings(settings);
             if (savedEl) {
                 savedEl.classList.remove('hidden');
                 setTimeout(() => savedEl.classList.add('hidden'), 1200);
@@ -745,13 +889,11 @@ function renderHTML(s: AppSettings): string {
     <div class="settings-footer">
         <div class="settings-footer-inner">
             <button id="s-save" type="button" class="btn btn-primary btn-begin">
-                Save<span class="settings-word">&nbsp;Settings</span>
+                Save<span class="settings-word">&nbsp;Settings<span class="btn-begin-dirty" hidden>&nbsp;*</span></span>
             </button>
             <span class="settings-saved hidden" id="settings-saved">Saved</span>
             <div class="settings-footer-spacer"></div>
             <div class="settings-footer-secondary">
-                <button type="button" class="tour-show-btn" id="btn-show-tour" disabled
-                    title="Setup guide tour — not yet ported to TS">Setup guide</button>
                 <button type="button" class="btn-config-path hidden" id="btn-open-config-folder">Open config folder</button>
             </div>
         </div>
@@ -889,7 +1031,7 @@ function renderTtsSection(s: AppSettings): string {
             <div class="form-group form-group-half">
                 <label for="s-tts-engine">TTS Engine</label>
                 <select id="s-tts-engine" name="tts_engine">${opts}</select>
-                <span class="form-hint">The TS preview picks the engine per voice automatically.</span>
+                <span class="form-hint" id="s-tts-engine-hint"></span>
             </div>
             <div class="form-group form-group-half">
                 <label>Manage Voices</label>
@@ -941,7 +1083,7 @@ function renderDisplaySection(s: AppSettings): string {
                         <option value="maximized">Maximized</option>
                         <option value="small">Small</option>
                     </select>
-                    <span class="form-hint">Available when the desktop shell ships.</span>
+                    <span class="form-hint">Window options take effect on next launch</span>
                 </div>
                 <label class="checkbox-label">
                     <input type="checkbox" id="s-frameless" disabled>
@@ -1040,10 +1182,10 @@ function renderNetworkSection(_s: AppSettings): string {
         <div class="form-group">
             <label for="s-host">Network Access</label>
             <select id="s-host" style="max-width:280px" disabled>
-                <option value="127.0.0.1">Local only</option>
-                <option value="0.0.0.0">LAN access</option>
+                <option value="127.0.0.1">Local only (127.0.0.1)</option>
+                <option value="0.0.0.0">LAN access (0.0.0.0)</option>
             </select>
-            <span class="form-hint">Available when the desktop shell ships.</span>
+            <span class="form-hint">LAN access lets other devices on your network connect. Requires restart.</span>
         </div>
     </section>`;
 }
@@ -1054,10 +1196,9 @@ function renderUpdatesSection(_s: AppSettings): string {
         <h2>Updates</h2>
         <div class="form-group">
             <div class="settings-update-row">
-                <span class="settings-update-status" id="s-update-status">TS preview build</span>
+                <span class="settings-update-status" id="s-update-status">Current version</span>
                 <button type="button" class="btn btn-small btn-secondary" id="s-check-update" disabled>Check for Updates</button>
             </div>
-            <span class="form-hint">Auto-update lands with the desktop shell (Tauri 2 or Electron).</span>
         </div>
     </section>`;
 }
