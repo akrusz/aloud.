@@ -67,10 +67,31 @@ function setActiveNav(view: View): void {
                 <div class="nav-session-info">
                     <div class="orb orb-idle orb-nav" id="home-orb"></div>
                 </div>`;
+            wireHomeOrbBounce();
         } else {
             navCenter.innerHTML = '';
         }
     }
+}
+
+/**
+ * Click-to-bounce affordance on the idle orb. Lifted from
+ * src/web/static/js/setup.js:819 — toggles the .orb-bounce class
+ * and lets the CSS keyframe animation play, removing it on
+ * animationend so subsequent clicks re-trigger cleanly.
+ */
+function wireHomeOrbBounce(): void {
+    const orb = document.getElementById('home-orb');
+    if (!orb) return;
+    orb.addEventListener('click', () => {
+        orb.classList.remove('orb-bounce');
+        // Reflow so the animation restarts on rapid double-clicks.
+        void orb.offsetWidth;
+        orb.classList.add('orb-bounce');
+    });
+    orb.addEventListener('animationend', () => {
+        orb.classList.remove('orb-bounce');
+    });
 }
 
 async function goSetup(root: HTMLElement): Promise<void> {

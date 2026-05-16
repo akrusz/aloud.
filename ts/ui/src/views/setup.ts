@@ -15,7 +15,6 @@ import {
     ALL_PROVIDERS,
     DIRECTIVENESS_VALUES,
     loadSetup,
-    providerNeedsKey,
     saveSetup,
 } from '../settings.js';
 import type { SessionState } from '../../../src/facilitation/session.js';
@@ -32,7 +31,6 @@ import {
     type ServerVoice,
 } from '../voice-picker.js';
 import { mountModelPicker } from '../model-picker.js';
-import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { sessionStore } from '../state.js';
 
 const FOCUSES: ReadonlyArray<{ value: Focus; name: string; description: string }> = [
@@ -261,7 +259,10 @@ export async function mountSetupView(
         // Presets
         root.querySelectorAll<HTMLElement>('.style-card').forEach((card) => {
             const id = card.dataset['preset']!;
-            card.classList.toggle('selected', id === setup.preset);
+            const isSelected = id === setup.preset;
+            card.classList.toggle('selected', isSelected);
+            const radio = card.querySelector<HTMLInputElement>('input[type="radio"]');
+            if (radio) radio.checked = isSelected;
             card.addEventListener('click', () => {
                 const preset = findPreset(id);
                 if (!preset) return;
@@ -336,8 +337,8 @@ export async function mountSetupView(
         providerSel.addEventListener('change', () => {
             setup.provider = providerSel.value as Provider;
             persist();
-            void refreshApiKeyRow();
             void modelPicker.refresh(setup.provider);
+            updateProviderHint();
         });
         // Model picker — fetches /api/models/<provider> (Flask-backed),
         // falls back to a free-form text input when the endpoint isn't
@@ -353,45 +354,13 @@ export async function mountSetupView(
             }
         );
 
-        // API key entry — only shown for providers that need a key.
-        // Stored separately from `setup` so we don't dump keys into the
-        // same blob `localStorage:preview:setup` everywhere.
-        const apiKeyRow = root.querySelector<HTMLElement>('#api-key-row')!;
-        const apiKeyInput = root.querySelector<HTMLInputElement>('#api-key')!;
-        const apiKeyStatus = root.querySelector<HTMLElement>('#api-key-status')!;
-
-        async function refreshApiKeyRow(): Promise<void> {
-            const needs = providerNeedsKey(setup.provider);
-            apiKeyRow.hidden = !needs;
-            if (!needs) return;
-            const existing = await getApiKey(setup.provider);
-            // Show a masked indicator if a key is already stored; the
-            // input itself stays empty so editing replaces the whole key
-            // rather than appending to the masked version.
-            apiKeyInput.value = '';
-            apiKeyInput.placeholder = existing
-                ? `Saved: ${maskKey(existing)} — type to replace`
-                : `Paste your ${setup.provider} API key`;
-            apiKeyStatus.textContent = existing ? 'Saved' : 'Not set';
-        }
-
-        apiKeyInput.addEventListener('change', async () => {
-            const raw = apiKeyInput.value.trim();
-            if (!raw) return;
-            await setApiKey(setup.provider, raw);
-            apiKeyInput.value = '';
-            await refreshApiKeyRow();
-        });
-
-        void refreshApiKeyRow();
-        // Surface a tiny warning if the user has selected a BYOK provider
-        // and hasn't entered a key, so the Begin button doesn't surprise
-        // them by erroring inside the session view.
-        void (async () => {
-            if (providerNeedsKey(setup.provider) && !(await hasApiKey(setup.provider))) {
-                apiKeyStatus.textContent = 'Required — session will fail to start';
-            }
-        })();
+        // Provider availability — fetch /api/providers, annotate the
+        // provider <option>s with ✱ (installed but not running) or
+        // ✘ (not installed/configured), and surface a hint below for
+        // the active provider. API key entry itself lives in Settings,
+        // not here. Mirrors Python's setup.js applyProviderAvailability
+        // + updateProviderHint.
+        void refreshProviderAvailability();
 
         // Voice — single button opens the picker modal which also has
         // the speed slider. Matches Python's index.html setup-voice-btn.
@@ -427,13 +396,75 @@ export async function mountSetupView(
                 sessionStorage.getItem('continueFromSummary') ||
                 new Date(state.startTime * 1000).toLocaleString();
             text.textContent = `Continuing from: ${summary}`;
-            banner.hidden = false;
+            // Use the .hidden class (matches Python — sets display:none
+            // !important via the lifted CSS). Toggling the HTML hidden
+            // attribute loses to .continue-banner's `display: flex`.
+            banner.classList.remove('hidden');
             cancel.addEventListener('click', () => {
                 sessionStorage.removeItem('continueFrom');
                 sessionStorage.removeItem('continueFromSummary');
-                banner.hidden = true;
+                banner.classList.add('hidden');
             });
         })();
+    }
+
+    // Provider status from /api/providers — same shape Python uses.
+    interface ProviderInfo {
+        available: boolean;
+        installed?: boolean;
+        hint?: string;
+    }
+    let providerStatus: Record<string, ProviderInfo> | null = null;
+
+    async function refreshProviderAvailability(): Promise<void> {
+        try {
+            const resp = await fetch('/api/providers');
+            if (!resp.ok) return;
+            providerStatus = (await resp.json()) as Record<string, ProviderInfo>;
+        } catch {
+            // Flask not reachable — leave indicators clean. The session
+            // view will surface a real error if the provider call fails
+            // later.
+            return;
+        }
+        applyProviderIndicators();
+        updateProviderHint();
+    }
+
+    /**
+     * Annotate provider <option>s with ✱ / ✘. Matches Python's
+     * setup.js applyProviderAvailability — ✱ means installed but not
+     * running (Ollama not started), ✘ means not configured at all (no
+     * API key, no install). Available providers get no marker.
+     */
+    function applyProviderIndicators(): void {
+        const providerSel = root.querySelector<HTMLSelectElement>('#provider');
+        if (!providerSel || !providerStatus) return;
+        for (const opt of Array.from(providerSel.options)) {
+            const info = providerStatus[opt.value];
+            opt.textContent = (opt.textContent ?? '').replace(/ [✘✱]$/, '');
+            opt.classList.remove('provider-unavailable');
+            if (info && !info.available) {
+                if (info.installed) {
+                    opt.textContent += ' ✱';
+                } else {
+                    opt.classList.add('provider-unavailable');
+                    opt.textContent += ' ✘';
+                }
+            }
+        }
+    }
+
+    function updateProviderHint(): void {
+        const hintEl = root.querySelector<HTMLElement>('#provider-hint');
+        if (!hintEl) return;
+        const info = providerStatus?.[setup.provider];
+        if (info && !info.available && info.hint) {
+            hintEl.innerHTML = info.hint;
+            hintEl.classList.remove('hidden');
+        } else {
+            hintEl.classList.add('hidden');
+        }
     }
 
     function updatePresetHighlights(): void {
@@ -461,11 +492,6 @@ function escapeAttr(s: string): string {
     );
 }
 
-function maskKey(key: string): string {
-    if (key.length <= 8) return '••••';
-    return key.slice(0, 4) + '••••' + key.slice(-4);
-}
-
 /** SessionSetup.voice carries a 'server:' or 'browser:' prefix; the voice
  *  picker works with raw names. Strip the prefix on the way in. */
 function stripVoicePrefix(voice: string | null): string | null {
@@ -477,12 +503,19 @@ function stripVoicePrefix(voice: string | null): string | null {
 function renderSetupHTML(): string {
     const escapeHtml = escapeAttr;
 
+    // Mirror Python's index.html: presets are radio inputs wrapped in
+    // labels styled as cards. The radio is visually hidden by the CSS
+    // (.style-card input { display: none }), and the .selected class
+    // on the label drives the active border.
     const presetCards = PRESETS.map(
         (p) => `
-        <div class="style-card" data-preset="${p.id}" role="button" tabindex="0">
-            <span class="style-name">${escapeHtml(p.name)}</span>
-            <span class="style-desc">${escapeHtml(p.description)}</span>
-        </div>`
+        <label class="style-card" data-preset="${p.id}">
+            <input type="radio" name="preset" value="${p.id}">
+            <div class="style-card-inner">
+                <span class="style-name">${escapeHtml(p.name)}</span>
+                <span class="style-desc">${escapeHtml(p.description)}</span>
+            </div>
+        </label>`
     ).join('');
 
     const focusToggles = FOCUSES.map(
@@ -513,7 +546,7 @@ function renderSetupHTML(): string {
     ).join('');
 
     return `
-    <div id="continue-banner" class="continue-banner" hidden>
+    <div id="continue-banner" class="continue-banner hidden">
         <span id="continue-banner-text">Continuing from a previous session</span>
         <button type="button" class="continue-banner-close" id="continue-cancel" aria-label="Cancel continuation">&times;</button>
     </div>
@@ -582,13 +615,7 @@ function renderSetupHTML(): string {
             </div>
         </div>
 
-        <div class="form-group" id="api-key-row" hidden>
-            <label for="api-key">API key
-                <span id="api-key-status" class="optional"></span>
-            </label>
-            <input id="api-key" type="password" autocomplete="off"
-                spellcheck="false" placeholder="Paste your API key" />
-        </div>
+        <div id="provider-hint" class="provider-hint hidden"></div>
 
     </form>
 

@@ -9,14 +9,26 @@
 
 import type { TtsEngine, TtsOptions, TtsVoice } from '../../../src/platform/tts.js';
 
+export interface BrowserTtsEngineOptions {
+    /**
+     * Default voice (by `name` or `voiceURI`) to use when speak() is
+     * called without an explicit `options.voice`. Set when the voice
+     * picker hands us a specific selection — speak() options.voice
+     * still wins per-call.
+     */
+    defaultVoice?: string;
+}
+
 export class BrowserTtsEngine implements TtsEngine {
     private currentUtterance: SpeechSynthesisUtterance | null = null;
     private currentResolve: (() => void) | null = null;
+    private readonly defaultVoice: string | undefined;
 
-    constructor() {
+    constructor(options: BrowserTtsEngineOptions = {}) {
         if (typeof speechSynthesis === 'undefined') {
             throw new Error('speechSynthesis is not available in this environment.');
         }
+        this.defaultVoice = options.defaultVoice;
     }
 
     speak(text: string, options?: TtsOptions): Promise<void> {
@@ -32,10 +44,11 @@ export class BrowserTtsEngine implements TtsEngine {
             if (options?.pitch !== undefined) {
                 utterance.pitch = options.pitch;
             }
-            if (options?.voice) {
+            const voiceName = options?.voice ?? this.defaultVoice;
+            if (voiceName) {
                 const voice = speechSynthesis
                     .getVoices()
-                    .find((v) => v.voiceURI === options.voice || v.name === options.voice);
+                    .find((v) => v.voiceURI === voiceName || v.name === voiceName);
                 if (voice) utterance.voice = voice;
             }
             utterance.onend = () => this.finish(utterance);
