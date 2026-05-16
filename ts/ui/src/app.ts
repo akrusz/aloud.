@@ -4,6 +4,12 @@
  * The session lifecycle owns the only persistent state (a running
  * SessionManager); the other two views are stateless reads. We
  * tear down a running session before switching views.
+ *
+ * Routing uses the History API: each view change pushes a path so
+ * the browser back/forward (and Android's hardware back button under
+ * Tauri 2 / Capacitor) walk the same in-app history the user just
+ * traversed. Initial-load deep-links into the right view based on
+ * the URL path.
  */
 
 import { mountSetupView } from './views/setup.js';
@@ -16,6 +22,18 @@ import { applyChromeSettings, loadAppSettings } from './app-settings.js';
 import { detectIsDesktop } from './is-desktop.js';
 
 type View = 'setup' | 'session' | 'history' | 'settings';
+
+const ROUTE_FOR_VIEW: Record<Exclude<View, 'session'>, string> = {
+    setup: '/',
+    history: '/history',
+    settings: '/settings',
+};
+
+function viewFromPath(path: string): Exclude<View, 'session'> {
+    if (path.startsWith('/history')) return 'history';
+    if (path.startsWith('/settings')) return 'settings';
+    return 'setup';
+}
 
 let currentSession: SessionViewHandle | null = null;
 let currentView: View = 'setup';
@@ -39,8 +57,13 @@ export async function bootApp(): Promise<void> {
     void detectIsDesktop();
 
     wireNav();
+    wirePopstate();
     const root = $('app-root');
-    await goSetup(root);
+    // Deep-link into the right view based on the URL the user landed
+    // on. Refreshing /history or /settings stays put instead of
+    // bouncing the user back to setup.
+    const initial = viewFromPath(window.location.pathname);
+    await routeTo(root, initial, { replace: true });
 }
 
 function wireNav(): void {
@@ -48,13 +71,56 @@ function wireNav(): void {
         const target = (e.target as HTMLElement).closest<HTMLElement>('[data-nav]');
         if (!target) return;
         const view = target.dataset['nav'] as View | undefined;
-        if (!view) return;
+        if (!view || view === 'session') return;
         e.preventDefault();
         const root = $('app-root');
-        if (view === 'setup') void goSetup(root);
-        else if (view === 'history') void goHistory(root);
-        else if (view === 'settings') void goSettings(root);
+        void routeTo(root, view);
     });
+}
+
+/**
+ * Listen for browser back/forward (and Android hardware back) so
+ * users can walk the in-app history. We don't re-push the URL on
+ * popstate — the browser already did. We just remount the matching
+ * view.
+ */
+function wirePopstate(): void {
+    window.addEventListener('popstate', () => {
+        const root = $('app-root');
+        const target = viewFromPath(window.location.pathname);
+        void routeTo(root, target, { fromPopstate: true });
+    });
+}
+
+/**
+ * Single routing entry point. Handles URL changes (pushState /
+ * replaceState as appropriate), tears down any running session,
+ * and mounts the target view. `replace` is used on initial load
+ * so we don't push a duplicate entry for the page we arrived on;
+ * `fromPopstate` skips the URL update because the browser already
+ * changed the URL for us.
+ */
+async function routeTo(
+    root: HTMLElement,
+    view: Exclude<View, 'session'>,
+    options: { replace?: boolean; fromPopstate?: boolean } = {}
+): Promise<void> {
+    // No-op if we're already there (back/forward might land on the
+    // same view if there's nothing to navigate to).
+    if (currentView === view && currentSession === null) return;
+
+    const path = ROUTE_FOR_VIEW[view];
+    if (!options.fromPopstate) {
+        if (options.replace) {
+            window.history.replaceState({ view }, '', path);
+        } else if (window.location.pathname !== path) {
+            window.history.pushState({ view }, '', path);
+        }
+    }
+
+    if (view === 'setup') await goSetup(root);
+    else if (view === 'history') await goHistory(root);
+    else if (view === 'settings') await goSettings(root);
 }
 
 function setActiveNav(view: View): void {
