@@ -32,6 +32,7 @@ import {
     saveAppSettings,
 } from '../app-settings.js';
 import { ALL_PROVIDERS, providerNeedsKey, type Provider } from '../settings.js';
+import { detectIsDesktop, isDesktopSync } from '../is-desktop.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { mountModelPicker } from '../model-picker.js';
 import {
@@ -51,6 +52,9 @@ export interface SettingsViewHandle {
 
 export async function mountSettingsView(root: HTMLElement): Promise<SettingsViewHandle> {
     const settings = await loadAppSettings();
+    // Resolve desktop-vs-mobile before the first render so claude_proxy
+    // and the env-var hints show up immediately.
+    await detectIsDesktop();
     let scoredVoices: ScoredVoice[] = [];
 
     function persist(): void {
@@ -708,6 +712,9 @@ const API_KEY_INFO: Record<Provider, { url: string; prefix: string } | undefined
         prefix: '',
     },
     ollama: undefined,
+    // claude_proxy uses the local `claude` CLI's existing login —
+    // no API key entered through this page.
+    claude_proxy: undefined,
 };
 
 const ELEVENLABS_KEY_INFO = {
@@ -762,10 +769,17 @@ function renderHTML(s: AppSettings): string {
 }
 
 function renderProviderSection(s: AppSettings): string {
-    const providerOptions = ALL_PROVIDERS.map(
-        (p) =>
-            `<option value="${p.value}"${p.value === s.defaultProvider ? ' selected' : ''}>${escape(p.label)}</option>`
-    ).join('');
+    // Hide desktop-only providers (claude_proxy) on mobile. Detection
+    // is cached at app boot — if it hasn't resolved yet, isDesktopSync
+    // returns false and we hide claude_proxy until the user re-enters
+    // the page; in practice the probe finishes before the first render.
+    const desktop = isDesktopSync();
+    const providerOptions = ALL_PROVIDERS.filter((p) => desktop || !p.desktopOnly)
+        .map(
+            (p) =>
+                `<option value="${p.value}"${p.value === s.defaultProvider ? ' selected' : ''}>${escape(p.label)}</option>`
+        )
+        .join('');
 
     const keyRows = ALL_PROVIDERS.filter((p) => p.needsKey)
         .map(

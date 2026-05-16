@@ -17,19 +17,32 @@ import { loadAppSettings } from './app-settings.js';
 
 export type Provider =
     | 'ollama'
+    | 'claude_proxy'
     | 'anthropic'
     | 'openai'
     | 'openrouter'
     | 'venice'
     | 'groq';
 
-export const ALL_PROVIDERS: ReadonlyArray<{ value: Provider; label: string; needsKey: boolean }> = [
-    { value: 'ollama', label: 'Ollama (local)', needsKey: false },
-    { value: 'anthropic', label: 'Anthropic Claude', needsKey: true },
-    { value: 'openai', label: 'OpenAI', needsKey: true },
-    { value: 'openrouter', label: 'OpenRouter', needsKey: true },
-    { value: 'venice', label: 'Venice', needsKey: true },
-    { value: 'groq', label: 'Groq', needsKey: true },
+export interface ProviderMeta {
+    value: Provider;
+    label: string;
+    needsKey: boolean;
+    /** Desktop-only providers are hidden from the dropdown on mobile. */
+    desktopOnly?: boolean;
+}
+
+export const ALL_PROVIDERS: ReadonlyArray<ProviderMeta> = [
+    { value: 'ollama', label: 'Ollama (Local)', needsKey: false },
+    // claude_proxy shells out to the local `claude` CLI for Pro/Max
+    // subscription routing. Doesn't run on mobile (no subprocess); the
+    // UI hides it when /api/system-info isn't reachable.
+    { value: 'claude_proxy', label: 'Anthropic (Subscription)', needsKey: false, desktopOnly: true },
+    { value: 'anthropic', label: 'Anthropic (API Key)', needsKey: true },
+    { value: 'openai', label: 'OpenAI (API Key)', needsKey: true },
+    { value: 'groq', label: 'Groq (API Key)', needsKey: true },
+    { value: 'openrouter', label: 'OpenRouter (API Key)', needsKey: true },
+    { value: 'venice', label: 'Venice.ai (API Key)', needsKey: true },
 ];
 
 export function providerNeedsKey(p: Provider): boolean {

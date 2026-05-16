@@ -13,6 +13,7 @@ import { mountSettingsView } from './views/settings.js';
 import type { SessionSetup } from './settings.js';
 import type { SessionState } from '../../src/facilitation/session.js';
 import { applyChromeSettings, loadAppSettings } from './app-settings.js';
+import { detectIsDesktop } from './is-desktop.js';
 
 type View = 'setup' | 'session' | 'history' | 'settings';
 
@@ -30,6 +31,12 @@ export async function bootApp(): Promise<void> {
     // the user doesn't see a default-style flash.
     const settings = await loadAppSettings();
     applyChromeSettings(settings);
+
+    // Probe the runtime environment so desktop-only controls
+    // (claude_proxy provider, Open config folder button, env-var hints)
+    // can gate themselves. Fire-and-forget — views read isDesktopSync()
+    // at render time and tolerate the initial `false` answer.
+    void detectIsDesktop();
 
     wireNav();
     const root = $('app-root');

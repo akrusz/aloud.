@@ -220,12 +220,33 @@ def register_routes(app: Flask) -> None:
                 engine_override = detected
 
         if engine_override:
-            try:
-                from ..tts import create_tts
-                tts = create_tts(engine=engine_override, voice=voice)
+            # LRU-of-1 cache on the Flask app so repeated previews of the
+            # same voice don't reload the model every call. Without this,
+            # Piper voices show several-second delays per utterance when
+            # the TS UI streams sentences through /api/voices/preview as
+            # its session-mode TTS path (the shared `app.server_tts` is
+            # macOS by default — Piper falls into the temp-instance path).
+            cached = getattr(app, "_preview_tts_cache", None)
+            if (
+                cached is not None
+                and cached.get("voice") == voice
+                and cached.get("engine") == engine_override
+                and cached.get("tts") is not None
+            ):
+                tts = cached["tts"]
                 is_temp = True
-            except Exception:
-                tts = None
+            else:
+                try:
+                    from ..tts import create_tts
+                    tts = create_tts(engine=engine_override, voice=voice)
+                    is_temp = True
+                    app._preview_tts_cache = {
+                        "voice": voice,
+                        "engine": engine_override,
+                        "tts": tts,
+                    }
+                except Exception:
+                    tts = None
 
         if not tts or not hasattr(tts, "speak_to_bytes"):
             return Response(status=404)

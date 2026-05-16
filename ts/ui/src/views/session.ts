@@ -29,6 +29,7 @@ import {
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
 import { streamCompletionWithChunkedTts } from '../streaming-tts.js';
 import { wrapTtsWithBargeIn } from '../barge-in.js';
+import { ClaudeProxyHttpProvider } from '../adapters/claude-proxy-http.js';
 
 import {
     createBestStt,
@@ -67,34 +68,35 @@ const OLLAMA_PROXY_URL = '/ollama';
 
 async function buildProvider(setup: SessionSetup): Promise<LLMProvider> {
     const modelOpt = setup.model ? { model: setup.model } : {};
-    if (setup.provider === 'ollama') {
-        return new OllamaProvider({ baseUrl: OLLAMA_PROXY_URL, ...modelOpt });
-    }
-    if (setup.provider === 'anthropic') {
-        // Browser-side Anthropic always goes through the Flask proxy
-        // (which injects the server-side key). If we ever need BYOK
-        // Anthropic in the browser, route it through @capacitor/http
-        // or a CORS-relaxed proxy.
-        return new AnthropicProvider({ baseUrl: ANTHROPIC_PROXY_URL, ...modelOpt });
-    }
-    // Remaining providers: BYOK direct from the browser.
-    const apiKey = await getApiKey(setup.provider);
-    if (!apiKey) {
-        throw new Error(
-            `No API key set for ${setup.provider}. ` +
-                `Add it in Setup, or pick a different provider.`
-        );
-    }
-    const opts = { apiKey, ...modelOpt };
     switch (setup.provider) {
+        case 'ollama':
+            return new OllamaProvider({ baseUrl: OLLAMA_PROXY_URL, ...modelOpt });
+        case 'anthropic':
+            // Browser-side Anthropic always goes through the Flask proxy
+            // (CORS, plus we don't want the key in the browser).
+            return new AnthropicProvider({ baseUrl: ANTHROPIC_PROXY_URL, ...modelOpt });
+        case 'claude_proxy':
+            // The `claude` CLI is a subprocess — Flask runs it on our
+            // behalf and exposes the result over /api/llm/claude_proxy.
+            return new ClaudeProxyHttpProvider(modelOpt);
         case 'openai':
-            return new OpenAIProvider(opts);
         case 'openrouter':
-            return new OpenRouterProvider(opts);
         case 'venice':
-            return new VeniceProvider(opts);
-        case 'groq':
+        case 'groq': {
+            // BYOK direct from the browser — these accept CORS.
+            const apiKey = await getApiKey(setup.provider);
+            if (!apiKey) {
+                throw new Error(
+                    `No API key set for ${setup.provider}. ` +
+                        `Add it in Settings, or pick a different provider.`
+                );
+            }
+            const opts = { apiKey, ...modelOpt };
+            if (setup.provider === 'openai') return new OpenAIProvider(opts);
+            if (setup.provider === 'openrouter') return new OpenRouterProvider(opts);
+            if (setup.provider === 'venice') return new VeniceProvider(opts);
             return new GroqProvider(opts);
+        }
     }
 }
 
