@@ -14,6 +14,10 @@
 
 import { mountSetupView } from './views/setup.js';
 import { mountSessionView, type SessionViewHandle } from './views/session.js';
+import {
+    mountNotingSessionView,
+    type NotingSessionViewHandle,
+} from './views/noting-session.js';
 import { mountHistoryView } from './views/history.js';
 import { mountSettingsView } from './views/settings.js';
 import type { SessionSetup } from './settings.js';
@@ -36,6 +40,7 @@ function viewFromPath(path: string): Exclude<View, 'session'> {
 }
 
 let currentSession: SessionViewHandle | null = null;
+let currentNoting: NotingSessionViewHandle | null = null;
 let currentView: View = 'setup';
 
 function $<T extends HTMLElement>(id: string): T {
@@ -172,9 +177,21 @@ async function goSetup(root: HTMLElement): Promise<void> {
         currentSession.teardown();
         currentSession = null;
     }
+    if (currentNoting) {
+        currentNoting.teardown();
+        currentNoting = null;
+    }
     setActiveNav('setup');
     await mountSetupView(root, (setup, continueFrom) => {
-        void goSession(root, setup, continueFrom);
+        // Branch on the meditation type the user picked via the tab
+        // bar. Noting routes to a placeholder view today (the
+        // circle UI isn't ported yet) — same URL '/' since this is
+        // still conceptually inside Setup.
+        if (setup.meditationType === 'noting') {
+            void goNotingSession(root);
+        } else {
+            void goSession(root, setup, continueFrom);
+        }
     });
 }
 
@@ -194,11 +211,15 @@ async function goSession(
     );
 }
 
+async function goNotingSession(root: HTMLElement): Promise<void> {
+    setActiveNav('setup');
+    currentNoting = await mountNotingSessionView(root, () => {
+        void goSetup(root);
+    });
+}
+
 async function goHistory(root: HTMLElement): Promise<void> {
-    if (currentSession) {
-        currentSession.teardown();
-        currentSession = null;
-    }
+    teardownInflightSessions();
     setActiveNav('history');
     await mountHistoryView(root, () => {
         void goSetup(root);
@@ -206,10 +227,18 @@ async function goHistory(root: HTMLElement): Promise<void> {
 }
 
 async function goSettings(root: HTMLElement): Promise<void> {
+    teardownInflightSessions();
+    setActiveNav('settings');
+    await mountSettingsView(root);
+}
+
+function teardownInflightSessions(): void {
     if (currentSession) {
         currentSession.teardown();
         currentSession = null;
     }
-    setActiveNav('settings');
-    await mountSettingsView(root);
+    if (currentNoting) {
+        currentNoting.teardown();
+        currentNoting = null;
+    }
 }

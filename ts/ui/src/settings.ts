@@ -50,6 +50,8 @@ export function providerNeedsKey(p: Provider): boolean {
 }
 
 export interface SessionSetup {
+    /** Which top-level meditation mode the user is in. */
+    meditationType: 'exploration' | 'noting';
     intention: string;
     preset: string | null;
     focuses: Focus[];
@@ -77,6 +79,7 @@ export function dirStepToBackend(step: number): number {
 }
 
 export const defaultSetup: SessionSetup = {
+    meditationType: 'exploration',
     intention: '',
     preset: 'pleasant_play',
     focuses: ['body_sensations', 'emotions'],

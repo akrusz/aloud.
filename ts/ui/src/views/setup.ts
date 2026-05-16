@@ -251,6 +251,8 @@ export async function mountSetupView(
 
     function render(): void {
         root.innerHTML = renderSetupHTML();
+        wireTabBar();
+        wireInfoButtons();
 
         // Intention
         const intentionEl = root.querySelector<HTMLTextAreaElement>('#intention')!;
@@ -471,6 +473,49 @@ export async function mountSetupView(
         }
     }
 
+    function wireTabBar(): void {
+        // Persisted activeTab drives which panel shows on (re)render.
+        applyTabSelection(setup.meditationType);
+        root.querySelectorAll<HTMLButtonElement>('.tab-bar .tab-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset['tab'];
+                if (tab !== 'exploration' && tab !== 'noting') return;
+                if (setup.meditationType === tab) return;
+                setup.meditationType = tab;
+                persist();
+                applyTabSelection(tab);
+            });
+        });
+    }
+
+    function applyTabSelection(active: 'exploration' | 'noting'): void {
+        root.querySelectorAll<HTMLElement>('.tab-bar .tab-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset['tab'] === active);
+        });
+        const exploration = root.querySelector<HTMLElement>('#exploration-panel');
+        const noting = root.querySelector<HTMLElement>('#noting-panel');
+        if (exploration) exploration.classList.toggle('hidden', active !== 'exploration');
+        if (noting) noting.classList.toggle('hidden', active !== 'noting');
+    }
+
+    /**
+     * Wire the `?` info buttons. Each `<button class="info-btn"
+     * data-info="X">?</button>` toggles its sibling `<div
+     * class="info-panel" id="info-X">`. Matches Python's setup.js
+     * info-btn handling.
+     */
+    function wireInfoButtons(): void {
+        root.querySelectorAll<HTMLButtonElement>('.info-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const key = btn.dataset['info'];
+                if (!key) return;
+                const panel = root.querySelector<HTMLElement>(`#info-${key}`);
+                if (panel) panel.classList.toggle('hidden');
+            });
+        });
+    }
+
     function updatePresetHighlights(): void {
         root.querySelectorAll<HTMLElement>('.style-card').forEach((card) => {
             card.classList.toggle('selected', card.dataset['preset'] === setup.preset);
@@ -555,54 +600,97 @@ function renderSetupHTML(): string {
         <button type="button" class="continue-banner-close" id="continue-cancel" aria-label="Cancel continuation">&times;</button>
     </div>
 
+    <div class="setup-header">
+        <div class="tab-bar">
+            <button type="button" class="tab-btn active" data-tab="exploration">Exploration</button>
+            <button type="button" class="tab-btn" data-tab="noting">Noting</button>
+            <button type="button" class="info-btn" data-info="methods" aria-label="About meditation methods">?</button>
+        </div>
+        <div class="info-panel hidden" id="info-methods">
+            <p><strong>exploration</strong>: a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore.</p>
+            <p>You optionally set an intention and then mix and match <strong>attention focuses</strong> (body, emotions, parts work) with <strong>vibes</strong> (playful, compassionate, loving, spacious, effortless, feel-good). Presets give you quick starting points, or you can build your own style. The directiveness slider dials in how much guidance you want.</p>
+            <p><strong>noting</strong>: you specify what participants you'd like, if any &mdash; AIs, fixed phrases, or sound effects. Then starting with you, each participant notes a sensation in their "awareness" (ideally 1&ndash;2 words) or plays their fixed phrase or sound. If there are no other participants, it'll briefly introduce the method and record what you note.</p>
+        </div>
+    </div>
+
     <form id="setup-form" class="setup-form setup-container">
-        <div class="form-group">
-            <label for="intention">Intention <span class="optional">(optional)</span></label>
-            <textarea id="intention" rows="2"
-                placeholder="e.g. play with energetic flow, just be present with sensations, drop the need to control"></textarea>
-        </div>
-
-        <div class="form-group">
-            <label>Suggested Presets</label>
-            <div class="style-cards">${presetCards}</div>
-        </div>
-
-        <div class="form-group">
-            <label>Attention Focus</label>
-            <div class="modifier-toggles">${focusToggles}</div>
-        </div>
-
-        <div class="form-group">
-            <label>Vibe</label>
-            <div class="modifier-toggles">${qualityToggles}</div>
-        </div>
-
-        <div class="form-row form-row-thirds">
+        <div class="tab-panel" id="exploration-panel">
             <div class="form-group">
-                <label for="directiveness">Guidance Level</label>
-                <input type="range" id="directiveness" min="0" max="${dirTickCount}" step="1" value="1">
-                <div class="range-labels">
-                    <span>Following</span>
-                    <span>Directing</span>
+                <label for="intention">Intention <span class="optional">(optional)</span></label>
+                <textarea id="intention" rows="2"
+                    placeholder="e.g. play with energetic flow, just be present with sensations, drop the need to control"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Suggested Presets</label>
+                <div class="style-cards">${presetCards}</div>
+            </div>
+
+            <div class="form-group">
+                <label>Attention Focus <button type="button" class="info-btn" data-info="focus" aria-label="About attention focus">?</button></label>
+                <div class="info-panel hidden" id="info-focus">
+                    <p>These let the facilitator know where you intend to place your attention.</p>
+                    <p><strong>Body &amp; sensations</strong> &mdash; Physical experience: texture, warmth, movement, pressure. Often the most direct doorway into the present moment.</p>
+                    <p><strong>Emotions &amp; feeling tone</strong> &mdash; The emotional landscape underneath: what's warm, contracted, alive, or wanting to move.</p>
+                    <p><strong>Parts &amp; inner world</strong> &mdash; Different aspects of yourself that carry their own perspectives: protectors, younger parts, inner critics. Physical body parts can hold emotion as well.</p>
+                    <p>You can also select multiple, or leave all unchecked to keep things open.</p>
+                </div>
+                <div class="modifier-toggles">${focusToggles}</div>
+            </div>
+
+            <div class="form-group">
+                <label>Vibe <button type="button" class="info-btn" data-info="vibe" aria-label="About vibes">?</button></label>
+                <div class="info-panel hidden" id="info-vibe">
+                    <p>Vibes color the tone of facilitation. Select any combination &mdash; they blend naturally.</p>
+                    <p><strong>Playful</strong> brings lightness and spontaneity. <strong>Spacious</strong> leaves more breathing room and silence. <strong>Effortless</strong> invites letting go rather than trying.</p>
+                    <p>There's no wrong choice. Pick whatever matches where you are today, or leave them all unchecked for a neutral tone.</p>
+                </div>
+                <div class="modifier-toggles">${qualityToggles}</div>
+            </div>
+
+            <div class="form-row form-row-thirds">
+                <div class="form-group">
+                    <label for="directiveness">Guidance Level</label>
+                    <input type="range" id="directiveness" min="0" max="${dirTickCount}" step="1" value="1">
+                    <div class="range-labels">
+                        <span>Following</span>
+                        <span>Directing</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="verbosity">Response Length</label>
+                    <select id="verbosity">${verbosityOptions}</select>
+                </div>
+                <div class="form-group">
+                    <label>Voice</label>
+                    <button type="button" id="setup-voice-btn" class="setup-voice-btn">Default</button>
                 </div>
             </div>
-            <div class="form-group">
-                <label for="verbosity">Response Length</label>
-                <select id="verbosity">${verbosityOptions}</select>
-            </div>
-            <div class="form-group">
-                <label>Voice</label>
-                <button type="button" id="setup-voice-btn" class="setup-voice-btn">Default</button>
-            </div>
+
+            <details class="advanced-settings">
+                <summary>Additional instructions</summary>
+                <div class="form-group">
+                    <textarea id="custom-instructions" rows="3"
+                        placeholder="Any specific guidance for the facilitator…"></textarea>
+                </div>
+            </details>
         </div>
 
-        <details class="advanced-settings">
-            <summary>Additional instructions</summary>
+        <div class="tab-panel hidden" id="noting-panel">
             <div class="form-group">
-                <textarea id="custom-instructions" rows="3"
-                    placeholder="Any specific guidance for the facilitator…"></textarea>
+                <label>Participants</label>
+                <div id="participant-list"></div>
+                <button type="button" id="add-participant-btn" class="btn btn-secondary btn-small" disabled
+                    title="Participant management coming with the noting circle port">+ Add participant</button>
             </div>
-        </details>
+
+            <div class="noting-option-row">
+                <label class="noting-option">
+                    <input type="checkbox" id="user-turn-cue" disabled>
+                    <span>Play a sound when it's your turn</span>
+                </label>
+            </div>
+        </div>
 
         <div class="form-row">
             <div class="form-group">
