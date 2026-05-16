@@ -100,18 +100,15 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             }
         );
 
-        // Per-provider API key inputs. The change handler writes to the
-        // shared api-keys module (also used by the setup view).
+        // Per-provider API key inputs. Each row carries the input, a
+        // "Get a key ↗" link to the provider's console, and a Paste
+        // button when the browser exposes the clipboard API. Matches
+        // src/web/static/js/settings.js::attachKeyHelper.
         for (const p of ALL_PROVIDERS) {
             if (!p.needsKey) continue;
-            const input = root.querySelector<HTMLInputElement>(`#s-key-${p.value}`);
-            if (!input) continue;
-            input.addEventListener('change', async () => {
-                const raw = input.value.trim();
-                if (raw) await setApiKey(p.value, raw);
-                input.value = '';
-                await refreshApiKeyRows();
-            });
+            const cfg = API_KEY_INFO[p.value];
+            if (!cfg) continue;
+            attachApiKeyHelpers(p.value, cfg.url, cfg.prefix);
         }
 
         const infoBtn = root.querySelector<HTMLButtonElement>('#llm-info-btn');
@@ -121,31 +118,156 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         });
     }
 
+    /**
+     * Show only the active provider's API key row — matches Python's
+     * settings.js behavior (each provider has its own .api-key-group
+     * and only the matching one is unhidden when the provider select
+     * changes). Updates the saved/empty status text per row.
+     */
     async function refreshApiKeyRows(): Promise<void> {
-        for (const p of ALL_PROVIDERS) {
-            const row = root.querySelector<HTMLElement>(`#s-key-row-${p.value}`);
-            if (!row) continue;
-            // Always render the row even when not the active provider —
-            // a user might want to enter keys for multiple providers up
-            // front. Python hides inactive rows; we keep them visible
-            // since the multi-provider workflow benefits from it.
-            if (p.needsKey) {
-                row.hidden = false;
-                const status = row.querySelector<HTMLElement>('.api-key-status');
-                const input = row.querySelector<HTMLInputElement>('input');
-                const existing = await getApiKey(p.value);
-                if (input) input.placeholder = existing ? `Saved — type to replace` : 'Paste your key';
-                if (status) status.textContent = existing ? 'Saved' : '';
-            } else {
-                row.hidden = true;
-            }
-        }
-        // Set the current provider's row to "active" styling.
         const active = settings.defaultProvider;
         for (const p of ALL_PROVIDERS) {
             const row = root.querySelector<HTMLElement>(`#s-key-row-${p.value}`);
-            row?.classList.toggle('api-key-active', p.value === active);
+            if (!row) continue;
+            const isActiveBYOK = p.needsKey && p.value === active;
+            row.classList.toggle('hidden', !isActiveBYOK);
+            if (!isActiveBYOK) continue;
+            const status = row.querySelector<HTMLElement>('.api-key-status');
+            const existing = await getApiKey(p.value);
+            if (status) status.textContent = existing ? 'Saved' : '';
         }
+    }
+
+    // ---- API key helpers (Get a key + Paste) ---------------------------
+
+    /**
+     * For each provider's API key input, attach a "Get a key ↗" link
+     * pointing at the provider's key page and (when the browser exposes
+     * Web Clipboard) a Paste button that fills the input and saves.
+     * Lifted from src/web/static/js/settings.js::attachKeyHelper.
+     */
+    function attachApiKeyHelpers(provider: Provider, url: string, prefix: string): void {
+        const inputEl = root.querySelector<HTMLInputElement>(`#s-key-${provider}`);
+        if (!inputEl) return;
+        const row = inputEl.parentElement;
+        if (!row) return;
+        // Capture into a non-null binding so nested closures (the Paste
+        // handler) keep the narrowed type — TS doesn't propagate the
+        // `if (!input) return` narrowing into nested function decls.
+        const input: HTMLInputElement = inputEl;
+        row.classList.add('has-key-helper');
+
+        const actions = document.createElement('div');
+        actions.className = 'api-key-actions';
+
+        // "Get a key" anchor — opens in a new tab. Lives as an <a>
+        // rather than a button so pywebview/Electron route it to the
+        // system browser.
+        const getBtn = document.createElement('a');
+        getBtn.href = url;
+        getBtn.target = '_blank';
+        getBtn.rel = 'noopener noreferrer';
+        getBtn.className = 'btn btn-small btn-secondary api-key-open-btn';
+        getBtn.textContent = 'Get a key ↗';
+        getBtn.title = url;
+        actions.appendChild(getBtn);
+
+        const status = document.createElement('span');
+        status.className = 'api-key-paste-status';
+
+        // Paste button — only rendered when the clipboard API exists.
+        // If clipboard reads fail at runtime (some Safari, pywebview
+        // WKWebView), mark the button unavailable and fold a manual
+        // ⌘V/Ctrl+V hint into the input placeholder.
+        const hasClipboard =
+            typeof navigator !== 'undefined' &&
+            !!navigator.clipboard &&
+            typeof navigator.clipboard.readText === 'function';
+
+        if (hasClipboard) {
+            const paste = document.createElement('button');
+            paste.type = 'button';
+            paste.className = 'btn btn-small btn-secondary api-key-paste-btn';
+            paste.textContent = 'Paste';
+            paste.title = 'Paste from clipboard';
+            actions.appendChild(paste);
+
+            const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+            const shortcut = isMac ? '⌘V' : 'Ctrl+V';
+
+            function markPasteUnavailable(): void {
+                if (paste.dataset['unavailable']) return;
+                paste.dataset['unavailable'] = '1';
+                paste.disabled = true;
+                paste.textContent = 'Paste failed!';
+                paste.title = `This browser blocked clipboard access. Click the field and press ${shortcut} to paste.`;
+                paste.classList.add('is-unavailable');
+                showManualPasteHint(input, shortcut);
+            }
+
+            // If the Permissions API exposes clipboard-read (Chromium),
+            // mark unavailable up front when denied.
+            if (navigator.permissions && 'query' in navigator.permissions) {
+                navigator.permissions
+                    .query({ name: 'clipboard-read' as PermissionName })
+                    .then((r) => {
+                        if (r.state === 'denied') markPasteUnavailable();
+                    })
+                    .catch(() => {
+                        /* permission name unsupported; leave active */
+                    });
+            }
+
+            paste.addEventListener('click', async () => {
+                status.textContent = '';
+                status.classList.remove('is-warn', 'is-ok');
+                try {
+                    const text = (await navigator.clipboard.readText()).trim();
+                    if (!text) {
+                        status.textContent = 'Clipboard is empty.';
+                        status.classList.add('is-warn');
+                        return;
+                    }
+                    input.value = text;
+                    await setApiKey(provider, text);
+                    if (prefix && !text.startsWith(prefix)) {
+                        status.textContent = `Pasted — but didn't start with "${prefix}". Double-check.`;
+                        status.classList.add('is-warn');
+                    } else {
+                        status.textContent = 'Pasted ✓';
+                        status.classList.add('is-ok');
+                    }
+                    await refreshApiKeyRows();
+                } catch {
+                    markPasteUnavailable();
+                    status.textContent = '';
+                }
+            });
+        } else {
+            showManualPasteHint(input, /Mac/.test(navigator.platform || '') ? '⌘V' : 'Ctrl+V');
+        }
+
+        row.appendChild(actions);
+        row.appendChild(status);
+
+        // Manual-typing save handler — matches the original 'change'
+        // behavior. We keep the input contents instead of clearing so
+        // the user sees their pasted/typed key (the existing-key check
+        // covers the "Saved" badge update on the next refresh).
+        input.addEventListener('change', async () => {
+            const raw = input.value.trim();
+            if (raw) await setApiKey(provider, raw);
+            await refreshApiKeyRows();
+        });
+    }
+
+    function showManualPasteHint(input: HTMLInputElement, shortcut: string): void {
+        if (input.dataset['pasteHintApplied']) return;
+        const current = input.placeholder || '';
+        input.placeholder = current
+            ? `${current} · ${shortcut} to paste`
+            : `${shortcut} to paste`;
+        input.dataset['pasteHintApplied'] = '1';
     }
 
     // ---- Language & STT ------------------------------------------------
@@ -174,6 +296,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         engineSel.addEventListener('change', () => {
             settings.ttsEngine = engineSel.value as TtsEngineChoice;
             persist();
+            refreshElevenLabsRow();
         });
 
         const voiceBtn = root.querySelector<HTMLButtonElement>('#s-voice-btn')!;
@@ -185,6 +308,106 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         infoBtn?.addEventListener('click', () => {
             infoPanel?.classList.toggle('hidden');
         });
+
+        // ElevenLabs key row — same Get-a-key / Paste affordances as
+        // the LLM provider rows. Only visible when TTS = elevenlabs.
+        attachElevenLabsKeyHelpers();
+        refreshElevenLabsRow();
+    }
+
+    function refreshElevenLabsRow(): void {
+        const row = root.querySelector<HTMLElement>('#s-elevenlabs-key-row');
+        if (!row) return;
+        row.classList.toggle('hidden', settings.ttsEngine !== 'elevenlabs');
+    }
+
+    /**
+     * Wire the ElevenLabs API key input. Uses a separate keyId
+     * ("elevenlabs") in the same api-keys backing store the LLM keys
+     * use — Python keeps them in two slots (s-elevenlabs-key vs
+     * s-anthropic-key etc.) but the storage is conceptually one map.
+     */
+    function attachElevenLabsKeyHelpers(): void {
+        const input = root.querySelector<HTMLInputElement>('#s-elevenlabs-key');
+        if (!input) return;
+        const row = input.parentElement;
+        if (!row) return;
+        row.classList.add('has-key-helper');
+
+        // Re-use the same UI as the LLM key rows via a thin shim — we
+        // can't call attachApiKeyHelpers() directly because its keyId
+        // is typed Provider and 'elevenlabs' isn't one. Inline the
+        // same structure with the elevenlabs URL + prefix.
+        const actions = document.createElement('div');
+        actions.className = 'api-key-actions';
+
+        const getBtn = document.createElement('a');
+        getBtn.href = ELEVENLABS_KEY_INFO.url;
+        getBtn.target = '_blank';
+        getBtn.rel = 'noopener noreferrer';
+        getBtn.className = 'btn btn-small btn-secondary api-key-open-btn';
+        getBtn.textContent = 'Get a key ↗';
+        actions.appendChild(getBtn);
+
+        const status = document.createElement('span');
+        status.className = 'api-key-paste-status';
+
+        const hasClipboard =
+            typeof navigator !== 'undefined' &&
+            !!navigator.clipboard &&
+            typeof navigator.clipboard.readText === 'function';
+
+        if (hasClipboard) {
+            const paste = document.createElement('button');
+            paste.type = 'button';
+            paste.className = 'btn btn-small btn-secondary api-key-paste-btn';
+            paste.textContent = 'Paste';
+            actions.appendChild(paste);
+            const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+            const shortcut = isMac ? '⌘V' : 'Ctrl+V';
+            paste.addEventListener('click', async () => {
+                try {
+                    const text = (await navigator.clipboard.readText()).trim();
+                    if (!text) {
+                        status.textContent = 'Clipboard is empty.';
+                        status.classList.add('is-warn');
+                        return;
+                    }
+                    input.value = text;
+                    localStorage.setItem('apikey:elevenlabs', text);
+                    if (
+                        ELEVENLABS_KEY_INFO.prefix &&
+                        !text.startsWith(ELEVENLABS_KEY_INFO.prefix)
+                    ) {
+                        status.textContent = `Pasted — but didn't start with "${ELEVENLABS_KEY_INFO.prefix}".`;
+                        status.classList.add('is-warn');
+                    } else {
+                        status.textContent = 'Pasted ✓';
+                        status.classList.add('is-ok');
+                    }
+                } catch {
+                    paste.disabled = true;
+                    paste.textContent = 'Paste failed!';
+                    paste.title = `Click the field and press ${shortcut} to paste.`;
+                    if (!input.dataset['pasteHintApplied']) {
+                        input.placeholder = `${shortcut} to paste`;
+                        input.dataset['pasteHintApplied'] = '1';
+                    }
+                }
+            });
+        }
+
+        input.addEventListener('change', () => {
+            const raw = input.value.trim();
+            if (raw) localStorage.setItem('apikey:elevenlabs', raw);
+        });
+
+        // Pre-populate placeholder if a key is already stored.
+        const existing = localStorage.getItem('apikey:elevenlabs');
+        if (existing) input.placeholder = 'Saved — type to replace';
+
+        row.appendChild(actions);
+        row.appendChild(status);
     }
 
     async function loadVoiceCatalog(): Promise<void> {
@@ -275,11 +498,20 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
     function wireDisplaySection(): void {
         const textScale = root.querySelector<HTMLInputElement>('#s-text-scale')!;
         const textScaleLabel = root.querySelector<HTMLElement>('#s-text-scale-label')!;
+        const previewInner = root.querySelector<HTMLElement>('#text-scale-preview-inner');
         textScale.value = String(settings.textScale);
         textScaleLabel.textContent = `${Math.round(settings.textScale * 100)}%`;
+        // Drive the preview's base font-size off the slider — matches
+        // settings.js:42 (`previewInner.style.fontSize = 18*scale + 'px'`).
+        if (previewInner) {
+            previewInner.style.fontSize = `${18 * settings.textScale}px`;
+        }
         textScale.addEventListener('input', () => {
             settings.textScale = Number(textScale.value);
             textScaleLabel.textContent = `${Math.round(settings.textScale * 100)}%`;
+            if (previewInner) {
+                previewInner.style.fontSize = `${18 * settings.textScale}px`;
+            }
             persist();
             applyChromeSettings(settings);
         });
@@ -402,6 +634,28 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
                 setTimeout(() => savedEl.classList.add('hidden'), 1200);
             }
         });
+
+        // "Open config folder" — Python opens the user's config dir
+        // via /api/open-config-folder. Browser preview reaches Flask;
+        // standalone shells don't. Show the button only when Flask
+        // responds.
+        const openConfigBtn = root.querySelector<HTMLButtonElement>('#btn-open-config-folder');
+        if (openConfigBtn) {
+            void (async () => {
+                try {
+                    const resp = await fetch('/api/open-config-folder', { method: 'OPTIONS' });
+                    // Even a 405 (POST-only) confirms the route exists.
+                    if (resp.status === 200 || resp.status === 405) {
+                        openConfigBtn.classList.remove('hidden');
+                    }
+                } catch {
+                    /* Flask down → leave hidden */
+                }
+            })();
+            openConfigBtn.addEventListener('click', () => {
+                void fetch('/api/open-config-folder', { method: 'POST' });
+            });
+        }
     }
 
     await refresh();
@@ -427,6 +681,39 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         },
     };
 }
+
+// ---------------------------------------------------------------------------
+// API key URLs / prefixes — matches settings.js::providerKeyInfo
+// ---------------------------------------------------------------------------
+
+const API_KEY_INFO: Record<Provider, { url: string; prefix: string } | undefined> = {
+    anthropic: {
+        url: 'https://console.anthropic.com/settings/keys',
+        prefix: 'sk-ant-',
+    },
+    openai: {
+        url: 'https://platform.openai.com/api-keys',
+        prefix: 'sk-',
+    },
+    groq: {
+        url: 'https://console.groq.com/keys',
+        prefix: 'gsk_',
+    },
+    openrouter: {
+        url: 'https://openrouter.ai/keys',
+        prefix: 'sk-or-',
+    },
+    venice: {
+        url: 'https://venice.ai/settings/api',
+        prefix: '',
+    },
+    ollama: undefined,
+};
+
+const ELEVENLABS_KEY_INFO = {
+    url: 'https://elevenlabs.io/app/settings/api-keys',
+    prefix: 'sk_',
+};
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -455,6 +742,11 @@ function renderHTML(s: AppSettings): string {
             </button>
             <span class="settings-saved hidden" id="settings-saved">Saved</span>
             <div class="settings-footer-spacer"></div>
+            <div class="settings-footer-secondary">
+                <button type="button" class="tour-show-btn" id="btn-show-tour" disabled
+                    title="Setup guide tour — not yet ported to TS">Setup guide</button>
+                <button type="button" class="btn-config-path hidden" id="btn-open-config-folder">Open config folder</button>
+            </div>
         </div>
     </div>
 
@@ -590,6 +882,12 @@ function renderTtsSection(s: AppSettings): string {
                 <button type="button" id="s-voice-btn" class="setup-voice-btn">Choose voice</button>
             </div>
         </div>
+        <div class="form-group api-key-group hidden" id="s-elevenlabs-key-row">
+            <label for="s-elevenlabs-key">ElevenLabs API Key
+                <span class="optional api-key-status"></span>
+            </label>
+            <input type="password" id="s-elevenlabs-key" placeholder="sk_..." autocomplete="off">
+        </div>
     </section>`;
 }
 
@@ -608,32 +906,66 @@ function renderDisplaySection(s: AppSettings): string {
     return `
     <section class="settings-section">
         <h2>Display</h2>
-        <div class="display-controls">
-            <div class="form-group">
-                <label>Text Size</label>
-                <div class="text-scale-control">
-                    <input type="range" id="s-text-scale" min="0.8" max="1.4" step="0.05" value="${s.textScale}">
-                    <span class="text-scale-value" id="s-text-scale-label">${Math.round(s.textScale * 100)}%</span>
+        <div class="display-layout" id="text-scale-group">
+            <div class="display-controls">
+                <div class="form-group">
+                    <label>Text Size</label>
+                    <div class="text-scale-control">
+                        <input type="range" id="s-text-scale" min="0.8" max="1.4" step="0.05" value="${s.textScale}">
+                        <span class="text-scale-value" id="s-text-scale-label">${Math.round(s.textScale * 100)}%</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="s-theme-mode">Theme</label>
+                    <select id="s-theme-mode">${themeOpts}</select>
+                </div>
+                <div class="form-group">
+                    <label for="s-window-mode">Window Mode</label>
+                    <select id="s-window-mode" disabled>
+                        <option value="remember">Remember last size</option>
+                        <option value="fullscreen">Full screen</option>
+                        <option value="maximized">Maximized</option>
+                        <option value="small">Small</option>
+                    </select>
+                    <span class="form-hint">Available when the desktop shell ships.</span>
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="s-frameless" disabled>
+                    <span>Frameless window</span>
+                </label>
+            </div>
+            <div class="display-preview">
+                <div class="text-scale-preview" id="text-scale-preview">
+                    <div class="text-scale-preview-inner" id="text-scale-preview-inner">
+                        <p class="preview-label">Style Preview</p>
+                        <p class="preview-heading">Header Text</p>
+                        <p class="preview-body">This is what regular text will look like.</p>
+                        <p class="preview-small">This is how small text will appear.</p>
+                        <div class="preview-field">
+                            <label class="preview-field-label">Dropdown</label>
+                            <select class="preview-select" tabindex="-1">
+                                <option>Option 1</option>
+                                <option>Option 2</option>
+                                <option>Option 3</option>
+                            </select>
+                        </div>
+                        <div class="preview-field">
+                            <label class="preview-field-label">Slider</label>
+                            <input type="range" class="preview-range" min="0" max="10" value="7" tabindex="-1">
+                        </div>
+                        <div class="preview-field">
+                            <label class="checkbox-label preview-checkbox">
+                                <input type="checkbox" checked tabindex="-1">
+                                <span>Checkbox</span>
+                            </label>
+                        </div>
+                        <div class="preview-field preview-btn-row">
+                            <button type="button" class="btn btn-small btn-primary preview-btn" tabindex="-1">Button 1</button>
+                            <button type="button" class="btn btn-small btn-secondary preview-btn" tabindex="-1">Button 2</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="form-group">
-                <label for="s-theme-mode">Theme</label>
-                <select id="s-theme-mode">${themeOpts}</select>
-            </div>
-            <div class="form-group">
-                <label for="s-window-mode">Window Mode</label>
-                <select id="s-window-mode" disabled>
-                    <option value="remember">Remember last size</option>
-                    <option value="fullscreen">Full screen</option>
-                    <option value="maximized">Maximized</option>
-                    <option value="small">Small</option>
-                </select>
-                <span class="form-hint">Available when the desktop shell ships.</span>
-            </div>
-            <label class="checkbox-label">
-                <input type="checkbox" id="s-frameless" disabled>
-                <span>Frameless window</span>
-            </label>
         </div>
     </section>`;
 }

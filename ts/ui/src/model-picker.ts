@@ -90,21 +90,25 @@ export function mountModelPicker(
         </select>`;
 
     function renderSelect(provider: string, models: ModelOption[]): void {
-        const matched = models.find((m) => m.value === currentValue);
         const optionsHTML = models
             .map((m) => `<option value="${attr(m.value)}">${escape(m.label)}</option>`)
             .join('');
         container.innerHTML = `
-            <select id="model-select" data-provider="${attr(provider)}">
-                <option value="">(provider default)</option>
-                ${optionsHTML}
-            </select>`;
+            <select id="model-select" data-provider="${attr(provider)}">${optionsHTML}</select>`;
         const sel = container.querySelector<HTMLSelectElement>('#model-select')!;
-        // If the persisted value matches one of the offered models,
-        // select it; otherwise keep the persisted value so the user
-        // sees it but treat the select's currentValue as the "(provider
-        // default)" empty string until they pick from the list.
-        if (matched) sel.value = matched.value;
+        // The user wants the picker to always show a concrete model name
+        // (no "(provider default)" placeholder), so if the persisted value
+        // doesn't match anything in the list we promote the first model
+        // to the active selection and persist it. Keeps the displayed
+        // model honest about what's actually going to run.
+        const matched = models.find((m) => m.value === currentValue);
+        if (matched) {
+            sel.value = matched.value;
+        } else if (models[0]) {
+            sel.value = models[0].value;
+            currentValue = models[0].value;
+            onChange(currentValue);
+        }
         sel.addEventListener('change', () => {
             currentValue = sel.value;
             onChange(currentValue);
