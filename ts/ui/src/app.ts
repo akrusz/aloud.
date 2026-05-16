@@ -41,7 +41,9 @@ function viewFromPath(path: string): Exclude<View, 'session'> {
 
 let currentSession: SessionViewHandle | null = null;
 let currentNoting: NotingSessionViewHandle | null = null;
-let currentView: View = 'setup';
+// null until the first routeTo lands — keeps the initial-load
+// deep-link from being treated as "already on setup" and skipped.
+let currentView: View | null = null;
 
 function $<T extends HTMLElement>(id: string): T {
     const el = document.getElementById(id);
@@ -110,9 +112,16 @@ async function routeTo(
     view: Exclude<View, 'session'>,
     options: { replace?: boolean; fromPopstate?: boolean } = {}
 ): Promise<void> {
-    // No-op if we're already there (back/forward might land on the
-    // same view if there's nothing to navigate to).
-    if (currentView === view && currentSession === null) return;
+    // No-op if we're already on that view and there's no in-flight
+    // session/noting placeholder to tear down. currentView is null on
+    // the very first mount so the deep-link routes correctly.
+    if (
+        currentView === view &&
+        currentSession === null &&
+        currentNoting === null
+    ) {
+        return;
+    }
 
     const path = ROUTE_FOR_VIEW[view];
     if (!options.fromPopstate) {
@@ -135,20 +144,18 @@ function setActiveNav(view: View): void {
         // applies the same class to mark the current page link.
         el.classList.toggle('nav-active', el.dataset['nav'] === view);
     });
-    // Nav center: setup and settings show an idle orb (Python's
-    // index.html / settings.html both put one there). History gets no
-    // orb. Session manages its own breathing orb.
+    // Nav center: every non-session view shows an idle orb (Python's
+    // index.html and settings.html both put one there; history.html
+    // doesn't, but the user wants the orb everywhere except active
+    // sessions for visual consistency). Session manages its own
+    // breathing orb.
     const navCenter = document.getElementById('navCenter');
     if (navCenter && view !== 'session') {
-        if (view === 'setup' || view === 'settings') {
-            navCenter.innerHTML = `
-                <div class="nav-session-info">
-                    <div class="orb orb-idle orb-nav" id="home-orb"></div>
-                </div>`;
-            wireHomeOrbBounce();
-        } else {
-            navCenter.innerHTML = '';
-        }
+        navCenter.innerHTML = `
+            <div class="nav-session-info">
+                <div class="orb orb-idle orb-nav" id="home-orb"></div>
+            </div>`;
+        wireHomeOrbBounce();
     }
 }
 
@@ -204,8 +211,12 @@ async function goSession(
     currentSession = await mountSessionView(
         root,
         setup,
-        () => {
-            void goSetup(root);
+        (destination) => {
+            // Session view tells us where to land the user. Defaults
+            // to setup; "history" comes from the in-session History
+            // link confirm flow.
+            if (destination === 'history') void routeTo(root, 'history');
+            else void goSetup(root);
         },
         continueFrom
     );

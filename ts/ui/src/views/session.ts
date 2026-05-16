@@ -106,10 +106,12 @@ export interface SessionViewHandle {
     teardown(): void;
 }
 
+export type SessionEndDestination = 'setup' | 'history';
+
 export async function mountSessionView(
     root: HTMLElement,
     setup: SessionSetup,
-    onEnd: () => void,
+    onEnd: (destination?: SessionEndDestination) => void,
     continueFrom: SessionState | null = null
 ): Promise<SessionViewHandle> {
     root.innerHTML = renderSessionHTML();
@@ -727,18 +729,87 @@ export async function mountSessionView(
         }
     }
 
-    // End button lives in the global nav (we injected it on mount).
+    // End button + History link both live in the global nav (we
+    // injected them on mount). Clicks during an active session go
+    // through showEndConfirm() — losing a meditation to a stray tap
+    // is bad UX.
     if (endBtn) {
         endBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            void endSession();
+            showEndConfirm('End this session?', undefined);
         });
+    }
+    const historyLink = navLinks?.querySelector<HTMLAnchorElement>('[data-nav="history"]');
+    if (historyLink) {
+        historyLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Stop the global app-level data-nav handler so it doesn't
+            // also dispatch — we want our confirm to be the only entry
+            // into a nav-away from the live session.
+            e.stopImmediatePropagation();
+            showEndConfirm(
+                'Leave session to view history? This will end your current session.',
+                'history'
+            );
+        });
+    }
+
+    /**
+     * Show the End-Session confirmation overlay. After a successful
+     * confirm/skip-save, the session ends and onEnd is called with
+     * `destination` so the app router knows where to land the user.
+     * Wires fresh handlers each call so a re-open doesn't carry the
+     * previous click's destination.
+     */
+    function showEndConfirm(
+        message: string,
+        destination: 'history' | undefined
+    ): void {
+        const overlay = root.querySelector<HTMLElement>('#session-confirm');
+        const text = root.querySelector<HTMLElement>('#confirm-text');
+        const yes = root.querySelector<HTMLButtonElement>('#confirm-yes');
+        const no = root.querySelector<HTMLButtonElement>('#confirm-no');
+        const skip = root.querySelector<HTMLButtonElement>('#confirm-skip-save');
+        if (!overlay || !text || !yes || !no || !skip) return;
+
+        text.textContent = message;
+        skip.classList.remove('hidden');
+        overlay.classList.remove('hidden');
+
+        const cleanup = () => {
+            overlay.classList.add('hidden');
+            yes.removeEventListener('click', onYes);
+            no.removeEventListener('click', onNo);
+            skip.removeEventListener('click', onSkip);
+        };
+        const onYes = () => {
+            cleanup();
+            showSavingOverlay();
+            void endSession(destination, false);
+        };
+        const onNo = () => cleanup();
+        const onSkip = () => {
+            cleanup();
+            showSavingOverlay();
+            void endSession(destination, true);
+        };
+        yes.addEventListener('click', onYes);
+        no.addEventListener('click', onNo);
+        skip.addEventListener('click', onSkip);
+    }
+
+    function showSavingOverlay(): void {
+        const overlay = root.querySelector<HTMLElement>('#session-saving');
+        overlay?.classList.remove('hidden');
     }
 
     mountEmberContainer();
     wireEmberControls(root);
 
-    async function endSession(): Promise<void> {
+    async function endSession(
+        destination?: 'history',
+        skipSave = false
+    ): Promise<void> {
         if (torn) return;
         torn = true;
         if (checkInTimer) clearInterval(checkInTimer);
@@ -761,7 +832,7 @@ export async function mountSessionView(
             if (restoredThemeBtn) initThemeToggle(restoredThemeBtn);
         }
 
-        if (finalState && hasUserContent(finalState.exchanges)) {
+        if (!skipSave && finalState && hasUserContent(finalState.exchanges)) {
             // Try to generate an LLM summary for the history row;
             // fall back to intention (or empty) if the LLM call fails.
             setStatus('Saving session…');
@@ -779,7 +850,7 @@ export async function mountSessionView(
             }
         }
 
-        onEnd();
+        onEnd(destination);
     }
 
     function hasUserContent(exchanges: ReadonlyArray<{ role: string }>): boolean {
@@ -885,5 +956,22 @@ function renderSessionHTML(): string {
         speedSliderId: 'modal-speed-slider',
         speedLabelId: 'modal-speed-label',
         speedValue: 110,
-    })}`;
+    })}
+
+    <div class="session-ended-overlay hidden" id="session-confirm">
+        <div class="session-ended-content">
+            <p id="confirm-text"></p>
+            <div class="session-ended-actions">
+                <button id="confirm-yes" type="button" class="btn btn-primary">End Session</button>
+                <button id="confirm-no" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+            <button id="confirm-skip-save" type="button" class="btn-link hidden">End Without Saving</button>
+        </div>
+    </div>
+
+    <div class="session-ended-overlay hidden" id="session-saving">
+        <div class="session-ended-content">
+            <p>Saving session…</p>
+        </div>
+    </div>`;
 }
