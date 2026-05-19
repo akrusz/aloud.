@@ -46,6 +46,7 @@ import {
     updateVoiceSelection,
     type ScoredVoice,
 } from '../voice-picker.js';
+import { resetAndStart as resetSettingsTour } from '../tour/settings-tour.js';
 
 export interface SettingsViewHandle {
     show(): Promise<void>;
@@ -783,6 +784,28 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             }
         });
 
+        // "Setup guide" — relaunches the onboarding tour. Same flow as
+        // Python's settings.js btn-show-tour handler: reset the dismiss
+        // flags and walk through the wizard from the welcome step.
+        const tourBtn = root.querySelector<HTMLButtonElement>('#btn-show-tour');
+        if (tourBtn) {
+            tourBtn.addEventListener('click', () => {
+                const isMac = /Mac/.test(
+                    typeof navigator !== 'undefined' ? navigator.platform || '' : ''
+                );
+                // TODO(post-port): piper availability comes from a Flask
+                // template flag in the Python UI (`data-piper-available`
+                // on #settings-data). Plumb the same signal into the TS
+                // settings view (likely via /api/providers or a new
+                // /api/tts-engines endpoint) so the Piper option appears
+                // when the engine is installed.
+                void resetSettingsTour({
+                    piperAvailable: true,
+                    isMac,
+                });
+            });
+        }
+
         // "Open config folder" — Python opens the user's config dir
         // via /api/open-config-folder. Browser preview reaches Flask;
         // standalone shells don't. Show the button only when Flask
@@ -894,6 +917,7 @@ function renderHTML(s: AppSettings): string {
             <span class="settings-saved hidden" id="settings-saved">Saved</span>
             <div class="settings-footer-spacer"></div>
             <div class="settings-footer-secondary">
+                <button type="button" class="tour-show-btn" id="btn-show-tour">Setup guide</button>
                 <button type="button" class="btn-config-path hidden" id="btn-open-config-folder">Open config folder</button>
             </div>
         </div>
