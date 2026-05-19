@@ -57,6 +57,10 @@
             <a href="/history" {% if request.path == '/history' %}class="nav-active"{% endif %}>History</a>
             <a href="/settings" {% if request.path == '/settings' %}class="nav-active"{% endif %}>Settings</a>
             {% endblock %}
+            <button type="button" class="update-btn" id="updateBtn" title="Update available — click for details" aria-label="Update available">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Update</span>
+            </button>
             <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"></button>
             <button class="theme-toggle" id="fullscreenToggle" title="Toggle full screen" aria-label="Toggle full screen">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
@@ -107,6 +111,10 @@
                 <span>History</span>
             </button>
             <div class="mobile-more-divider" data-session-only></div>
+            <button type="button" class="mobile-more-action mobile-more-update" data-proxy-click="aboutLink">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Update available</span>
+            </button>
             <button type="button" class="mobile-more-action" data-proxy-click="aboutLink">
                 <span class="mobile-more-glyph">aloud.</span>
                 <span>About</span>

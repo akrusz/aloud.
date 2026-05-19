@@ -895,8 +895,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .style-card.selected .style-card-inner {
-    border-color: var(--accent);
-    background: var(--accent-dim);
+    border-color: var(--accent-dim);
+    background: hsl(from var(--accent-dim) h calc(s * 0.65) l / alpha);
 }
 
 .style-name {
@@ -933,8 +933,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .modifier-toggle:has(input:checked) {
-    border-color: var(--accent);
-    background: var(--accent-dim);
+    border-color: var(--accent-dim);
+    background: hsl(from var(--accent-dim) h calc(s * 0.65) l / alpha);
 }
 
 .modifier-toggle input[type="checkbox"] {
@@ -2416,27 +2416,59 @@ body::before {
    Update Indicator & Modal
    ============================================ */
 
-/* Update dot on nav brand */
+/* Update available — pill button in nav, parallel entry in mobile More sheet.
+   Visibility driven off the brand's has-update / has-update-static classes
+   (set by chrome.js) via :has(), so we don't have to touch that JS lifecycle. */
 
-.nav-brand.has-update::after,
-.nav-brand.has-update-static::after {
-    content: '';
-    position: absolute;
-    top: -2px;
-    right: -6px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+.update-btn {
+    display: none;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+
+.update-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.update-btn:hover {
     background: var(--accent);
+    color: var(--bg-surface);
+    transform: translateY(-1px);
 }
 
-.nav-brand.has-update::after {
-    animation: updatePulse 1.5s ease-in-out 6;
+.mobile-more-update {
+    display: none;
 }
 
-@keyframes updatePulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.6); opacity: 0.6; }
+html:has(.nav-brand.has-update) .update-btn,
+html:has(.nav-brand.has-update-static) .update-btn {
+    display: inline-flex;
+}
+
+html:has(.nav-brand.has-update) .mobile-more-update,
+html:has(.nav-brand.has-update-static) .mobile-more-update {
+    display: flex;
+}
+
+html:has(.nav-brand.has-update) .update-btn {
+    animation: updateBtnPulse 1.5s ease-in-out 6;
+}
+
+@keyframes updateBtnPulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+    50%      { box-shadow: 0 0 0 6px transparent; }
 }
 
 /* About modal */
