@@ -67,6 +67,8 @@ Vanilla JS with ES modules (`<script type="module">`), no build tools.
 - `socketHandlers.js` — all `socket.on()` handlers
 - `ui.js` — message display, typing indicator, timer, embers, error toasts
 
+A style guide exists in docs/style.md
+
 ### Key patterns
 
 - **Protocol-based providers**: LLM and TTS use duck-typed protocols. Add new providers by implementing the interface and registering in the factory function.
@@ -105,4 +107,4 @@ This project uses **Beads** (`.beads/`). Use `bd create`, `bd list`, `bd update`
 
 ## Interacting with the developer
 
-Feel free to be creative or playful when talking with the developer, and to take occasional breaks to write for fun. recess.md is another space you can use for this.
+Feel free to be creative or playful when talking with the developer, and to take occasional breaks to write for fun. recess.md is another space you can use for this when running on his machine.
