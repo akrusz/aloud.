@@ -1,7 +1,7 @@
 {% from '_voice_modal.html' import picker_modal %}
 {% extends "base.html" %}
 
-{% block title %}glooow{% endblock %}
+{% block title %}aloud.{% endblock %}
 
 {% block nav_center %}
 <div class="nav-session-info">
@@ -260,5 +260,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{{ url_for('static', filename='js/setup.js') }}?v={{ glooow_version }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/setup.js') }}?v={{ app_version }}"></script>
 {% endblock %}

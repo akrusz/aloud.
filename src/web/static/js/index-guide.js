@@ -6,8 +6,8 @@
  * reusing the .tour-* CSS classes from the settings tour.
  */
 
-var GUIDE_DONE_KEY = 'glooow-index-guide-done';
-var GUIDE_REMIND_KEY = 'glooow-index-guide-remind';
+var GUIDE_DONE_KEY = 'aloud-index-guide-done';
+var GUIDE_REMIND_KEY = 'aloud-index-guide-remind';
 
 var PADDING = 10;
 var FOOTER_HEIGHT = 60;
@@ -101,6 +101,7 @@ function showCard(html, className) {
     cardEl.className = className || 'tour-tooltip';
     cardEl.innerHTML = html;
     document.body.appendChild(cardEl);
+    if (overlayEl) overlayEl.classList.toggle('tour-overlay-flat', className === 'tour-welcome');
     wireActions();
 }
 
@@ -198,8 +199,7 @@ function showWelcome() {
     if (prevTarget) { prevTarget.classList.remove('guide-elevated'); prevTarget = null; }
     document.querySelectorAll('.info-panel').forEach(function(p) { p.classList.add('hidden'); });
 
-    var html = '<h3>Welcome to glooow</h3>';
-    html += '<p>A meditation facilitator that listens and responds to your experience in real time.</p>';
+    var html = '<p><span class="brand-mark">aloud.</span> is a meditation facilitator that listens and responds to your experience in real time.</p>';
     html += '<div class="tour-choices">';
     html += '<button class="tour-choice" data-action="start">';
     html += '<strong>Show me around</strong>';
@@ -207,7 +207,7 @@ function showWelcome() {
     html += '</button>';
     html += '<button class="tour-choice" data-action="dismiss">';
     html += '<strong>I\u2019ll explore on my own</strong>';
-    html += '<small>You can tap <strong>?</strong> on any section for more info</small>';
+    html += '<small>You can tap <span class="info-btn-glyph">?</span> on any section for more info</small>';
     html += '</button>';
     html += '</div>';
 
@@ -262,7 +262,7 @@ function showDone() {
     document.querySelectorAll('.info-panel').forEach(function(p) { p.classList.add('hidden'); });
 
     var html = '<h3>You\u2019re ready</h3>';
-    html += '<p>Pick what resonates and begin. Tap <strong>?</strong> on any section to revisit these notes.</p>';
+    html += '<p>Pick what resonates and begin. Tap <span class="info-btn-glyph">?</span> on any section to revisit these notes.</p>';
     html += footerHtml({ back: true, done: true, skip: false });
 
     showCard(html, 'tour-welcome');
@@ -346,9 +346,9 @@ export function autoStart() {
     if (localStorage.getItem(GUIDE_DONE_KEY)) return;
     if (sessionStorage.getItem(GUIDE_REMIND_KEY)) return;
     // If the user has already started at least one session, they know the
-    // app — don't pop up the tour. (glooow-client-id is set on first
+    // app — don't pop up the tour. (aloud-client-id is set on first
     // session start in session.js.)
-    if (localStorage.getItem('glooow-client-id')) return;
+    if (localStorage.getItem('aloud-client-id')) return;
     setTimeout(function() { startGuide(); }, 600);
 }
 

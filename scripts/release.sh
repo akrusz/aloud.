@@ -124,7 +124,7 @@ sed -i.bak "s/__version__ = \".*\"/__version__ = \"${VERSION}\"/" src/__init__.p
 rm -f src/__init__.py.bak
 
 # Update README download links
-sed -i.bak "s/Glooow-[0-9][0-9.]*-/Glooow-${VERSION}-/g" README.md
+sed -i.bak "s/aloud-[0-9][0-9.]*-/aloud-${VERSION}-/g" README.md
 sed -i.bak "s|download/v[0-9][0-9.]*/|download/v${VERSION}/|g" README.md
 rm -f README.md.bak
 
@@ -165,5 +165,5 @@ if command -v gh >/dev/null 2>&1; then
 else
     echo ""
     echo "  Pushed v${VERSION} ✓"
-    echo "  Create the release at: https://github.com/akrusz/glooow/releases/new?tag=v${VERSION}"
+    echo "  Create the release at: https://github.com/akrusz/aloud/releases/new?tag=v${VERSION}"
 fi

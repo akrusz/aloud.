@@ -63,8 +63,8 @@ function initSessionControls(params) {
     });
 
     // End / History flows extracted as named functions so the mobile
-    // hamburger sheet can call them by name (window._glooowRequestEnd /
-    // _glooowRequestHistory) instead of proxy-clicking a hidden button
+    // hamburger sheet can call them by name (window._aloudRequestEnd /
+    // _aloudRequestHistory) instead of proxy-clicking a hidden button
     // by ID — more robust to future renames.
     function requestEnd() {
         if (!state.sessionActive) { window.location.href = '/'; return; }
@@ -86,8 +86,8 @@ function initSessionControls(params) {
     }
     dom.endBtn.addEventListener('click', function (e) { e.preventDefault(); requestEnd(); });
     dom.historyBtn.addEventListener('click', function (e) { e.preventDefault(); requestHistory(); });
-    window._glooowRequestEnd = requestEnd;
-    window._glooowRequestHistory = requestHistory;
+    window._aloudRequestEnd = requestEnd;
+    window._aloudRequestHistory = requestHistory;
 
     // Restore saved speed
     var savedSpeed = getSavedSpeed();
@@ -402,7 +402,7 @@ function initKasinaMode() {
 
 function initEmbers() {
     // Restore saved ember level from localStorage
-    var savedEmbers = localStorage.getItem('glooow-embers');
+    var savedEmbers = localStorage.getItem('aloud-embers');
     if (savedEmbers !== null) state.emberLevel = Math.min(parseInt(savedEmbers) || 0, 4);
 
     var eggUnlocked = false;
@@ -412,7 +412,7 @@ function initEmbers() {
 
     function setAndSaveEmberLevel(level) {
         setEmberLevel(level);
-        localStorage.setItem('glooow-embers', Math.min(level, 4));
+        localStorage.setItem('aloud-embers', Math.min(level, 4));
     }
 
     function addFifthBlock() {
@@ -531,10 +531,10 @@ function init() {
     params.session_id = state.sessionId;
 
     // Persistent client ID so LAN users only see their own history
-    if (!localStorage.getItem('glooow-client-id')) {
-        localStorage.setItem('glooow-client-id', 'cl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
+    if (!localStorage.getItem('aloud-client-id')) {
+        localStorage.setItem('aloud-client-id', 'cl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
     }
-    params.client_id = localStorage.getItem('glooow-client-id');
+    params.client_id = localStorage.getItem('aloud-client-id');
     params.tts = dom.ttsToggle.classList.contains('active');
 
     // Wire up UI controls
@@ -555,20 +555,20 @@ function init() {
     socket.emit('start_session', params);
     state.sessionActive = true;
     // Expose for update indicator in base.html
-    window._glooowSessionActive = true;
+    window._aloudSessionActive = true;
     document.body.dataset.sessionActive = 'true';
     acquireWakeLock();
-    window._glooowConfirmEnd = function() {
+    window._aloudConfirmEnd = function() {
         showConfirm('End session to install update?', function () {
             dom.savingOverlay.classList.remove('hidden');
             doEndSession(deactivateVoice);
-            window._glooowPendingUpdate = true;
+            window._aloudPendingUpdate = true;
         });
     };
     // Bottom-nav links call this during an active session so the session
     // ends + saves before navigating, instead of the session continuing
     // in the background while we SPA-swap the page.
-    window._glooowRequestEndSession = function(destinationUrl) {
+    window._aloudRequestEndSession = function(destinationUrl) {
         socket.emit('prefetch_summary');
         state.pendingNavigation = destinationUrl || '/';
         showConfirm('End this session?', function () {

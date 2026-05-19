@@ -96,20 +96,20 @@ export function registerSocketHandlers(deactivateVoiceFn) {
     socket.on('session_ended', function (data) {
         if (notingState.active) stopCircle();
         state.sessionActive = false;
-        window._glooowSessionActive = false;
+        window._aloudSessionActive = false;
         delete document.body.dataset.sessionActive;
-        window._glooowRequestEndSession = null;
-        window._glooowRequestEnd = null;
-        window._glooowRequestHistory = null;
+        window._aloudRequestEndSession = null;
+        window._aloudRequestEnd = null;
+        window._aloudRequestHistory = null;
         releaseWakeLock();
         stopTimer();
 
         // If update was pending, show update modal after session ends
-        if (window._glooowPendingUpdate) {
-            window._glooowPendingUpdate = false;
+        if (window._aloudPendingUpdate) {
+            window._aloudPendingUpdate = false;
             dom.savingOverlay.classList.add('hidden');
-            if (window._glooowShowUpdateModal) {
-                window._glooowShowUpdateModal();
+            if (window._aloudShowUpdateModal) {
+                window._aloudShowUpdateModal();
                 return;
             }
         }

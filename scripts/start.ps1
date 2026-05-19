@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────
-# Glooow — Launch script (with first-run bootstrap)
+# aloud — Launch script (with first-run bootstrap)
 # ─────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
@@ -28,7 +28,7 @@ function Ensure-Uv {
 
     Write-Host ""
     Info "uv (Python package manager) is not installed."
-    Write-Host "  uv is needed to manage Python packages for glooow."
+    Write-Host "  uv is needed to manage Python packages for aloud."
     Write-Host ""
     $answer = Read-Host "  Install uv now? [Y/n]"
     if (-not $answer -or $answer -eq "Y" -or $answer -eq "y") {
@@ -152,12 +152,12 @@ $RequirementsFile = "requirements.txt"
 if (-not (Test-Path ".venv") -or -not (Test-Path $ConfigFile)) {
     Write-Host ""
     Write-Host "  +======================================+"
-    Write-Host "  |       Glooow - First-time setup       |"
+    Write-Host "  |       aloud - First-time setup       |"
     Write-Host "  +======================================+"
     Write-Host ""
 
     # Ask about install mode
-    Write-Host "  How would you like to run glooow?"
+    Write-Host "  How would you like to run aloud?"
     Write-Host ""
     Write-Host "    App     - native window (default)"
     Write-Host "    Browser - lightweight, opens in your browser"
@@ -209,7 +209,7 @@ try {
 
     Write-Host ""
     Write-Host "  +======================================+"
-    Write-Host "  |              glooow                  |"
+    Write-Host "  |              aloud                  |"
     Write-Host "  +======================================+"
     Info "LLM:    $LlmProvider ($LlmModel)"
     Info "TTS:    $TtsEngine"
@@ -251,7 +251,7 @@ try {
 
     # ── Launch the web app ───────────────────────────
 
-    if ($AutoOpen) { $env:GLOOOW_AUTO_OPEN = "1" }
+    if ($AutoOpen) { $env:ALOUD_AUTO_OPEN = "1" }
     uv run python -m src.web
 
 } finally {

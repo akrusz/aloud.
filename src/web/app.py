@@ -70,9 +70,9 @@ def _create_flask_app(config: Config) -> Flask:
         template_folder=template_folder,
         static_folder=static_folder,
     )
-    app.config["SECRET_KEY"] = os.environ.get("GLOOOW_SECRET_KEY", config.web.secret_key)
+    app.config["SECRET_KEY"] = os.environ.get("ALOUD_SECRET_KEY", config.web.secret_key)
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
-    app.jinja_env.globals["glooow_version"] = __version__
+    app.jinja_env.globals["app_version"] = __version__
     app.jinja_env.globals["text_scale"] = config.web.text_scale
     app.jinja_env.globals["frameless"] = config.web.frameless
     app.jinja_env.globals["is_frozen"] = is_frozen()
@@ -300,7 +300,7 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
     """Run with a native pywebview window. Flask serves in a background thread."""
     import webview
 
-    _set_macos_app_name("glooow")
+    _set_macos_app_name("aloud.")
     _grant_media_permissions()
 
     url = f"http://localhost:{port}"
@@ -349,10 +349,10 @@ def _run_webview(app, socketio, host: str, port: int, window_mode: str = "rememb
         win_kwargs.update(width=910, height=820, maximized=True)
 
     window = webview.create_window(
-        f"glooow v{__version__}",
+        f"aloud. v{__version__}",
         url,
         localization={
-            "global.quitConfirmation": "End session and close glooow?",
+            "global.quitConfirmation": "End session and close aloud?",
             "global.quit": "Close",
             "global.cancel": "Cancel",
         },
@@ -457,7 +457,7 @@ def _run_browser(app, socketio, host: str, port: int, debug: bool) -> None:
         print(f"         https://{local_ip}:{https_port}  (mic-enabled)")
     print("  B = open browser · Q = quit\n")
 
-    if os.environ.get("GLOOOW_AUTO_OPEN") == "1":
+    if os.environ.get("ALOUD_AUTO_OPEN") == "1":
         def _auto_open_browser():
             for _ in range(30):
                 try:

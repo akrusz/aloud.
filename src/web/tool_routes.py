@@ -332,7 +332,7 @@ def register_tool_routes(app: Flask) -> None:
             if is_frozen():
                 return jsonify({"error": "Package install not available in desktop app"}), 400
             packages = ["piper-tts"]
-            # Install into the same environment glooow is running in
+            # Install into the same environment aloud is running in
             pip_cmd = shutil.which("uv")
             if pip_cmd:
                 cmd = ["uv", "pip", "install"] + packages

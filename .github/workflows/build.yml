@@ -33,7 +33,7 @@ jobs:
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Glooow-*.dmg
+          files: dist/aloud-*.dmg
           append_body: true
           body: |
 
@@ -57,7 +57,7 @@ jobs:
           uv pip install --system pyinstaller
 
       - name: Build
-        run: pyinstaller glooow.spec --noconfirm
+        run: pyinstaller aloud.spec --noconfirm
 
       - name: Get version
         id: version
@@ -70,34 +70,34 @@ jobs:
           $version = "${{ steps.version.outputs.version }}"
           @"
           [Setup]
-          AppName=Glooow
+          AppName=aloud
           AppVersion=$version
-          AppPublisher=Glooow
-          DefaultDirName={autopf}\Glooow
-          DefaultGroupName=Glooow
+          AppPublisher=aloud
+          DefaultDirName={autopf}\aloud
+          DefaultGroupName=aloud
           OutputDir=dist
-          OutputBaseFilename=Glooow-$version-Windows
+          OutputBaseFilename=aloud-$version-Windows
           Compression=lzma2
           SolidCompression=yes
-          SetupIconFile=assets\glooow.ico
-          UninstallDisplayIcon={app}\Glooow.exe
+          SetupIconFile=assets\aloud.ico
+          UninstallDisplayIcon={app}\aloud.exe
 
           [Files]
-          Source: "dist\Glooow\*"; DestDir: "{app}"; Flags: recursesubdirs
+          Source: "dist\aloud\*"; DestDir: "{app}"; Flags: recursesubdirs
 
           [Icons]
-          Name: "{group}\Glooow"; Filename: "{app}\Glooow.exe"
-          Name: "{autodesktop}\Glooow"; Filename: "{app}\Glooow.exe"
+          Name: "{group}\aloud"; Filename: "{app}\aloud.exe"
+          Name: "{autodesktop}\aloud"; Filename: "{app}\aloud.exe"
 
           [Run]
-          Filename: "{app}\Glooow.exe"; Description: "Launch Glooow"; Flags: postinstall nowait
-          "@ | Out-File -Encoding UTF8 glooow-installer.iss
-          iscc glooow-installer.iss
+          Filename: "{app}\aloud.exe"; Description: "Launch aloud"; Flags: postinstall nowait
+          "@ | Out-File -Encoding UTF8 aloud-installer.iss
+          iscc aloud-installer.iss
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Glooow-*.exe
+          files: dist/aloud-*.exe
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -125,7 +125,7 @@ jobs:
           uv pip install --system pyinstaller
 
       - name: Build
-        run: pyinstaller glooow.spec --noconfirm
+        run: pyinstaller aloud.spec --noconfirm
 
       - name: Get version
         id: version
@@ -142,29 +142,29 @@ jobs:
           chmod +x appimagetool
 
           # Build AppDir
-          mkdir -p Glooow.AppDir/usr/bin
-          cp -r dist/Glooow/* Glooow.AppDir/usr/bin/
-          cp assets/glooow.png Glooow.AppDir/glooow.png
+          mkdir -p aloud.AppDir/usr/bin
+          cp -r dist/aloud/* aloud.AppDir/usr/bin/
+          cp assets/aloud.png aloud.AppDir/aloud.png
 
-          cat > Glooow.AppDir/glooow.desktop << 'EOF'
+          cat > aloud.AppDir/aloud.desktop << 'EOF'
           [Desktop Entry]
-          Name=Glooow
-          Exec=Glooow
-          Icon=glooow
+          Name=aloud
+          Exec=aloud
+          Icon=aloud
           Type=Application
           Categories=Utility;
           EOF
 
-          cat > Glooow.AppDir/AppRun << 'APPRUN'
+          cat > aloud.AppDir/AppRun << 'APPRUN'
           #!/bin/bash
           HERE="$(dirname "$(readlink -f "$0")")"
-          exec "$HERE/usr/bin/Glooow" "$@"
+          exec "$HERE/usr/bin/aloud" "$@"
           APPRUN
-          chmod +x Glooow.AppDir/AppRun
+          chmod +x aloud.AppDir/AppRun
 
-          ARCH=x86_64 ./appimagetool Glooow.AppDir "dist/Glooow-${VERSION}-Linux.AppImage"
+          ARCH=x86_64 ./appimagetool aloud.AppDir "dist/aloud-${VERSION}-Linux.AppImage"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Glooow-*.AppImage
+          files: dist/aloud-*.AppImage

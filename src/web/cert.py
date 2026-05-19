@@ -28,7 +28,7 @@ def ensure_cert(cert_dir: Path, local_ip: str) -> tuple[str, str] | None:
                 "openssl", "req", "-x509", "-newkey", "rsa:2048",
                 "-keyout", str(key_path), "-out", str(cert_path),
                 "-days", "365", "-nodes",
-                "-subj", "/CN=glooow",
+                "-subj", "/CN=aloud",
                 "-addext", f"subjectAltName={san}",
             ],
             check=True,

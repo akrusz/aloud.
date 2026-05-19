@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────
-# Glooow — Run the web server directly
+# aloud — Run the web server directly
 #
 # Lightweight alternative to start.sh: just the
 # server, no proxy auto-start or banner.

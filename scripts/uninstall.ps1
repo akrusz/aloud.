@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────
-# Glooow — Uninstaller (Windows)
+# aloud — Uninstaller (Windows)
 # ─────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
@@ -21,7 +21,7 @@ function AskYN($prompt, $default) {
 
 Write-Host ""
 Write-Host "  +======================================+"
-Write-Host "  |       Glooow - Uninstall             |"
+Write-Host "  |       aloud - Uninstall             |"
 Write-Host "  +======================================+"
 Write-Host ""
 
@@ -37,7 +37,7 @@ if (Get-Command ollama -ErrorAction SilentlyContinue) {
         }
     }
 
-    # Check which glooow-related models are installed
+    # Check which aloud-related models are installed
     $InstalledModels = @()
     if ($OllamaModel) {
         $ModelBase = ($OllamaModel -split ":")[0]
@@ -48,7 +48,7 @@ if (Get-Command ollama -ErrorAction SilentlyContinue) {
     }
 
     if ($InstalledModels.Count -gt 0) {
-        Info "Found Ollama model(s) used by Glooow:"
+        Info "Found Ollama model(s) used by aloud:"
         foreach ($m in $InstalledModels) {
             Write-Host "    $m"
         }
@@ -125,7 +125,7 @@ if (Test-Path "sessions") {
 
 # ── Remove install breadcrumb ────────────────────
 
-$Breadcrumb = "$HOME\.glooow-path"
+$Breadcrumb = "$HOME\.aloud-path"
 if (Test-Path $Breadcrumb) {
     Remove-Item -Force $Breadcrumb
     Ok "Removed $Breadcrumb"
@@ -134,7 +134,7 @@ if (Test-Path $Breadcrumb) {
 # ── Remove Desktop shortcut ─────────────────────
 
 $Desktop = [Environment]::GetFolderPath("Desktop")
-$ShortcutPath = Join-Path $Desktop "Glooow.lnk"
+$ShortcutPath = Join-Path $Desktop "aloud.lnk"
 if (Test-Path $ShortcutPath) {
     Info "Removing Desktop shortcut..."
     Remove-Item -Force $ShortcutPath
@@ -145,7 +145,7 @@ if (Test-Path $ShortcutPath) {
 
 $ProjectDir = (Get-Location).Path
 Write-Host ""
-if (AskYN "Remove the Glooow project directory ($ProjectDir)?" "n") {
+if (AskYN "Remove the aloud project directory ($ProjectDir)?" "n") {
     Write-Host ""
     Warn "This will delete the entire project directory."
     if (AskYN "Are you sure?" "n") {
@@ -153,7 +153,7 @@ if (AskYN "Remove the Glooow project directory ($ProjectDir)?" "n") {
         Remove-Item -Recurse -Force $ProjectDir
         Ok "Removed $ProjectDir"
         Write-Host ""
-        Write-Host "  Glooow has been completely removed."
+        Write-Host "  aloud has been completely removed."
         Write-Host ""
         exit 0
     }

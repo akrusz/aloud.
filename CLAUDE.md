@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Glooow is a voice-based meditation facilitator. Users speak into a microphone, speech is transcribed via Whisper, an LLM generates facilitation responses, and TTS speaks them back. It has two interfaces: a web UI (Flask + SocketIO, primary) and a headless CLI.
+aloud is a voice-based meditation facilitator. Users speak into a microphone, speech is transcribed via Whisper, an LLM generates facilitation responses, and TTS speaks them back. It has two interfaces: a web UI (Flask + SocketIO, primary) and a headless CLI.
 
 ## Commands
 
@@ -89,8 +89,8 @@ Background check-in loop runs every 10s, sends gentle prompts after extended sil
 ## Configuration
 
 All config is in `config/default.yaml` with dataclass defaults in `src/config.py`. Key env vars:
-- `GLOOOW_SECRET_KEY` — Flask secret key
-- `GLOOOW_AUTO_OPEN` — auto-open browser on startup
+- `ALOUD_SECRET_KEY` — Flask secret key
+- `ALOUD_AUTO_OPEN` — auto-open browser on startup
 - API keys: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `VENICE_API_KEY`, `OPENAI_API_KEY`
 - YAML supports `${ENV_VAR}` substitution for `llm.api_key` and `tts.api_key`
 

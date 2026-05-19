@@ -28,7 +28,7 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
 (function() {
     var brand = document.getElementById('aboutLink');
     var aboutModal = document.getElementById('aboutModal');
-    window._glooowUpdateData = null;
+    window._aloudUpdateData = null;
 
     // About modal — brand toggles open/closed (update-during-session guard is on the Update Now button)
     brand.addEventListener('click', function(e) {
@@ -65,7 +65,7 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
 
     // Populate update section inside about modal
     function _populateUpdateUI(data) {
-        window._glooowUpdateData = data;
+        window._aloudUpdateData = data;
         var section = document.getElementById('aboutUpdate');
         var info = document.getElementById('aboutUpdateInfo');
         var commits = document.getElementById('updateCommits');
@@ -137,10 +137,10 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
     function _showUpdateModal() {
         aboutModal.classList.remove('hidden');
     }
-    window._glooowShowUpdateModal = _showUpdateModal;
+    window._aloudShowUpdateModal = _showUpdateModal;
 
     // Shared: check for update (force) and populate UI
-    window._glooowCheckUpdate = function(callback) {
+    window._aloudCheckUpdate = function(callback) {
         fetch('/api/update/check?force=1')
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -160,15 +160,15 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
     // Apply update
     document.getElementById('updateNowBtn').addEventListener('click', function() {
         // If in an active session, confirm ending it first
-        if (window._glooowSessionActive && window._glooowConfirmEnd) {
+        if (window._aloudSessionActive && window._aloudConfirmEnd) {
             aboutModal.classList.add('hidden');
-            window._glooowPendingUpdate = true;
-            window._glooowConfirmEnd();
+            window._aloudPendingUpdate = true;
+            window._aloudConfirmEnd();
             return;
         }
         var btn = this;
         var status = document.getElementById('updateStatus');
-        var data = window._glooowUpdateData;
+        var data = window._aloudUpdateData;
         var isRelease = data && data.is_release;
         var defaultLabel = isRelease ? 'Download Update' : 'Update Now';
         btn.disabled = true;
@@ -255,8 +255,8 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
         closeBtn.dataset.init = '1';
         closeBtn.classList.remove('hidden');
         closeBtn.addEventListener('click', function() {
-            if (window._glooowSessionActive) {
-                if (!confirm('End session and close glooow?')) return;
+            if (window._aloudSessionActive) {
+                if (!confirm('End session and close aloud?')) return;
             }
             fetch('/api/close-window', { method: 'POST' });
         });
@@ -271,7 +271,7 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
 
     // Prevent accidental close during active session (browser tab / Cmd+W)
     window.addEventListener('beforeunload', function(e) {
-        if (window._glooowSessionActive) {
+        if (window._aloudSessionActive) {
             e.preventDefault();
         }
     });
@@ -323,14 +323,14 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
             if (now - themeClicks[themeClicks.length - 8] < 4000) {
                 themeClicks = [];
                 var u = new SpeechSynthesisUtterance('the system... is down...');
-                var savedVoiceName = localStorage.getItem('glooow-voice');
+                var savedVoiceName = localStorage.getItem('aloud-voice');
                 if (savedVoiceName) {
                     var voices = speechSynthesis.getVoices();
                     for (var vi = 0; vi < voices.length; vi++) {
                         if (voices[vi].name === savedVoiceName) { u.voice = voices[vi]; break; }
                     }
                 }
-                var savedSpeed = localStorage.getItem('glooow-speed');
+                var savedSpeed = localStorage.getItem('aloud-speed');
                 if (savedSpeed) u.rate = parseInt(savedSpeed) / 180;
                 speechSynthesis.speak(u);
             }
@@ -518,8 +518,8 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
         // During an active session, run the end-session confirm flow
         // instead of SPA-navigating away — otherwise the session keeps
         // running in the background.
-        if (window._glooowSessionActive && window._glooowRequestEndSession) {
-            window._glooowRequestEndSession(href);
+        if (window._aloudSessionActive && window._aloudRequestEndSession) {
+            window._aloudRequestEndSession(href);
             return;
         }
         navigate(href);

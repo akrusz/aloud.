@@ -14,11 +14,11 @@ const piperAvailable = settingsDataEl.dataset.piperAvailable === 'true';
 
 // Clear client-side state on fresh/first-run so prompts re-appear
 if (firstRun) {
-    localStorage.removeItem('glooow-voice');
-    localStorage.removeItem('glooow-speed');
-    localStorage.removeItem('glooow-embers');
-    localStorage.removeItem('glooow-voice-quality-prompted-permanent');
-    localStorage.removeItem('glooow-tour-dismissed');
+    localStorage.removeItem('aloud-voice');
+    localStorage.removeItem('aloud-speed');
+    localStorage.removeItem('aloud-embers');
+    localStorage.removeItem('aloud-voice-quality-prompted-permanent');
+    localStorage.removeItem('aloud-tour-dismissed');
 }
 const form = document.getElementById('settings-form');
 const providerSelect = document.getElementById('s-provider');
@@ -122,7 +122,7 @@ function clearDirty() {
 form.addEventListener('input', markDirty);
 form.addEventListener('change', markDirty);
 var vqModalShown = false;
-var VQ_PROMPTED_KEY = 'glooow-voice-quality-prompted';
+var VQ_PROMPTED_KEY = 'aloud-voice-quality-prompted';
 voiceBtn.addEventListener('click', function() {
     if (!settingsNoVoicesMode) openVoiceModal();
 });
@@ -653,7 +653,7 @@ const apiKeyHelpers = [
 ];
 
 // Track which input the user last opened a "Get a key" tab for, so we can draw
-// attention to the matching Paste button when they switch back to glooow.
+// attention to the matching Paste button when they switch back to aloud.
 let lastOpenedKeyInput = null;
 
 // When the Paste button isn't available (no API, permission denied, or the
@@ -1198,8 +1198,8 @@ form.addEventListener('submit', function(e) {
         checkBtn.textContent = 'Checking...';
         resultEl.classList.add('hidden');
 
-        if (window._glooowCheckUpdate) {
-            window._glooowCheckUpdate(function(data, err) {
+        if (window._aloudCheckUpdate) {
+            window._aloudCheckUpdate(function(data, err) {
                 checkBtn.disabled = false;
                 checkBtn.textContent = 'Check for Updates';
                 if (err || !data) {

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────
-# Glooow — Launch script (with first-run bootstrap)
+# aloud — Launch script (with first-run bootstrap)
 # ─────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -33,7 +33,7 @@ ensure_uv() {
     fi
     echo ""
     info "uv (Python package manager) is not installed."
-    echo "  uv is needed to manage Python packages for glooow."
+    echo "  uv is needed to manage Python packages for aloud."
     echo ""
     printf "  Install uv now? [Y/n]: " >&2
     read -r answer < /dev/tty
@@ -209,12 +209,12 @@ REQUIREMENTS_FILE="requirements.txt"
 if [ ! -d ".venv" ] || [ ! -f "$CONFIG_FILE" ]; then
     echo ""
     echo "  ╔══════════════════════════════════════╗"
-    echo "  ║       Glooow — First-time setup      ║"
+    echo "  ║       aloud — First-time setup      ║"
     echo "  ╚══════════════════════════════════════╝"
     echo ""
 
     # Ask about install mode
-    echo "  How would you like to run glooow?"
+    echo "  How would you like to run aloud?"
     echo ""
     echo "    App     — native window (default)"
     echo "    Browser — lightweight, opens in your browser"
@@ -260,7 +260,7 @@ cleanup() {
     echo ""
     info "Shutting down..."
     ok "Done."
-    if [ "${GLOOOW_APP:-}" = "1" ]; then
+    if [ "${ALOUD_APP:-}" = "1" ]; then
         echo ""
         echo "  You can close this window."
         echo ""
@@ -273,7 +273,7 @@ trap cleanup EXIT INT TERM
 if [ "${QUIET:-}" != "1" ]; then
     echo ""
     echo "  ╔══════════════════════════════════════╗"
-    echo "  ║              glooow                  ║"
+    echo "  ║              aloud                  ║"
     echo "  ╚══════════════════════════════════════╝"
     if [ "$LLM_PROVIDER" = "ollama" ] && [ -n "$OLLAMA_MODEL" ]; then
         DISPLAY_MODEL="$OLLAMA_MODEL"
@@ -313,4 +313,4 @@ fi
 
 # ── Launch the web app ───────────────────────────
 
-GLOOOW_AUTO_OPEN="${AUTO_OPEN}" uv run python -m src.web
+ALOUD_AUTO_OPEN="${AUTO_OPEN}" uv run python -m src.web

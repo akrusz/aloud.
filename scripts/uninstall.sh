@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────
-# Glooow — Uninstaller
+# aloud — Uninstaller
 # ─────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -28,7 +28,7 @@ OS="$(uname -s)"
 
 echo ""
 echo "  ╔══════════════════════════════════════╗"
-echo "  ║       Glooow — Uninstall             ║"
+echo "  ║       aloud — Uninstall             ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 
@@ -41,7 +41,7 @@ if command -v ollama &>/dev/null; then
         OLLAMA_MODEL=$(grep -E '^\s+ollama_model:' "$CONFIG_FILE" 2>/dev/null | awk '{print $2}' || true)
     fi
 
-    # Check which glooow-related models are installed
+    # Check which aloud-related models are installed
     INSTALLED_MODELS=()
     if [ -n "$OLLAMA_MODEL" ]; then
         MODEL_BASE=$(echo "$OLLAMA_MODEL" | cut -d: -f1)
@@ -51,7 +51,7 @@ if command -v ollama &>/dev/null; then
     fi
 
     if [ ${#INSTALLED_MODELS[@]} -gt 0 ]; then
-        info "Found Ollama model(s) used by Glooow:"
+        info "Found Ollama model(s) used by aloud:"
         for m in "${INSTALLED_MODELS[@]}"; do
             echo "    $m"
         done
@@ -134,7 +134,7 @@ fi
 
 # ── Remove install breadcrumb ────────────────────
 
-BREADCRUMB="$HOME/.glooow-path"
+BREADCRUMB="$HOME/.aloud-path"
 if [ -f "$BREADCRUMB" ]; then
     rm -f "$BREADCRUMB"
     ok "Removed $BREADCRUMB"
@@ -143,7 +143,7 @@ fi
 # ── Remove macOS Desktop app ────────────────────
 
 if [ "$OS" = "Darwin" ]; then
-    DESKTOP_APP="$HOME/Desktop/Glooow.app"
+    DESKTOP_APP="$HOME/Desktop/aloud.app"
     if [ -d "$DESKTOP_APP" ]; then
         info "Removing Desktop app..."
         rm -rf "$DESKTOP_APP"
@@ -155,7 +155,7 @@ fi
 
 PROJECT_DIR="$(pwd)"
 echo ""
-if ask_yn "Remove the Glooow project directory ($PROJECT_DIR)?" "n"; then
+if ask_yn "Remove the aloud project directory ($PROJECT_DIR)?" "n"; then
     echo ""
     warn "This will delete the entire project directory."
     if ask_yn "Are you sure?" "n"; then
@@ -163,8 +163,8 @@ if ask_yn "Remove the Glooow project directory ($PROJECT_DIR)?" "n"; then
         rm -rf "$PROJECT_DIR"
         ok "Removed $PROJECT_DIR"
         echo ""
-        echo "  Glooow has been completely removed."
-        if [ "${GLOOOW_APP:-}" = "1" ]; then
+        echo "  aloud has been completely removed."
+        if [ "${ALOUD_APP:-}" = "1" ]; then
             echo ""
             echo "  You can close this window."
         fi
@@ -181,7 +181,7 @@ echo "  ║        Uninstall Complete!           ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 echo "  Note: uv and Homebrew were left in place (shared tools)."
-if [ "${GLOOOW_APP:-}" = "1" ]; then
+if [ "${ALOUD_APP:-}" = "1" ]; then
     echo ""
     echo "  You can close this window."
 fi

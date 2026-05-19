@@ -11,7 +11,7 @@ elif __name__ == "__main__":
     from .app import run_web
 
     import argparse
-    parser = argparse.ArgumentParser(description="glooow meditation facilitator")
+    parser = argparse.ArgumentParser(description="aloud — voice meditation facilitator")
     parser.add_argument("--browser", action="store_true",
                         help="Open in system browser instead of native window")
     parser.add_argument("--host", type=str, default=None)
@@ -24,7 +24,7 @@ elif __name__ == "__main__":
     parser.add_argument("--check-update", action="store_true",
                         help="Check if a new version is available")
     parser.add_argument("--update", action="store_true",
-                        help="Update glooow to the latest version")
+                        help="Update aloud to the latest version")
     parser.add_argument("--fresh", action="store_true",
                         help="Simulate a fresh install (first-run UI, cleared state)")
     parser.add_argument("--hide-premium", action="store_true",
@@ -43,7 +43,7 @@ elif __name__ == "__main__":
     if args.check_update:
         from .. import __version__
         from ..updater import check_for_updates
-        print(f"glooow v{__version__}")
+        print(f"aloud v{__version__}")
         status = check_for_updates(force=True)
         if status.error:
             print(f"Error: {status.error}")
@@ -58,7 +58,7 @@ elif __name__ == "__main__":
     if args.update:
         from .. import __version__
         from ..updater import apply_update
-        print(f"glooow v{__version__} — updating...")
+        print(f"aloud v{__version__} — updating...")
         result = apply_update()
         print(result.message)
         sys.exit(0)
