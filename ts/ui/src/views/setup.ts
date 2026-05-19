@@ -33,6 +33,11 @@ import {
 import { mountModelPicker } from '../model-picker.js';
 import { sessionStore } from '../state.js';
 import { detectIsDesktop, isDesktopSync } from '../is-desktop.js';
+import {
+    autoStart as autoStartGuide,
+    closeIfActive as closeGuideIfActive,
+    resetAndStart as resetGuide,
+} from '../tour/index-guide.js';
 
 const FOCUSES: ReadonlyArray<{ value: Focus; name: string; description: string }> = [
     {
@@ -499,21 +504,25 @@ export async function mountSetupView(
     }
 
     /**
-     * Wire the `?` info buttons. Each `<button class="info-btn"
-     * data-info="X">?</button>` toggles its sibling `<div
-     * class="info-panel" id="info-X">`. Matches Python's setup.js
-     * info-btn handling.
+     * Wire the `?` info buttons. The tour module (./tour/index-guide.ts)
+     * installs a single delegated document-level handler that drives all
+     * `.info-btn[data-info]` clicks with the accordion-style toggle
+     * (clicking one info button closes any other open panels). It also
+     * suppresses the toggle while the guided tour is active so the tour
+     * controls the open panel. Matches Python's setup.js delegation.
+     *
+     * The "Take the full tour" link inside the methods info panel goes
+     * here too — it resets the dismissed state and jumps straight to the
+     * first section.
      */
     function wireInfoButtons(): void {
-        root.querySelectorAll<HTMLButtonElement>('.info-btn').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
+        const guideLink = root.querySelector<HTMLAnchorElement>('#start-guide-link');
+        if (guideLink) {
+            guideLink.addEventListener('click', (e) => {
                 e.preventDefault();
-                const key = btn.dataset['info'];
-                if (!key) return;
-                const panel = root.querySelector<HTMLElement>(`#info-${key}`);
-                if (panel) panel.classList.toggle('hidden');
+                void resetGuide();
             });
-        });
+        }
     }
 
     function updatePresetHighlights(): void {
@@ -527,10 +536,21 @@ export async function mountSetupView(
     // immediately; server-side voices fetch in the background and the
     // dropdown populates when ready.
     void loadVoiceCatalog();
+    // Kick off the welcome tour on first visit. autoStart short-circuits
+    // when the user has already dismissed, completed, or used the app —
+    // matches Python's setup.js bottom-of-file call.
+    void autoStartGuide();
 
     return {
-        async show() { render(); await loadVoiceCatalog(); },
-        hide() { root.innerHTML = ''; },
+        async show() {
+            render();
+            await loadVoiceCatalog();
+            void autoStartGuide();
+        },
+        hide() {
+            closeGuideIfActive();
+            root.innerHTML = '';
+        },
         getSetup() { return setup; },
     };
 }
@@ -610,6 +630,7 @@ function renderSetupHTML(): string {
             <p><strong>exploration</strong>: a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore.</p>
             <p>You optionally set an intention and then mix and match <strong>attention focuses</strong> (body, emotions, parts work) with <strong>vibes</strong> (playful, compassionate, loving, spacious, effortless, feel-good). Presets give you quick starting points, or you can build your own style. The directiveness slider dials in how much guidance you want.</p>
             <p><strong>noting</strong>: you specify what participants you'd like, if any &mdash; AIs, fixed phrases, or sound effects. Then starting with you, each participant notes a sensation in their "awareness" (ideally 1&ndash;2 words) or plays their fixed phrase or sound. If there are no other participants, it'll briefly introduce the method and record what you note.</p>
+            <p class="info-panel-link"><a href="#" id="start-guide-link">Take the full tour &rarr;</a></p>
         </div>
     </div>
 
