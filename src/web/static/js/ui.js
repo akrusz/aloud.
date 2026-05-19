@@ -120,8 +120,8 @@ export function setStatus(text) {
 // ---- Ember system ----
 
 export var EMBER_COUNTS = [0, 3, 6, 12, 24, 48];
-export var EMBER_COLORS_DARK = ['#e8a840', '#d4873a', '#c07830', '#e0a038', '#cc8030'];
-export var EMBER_COLORS_LIGHT = ['#fed025', '#f6b818', '#fcc430', '#f0a80e', '#f8c020'];
+export var EMBER_COLORS_DARK = ['#f5d820', '#e8b820', '#ffcc00', '#fcc430', '#f5a52f'];
+export var EMBER_COLORS_LIGHT = ['#f5b000', '#f5c020', '#f5c810', '#e8a820', '#ffb820'];
 export var EMBER_COLORS_RAINBOW = ['#f7a8c4', '#f4b8a0', '#f5e6a0', '#a8e6cf', '#a0e0f0', '#c4b4f0', '#e8a0d8'];
 export var EMBER_SHRINK_RATE = 0.3; // px/s — constant for all embers
 

@@ -1063,6 +1063,13 @@ option.provider-unavailable {
     transition: opacity 0.2s;
 }
 
+/* Dark mode: dark text on pink bg reads thin; bolding lifts contrast
+   without brightening the background. */
+[data-theme="dark"] .btn-begin,
+:root:not([data-theme="light"]) .btn-begin {
+    font-weight: 600;
+}
+
 .btn-begin:disabled {
     opacity: 0.4;
     cursor: not-allowed;
@@ -2055,8 +2062,8 @@ body:has(.session-container) {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 55%, #e71f75 80%, #a01050 100%);
-    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(231, 31, 117, 0.22);
+    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 50%, #e71f75 70%, #870a3e 92%, #5a0828 100%);
+    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(231, 31, 117, 0.26);
     filter: saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
     transition: --orb-saturation 3s ease;
 }
@@ -2148,11 +2155,11 @@ body::before {
     height: 140px;
     z-index: 50;
     cursor: grab;
-    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 55%, #e71f75 80%, #a01050 100%);
+    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 50%, #e71f75 70%, #870a3e 92%, #5a0828 100%);
     box-shadow:
         0 0 60px rgba(245, 165, 47, 0.30),
-        0 0 120px rgba(231, 31, 117, 0.28),
-        0 0 200px rgba(231, 31, 117, 0.14);
+        0 0 120px rgba(231, 31, 117, 0.32),
+        0 0 200px rgba(231, 31, 117, 0.16);
     animation: kasinaPulse 8s ease-in-out infinite, orbFlicker 4.3s ease-in-out infinite;
     opacity: 1;
 }
@@ -2162,15 +2169,15 @@ body::before {
         transform: scale(0.98);
         box-shadow:
             0 0 60px rgba(245, 165, 47, 0.30),
-            0 0 120px rgba(231, 31, 117, 0.28),
-            0 0 200px rgba(231, 31, 117, 0.14);
+            0 0 120px rgba(231, 31, 117, 0.32),
+            0 0 200px rgba(231, 31, 117, 0.16);
     }
     50% {
         transform: scale(1.02);
         box-shadow:
             0 0 70px rgba(245, 165, 47, 0.38),
-            0 0 140px rgba(231, 31, 117, 0.34),
-            0 0 240px rgba(231, 31, 117, 0.18);
+            0 0 140px rgba(231, 31, 117, 0.40),
+            0 0 240px rgba(231, 31, 117, 0.22);
     }
 }
 
