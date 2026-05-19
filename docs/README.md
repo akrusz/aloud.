@@ -2,16 +2,18 @@
 
 Static site for the public aloud. landing page. Hand-written; no build step.
 
+This folder is named `docs/` because GitHub Pages serves from `/docs` on main. Internal developer documentation (build instructions, style guide, etc.) lives in `dev-docs/` at the repo root.
+
 ## structure
 
 ```
-site/
+docs/
   index.html      ← page content + structure
-  css/style.css   ← brand tokens lifted from docs/style.md
+  css/style.css   ← brand tokens lifted from dev-docs/style.md
   js/download.js  ← fetches latest GitHub release at page load
   assets/
     aloud.png         ← icon (favicon + og:image)
-    aloud-screen.png  ← screenshot
+    aloud-screen.png  ← screenshot (also referenced from the repo README)
 ```
 
 ## local preview
@@ -19,7 +21,7 @@ site/
 Any static server. From the repo root:
 
 ```bash
-python3 -m http.server -d site 8000
+python3 -m http.server -d docs 8000
 # then open http://localhost:8000
 ```
 
@@ -40,19 +42,20 @@ Two reasonable paths:
 
 ### Porkbun static hosting (pulls from this repo)
 
-Point Porkbun's static site setting at the `site/` subfolder of this repo
+Point Porkbun's static site setting at the `docs/` subfolder of this repo
 and the default branch. It will serve directly from there. No build step.
 
 ### GitHub Pages (free)
 
 In repo settings → Pages, set source to "Deploy from a branch", branch
-`main`, folder `/site`. Custom domain via CNAME if desired.
+`main`, folder `/docs`. Custom domain via CNAME if desired.
 
 ## brand assets
 
-The `site/assets/` files are copied from `assets/aloud.png` and
-`docs/aloud-screen.png`. Keep them in sync if either source updates —
-or replace with a small symlink-equivalent in a future deploy script.
+`assets/aloud.png` is copied from `assets/aloud.png` at the repo root. The
+screenshot at `assets/aloud-screen.png` is the canonical copy — the repo
+README references it from here too, so there's no separate source to keep
+in sync.
 
 ## things to fill in
 

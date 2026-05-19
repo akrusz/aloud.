@@ -88,17 +88,20 @@ The dark-mode backgrounds are **neutral-warm browns**, not pink-tinted. We tried
 Both `.orb` (small, in nav) and `.orb-kasina` (large, click-orb-during-session) use the **same radial gradient**. Single source of truth — if you change one, change both.
 
 ```css
-background: radial-gradient(circle at 45% 45%,
+background: radial-gradient(circle at 45% 45% in oklab,
     #fff4c0 0%,   /* cream-yellow gazing center */
-    #f5d820 25%,  /* warm yellow band */
-    #ee7248 50%,  /* coral */
-    #e71f75 70%,  /* hot pink — encroaches well inward */
-    #870a3e 92%,  /* deep magenta */
-    #5a0828 100%  /* darkest crimson — final ring, adds edge depth */
+    #f8f288 18%,  /* pale lemon — keeps the center from snapping to saturated yellow */
+    #f5d820 38%,  /* warm yellow band — the dominant "sunny" zone */
+    #ffb805 49%,  /* deep gold — anchors the transition into orange */
+    #ed7326 65%,  /* burnt orange */
+    #e71f75 73%,  /* hot pink — encroaches well inward */
+    #870a3e 92%   /* deep magenta — final ring */
 );
 ```
 
-The center cream-yellow is intentionally not pure white — it's slightly tinted (`#fff4c0`) so on dark bgs it doesn't read as a white blob. Stop at 25% gives the yellow a visible band rather than a single point. Pink dominates from 55%-100% with a deep magenta edge for intensity.
+**Interpolating `in oklab`** is load-bearing. sRGB interpolation between yellow and coral runs through muddy olive and produces visible kinks at each stop. oklab interpolates along a perceptually-uniform path between stops, so the curve reads as a smooth arc through warm hues rather than a series of straight segments meeting at angles. Don't strip `in oklab` thinking it's optional; it isn't.
+
+The center cream-yellow is intentionally not pure white — it's slightly tinted (`#fff4c0`) so on dark bgs it doesn't read as a white blob. Stops were tuned through an interactive gradient picker against the perceptual color space, not by hand; if you adjust, do the same. Pink dominates from ~73%-92% with `#870a3e` as the edge (no extra darker stop — letting the deep magenta hold the outer ring keeps the orb's edge from feeling muddy).
 
 Box-shadow halos: orange inner (`var(--accent-glow)` ≈ `#f5a52f`) + pink outer (`rgba(231, 31, 117, 0.22-0.40)` depending on size and pulse state). Kasina has three stacked halos; small orb has two.
 

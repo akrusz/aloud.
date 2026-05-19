@@ -2062,7 +2062,7 @@ body:has(.session-container) {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 50%, #e71f75 70%, #870a3e 92%, #5a0828 100%);
+    background: radial-gradient(circle at 45% 45% in oklab, #fff4c0 0%, #f8f288 18%, #f5d820 38%, #ffb805 49%, #ed7326 65%, #e71f75 73%, #870a3e 92%);
     box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(231, 31, 117, 0.26);
     filter: saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
     transition: --orb-saturation 3s ease;
@@ -2155,7 +2155,7 @@ body::before {
     height: 140px;
     z-index: 50;
     cursor: grab;
-    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 50%, #e71f75 70%, #870a3e 92%, #5a0828 100%);
+    background: radial-gradient(circle at 45% 45% in oklab, #fff4c0 0%, #f8f288 18%, #f5d820 38%, #ffb805 49%, #ed7326 65%, #e71f75 73%, #870a3e 92%);
     box-shadow:
         0 0 60px rgba(245, 165, 47, 0.30),
         0 0 120px rgba(231, 31, 117, 0.32),

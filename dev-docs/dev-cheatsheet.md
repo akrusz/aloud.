@@ -139,7 +139,7 @@ Supports `${ENV_VAR}` substitution for API keys in YAML.
 
 ## Building
 
-See [docs/building.md](building.md) for desktop builds (PyInstaller → DMG/EXE/AppImage).
+See [building.md](building.md) for desktop builds (PyInstaller → DMG/EXE/AppImage).
 
 ```bash
 # macOS DMG (requires create-dmg, pyinstaller)
@@ -186,12 +186,12 @@ With those configured, `scripts/release.sh patch` produces a fully signed + nota
 
 ## Landing site
 
-Static site at `site/` (hand-written, no build step). The download buttons fetch `releases/latest` from the GitHub API at page load, so the site doesn't need redeploying after each release.
+Static site at `docs/` (hand-written, no build step). The folder is named `docs/` because GitHub Pages serves from `/docs` on main; internal developer documentation lives in `dev-docs/`. The download buttons fetch `releases/latest` from the GitHub API at page load, so the site doesn't need redeploying after each release.
 
 ```bash
 # Local preview
-python3 -m http.server -d site 8000
+python3 -m http.server -d docs 8000
 # then open http://localhost:8000
 ```
 
-Deployment: Porkbun's GitHub-pulled static hosting pointed at the `site/` folder, or GitHub Pages from `/site` on main.
+Deployment: Porkbun's GitHub-pulled static hosting pointed at the `docs/` folder, or GitHub Pages from `/docs` on main.

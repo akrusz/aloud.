@@ -1,5 +1,5 @@
 /* ============================================================
-   aloud. landing page — brand tokens lifted from docs/style.md
+   aloud. landing page — brand tokens lifted from dev-docs/style.md
    Single source of truth for visual identity is the app's
    src/web/static/css/style.css; this is a faithful subset.
    ============================================================ */
@@ -186,13 +186,14 @@ code {
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  background: radial-gradient(circle at 45% 45%,
+  background: radial-gradient(circle at 45% 45% in oklab,
       #fff4c0 0%,
-      #f5d820 25%,
-      #ee7248 50%,
-      #e71f75 70%,
-      #870a3e 92%,
-      #5a0828 100%);
+      #f8f288 18%,
+      #f5d820 38%,
+      #ffb805 49%,
+      #ed7326 65%,
+      #e71f75 73%,
+      #870a3e 92%);
   box-shadow:
     0 0 60px var(--accent-glow),
     0 0 100px rgba(231, 31, 117, 0.32),
