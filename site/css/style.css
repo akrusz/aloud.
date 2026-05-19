@@ -9,8 +9,8 @@
 
   /* light mode (default) */
   --bg-primary:    #fffae0;
-  --bg-secondary:  #f5e6d4;
-  --bg-card:       #ead8c0;
+  --bg-secondary:  #f5efd7;
+  --bg-card:       #fad8c0;
   --bg-surface:    #ffffff;
   --text-primary:  #1f1a18;
   --text-secondary:#5c4a44;
@@ -152,7 +152,7 @@ code {
   font-size: 1.05rem;
   color: var(--text-secondary);
   margin: 0 auto 2rem;
-  max-width: 540px;
+  max-width: 560px;
 }
 
 .hero-cta {
@@ -325,7 +325,7 @@ code {
 }
 
 /* ===== download ===== */
-.section-download { background: var(--bg-secondary); max-width: none; padding: 4rem 1.5rem; }
+.section-download { background: var(--bg-secondary); max-width: none; padding: 2rem 1.5rem 3rem; }
 .section-download > * { max-width: 880px; margin-left: auto; margin-right: auto; }
 
 .version-chip {
@@ -397,14 +397,14 @@ code {
 }
 
 /* ===== tip / donation ===== */
-.section-tip { padding: 3rem 1.5rem 4rem; }
+.section-tip { padding: 2rem 1.5rem 1.5rem; }
 .tip-card {
   max-width: 680px;
   margin: 0 auto;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 2.5rem 2rem;
+  padding: 1.75rem 1.75rem;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -436,8 +436,27 @@ code {
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: center;
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
   position: relative;
+}
+
+/* Compress tip + download on mobile so users can see both at once. */
+@media (max-width: 720px) {
+  .section-tip { padding: 1.5rem 1rem 1rem; }
+  .tip-card { padding: 1.25rem 1.25rem; }
+  .tip-title { font-size: 1.2rem; margin-bottom: 0.5rem; }
+  .tip-body { font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .tip-buttons { margin-top: 1rem; gap: 0.5rem; }
+  .btn-tip, .btn-tip-ghost { padding: 0.45rem 0.95rem; font-size: 0.9rem; }
+
+  .section-download { padding: 1.5rem 1rem 2rem; }
+  .section-download .section-title { font-size: 1.4rem; margin-bottom: 0.75rem; }
+  .section-download .section-lead { margin-bottom: 1.25rem; }
+  .download-grid { gap: 0.6rem; margin: 1rem auto; }
+  .download-card { padding: 0.9rem 1rem; text-align: left; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem 1rem; }
+  .download-os { font-size: 1.05rem; margin: 0; }
+  .download-file { margin: 0; font-size: 0.85rem; grid-column: 2; }
+  .download-note { grid-column: 1 / -1; font-size: 0.8rem; margin-top: 0.15rem; }
 }
 
 .btn-tip {
