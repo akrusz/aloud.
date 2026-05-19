@@ -18,7 +18,7 @@ const EMBER_COLORS_RAINBOW: readonly string[] = [
 ];
 const EMBER_SHRINK_RATE = 0.3; // px/s
 
-const STORAGE_KEY = 'glooow-embers';
+const STORAGE_KEY = 'aloud-embers';
 
 interface EmberState {
     level: number;

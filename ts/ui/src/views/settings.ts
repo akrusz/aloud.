@@ -945,7 +945,7 @@ function renderProviderSection(s: AppSettings): string {
             <p><strong>Ollama (Local)</strong> — Free and private. Runs the AI entirely on your computer.</p>
             <p><strong>API Key providers</strong> — Pay-per-use cloud AI. Sign up with the provider, paste the key here.</p>
         </div>
-        <p class="settings-desc">Choose how glooow connects to a language model.</p>
+        <p class="settings-desc">Choose how aloud connects to a language model.</p>
 
         <div class="form-row">
             <div class="form-group form-group-half">

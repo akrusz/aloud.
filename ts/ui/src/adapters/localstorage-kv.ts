@@ -10,7 +10,7 @@
 import type { KvStorage } from '../../../src/platform/storage.js';
 
 export interface LocalStorageKvOptions {
-    /** Key prefix to namespace this store. Defaults to "glooow:". */
+    /** Key prefix to namespace this store. Defaults to "aloud:". */
     prefix?: string;
 }
 
@@ -21,7 +21,7 @@ export class LocalStorageKv implements KvStorage {
         if (typeof localStorage === 'undefined') {
             throw new Error('localStorage is not available in this environment.');
         }
-        this.prefix = options.prefix ?? 'glooow:';
+        this.prefix = options.prefix ?? 'aloud:';
     }
 
     async get(key: string): Promise<string | null> {

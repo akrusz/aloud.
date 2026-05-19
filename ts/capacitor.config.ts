@@ -10,8 +10,8 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * the Xcode project is generated with the right identifiers.
  */
 const config: CapacitorConfig = {
-    appId: 'net.krusz.glooow',
-    appName: 'glooow',
+    appId: 'app.aloud.meditation',
+    appName: 'aloud',
     webDir: 'ui/dist',
 
     // Live reload during development.

@@ -5,8 +5,8 @@ import { dirname, resolve } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Flask backend port (matches src/config.py default). Override at dev time
-// via GLOOOW_BACKEND_URL if you're running Flask on a non-default port.
-const BACKEND_URL = process.env['GLOOOW_BACKEND_URL'] ?? 'http://localhost:4649';
+// via ALOUD_BACKEND_URL if you're running Flask on a non-default port.
+const BACKEND_URL = process.env['ALOUD_BACKEND_URL'] ?? 'http://localhost:4649';
 const OLLAMA_URL = process.env['OLLAMA_URL'] ?? 'http://localhost:11434';
 
 export default defineConfig({

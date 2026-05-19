@@ -118,8 +118,8 @@ export function updateThemeIcon(btn: HTMLElement): void {
  * each render.
  */
 export function initThemeToggle(btn: HTMLElement): void {
-    if ((btn as HTMLElement & { _glooowThemeWired?: boolean })._glooowThemeWired) return;
-    (btn as HTMLElement & { _glooowThemeWired?: boolean })._glooowThemeWired = true;
+    if ((btn as HTMLElement & { _aloudThemeWired?: boolean })._aloudThemeWired) return;
+    (btn as HTMLElement & { _aloudThemeWired?: boolean })._aloudThemeWired = true;
 
     updateThemeIcon(btn);
 
@@ -134,12 +134,12 @@ export function initThemeToggle(btn: HTMLElement): void {
         if (themeClicks.length >= 8 && now - themeClicks[themeClicks.length - 8]! < 4000) {
             themeClicks = [];
             const u = new SpeechSynthesisUtterance('the system... is down...');
-            const savedVoiceName = localStorage.getItem('glooow-voice');
+            const savedVoiceName = localStorage.getItem('aloud-voice');
             if (savedVoiceName) {
                 const voice = speechSynthesis.getVoices().find((v) => v.name === savedVoiceName);
                 if (voice) u.voice = voice;
             }
-            const savedSpeed = localStorage.getItem('glooow-speed');
+            const savedSpeed = localStorage.getItem('aloud-speed');
             if (savedSpeed) {
                 const parsed = parseInt(savedSpeed, 10);
                 if (!Number.isNaN(parsed)) u.rate = parsed / 180;

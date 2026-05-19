@@ -1,8 +1,8 @@
 {
-    "name": "@glooow/core",
+    "name": "@aloud/core",
     "version": "0.0.1",
     "private": true,
-    "description": "TypeScript port of glooow's orchestration layer (pacing, prompts, session, LLM client). Runs in Node and the browser; intended target is Capacitor for mobile.",
+    "description": "TypeScript port of aloud's orchestration layer (pacing, prompts, session, LLM client). Runs in Node and the browser; intended target is Capacitor for mobile.",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
