@@ -15,6 +15,25 @@ let activeSpawnState: {
     exitCode: number;
 } | null = null;
 
+// When true, every fs.access call rejects with ENOENT — lets us simulate
+// "no claude binary anywhere" regardless of what's actually on disk.
+let forceAccessFail = false;
+
+// Same pattern as the spawn mock: a module-level toggle that tests flip on,
+// since fs.access is itself an ESM read-only binding (vi.spyOn fails).
+vi.mock('node:fs/promises', async () => {
+    const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
+    return {
+        ...actual,
+        access: ((path: string, mode?: number) => {
+            if (forceAccessFail) {
+                return Promise.reject(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+            }
+            return actual.access(path, mode);
+        }) as typeof actual.access,
+    };
+});
+
 // vi.mock is hoisted; the factory closes over a module-level state object
 // that tests reset in beforeEach. Lets us inject stdout/exitCode per test
 // without trying to redefine child_process.spawn (an ESM read-only binding).
@@ -120,15 +139,21 @@ describe('ClaudeProxyProvider', () => {
     });
 
     it('throws a friendly error when the binary cannot be found', async () => {
-        // No binaryPath override + clear PATH so auto-discovery fails.
+        // Clear PATH AND force fs.access to always reject — otherwise the
+        // hardcoded fallback paths in findClaudeCli (~/.local/bin/claude,
+        // /opt/homebrew/bin/claude, ...) resolve on dev machines with
+        // Claude Code installed, and the spawn mock fires without active
+        // state instead of letting the discovery return null.
         const originalPath = process.env['PATH'];
         process.env['PATH'] = '';
+        forceAccessFail = true;
         try {
             const provider = new ClaudeProxyProvider();
             await expect(
                 provider.complete([{ role: 'user', content: 'hi' }])
             ).rejects.toThrow(/claude CLI not found/);
         } finally {
+            forceAccessFail = false;
             process.env['PATH'] = originalPath;
         }
     });
