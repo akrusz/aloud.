@@ -47,6 +47,7 @@ import {
     wireEmberControls,
 } from '../embers.js';
 import { initThemeToggle } from '../theme.js';
+import { acquireWakeLock, releaseWakeLock } from '../wakelock.js';
 import {
     buildScoredVoiceList,
     fetchServerVoices,
@@ -284,6 +285,12 @@ export async function mountSessionView(
 
     // Session timer — counts since mount, formatted m:ss or h:mm:ss.
     const sessionStartMs = Date.now();
+
+    // Keep the screen on for the duration of the session. The wake lock
+    // module also re-acquires on visibility change while
+    // body[data-session-active] is set.
+    document.body.dataset['sessionActive'] = 'true';
+    void acquireWakeLock();
     function updateTimer(): void {
         const elapsed = Math.floor((Date.now() - sessionStartMs) / 1000);
         const h = Math.floor(elapsed / 3600);
@@ -818,6 +825,10 @@ export async function mountSessionView(
         const finalState = session.endSession();
         void stt?.stop();
         void tts.cancel();
+        // Release the wake lock and clear the session-active flag so the
+        // visibility-change handler stops re-acquiring it.
+        releaseWakeLock();
+        delete document.body.dataset['sessionActive'];
         // Drop the ember container — embers are session-only.
         unmountEmberContainer();
         // Clear kasina mode if active.
