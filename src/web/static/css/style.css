@@ -2055,8 +2055,8 @@ body:has(.session-container) {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: radial-gradient(circle at 40% 40%, #f5d820, #ee7248, #e71f75);
-    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(231, 31, 117, 0.12);
+    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 55%, #e71f75 80%, #a01050 100%);
+    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(231, 31, 117, 0.22);
     filter: saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
     transition: --orb-saturation 3s ease;
 }
@@ -2148,11 +2148,11 @@ body::before {
     height: 140px;
     z-index: 50;
     cursor: grab;
-    background: radial-gradient(circle at 45% 45%, #fffbe0, #ffc040, #e89030, #b05020);
+    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 55%, #e71f75 80%, #a01050 100%);
     box-shadow:
-        0 0 60px rgba(255, 192, 64, 0.3),
-        0 0 120px rgba(232, 144, 48, 0.15),
-        0 0 200px rgba(176, 80, 32, 0.08);
+        0 0 60px rgba(245, 165, 47, 0.30),
+        0 0 120px rgba(231, 31, 117, 0.28),
+        0 0 200px rgba(231, 31, 117, 0.14);
     animation: kasinaPulse 8s ease-in-out infinite, orbFlicker 4.3s ease-in-out infinite;
     opacity: 1;
 }
@@ -2161,16 +2161,16 @@ body::before {
     0%, 100% {
         transform: scale(0.98);
         box-shadow:
-            0 0 60px rgba(255, 192, 64, 0.3),
-            0 0 120px rgba(232, 144, 48, 0.15),
-            0 0 200px rgba(176, 80, 32, 0.08);
+            0 0 60px rgba(245, 165, 47, 0.30),
+            0 0 120px rgba(231, 31, 117, 0.28),
+            0 0 200px rgba(231, 31, 117, 0.14);
     }
     50% {
         transform: scale(1.02);
         box-shadow:
-            0 0 70px rgba(255, 192, 64, 0.38),
-            0 0 140px rgba(232, 144, 48, 0.2),
-            0 0 240px rgba(176, 80, 32, 0.1);
+            0 0 70px rgba(245, 165, 47, 0.38),
+            0 0 140px rgba(231, 31, 117, 0.34),
+            0 0 240px rgba(231, 31, 117, 0.18);
     }
 }
 
@@ -3433,6 +3433,18 @@ body::before {
     animation: fadeIn 0.15s ease;
 }
 
+/* Applied when the card is centered with no spotlight target (welcome / done).
+   Yellow tint + a low-alpha brightness shift (white in dark mode, black in
+   light mode) to push the page behind the card away from the foreground. */
+.tour-overlay.tour-overlay-flat {
+    background-color: color-mix(in srgb, var(--brand-stroke) 30%, transparent);
+    background-image: linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.18));
+}
+
+[data-theme="light"] .tour-overlay.tour-overlay-flat {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18));
+}
+
 .tour-spotlight {
     position: absolute;
     z-index: 55;
@@ -3561,7 +3573,7 @@ body::before {
     font-size: 0.9rem;
     line-height: 1.55;
     animation: tour-tooltip-in 0.2s ease;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), 0 0 40px var(--accent-glow), 0 0 80px var(--accent-glow);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
     text-align: center;
 }
 
