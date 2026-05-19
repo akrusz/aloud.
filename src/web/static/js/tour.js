@@ -66,6 +66,7 @@ function showCard(html, className) {
     cardEl.className = className || 'tour-tooltip';
     cardEl.innerHTML = html;
     document.body.appendChild(cardEl);
+    if (overlayEl) overlayEl.classList.toggle('tour-overlay-flat', className === 'tour-welcome');
     wireActions();
 }
 
