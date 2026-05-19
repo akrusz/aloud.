@@ -8,7 +8,7 @@
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 
   /* light mode (default) */
-  --bg-primary:    #fdf4ea;
+  --bg-primary:    #fffae0;
   --bg-secondary:  #f5e6d4;
   --bg-card:       #ead8c0;
   --bg-surface:    #ffffff;
@@ -17,9 +17,9 @@
   --text-muted:    #756058;
   --accent:        #e71f75;
   --accent-hover:  #c01560;
-  --accent-glow:   rgba(245, 165, 47, 0.45);
+  --accent-glow:   rgba(245, 236, 132, 0.45);
   --brand-stroke:  #ffd820;
-  --brand-glow:    rgba(245, 216, 32, 0.85);
+  --brand-glow:    rgba(245, 216, 32, 0.90);
   --warm:          #e5a01a;
   --border:        #e2d0b8;
 }
@@ -37,7 +37,7 @@
     --accent-hover:  #c02a72;
     --accent-glow:   rgba(245, 165, 47, 0.30);
     --brand-stroke:  #e8b820;
-    --brand-glow:    rgba(255, 220, 80, 0.55);
+    --brand-glow:    rgba(255, 220, 80, 0.60);
     --warm:          #c4a850;
     --border:        #302618;
   }
@@ -100,7 +100,7 @@ code {
 .nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 1.25rem;
   padding: 1.25rem 2rem;
   max-width: 1100px;
   margin: 0 auto;
@@ -110,6 +110,7 @@ code {
   text-decoration: none;
   border: none;
   transition: -webkit-text-stroke-width 0.2s ease;
+  margin-right: auto;
 }
 .nav-brand:hover {
   -webkit-text-stroke-width: 4px;

@@ -41,9 +41,9 @@ html { font-size: 16px; }
 }
 
 [data-theme="light"] {
-    --bg-primary: #fff4e2;
-    --bg-secondary: #f5e6d4;
-    --bg-card: #fae8d0;
+    --bg-primary: #fffae0;
+    --bg-secondary: #f5efd7;
+    --bg-card: #fad8c0;
     --bg-input: #fffaf2;
     --bg-surface: #ffffff;
     --bg-tertiary: #efe0cc;

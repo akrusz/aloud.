@@ -74,3 +74,15 @@ async function loadLatest() {
 }
 
 loadLatest();
+
+// krusz.eth click-to-copy — matches the About modal behavior in the app.
+const ethBtn = document.getElementById('copy-eth');
+if (ethBtn) {
+  ethBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText('krusz.eth').then(() => {
+      const original = ethBtn.textContent;
+      ethBtn.textContent = 'copied!';
+      setTimeout(() => { ethBtn.textContent = original; }, 1500);
+    }).catch(err => console.warn('copy failed:', err));
+  });
+}
