@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CACHE_TTL = 300  # 5 minutes
 
-GITHUB_REPO = "akrusz/glooow"
+GITHUB_REPO = "akrusz/aloud"
 
 
 def _get_cache_file() -> Path:
@@ -344,7 +344,7 @@ def apply_update() -> UpdateResult:
             message=(
                 "Not a git installation — automatic updates aren't available. "
                 "To update, run the setup script again:\n\n"
-                "  curl -fsSL https://raw.githubusercontent.com/akrusz/glooow"
+                "  curl -fsSL https://raw.githubusercontent.com/akrusz/aloud"
                 "/main/scripts/setup.sh | bash"
             ),
         )

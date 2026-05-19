@@ -29,7 +29,7 @@ You need a Windows machine (or VM/CI runner) with:
 - Git (to clone the repo)
 
 ```powershell
-git clone https://github.com/akrusz/glooow.git
+git clone https://github.com/akrusz/aloud.git
 cd aloud
 uv pip install -r requirements.txt
 uv pip install pyinstaller
@@ -110,7 +110,7 @@ Name: "{autodesktop}\aloud"; Filename: "{app}\aloud.exe"
 Build on an Ubuntu/Debian machine (or CI runner like `ubuntu-latest`):
 
 ```bash
-git clone https://github.com/akrusz/glooow.git
+git clone https://github.com/akrusz/aloud.git
 cd aloud
 uv pip install -r requirements.txt
 uv pip install pyinstaller

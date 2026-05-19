@@ -198,8 +198,7 @@ function showWelcome() {
     if (prevTarget) { prevTarget.classList.remove('guide-elevated'); prevTarget = null; }
     document.querySelectorAll('.info-panel').forEach(function(p) { p.classList.add('hidden'); });
 
-    var html = '<h3>aloud.</h3>';
-    html += '<p>A meditation facilitator that listens and responds to your experience in real time.</p>';
+    var html = '<p><span class="brand-mark">aloud.</span> &mdash; a meditation facilitator that listens and responds to your experience in real time.</p>';
     html += '<div class="tour-choices">';
     html += '<button class="tour-choice" data-action="start">';
     html += '<strong>Show me around</strong>';

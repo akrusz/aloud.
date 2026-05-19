@@ -6,26 +6,28 @@ html { font-size: 16px; }
 
 :root,
 [data-theme="dark"] {
-    --bg-primary: #110d08;
-    --bg-secondary: #1a1410;
-    --bg-card: #221a13;
-    --bg-input: #281f16;
-    --bg-surface: #2e2419;
-    --bg-tertiary: #1e1710;
-    --text-primary: #f5efe6;
-    --text-secondary: #c4b49e;
-    --text-muted: #b0a090;
-    --accent: #d4873a;
-    --accent-dim: rgba(212, 135, 58, 0.15);
-    --accent-glow: rgba(212, 135, 58, 0.3);
-    --warm: #c9a050;
-    --warm-dim: rgba(201, 160, 80, 0.12);
-    --border: #302618;
+    --bg-primary: #150f12;
+    --bg-secondary: #1f1720;
+    --bg-card: #2a2128;
+    --bg-input: #2f262c;
+    --bg-surface: #352b32;
+    --bg-tertiary: #231c22;
+    --text-primary: #f3ece8;
+    --text-secondary: #c4b2b8;
+    --text-muted: #a59298;
+    --accent: #d63a85;
+    --accent-dim: rgba(214, 58, 133, 0.15);
+    --accent-glow: rgba(245, 208, 32, 0.35);
+    --brand-glow: rgba(255, 220, 80, 0.55);
+    --brand-stroke: #e8b820;
+    --warm: #c4a850;
+    --warm-dim: rgba(196, 168, 80, 0.12);
+    --border: #3a2c36;
     --danger: #c0503e;
-    --facilitator-bg: rgba(212, 135, 58, 0.06);
-    --user-bg: rgba(201, 160, 80, 0.06);
-    --overlay-bg: rgba(17, 13, 8, 0.95);
-    --accent-hover: #c07830;
+    --facilitator-bg: rgba(214, 58, 133, 0.06);
+    --user-bg: rgba(196, 168, 80, 0.06);
+    --overlay-bg: rgba(21, 15, 18, 0.95);
+    --accent-hover: #c02a72;
     --success: #5a9e6f;
     --radius: 12px;
     --radius-sm: 8px;
@@ -39,27 +41,29 @@ html { font-size: 16px; }
 }
 
 [data-theme="light"] {
-    --bg-primary: #f5f0e8;
-    --bg-secondary: #eae3d8;
-    --bg-card: #dfd6c8;
-    --bg-input: #fffcf8;
+    --bg-primary: #fdf4ea;
+    --bg-secondary: #f5e6d4;
+    --bg-card: #ead8c0;
+    --bg-input: #fffaf2;
     --bg-surface: #ffffff;
-    --bg-tertiary: #e5ddd0;
-    --text-primary: #221d19;
-    --text-secondary: #5c5248;
-    --text-muted: #685c50;
-    --accent: #b06828;
-    --accent-hover: #9a5820;
-    --accent-dim: rgba(176, 104, 40, 0.10);
-    --accent-glow: rgba(246, 174, 90, 0.40);
-    --warm: #a88030;
-    --warm-dim: rgba(168, 128, 48, 0.10);
-    --border: #d4c8b8;
+    --bg-tertiary: #efe0cc;
+    --text-primary: #1f1a18;
+    --text-secondary: #5c4a44;
+    --text-muted: #756058;
+    --accent: #e71f75;
+    --accent-hover: #c01560;
+    --accent-dim: rgba(231, 31, 117, 0.10);
+    --accent-glow: rgba(245, 208, 32, 0.45);
+    --brand-glow: rgba(245, 216, 32, 0.85);
+    --brand-stroke: #ffee25;
+    --warm: #e5a01a;
+    --warm-dim: rgba(245, 246, 0, 0.14);
+    --border: #e2d0b8;
     --danger: #b04435;
     --success: #4a8e5f;
-    --facilitator-bg: rgba(176, 104, 40, 0.06);
-    --user-bg: rgba(168, 128, 48, 0.06);
-    --overlay-bg: rgba(245, 240, 232, 0.95);
+    --facilitator-bg: rgba(231, 31, 117, 0.06);
+    --user-bg: rgba(229, 160, 26, 0.08);
+    --overlay-bg: rgba(253, 244, 234, 0.95);
 }
 
 /* ---- Utility ---- */
@@ -112,24 +116,32 @@ body {
 
 .nav-brand {
     font-family: 'Knewave', cursive;
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: 400;
     color: var(--accent);
+    -webkit-text-stroke: 3px var(--brand-stroke);
+    paint-order: stroke fill;
     text-decoration: none;
     letter-spacing: 0.05em;
     cursor: pointer;
-    transition: text-shadow 0.3s ease;
+    transition: -webkit-text-stroke-width 0.2s ease;
     position: relative;
 }
 
 .nav-brand:hover {
-    text-shadow: 0 0 8px var(--accent-glow), 0 0 20px var(--accent-glow);
-    animation: brand-pulse 1s ease-in;
+    -webkit-text-stroke-width: 4px;
 }
 
-@keyframes brand-pulse {
-    0%, 100% { text-shadow: 0 0 8px var(--accent-glow), 0 0 20px var(--accent-glow); }
-    50% { text-shadow: 0 0 12px var(--accent-glow), 0 0 30px var(--accent-glow), 0 0 45px var(--accent-dim); }
+/* Inline brand mark used in welcome/tour copy. Sized relative to surrounding text. */
+.brand-mark {
+    font-family: 'Knewave', cursive;
+    font-weight: 400;
+    color: var(--accent);
+    -webkit-text-stroke: 2px var(--brand-stroke);
+    paint-order: stroke fill;
+    font-size: 1.4em;
+    letter-spacing: 0.04em;
+    vertical-align: baseline;
 }
 
 .nav-links {
@@ -2043,8 +2055,8 @@ body:has(.session-container) {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: radial-gradient(circle at 40% 40%, #f0b030, #e08020, #b84818);
-    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(212, 135, 58, 0.1);
+    background: radial-gradient(circle at 40% 40%, #f5d820, #ee7248, #e71f75);
+    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(231, 31, 117, 0.12);
     filter: saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
     transition: --orb-saturation 3s ease;
 }
@@ -2077,12 +2089,12 @@ body:has(.session-container) {
     0%, 100% {
         transform: scale(0.92);
         opacity: 0.5;
-        box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(212, 135, 58, 0.05);
+        box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(231, 31, 117, 0.06);
     }
     50% {
         transform: scale(1.08);
         opacity: 0.85;
-        box-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(212, 135, 58, 0.15);
+        box-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(231, 31, 117, 0.18);
     }
 }
 
@@ -2090,12 +2102,12 @@ body:has(.session-container) {
     0%, 100% {
         transform: scale(0.92);
         opacity: 0.5;
-        box-shadow: 0 0 8px var(--accent-glow), 0 0 16px rgba(212, 135, 58, 0.05);
+        box-shadow: 0 0 8px var(--accent-glow), 0 0 16px rgba(231, 31, 117, 0.06);
     }
     50% {
         transform: scale(1.08);
         opacity: 0.85;
-        box-shadow: 0 0 16px var(--accent-glow), 0 0 32px rgba(212, 135, 58, 0.12);
+        box-shadow: 0 0 16px var(--accent-glow), 0 0 32px rgba(231, 31, 117, 0.15);
     }
 }
 
@@ -2464,8 +2476,12 @@ body::before {
 
 .about-app-name {
     font-family: 'Knewave', cursive;
-    font-size: 2.2rem;
+    font-size: 2.4rem;
+    font-weight: 400;
     color: var(--accent);
+    -webkit-text-stroke: 4px var(--brand-stroke);
+    paint-order: stroke fill;
+    letter-spacing: 0.05em;
     margin-bottom: 0.25rem;
 }
 
@@ -2720,7 +2736,6 @@ body::before {
 }
 
 .settings-welcome h1 {
-    font-family: 'Knewave', cursive;
     font-size: 1.8rem;
     font-weight: 600;
     color: var(--accent);
@@ -2733,7 +2748,6 @@ body::before {
 }
 
 .settings-title {
-    font-family: 'Knewave', cursive;
     font-size: 1.4rem;
     font-weight: 600;
     color: var(--text-primary);
@@ -4081,10 +4095,9 @@ body[data-session-active] .mobile-more-sheet .mobile-more-divider {
     }
 
     .mobile-more-glyph {
-        font-family: 'Knewave', cursive;
         color: var(--accent);
-        font-size: 1.275rem;
-        letter-spacing: 0.05em;
+        font-size: 1rem;
+        font-weight: 600;
         min-width: 18px;
         text-align: left;
     }

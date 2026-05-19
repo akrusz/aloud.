@@ -183,8 +183,7 @@ function showWelcome() {
     currentStep = 0;
     hideSpotlight();
 
-    var html = '<h3>aloud.</h3>';
-    html += '<p>Let\u2019s get your meditation facilitator set up. It only takes a minute.</p>';
+    var html = '<p>Welcome to <span class="brand-mark">aloud.</span> &mdash; let\u2019s get your meditation facilitator set up. It only takes a minute.</p>';
     html += '<div class="tour-choices">';
     html += '<button class="tour-choice" data-action="help">';
     html += '<strong>Help me set up</strong>';

@@ -1,12 +1,12 @@
 # ─────────────────────────────────────────────────
 # aloud — Setup (fresh setup / update / uninstall)
-# Usage: irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/akrusz/aloud/main/scripts/setup.ps1 | iex
 # ─────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
 
 $Breadcrumb = "$HOME\.aloud-path"
-$RepoUrl = "https://github.com/akrusz/glooow.git"
+$RepoUrl = "https://github.com/akrusz/aloud.git"
 
 # Resolve path: env var > breadcrumb > default
 if ($env:ALOUD_DIR) {

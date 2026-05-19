@@ -165,5 +165,5 @@ if command -v gh >/dev/null 2>&1; then
 else
     echo ""
     echo "  Pushed v${VERSION} ✓"
-    echo "  Create the release at: https://github.com/akrusz/glooow/releases/new?tag=v${VERSION}"
+    echo "  Create the release at: https://github.com/akrusz/aloud/releases/new?tag=v${VERSION}"
 fi

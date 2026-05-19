@@ -3,11 +3,11 @@ set -euo pipefail
 
 # ─────────────────────────────────────────────────
 # aloud — Setup (fresh setup / update / uninstall)
-# Usage: curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/akrusz/aloud/main/scripts/setup.sh | bash
 # ─────────────────────────────────────────────────
 
 BREADCRUMB="$HOME/.aloud-path"
-REPO_URL="https://github.com/akrusz/glooow.git"
+REPO_URL="https://github.com/akrusz/aloud.git"
 
 # Resolve path: env var > breadcrumb > default
 if [ -n "${ALOUD_DIR:-}" ]; then

@@ -26,13 +26,13 @@ thanks to [Vince Horn](https://www.buddhistgeeks.org/) and again to [Jhourney](h
 
 ### download the app
 
-grab the latest release for your platform below, or from [releases](https://github.com/akrusz/glooow/releases):
+grab the latest release for your platform below, or from [releases](https://github.com/akrusz/aloud/releases):
 
 | platform | download |
 |----------|----------|
-| **macOS** | [`aloud-0.12.1-macOS.dmg`](https://github.com/akrusz/glooow/releases/download/v0.12.1/aloud-0.12.1-macOS.dmg) — open the DMG, drag aloud to Applications |
-| **Windows** | [`aloud-0.12.1-Windows.exe`](https://github.com/akrusz/glooow/releases/download/v0.12.1/aloud-0.12.1-Windows.exe) — run the installer |
-| **Linux** | [`aloud-0.12.1-Linux.AppImage`](https://github.com/akrusz/glooow/releases/download/v0.12.1/aloud-0.12.1-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
+| **macOS** | [`aloud-0.12.1-macOS.dmg`](https://github.com/akrusz/aloud/releases/download/v0.12.1/aloud-0.12.1-macOS.dmg) — open the DMG, drag aloud to Applications |
+| **Windows** | [`aloud-0.12.1-Windows.exe`](https://github.com/akrusz/aloud/releases/download/v0.12.1/aloud-0.12.1-Windows.exe) — run the installer |
+| **Linux** | [`aloud-0.12.1-Linux.AppImage`](https://github.com/akrusz/aloud/releases/download/v0.12.1/aloud-0.12.1-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
 
 all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
 
@@ -64,7 +64,7 @@ to use the **Anthropic (Subscription)** provider, install the Claude Code CLI fi
 ## running from source
 
 ```bash
-git clone https://github.com/akrusz/glooow.git
+git clone https://github.com/akrusz/aloud.git
 cd aloud
 ./scripts/start.sh          # bootstraps on first run, then launches
 ```
@@ -77,11 +77,11 @@ there are also double-click launchers in `scripts/` (`Start-Mac.command`, `Start
 
 ```bash
 # macOS/Linux
-curl -fsSL https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/akrusz/aloud/main/scripts/setup.sh | bash
 ```
 ```bash
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.ps1 | iex
+irm https://raw.githubusercontent.com/akrusz/aloud/main/scripts/setup.ps1 | iex
 ```
 
 ### nix
@@ -89,7 +89,7 @@ irm https://raw.githubusercontent.com/akrusz/glooow/main/scripts/setup.ps1 | iex
 if you have nix with flakes enabled:
 
 ```bash
-git clone https://github.com/akrusz/glooow.git
+git clone https://github.com/akrusz/aloud.git
 cd aloud
 nix develop                             # browser-only (lighter): nix develop .#browser
 ./scripts/start.sh                      # auto-bootstraps config and launches
