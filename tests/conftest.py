@@ -1,4 +1,4 @@
-"""Shared fixtures for glooow tests."""
+"""Shared fixtures for aloud tests."""
 
 import pytest
 

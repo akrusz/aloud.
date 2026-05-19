@@ -5,8 +5,8 @@
  * actually setting the form values for them based on their choices.
  */
 
-var TOUR_DISMISSED_KEY = 'glooow-tour-dismissed';
-var TOUR_REMIND_KEY = 'glooow-tour-remind-later';
+var TOUR_DISMISSED_KEY = 'aloud-tour-dismissed';
+var TOUR_REMIND_KEY = 'aloud-tour-remind-later';
 
 var PADDING = 10;
 var FOOTER_HEIGHT = 60; // approximate footer height
@@ -183,7 +183,7 @@ function showWelcome() {
     currentStep = 0;
     hideSpotlight();
 
-    var html = '<h3>Welcome to glooow</h3>';
+    var html = '<h3>aloud.</h3>';
     html += '<p>Let\u2019s get your meditation facilitator set up. It only takes a minute.</p>';
     html += '<div class="tour-choices">';
     html += '<button class="tour-choice" data-action="help">';
@@ -329,7 +329,7 @@ function showVoiceStep() {
         positionSpotlight(section, false);
 
         var html = '<h3>Set Up Your Voice</h3>';
-        html += '<p>This is how glooow speaks to you. A natural-sounding voice makes a big difference.</p>';
+        html += '<p>This is how aloud speaks to you. A natural-sounding voice makes a big difference.</p>';
         html += '<div class="tour-choices">';
 
         if (tourOptions.piperAvailable) {

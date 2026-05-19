@@ -11,11 +11,11 @@ import {
 } from './index-guide.js';
 
 // ---- Tab switching ----
-let activeTab = localStorage.getItem('glooow-tab') || 'exploration';
+let activeTab = localStorage.getItem('aloud-tab') || 'exploration';
 
 function applyTab(tab) {
     activeTab = tab;
-    localStorage.setItem('glooow-tab', tab);
+    localStorage.setItem('aloud-tab', tab);
     document.querySelectorAll('.tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === tab);
     });

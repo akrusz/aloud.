@@ -8,8 +8,8 @@ from typing import Any
 import yaml
 from platformdirs import user_config_dir
 
-APP_NAME = "Glooow"
-APP_AUTHOR = "Glooow"
+APP_NAME = "aloud"
+APP_AUTHOR = "aloud"
 
 
 @dataclass
@@ -126,7 +126,7 @@ class AuthConfig:
 class WebConfig:
     """Web server configuration."""
 
-    secret_key: str = "glooow-local"
+    secret_key: str = "aloud-local"
     host: str = "127.0.0.1"
     port: int = 4649
     window_mode: str = "remember"  # remember, fullscreen, maximized, small
@@ -151,11 +151,11 @@ class Config:
 
 
 def get_user_config_dir() -> Path:
-    """Return the OS-appropriate config directory for Glooow.
+    """Return the OS-appropriate config directory for aloud.
 
-    - macOS:  ~/Library/Application Support/Glooow
-    - Windows: %APPDATA%/Glooow/Glooow
-    - Linux:  ~/.config/Glooow
+    - macOS:  ~/Library/Application Support/aloud
+    - Windows: %APPDATA%/aloud/aloud
+    - Linux:  ~/.config/aloud
     """
     return Path(user_config_dir(APP_NAME, APP_AUTHOR))
 

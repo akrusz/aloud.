@@ -282,17 +282,17 @@ export function stopPreview() {
 // ---- localStorage helpers ----
 
 export function getSavedVoice() {
-    return localStorage.getItem('glooow-voice');
+    return localStorage.getItem('aloud-voice');
 }
 
 export function setSavedVoice(name) {
-    localStorage.setItem('glooow-voice', name);
+    localStorage.setItem('aloud-voice', name);
 }
 
 export function getSavedSpeed() {
-    return localStorage.getItem('glooow-speed');
+    return localStorage.getItem('aloud-speed');
 }
 
 export function setSavedSpeed(rate) {
-    localStorage.setItem('glooow-speed', String(rate));
+    localStorage.setItem('aloud-speed', String(rate));
 }

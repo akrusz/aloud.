@@ -1,4 +1,4 @@
-# Building glooow with Nix
+# Building aloud with Nix
 
 This project can be built and run using Nix with flakes support.
 
@@ -47,8 +47,8 @@ nix build
 ```
 
 The built package will be in `./result/bin/`:
-- `glooow-web` - Start the web interface
-- `glooow-cli` - Start CLI mode
+- `aloud-web` - Start the web interface
+- `aloud-cli` - Start CLI mode
 
 ## Using with direnv
 

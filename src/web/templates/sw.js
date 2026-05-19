@@ -14,9 +14,9 @@
      never touched — straight to the network.
 */
 
-const VERSION = {{ glooow_version|tojson }};
-const SHELL_CACHE = 'glooow-shell-v' + VERSION;
-const RUNTIME_CACHE = 'glooow-runtime-v' + VERSION;
+const VERSION = {{ app_version|tojson }};
+const SHELL_CACHE = 'aloud-shell-v' + VERSION;
+const RUNTIME_CACHE = 'aloud-runtime-v' + VERSION;
 
 // Bare-minimum precache so the app can render something while offline.
 // Page-specific JS is picked up on first visit via the runtime cache.

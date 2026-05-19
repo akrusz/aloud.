@@ -1,7 +1,7 @@
 {% from '_voice_modal.html' import picker_modal %}
 {% extends "base.html" %}
 
-{% block title %}{% if first_run %}Welcome to glooow{% else %}Settings{% endif %} — glooow{% endblock %}
+{% block title %}{% if first_run %}aloud.{% else %}Settings{% endif %} — aloud.{% endblock %}
 
 {% block nav_center %}
 <div class="nav-session-info">
@@ -19,7 +19,7 @@
 <div class="setup-container">
     {% if first_run %}
     <div class="settings-welcome">
-        <h1>Welcome to glooow</h1>
+        <h1>Welcome to aloud.</h1>
         <p>Let's set up your meditation facilitator. You'll need at least one LLM provider configured to get started.</p>
     </div>
     {% else %}
@@ -37,7 +37,7 @@
                 <p><strong>Ollama (Local)</strong> &mdash; Free and private. Runs the AI entirely on your computer. We'll recommend the smartest model that your computer can run.</p>
                 <p><strong>Anthropic / OpenAI / Groq / OpenRouter / Venice (via API Key)</strong> &mdash; Cloud AI. You sign up with the provider, get an API key, and paste it here. These are pay-per-use; cost depends on the model/provider. Groq also has a generous free tier (rate-limited). Venice has the best privacy.</p>
             </div>
-            <p class="settings-desc">Choose how glooow connects to a language model. Most functions need AI.<br>If you don't have any AI subscriptions, choose Ollama (local) to set up a free AI on your computer.</p>
+            <p class="settings-desc">Choose how aloud connects to a language model. Most functions need AI.<br>If you don't have any AI subscriptions, choose Ollama (local) to set up a free AI on your computer.</p>
 
             <div class="form-row">
                 <div class="form-group form-group-half">
@@ -376,7 +376,7 @@
             <h2>Updates</h2>
             <div class="form-group">
                 <div class="settings-update-row">
-                    <span class="settings-update-status" id="s-update-status">Current version: v{{ glooow_version }}</span>
+                    <span class="settings-update-status" id="s-update-status">Current version: v{{ app_version }}</span>
                     <button type="button" class="btn btn-small btn-secondary" id="s-check-update">Check for Updates</button>
                 </div>
                 <div class="settings-update-result hidden" id="s-update-result"></div>
@@ -416,7 +416,7 @@
             <button type="button" class="voice-modal-close" id="vq-close">&times;</button>
         </div>
         <div class="vq-body">
-            <p>glooow sounds best with a high-quality voice.</p>
+            <p>aloud sounds best with a high-quality voice.</p>
             <div class="vq-option hidden" id="vq-macos-option">
                 <strong>Download a Premium macOS voice</strong>
                 <p class="form-hint" style="margin-top:0.25rem">System Settings &rarr; Accessibility &rarr; Spoken Content. In the System Voice row, click the <b>ⓘ</b> then click Voice. <a href="#" onclick="fetch('/api/open-voice-settings',{method:'POST'}); return false;">Open Settings</a></p>

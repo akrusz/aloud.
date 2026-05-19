@@ -6,8 +6,8 @@
  * reusing the .tour-* CSS classes from the settings tour.
  */
 
-var GUIDE_DONE_KEY = 'glooow-index-guide-done';
-var GUIDE_REMIND_KEY = 'glooow-index-guide-remind';
+var GUIDE_DONE_KEY = 'aloud-index-guide-done';
+var GUIDE_REMIND_KEY = 'aloud-index-guide-remind';
 
 var PADDING = 10;
 var FOOTER_HEIGHT = 60;
@@ -198,7 +198,7 @@ function showWelcome() {
     if (prevTarget) { prevTarget.classList.remove('guide-elevated'); prevTarget = null; }
     document.querySelectorAll('.info-panel').forEach(function(p) { p.classList.add('hidden'); });
 
-    var html = '<h3>Welcome to glooow</h3>';
+    var html = '<h3>aloud.</h3>';
     html += '<p>A meditation facilitator that listens and responds to your experience in real time.</p>';
     html += '<div class="tour-choices">';
     html += '<button class="tour-choice" data-action="start">';
@@ -346,9 +346,9 @@ export function autoStart() {
     if (localStorage.getItem(GUIDE_DONE_KEY)) return;
     if (sessionStorage.getItem(GUIDE_REMIND_KEY)) return;
     // If the user has already started at least one session, they know the
-    // app — don't pop up the tour. (glooow-client-id is set on first
+    // app — don't pop up the tour. (aloud-client-id is set on first
     // session start in session.js.)
-    if (localStorage.getItem('glooow-client-id')) return;
+    if (localStorage.getItem('aloud-client-id')) return;
     setTimeout(function() { startGuide(); }, 600);
 }
 

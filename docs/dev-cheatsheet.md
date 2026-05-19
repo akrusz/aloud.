@@ -1,6 +1,6 @@
 # Development Cheatsheet
 
-Quick reference for running, debugging, and releasing glooow.
+Quick reference for running, debugging, and releasing aloud.
 
 ## Running
 
@@ -126,12 +126,12 @@ The release script: bumps `src/__init__.py`, updates README download links, comm
 | `OPENROUTER_API_KEY` | OpenRouter API key |
 | `VENICE_API_KEY` | Venice API key |
 | `ELEVENLABS_API_KEY` | ElevenLabs TTS API key |
-| `GLOOOW_SECRET_KEY` | Flask session secret |
-| `GLOOOW_AUTO_OPEN` | Set to `1` to auto-open browser on startup |
+| `ALOUD_SECRET_KEY` | Flask session secret |
+| `ALOUD_AUTO_OPEN` | Set to `1` to auto-open browser on startup |
 
 ## Config
 
-User config: `~/.config/glooow/config.yaml` (macOS/Linux) — created on first save in settings.
+User config: `~/.config/aloud/config.yaml` (macOS/Linux) — created on first save in settings.
 
 Default config with all options: `config/default.yaml`
 

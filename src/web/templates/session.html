@@ -1,7 +1,7 @@
 {% from '_voice_modal.html' import picker_modal %}
 {% extends "base.html" %}
 
-{% block title %}Session - glooow{% endblock %}
+{% block title %}Session — aloud.{% endblock %}
 
 {% block head %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
@@ -105,5 +105,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{{ url_for('static', filename='js/session.js') }}?v={{ glooow_version }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/session.js') }}?v={{ app_version }}"></script>
 {% endblock %}

@@ -11,7 +11,7 @@
     var emptyEl = document.getElementById('empty-state');
     var loadMoreBtn = document.getElementById('load-more');
 
-    var clientId = localStorage.getItem('glooow-client-id') || '';
+    var clientId = localStorage.getItem('aloud-client-id') || '';
 
     function loadPage() {
         currentPage++;

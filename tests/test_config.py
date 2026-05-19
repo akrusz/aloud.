@@ -35,7 +35,7 @@ class TestDefaults:
 
     def test_web_config_defaults(self):
         config = WebConfig()
-        assert config.secret_key == "glooow-local"
+        assert config.secret_key == "aloud-local"
         assert config.host == "127.0.0.1"
         assert config.port == 4649
 

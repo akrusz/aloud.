@@ -1,4 +1,4 @@
-"""Update checking and self-update for Glooow."""
+"""Update checking and self-update for aloud."""
 
 import json
 import logging
@@ -392,7 +392,7 @@ def apply_update() -> UpdateResult:
 
     return UpdateResult(
         success=True,
-        message="Updated successfully. Restart glooow to use the new version.",
+        message="Updated successfully. Restart aloud to use the new version.",
         needs_restart=True,
     )
 
@@ -405,7 +405,7 @@ def download_release(download_url: str, asset_name: str) -> UpdateResult:
         return UpdateResult(success=False, message="No download URL available.")
 
     try:
-        download_dir = Path(tempfile.gettempdir()) / "glooow-updates"
+        download_dir = Path(tempfile.gettempdir()) / "aloud-updates"
         download_dir.mkdir(exist_ok=True)
         dest = download_dir / asset_name
 
@@ -430,7 +430,7 @@ def download_release(download_url: str, asset_name: str) -> UpdateResult:
         return UpdateResult(
             success=True,
             message="Download complete. The installer has been opened. "
-                    "Close glooow, then install the new version.",
+                    "Close aloud, then install the new version.",
             needs_restart=True,
         )
     except Exception as e:

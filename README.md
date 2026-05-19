@@ -1,16 +1,16 @@
-# glooow
+# aloud.
 
 your voice is an overpowered and underrated tool for meditation and inner work.
 
-**glooow** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses your mic for voice input, whisper.cpp for speech recognition, an LLM to guide you, and speaks using text-to-speech.
+**aloud.** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses your mic for voice input, whisper.cpp for speech recognition, an LLM to guide you, and speaks using text-to-speech.
 
-glooow works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription (may draw from extra-use), or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page. the app will also help you set up text-to-speech if necessary.
+aloud works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription (may draw from extra-use), or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page. the app will also help you set up text-to-speech if necessary.
 
-![glooow screenshot](docs/glooow-screen.png)
+![aloud screenshot](docs/aloud-screen.png)
 
 ## what it does
 
-glooow has two modes: exploration and noting.
+aloud has two modes: exploration and noting.
 
 **exploration**: this is a dyadic meditation format where the meditator speaks about what they are experiencing in the moment and the facilitator asks brief questions to help the meditator explore. 
 
@@ -30,9 +30,9 @@ grab the latest release for your platform below, or from [releases](https://gith
 
 | platform | download |
 |----------|----------|
-| **macOS** | [`Glooow-0.12.1-macOS.dmg`](https://github.com/akrusz/glooow/releases/download/v0.12.1/Glooow-0.12.1-macOS.dmg) — open the DMG, drag Glooow to Applications |
-| **Windows** | [`Glooow-0.12.1-Windows.exe`](https://github.com/akrusz/glooow/releases/download/v0.12.1/Glooow-0.12.1-Windows.exe) — run the installer |
-| **Linux** | [`Glooow-0.12.1-Linux.AppImage`](https://github.com/akrusz/glooow/releases/download/v0.12.1/Glooow-0.12.1-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
+| **macOS** | [`aloud-0.12.1-macOS.dmg`](https://github.com/akrusz/glooow/releases/download/v0.12.1/aloud-0.12.1-macOS.dmg) — open the DMG, drag aloud to Applications |
+| **Windows** | [`aloud-0.12.1-Windows.exe`](https://github.com/akrusz/glooow/releases/download/v0.12.1/aloud-0.12.1-Windows.exe) — run the installer |
+| **Linux** | [`aloud-0.12.1-Linux.AppImage`](https://github.com/akrusz/glooow/releases/download/v0.12.1/aloud-0.12.1-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
 
 all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
 
@@ -44,7 +44,7 @@ all settings (LLM provider, voice, whisper model, display) are configurable from
 
 ### claude subscription notes
 
-to use the **Anthropic (Subscription)** provider, install the Claude Code CLI first, then run `claude` once in a terminal to log in with your subscription — glooow shells out to the local `claude` command to route through your account, so no API key is needed. in my testing, this did *not* draw from extra-use credits, but there have been communications from Anthropic to the effect that it would do so. also note that extra-use credits on your Claude subscription are not the same as API credits; if you only have one or the other, be sure to use the appropriate provider setting.
+to use the **Anthropic (Subscription)** provider, install the Claude Code CLI first, then run `claude` once in a terminal to log in with your subscription — aloud shells out to the local `claude` command to route through your account, so no API key is needed. in my testing, this did *not* draw from extra-use credits, but there have been communications from Anthropic to the effect that it would do so. also note that extra-use credits on your Claude subscription are not the same as API credits; if you only have one or the other, be sure to use the appropriate provider setting.
 
 ## tips
 
@@ -58,14 +58,14 @@ to use the **Anthropic (Subscription)** provider, install the Claude Code CLI fi
 - you can continue any past session or access the saved sessions folder from the history page.
 - the AI can hold silence when requested - the orb dims when it's doing so. just ask it to come back when you want it to speak.
 - the AI gently checks in if you're quiet for a while. adjust timing or disable in settings.
-- one running copy of glooow can be made accessible to anyone on your local network by setting network access mode to "LAN Access" in settings
+- one running copy of aloud can be made accessible to anyone on your local network by setting network access mode to "LAN Access" in settings
 - 🥚 there are a few easter eggs 🥚
 
 ## running from source
 
 ```bash
 git clone https://github.com/akrusz/glooow.git
-cd glooow
+cd aloud
 ./scripts/start.sh          # bootstraps on first run, then launches
 ```
 
@@ -90,7 +90,7 @@ if you have nix with flakes enabled:
 
 ```bash
 git clone https://github.com/akrusz/glooow.git
-cd glooow
+cd aloud
 nix develop                             # browser-only (lighter): nix develop .#browser
 ./scripts/start.sh                      # auto-bootstraps config and launches
 ```

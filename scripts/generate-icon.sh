@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────
-# Generate Glooow.app icon from favicon.svg
+# Generate aloud.app icon from favicon.svg
 # Requires: rsvg-convert (librsvg), iconutil (macOS built-in)
 # Install: brew install librsvg
 # ─────────────────────────────────────────────────
@@ -11,8 +11,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 SVG="$PROJECT_DIR/src/web/static/favicon.svg"
-ICONSET="$PROJECT_DIR/glooow.iconset"
-ICNS="$PROJECT_DIR/assets/glooow.icns"
+ICONSET="$PROJECT_DIR/aloud.iconset"
+ICNS="$PROJECT_DIR/assets/aloud.icns"
 
 if ! command -v rsvg-convert &>/dev/null; then
     echo "Error: rsvg-convert not found. Install with: brew install librsvg"
@@ -36,11 +36,11 @@ done
 iconutil -c icns "$ICONSET" -o "$ICNS"
 rm -rf "$ICONSET"
 
-# Also copy to the manual Glooow.app bundle if it exists
-MANUAL_APP="$PROJECT_DIR/Glooow.app/Contents/Resources"
+# Also copy to the manual aloud.app bundle if it exists
+MANUAL_APP="$PROJECT_DIR/aloud.app/Contents/Resources"
 if [ -d "$MANUAL_APP" ]; then
-    cp "$ICNS" "$MANUAL_APP/glooow.icns"
-    echo "Also copied to: $MANUAL_APP/glooow.icns"
+    cp "$ICNS" "$MANUAL_APP/aloud.icns"
+    echo "Also copied to: $MANUAL_APP/aloud.icns"
 fi
 
 echo "Generated: $ICNS"
