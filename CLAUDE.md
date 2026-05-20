@@ -72,7 +72,7 @@ Vanilla JS with ES modules (`<script type="module">`), no build tools.
 - **Protocol-based providers**: LLM and TTS use duck-typed protocols. Add new providers by implementing the interface and registering in the factory function.
 - **Composable prompts**: `PromptBuilder` assembles system prompts from orthogonal dimensions — focuses (body, emotions, parts, open awareness), qualities (playful, compassionate, spacious, etc.), directiveness (0-10), and verbosity.
 - **`[HOLD]` signal**: The LLM can prefix responses with `[HOLD]` to enter silence mode. `parse_hold_signal()` strips this prefix. Silence mode is exited when the user speaks again.
-- **Pacing state machine**: IDLE → LISTENING → PROCESSING → RESPONDING → SILENT_HOLD. Check-ins use exponential backoff (`extended_silence_sec * 2^count`).
+- **Pacing state machine**: IDLE → LISTENING → PROCESSING → RESPONDING → SILENT_HOLD. After `silence_checkin_sec` of silence the facilitator offers a gentle check-in (a canned phrase, not an LLM call); the timer resets after each, so check-ins recur at a fixed interval.
 - **Background model loading**: Whisper loads asynchronously via `socketio.start_background_task()`. The `audio_data` handler guards with `app.whisper_model_ready`.
 - **Context strategies**: SessionManager supports `full` (all history) or `rolling` (last N exchanges) context windows for the LLM.
 

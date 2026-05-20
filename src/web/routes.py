@@ -76,6 +76,17 @@ def register_routes(app: Flask) -> None:
         window = getattr(app, "webview_window", None)
         if not window:
             return jsonify({"error": "Not running in desktop mode"}), 400
+        # Free any local models (Ollama) before the process goes away — on a
+        # clean quit we don't want the model lingering for its keep_alive window.
+        try:
+            import asyncio
+            for web_session in list(getattr(app, "web_sessions", {}).values()):
+                try:
+                    asyncio.run(web_session.unload_llm())
+                except Exception:
+                    pass
+        except Exception:
+            pass
         try:
             window.destroy()
             return jsonify({"ok": True})

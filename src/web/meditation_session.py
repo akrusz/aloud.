@@ -334,6 +334,13 @@ class WebMeditationSession:
         self.session.end_session()
         return self.session.to_dict()
 
+    async def unload_llm(self) -> None:
+        """Best-effort: free a local model from memory (e.g. Ollama) on
+        teardown. No-op for cloud providers or if the LLM was never created."""
+        inst = self._llm_instance
+        if inst is not None and hasattr(inst, "unload"):
+            await inst.unload()
+
 
 def _migrate_style(style: str, directiveness: int = 3) -> dict:
     """Map a legacy style string to the new focuses/qualities params."""
