@@ -67,7 +67,7 @@ Vanilla JS with ES modules (`<script type="module">`), no build tools.
 - `socketHandlers.js` — all `socket.on()` handlers
 - `ui.js` — message display, typing indicator, timer, embers, error toasts
 
-A style guide exists in docs/style.md
+A style guide exists in dev-docs/style.md
 
 ### Key patterns
 
