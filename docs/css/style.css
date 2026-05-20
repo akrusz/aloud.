@@ -174,8 +174,14 @@ code {
 .hero-sub {
   font-size: 1.05rem;
   color: var(--text-secondary);
-  margin: 0 auto 2rem;
+  margin: 0 auto 1.25rem;
   max-width: 560px;
+}
+.hero-pun {
+  font-size: 1.2rem;
+  font-style: italic;
+  color: var(--accent);
+  margin: 0 auto 2rem;
 }
 
 .hero-cta {
@@ -276,6 +282,36 @@ code {
 }
 .btn-primary,
 .btn-tip { font-weight: var(--btn-fill-weight); }
+
+/* ===== 404 ===== */
+.notfound {
+  min-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1.5rem;
+}
+.notfound-code {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.notfound-title {
+  margin: 0 0 1rem;
+  font-size: 2.6rem;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+.notfound-sub {
+  margin: 0 auto 2rem;
+  max-width: 460px;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
 
 /* ===== generic section ===== */
 .section {

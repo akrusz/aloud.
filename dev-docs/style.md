@@ -101,7 +101,7 @@ background: radial-gradient(circle at 45% 45% in oklab,
 
 **Interpolating `in oklab`** is load-bearing. sRGB interpolation between yellow and coral runs through muddy olive and produces visible kinks at each stop. oklab interpolates along a perceptually-uniform path between stops, so the curve reads as a smooth arc through warm hues rather than a series of straight segments meeting at angles. Don't strip `in oklab` thinking it's optional; it isn't.
 
-The center cream-yellow is intentionally not pure white — it's slightly tinted (`#fff4c0`) so on dark bgs it doesn't read as a white blob. Stops were tuned through an interactive gradient picker against the perceptual color space, not by hand; if you adjust, do the same. Pink gives way to deep magenta early (`#870a3e` at 76%), so the magenta holds a wide outer ring — no extra darker stop, which keeps the orb's edge from feeling muddy.
+The center cream-yellow is intentionally not pure white — it's slightly tinted (`#fff4c0`) so on dark bgs it doesn't read as a white blob. Stops were tuned through an interactive gradient picker against the perceptual color space; if you adjust, keep this in mind. Pink gives way to deep magenta (`#870a3e` at 76%) beyond the outer rim of the orb as displayed, so magenta is not actually visible but it gives the bottom right surface of the orb a slightly deeper pink/magenta hue.
 
 Box-shadow halos: orange inner (`var(--accent-glow)` ≈ `#f5a52f`) + pink outer (`rgba(231, 31, 117, 0.22-0.40)` depending on size and pulse state). Kasina has three stacked halos; small orb has two.
 
