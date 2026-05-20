@@ -20,6 +20,24 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Knewave&display=swap">
 
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- Theme bootstrap — must run before paint to avoid a flash of the wrong
+       theme. Applies a saved override only if it's < 4h old; otherwise the
+       page follows the OS via light-dark() with no data-theme attribute. -->
+  <script>
+    (function() {
+      var TTL = 4 * 60 * 60 * 1000;
+      try {
+        var raw = localStorage.getItem('aloud-site-theme');
+        if (raw) {
+          var saved = JSON.parse(raw);
+          if (saved && saved.value && saved.ts && (Date.now() - saved.ts < TTL)) {
+            document.documentElement.setAttribute('data-theme', saved.value);
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
 
@@ -27,6 +45,7 @@
     <a class="nav-brand" href="./">aloud.</a>
     <a class="nav-link" href="https://krusz.net" target="_blank" rel="noopener">krusz.net</a>
     <a class="nav-link" href="https://github.com/akrusz/aloud" target="_blank" rel="noopener">github</a>
+    <button type="button" class="theme-toggle" id="theme-toggle" title="Toggle light / dark" aria-label="Toggle light / dark"></button>
   </nav>
 
   <header class="hero">
@@ -50,14 +69,16 @@
       <article class="mode-card">
         <h3>exploration</h3>
         <p>a dyadic format. you speak freely about what you're experiencing in the moment. <span class="brand-mark">aloud.</span> asks questions to help you go deeper, play, or whatever your intention is.</p>
-        <p>mix and match <strong>attention focuses</strong> - body sensations, emotions, parts work - with <strong>vibes</strong> like playful, compassionate, or spacious. dial in how directive you want the guidance, from barely-there to actively steering.</p>
+        <p>mix and match <strong>attention focuses</strong> - body sensations, emotions, parts work - with <strong>vibes</strong> like playful, compassionate, or spacious. you can customize the guidance to be more or less chatty or directive.</p>
+        <p class="support"><strong>Why?</strong> This is a great practice for exploring inward and giving the nervous system a chance to settle. It can also be useful for people learning how to enter the jhanas.</p>
       </article>
       <article class="mode-card">
         <h3>noting</h3>
         <p>on your turn, you name something in your awareness in one or two words, like "cooling down" or "thinking". you can add other participants - AIs, fixed phrases, or sound effects, to create whatever pace you like. each takes turns in order.</p>
-        <p>experiencing the cycle of<br>
-            <em>rest → cue → notice → speak</em><br>
-            turns out to be a surprisingly pleasant stabilizer of attention, and speaking helps keep you alert.</p>
+        <p class="support"><strong>Why?</strong> This is a very pure way to experience<br>
+            <em>rest → cue → feel inward → speak</em><br>
+            which is a surprisingly pleasant and potent stabilizer of attention. Rest lets you settle, while speaking helps keep you alert.</p>
+        <p class="support">Of course, vibes are best with human partners, so that's encouraged if possible.</p>
       </article>
     </div>
   </section>
@@ -118,7 +139,7 @@
   </section>
 
   <section class="section section-thanks">
-    <p>with gratitude to <a href="https://lovingawakening.net/" target="_blank" rel="noopener">Maija Haavisto</a>, <a href="https://www.jhourney.io/" target="_blank" rel="noopener">Jhourney</a>, and <a href="https://www.buddhistgeeks.org/" target="_blank" rel="noopener">Vince Horn</a> for guiding me in similar practices.</p>
+    <p>with gratitude to <a href="https://lovingawakening.net/" target="_blank" rel="noopener">Maija Haavisto</a>, <a href="https://www.jhourney.io/" target="_blank" rel="noopener">Jhourney</a> (who thank Doug Kraft), and <a href="https://www.buddhistgeeks.org/" target="_blank" rel="noopener">Vince Horn</a> for guiding me in similar practices.</p>
   </section>
 
   <footer class="footer">
@@ -134,5 +155,6 @@
   </footer>
 
   <script src="js/download.js" defer></script>
+  <script src="js/theme.js" defer></script>
 </body>
 </html>

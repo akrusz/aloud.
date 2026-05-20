@@ -4,44 +4,33 @@
    src/web/static/css/style.css; this is a faithful subset.
    ============================================================ */
 
+/* Theme tokens are single-source via light-dark(): first value = light,
+   second = dark. color-scheme decides which resolves. Default follows the
+   OS (light dark); the nav toggle sets data-theme to force one (see the
+   inline bootstrap + toggle script in index.html). */
 :root {
+  color-scheme: light dark;
+
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 
-  /* light mode (default) */
-  --bg-primary:    #fffae0;
-  --bg-secondary:  #f5efd7;
-  --bg-card:       #fad8c0;
-  --bg-surface:    #ffffff;
-  --text-primary:  #1f1a18;
-  --text-secondary:#5c4a44;
-  --text-muted:    #756058;
-  --accent:        #e71f75;
-  --accent-hover:  #c01560;
-  --accent-glow:   rgba(245, 236, 132, 0.45);
-  --brand-stroke:  #ffd820;
-  --brand-glow:    rgba(245, 216, 32, 0.90);
-  --warm:          #e5a01a;
-  --border:        #e2d0b8;
+  --bg-primary:    light-dark(#fffae0, #110d08);
+  --bg-secondary:  light-dark(#f5efd7, #1a1410);
+  --bg-card:       light-dark(#fad8c0, #221a13);
+  --bg-surface:    light-dark(#ffffff, #2e2419);
+  --text-primary:  light-dark(#1f1a18, #f5efe6);
+  --text-secondary:light-dark(#5c4a44, #c4b49e);
+  --text-muted:    light-dark(#756058, #b0a090);
+  --accent:        light-dark(#e71f75, #d63a85);
+  --accent-hover:  light-dark(#c01560, #c02a72);
+  --accent-glow:   light-dark(rgba(245, 206, 82, 0.45), rgba(245, 165, 47, 0.30));
+  --brand-stroke:  light-dark(#ffd820, #e8b820);
+  --brand-glow:    light-dark(rgba(245, 216, 32, 0.90), rgba(255, 220, 80, 0.60));
+  --warm:          light-dark(#e5a01a, #c4a850);
+  --border:        light-dark(#e2d0b8, #302618);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary:    #110d08;
-    --bg-secondary:  #1a1410;
-    --bg-card:       #221a13;
-    --bg-surface:    #2e2419;
-    --text-primary:  #f5efe6;
-    --text-secondary:#c4b49e;
-    --text-muted:    #b0a090;
-    --accent:        #d63a85;
-    --accent-hover:  #c02a72;
-    --accent-glow:   rgba(245, 165, 47, 0.30);
-    --brand-stroke:  #e8b820;
-    --brand-glow:    rgba(255, 220, 80, 0.60);
-    --warm:          #c4a850;
-    --border:        #302618;
-  }
-}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 
@@ -122,6 +111,26 @@ code {
   border-bottom: 1px solid transparent;
 }
 .nav-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.theme-toggle svg { display: block; }
 
 /* ===== hero ===== */
 .hero {
@@ -280,7 +289,8 @@ code {
   color: var(--accent);
 }
 .mode-card p { margin: 0 0 0.75rem; color: var(--text-primary); }
-.mode-card p:last-child { margin-bottom: 0; color: var(--text-secondary); }
+.mode-card p.support { color: var(--text-secondary); }
+.mode-card p:last-child { margin-bottom: 0; }
 
 @media (max-width: 640px) {
   .modes { grid-template-columns: 1fr; }
@@ -291,11 +301,9 @@ code {
 .screenshot-frame {
   max-width: 920px;
   margin: 0 auto;
+  padding: 1.5rem;
+  background: var(--bg-card);
   border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 80px var(--accent-glow);
-  background: var(--bg-secondary);
 }
 .screenshot-frame img {
   display: block;
@@ -507,6 +515,7 @@ code {
   color: var(--text-muted);
   font-size: 0.95rem;
   padding: 2rem 1.5rem 1rem;
+  max-width: 570px;
 }
 .section-thanks a { color: var(--text-secondary); border-bottom: 1px solid var(--border); }
 .section-thanks a:hover { color: var(--accent); border-bottom-color: var(--accent); }
