@@ -11,10 +11,16 @@ docs/
   index.html      ← page content + structure
   css/style.css   ← brand tokens lifted from dev-docs/style.md
   js/download.js  ← fetches latest GitHub release at page load
+  js/theme.js     ← light/dark toggle (persists choice for 4h, else follows OS)
   assets/
-    aloud.png         ← icon (favicon + og:image)
-    aloud-screen.png  ← screenshot (also referenced from the repo README)
+    aloud.png               ← icon (favicon + og:image)
+    aloud-screen-light.webp ← screenshot, light theme
+    aloud-screen-dark.webp  ← screenshot, dark theme
 ```
+
+The screenshots are theme-aware: `js/theme.js` swaps the `#app-screenshot`
+`src` to match the active theme, so only one image loads per visit. The repo
+README points at the same two files via a `<picture>` element.
 
 ## local preview
 
@@ -53,9 +59,10 @@ In repo settings → Pages, set source to "Deploy from a branch", branch
 ## brand assets
 
 `assets/aloud.png` is copied from `assets/aloud.png` at the repo root. The
-screenshot at `assets/aloud-screen.png` is the canonical copy — the repo
-README references it from here too, so there's no separate source to keep
-in sync.
+theme screenshots (`assets/aloud-screen-{light,dark}.webp`) are the canonical
+copies — the repo README references them from here too, so there's no separate
+source to keep in sync. They're downscaled to 1800px wide and WebP-encoded
+(`cwebp -q 82 -resize 1800 0`) from full-res PNG exports.
 
 ## things to fill in
 

@@ -21,12 +21,23 @@
     return osPrefersDark() ? 'dark' : 'light';
   }
 
+  var shot = document.getElementById('app-screenshot');
+
   // Show the icon for the theme you'd switch TO (sun while dark, moon while light).
   function updateIcon() {
     btn.innerHTML = effectiveTheme() === 'dark' ? SUN : MOON;
   }
 
-  updateIcon();
+  // Point the screenshot at the matching theme. Only the chosen image loads.
+  function updateShot() {
+    if (!shot) return;
+    var src = shot.getAttribute(effectiveTheme() === 'dark' ? 'data-src-dark' : 'data-src-light');
+    if (src && shot.getAttribute('src') !== src) shot.setAttribute('src', src);
+  }
+
+  function sync() { updateIcon(); updateShot(); }
+
+  sync();
 
   btn.addEventListener('click', function() {
     var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
@@ -34,7 +45,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ value: next, ts: Date.now() }));
     } catch (e) {}
-    updateIcon();
+    sync();
   });
 
   // If there's no fresh override, keep tracking the OS preference live.
@@ -50,7 +61,7 @@
       } catch (e) {}
       if (!hasOverride) {
         document.documentElement.removeAttribute('data-theme');
-        updateIcon();
+        sync();
       }
     });
   }

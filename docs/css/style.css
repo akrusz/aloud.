@@ -113,17 +113,24 @@ code {
 .nav-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
 .theme-toggle {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.1rem;
+  z-index: 100;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: transparent;
+  background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   color: var(--text-secondary);
   cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 .theme-toggle:hover {
@@ -131,6 +138,13 @@ code {
   border-color: var(--accent);
 }
 .theme-toggle svg { display: block; }
+
+/* The toggle is viewport-fixed at top-right. Above ~1200px the nav is centered
+   well clear of it; below that the nav spans near full width, so reserve room
+   on the right edge to keep the last nav link from sliding under the button. */
+@media (max-width: 1200px) {
+  .nav { padding-right: 4rem; }
+}
 
 /* ===== hero ===== */
 .hero {
