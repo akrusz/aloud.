@@ -15,8 +15,8 @@ html { font-size: 16px; }
     --text-primary: #f5efe6;
     --text-secondary: #c4b49e;
     --text-muted: #b0a090;
-    --accent: #d63a85;
-    --accent-dim: rgba(214, 58, 133, 0.15);
+    --accent: #df3f88;
+    --accent-dim: rgba(223, 63, 136, 0.15);
     --accent-glow: rgba(245, 165, 47, 0.30);
     --brand-glow: rgba(255, 220, 80, 0.55);
     --brand-stroke: #e8b820;
@@ -24,7 +24,7 @@ html { font-size: 16px; }
     --warm-dim: rgba(196, 168, 80, 0.12);
     --border: #302618;
     --danger: #c0503e;
-    --facilitator-bg: rgba(214, 58, 133, 0.06);
+    --facilitator-bg: rgba(223, 63, 136, 0.06);
     --user-bg: rgba(196, 168, 80, 0.06);
     --overlay-bg: rgba(17, 13, 8, 0.95);
     --accent-hover: #c02a72;
@@ -41,9 +41,9 @@ html { font-size: 16px; }
 }
 
 [data-theme="light"] {
-    --bg-primary: #fff4e2;
-    --bg-secondary: #f5e6d4;
-    --bg-card: #fae8d0;
+    --bg-primary: #fffae0;
+    --bg-secondary: #f5efd7;
+    --bg-card: #fad8c0;
     --bg-input: #fffaf2;
     --bg-surface: #ffffff;
     --bg-tertiary: #efe0cc;
@@ -895,8 +895,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .style-card.selected .style-card-inner {
-    border-color: var(--accent);
-    background: var(--accent-dim);
+    border-color: var(--accent-dim);
+    background: hsl(from var(--accent-dim) h calc(s * 0.65) l / alpha);
 }
 
 .style-name {
@@ -933,8 +933,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .modifier-toggle:has(input:checked) {
-    border-color: var(--accent);
-    background: var(--accent-dim);
+    border-color: var(--accent-dim);
+    background: hsl(from var(--accent-dim) h calc(s * 0.65) l / alpha);
 }
 
 .modifier-toggle input[type="checkbox"] {
@@ -2062,7 +2062,7 @@ body:has(.session-container) {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 50%, #e71f75 70%, #870a3e 92%, #5a0828 100%);
+    background: radial-gradient(circle at 45% 45% in oklab, #fff4c0 0%, #f8f288 18%, #f5d820 38%, #ffb805 49%, #ed7326 65%, #e71f75 71%, #870a3e 76%);
     box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(231, 31, 117, 0.26);
     filter: saturate(var(--orb-saturation)) brightness(var(--orb-brightness));
     transition: --orb-saturation 3s ease;
@@ -2155,7 +2155,7 @@ body::before {
     height: 140px;
     z-index: 50;
     cursor: grab;
-    background: radial-gradient(circle at 45% 45%, #fff4c0 0%, #f5d820 25%, #ee7248 50%, #e71f75 70%, #870a3e 92%, #5a0828 100%);
+    background: radial-gradient(circle at 45% 45% in oklab, #fff4c0 0%, #f8f288 18%, #f5d820 38%, #ffb805 49%, #ed7326 65%, #e71f75 71%, #870a3e 76%);
     box-shadow:
         0 0 60px rgba(245, 165, 47, 0.30),
         0 0 120px rgba(231, 31, 117, 0.32),
@@ -2416,27 +2416,59 @@ body::before {
    Update Indicator & Modal
    ============================================ */
 
-/* Update dot on nav brand */
+/* Update available — pill button in nav, parallel entry in mobile More sheet.
+   Visibility driven off the brand's has-update / has-update-static classes
+   (set by chrome.js) via :has(), so we don't have to touch that JS lifecycle. */
 
-.nav-brand.has-update::after,
-.nav-brand.has-update-static::after {
-    content: '';
-    position: absolute;
-    top: -2px;
-    right: -6px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+.update-btn {
+    display: none;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+
+.update-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.update-btn:hover {
     background: var(--accent);
+    color: var(--bg-surface);
+    transform: translateY(-1px);
 }
 
-.nav-brand.has-update::after {
-    animation: updatePulse 1.5s ease-in-out 6;
+.mobile-more-update {
+    display: none;
 }
 
-@keyframes updatePulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.6); opacity: 0.6; }
+html:has(.nav-brand.has-update) .update-btn,
+html:has(.nav-brand.has-update-static) .update-btn {
+    display: inline-flex;
+}
+
+html:has(.nav-brand.has-update) .mobile-more-update,
+html:has(.nav-brand.has-update-static) .mobile-more-update {
+    display: flex;
+}
+
+html:has(.nav-brand.has-update) .update-btn {
+    animation: updateBtnPulse 1.5s ease-in-out 6;
+}
+
+@keyframes updateBtnPulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+    50%      { box-shadow: 0 0 0 6px transparent; }
 }
 
 /* About modal */

@@ -21,6 +21,7 @@ class OllamaProvider(BaseLLMProvider):
         max_tokens: int = 300,
         timeout: float = 120.0,
         think: bool = False,
+        keep_alive: str = "30m",
     ):
         """Initialize Ollama provider.
 
@@ -30,11 +31,17 @@ class OllamaProvider(BaseLLMProvider):
             max_tokens: Maximum tokens in response (Ollama uses num_predict)
             timeout: Request timeout in seconds
             think: Enable thinking/reasoning mode (slower, off by default)
+            keep_alive: How long Ollama keeps the model in memory after a
+                request. A generous finite window (not -1) so the model
+                self-frees if the app crashes; graceful shutdown calls
+                ``unload()`` to free it sooner. Resets on every request, so
+                during active use the model effectively stays warm.
         """
         super().__init__(model=model, max_tokens=max_tokens)
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.think = think
+        self.keep_alive = keep_alive
         self._client: httpx.AsyncClient | None = None
         self._client_loop: asyncio.AbstractEventLoop | None = None
 
@@ -90,6 +97,7 @@ class OllamaProvider(BaseLLMProvider):
                 "messages": ollama_messages,
                 "stream": False,
                 "think": self.think,
+                "keep_alive": self.keep_alive,
                 "options": {
                     "num_predict": max_tokens or self.max_tokens,
                 },
@@ -134,6 +142,23 @@ class OllamaProvider(BaseLLMProvider):
             )
         except Exception:
             return False
+
+    async def unload(self) -> None:
+        """Ask Ollama to free the model from memory now (keep_alive=0).
+
+        Best-effort: called on graceful session-end / app-close so the model
+        doesn't linger for the full keep_alive window. If it fails (Ollama
+        already down, network blip), the model still self-unloads after
+        keep_alive, so we swallow errors.
+        """
+        try:
+            client = await self._get_client()
+            await client.post(
+                f"{self.base_url}/api/chat",
+                json={"model": self.model, "messages": [], "keep_alive": 0},
+            )
+        except Exception:
+            pass
 
     async def close(self) -> None:
         """Close the HTTP client."""

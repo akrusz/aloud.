@@ -6,7 +6,10 @@ your voice is an overpowered and underrated tool for meditation and inner work.
 
 aloud works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription (may draw from extra-use), or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page. the app will also help you set up text-to-speech if necessary.
 
-![aloud screenshot](docs/aloud-screen.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/aloud-screen-dark.webp">
+  <img alt="aloud screenshot" src="docs/assets/aloud-screen-light.webp">
+</picture>
 
 ## what it does
 
@@ -30,9 +33,9 @@ grab the latest release for your platform below, or from [releases](https://gith
 
 | platform | download |
 |----------|----------|
-| **macOS** | [`aloud-0.12.1-macOS.dmg`](https://github.com/akrusz/aloud/releases/download/v0.12.1/aloud-0.12.1-macOS.dmg) — open the DMG, drag aloud to Applications |
-| **Windows** | [`aloud-0.12.1-Windows.exe`](https://github.com/akrusz/aloud/releases/download/v0.12.1/aloud-0.12.1-Windows.exe) — run the installer |
-| **Linux** | [`aloud-0.12.1-Linux.AppImage`](https://github.com/akrusz/aloud/releases/download/v0.12.1/aloud-0.12.1-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
+| **macOS** | [`aloud-1.0.0-macOS.dmg`](https://github.com/akrusz/aloud/releases/download/v1.0.0/aloud-1.0.0-macOS.dmg) — open the DMG, drag aloud to Applications |
+| **Windows** | [`aloud-1.0.0-Windows.exe`](https://github.com/akrusz/aloud/releases/download/v1.0.0/aloud-1.0.0-Windows.exe) — run the installer |
+| **Linux** | [`aloud-1.0.0-Linux.AppImage`](https://github.com/akrusz/aloud/releases/download/v1.0.0/aloud-1.0.0-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
 
 all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
 
@@ -99,4 +102,4 @@ the flake provides portaudio, ffmpeg, python, uv, and GTK/WebKit2 (for pywebview
 
 ## building
 
-release builds are automated via GitHub Actions — creating a release tagged `vX.X.X` triggers builds for all three platforms and attaches the artifacts. see [docs/building.md](docs/building.md) for manual build instructions.
+release builds are automated via GitHub Actions — creating a release tagged `vX.X.X` triggers builds for all three platforms and attaches the artifacts. see [dev-docs/building.md](dev-docs/building.md) for manual build instructions.

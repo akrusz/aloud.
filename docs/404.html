@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>404 — this page isn't aloud.</title>
+  <meta name="robots" content="noindex">
+
+  <link rel="icon" type="image/png" href="/assets/aloud.png">
+  <link rel="apple-touch-icon" href="/assets/aloud.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Knewave&display=swap">
+
+  <link rel="stylesheet" href="/css/style.css">
+
+  <!-- Theme bootstrap — see index.html. Absolute asset paths because a 404
+       can be served at any URL depth and the address bar keeps that path. -->
+  <script>
+    (function() {
+      var TTL = 4 * 60 * 60 * 1000;
+      try {
+        var raw = localStorage.getItem('aloud-site-theme');
+        if (raw) {
+          var saved = JSON.parse(raw);
+          if (saved && saved.value && saved.ts && (Date.now() - saved.ts < TTL)) {
+            document.documentElement.setAttribute('data-theme', saved.value);
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+
+  <nav class="nav">
+    <a class="nav-brand" href="/">aloud.</a>
+    <a class="nav-link" href="https://krusz.net" target="_blank" rel="noopener">krusz.net</a>
+    <a class="nav-link" href="https://github.com/akrusz/aloud" target="_blank" rel="noopener">github</a>
+    <button type="button" class="theme-toggle" id="theme-toggle" title="Toggle light / dark" aria-label="Toggle light / dark"></button>
+  </nav>
+
+  <main class="notfound">
+    <div class="orb-wrap" aria-hidden="true">
+      <div class="orb"></div>
+    </div>
+    <p class="notfound-code">404</p>
+    <h1 class="notfound-title">this page isn't aloud.</h1>
+    <p class="notfound-sub">whatever you were looking for isn't here. take a breath and head back.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="/">back home</a>
+    </div>
+  </main>
+
+  <script src="/js/theme.js" defer></script>
+</body>
+</html>

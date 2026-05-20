@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>aloud. &nbsp;a voice-based meditation facilitator</title>
+  <meta name="description" content="Your voice is an overpowered and underrated tool for meditation and inner work. aloud is a meditation facilitator that listens and responds.">
+
+  <meta property="og:title" content="aloud.">
+  <meta property="og:description" content="A meditation facilitator that listens and responds to your voice.">
+  <meta property="og:image" content="assets/aloud.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" type="image/png" href="assets/aloud.png">
+  <link rel="apple-touch-icon" href="assets/aloud.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Knewave&display=swap">
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Theme bootstrap — must run before paint to avoid a flash of the wrong
+       theme. Applies a saved override only if it's < 4h old; otherwise the
+       page follows the OS via light-dark() with no data-theme attribute. -->
+  <script>
+    (function() {
+      var TTL = 4 * 60 * 60 * 1000;
+      try {
+        var raw = localStorage.getItem('aloud-site-theme');
+        if (raw) {
+          var saved = JSON.parse(raw);
+          if (saved && saved.value && saved.ts && (Date.now() - saved.ts < TTL)) {
+            document.documentElement.setAttribute('data-theme', saved.value);
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+
+  <nav class="nav">
+    <a class="nav-brand" href="./">aloud.</a>
+    <a class="nav-link" href="https://krusz.net" target="_blank" rel="noopener">krusz.net</a>
+    <a class="nav-link" href="https://github.com/akrusz/aloud" target="_blank" rel="noopener">github</a>
+    <button type="button" class="theme-toggle" id="theme-toggle" title="Toggle light / dark" aria-label="Toggle light / dark"></button>
+  </nav>
+
+  <header class="hero">
+    <div class="orb-wrap" aria-hidden="true">
+      <div class="orb"></div>
+    </div>
+    <h1 class="hero-title"><span class="brand-mark">aloud.</span></h1>
+    <p class="hero-tagline">your voice is an overpowered and underrated tool for meditation and inner work.</p>
+    <p class="hero-sub">a meditation facilitator that listens and responds. speak what you're noticing, and it asks thoughtful questions to help you explore.</p>
+    <p class="hero-pun">here, feeling good is aloud.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#download">download</a>
+      <a class="btn btn-ghost" href="#what">how it works</a>
+    </div>
+    <p class="hero-platforms">macOS · Windows · Linux · free &amp; open source</p>
+    <p class="hero-platforms hero-soon">iOS and Android coming soon</p>
+  </header>
+
+  <section class="section" id="what">
+    <h2 class="section-title">two ways to practice</h2>
+    <div class="modes">
+      <article class="mode-card">
+        <h3>exploration</h3>
+        <p>a dyadic format. you speak freely about what you're experiencing in the moment. <span class="brand-mark">aloud.</span> asks questions to help you go deeper, play, or whatever your intention is.</p>
+        <p>mix and match <strong>attention focuses</strong> - body sensations, emotions, parts work - with <strong>vibes</strong> like playful, compassionate, or spacious. you can customize the guidance to be more or less chatty or directive.</p>
+        <p class="support"><strong>Why?</strong> This is a great practice for exploring inward and giving the nervous system a chance to settle. It can also be useful for people learning how to enter the jhanas.</p>
+      </article>
+      <article class="mode-card">
+        <h3>noting</h3>
+        <p>on your turn, you name something in your awareness in one or two words, like "cooling down" or "thinking". you can add other participants - AIs, fixed phrases, or sound effects - to create whatever pace you like. each takes turns in order.</p>
+        <p class="support"><strong>Why?</strong> This is a very pure way to experience<br>
+            <em>rest → cue → feel inward → speak</em><br>
+            which is a surprisingly pleasant and potent stabilizer of attention. Rest lets you settle, while speaking helps keep you alert.</p>
+        <p class="support">Of course, vibes are best with human partners, so that's encouraged if possible.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section section-shot">
+    <div class="screenshot-frame">
+      <img id="app-screenshot"
+           data-src-light="assets/aloud-screen-light.webp"
+           data-src-dark="assets/aloud-screen-dark.webp"
+           width="1800" height="1513"
+           alt="aloud's main screen — a central orb with controls around it" loading="lazy">
+      <noscript>
+        <img src="assets/aloud-screen-light.webp" width="1800" height="1513"
+             alt="aloud's main screen — a central orb with controls around it">
+      </noscript>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">choose your model</h2>
+    <p class="section-lead"><span class="brand-mark">aloud.</span> works with whatever LLM you trust and makes setup easy.</p>
+    <div class="providers">
+      <div class="provider-pill"><strong>fully local</strong><span>ollama, nothing leaves your machine. can install for you.</span></div>
+      <div class="provider-pill"><strong>cloud APIs</strong><span>anthropic, openai, openrouter, venice, groq (has free tier)</span></div>
+      <div class="provider-pill"><strong>claude subscription</strong><span>uses <code>claude</code> CLI/Claude Code (mac/win/linux)</span></div>
+    </div>
+  </section>
+
+  <section class="section section-tip">
+    <div class="tip-card">
+      <h2 class="tip-title">aloud is open source.</h2>
+      <p class="tip-body">there's no paywall, no tracking, no account. the source is on GitHub and you can build it yourself in a minute.</p>
+      <p class="tip-body">if it helps you and you're able, chip in to help keep it going. your tip pays for the Apple developer license, hosting, and updates.</p>
+      <div class="tip-buttons">
+        <a class="btn btn-tip" href="https://ko-fi.com/alexkrusz" target="_blank" rel="noopener">ko-fi</a>
+        <a class="btn btn-tip" href="https://venmo.com/Alex-Krusz" target="_blank" rel="noopener">venmo</a>
+        <button type="button" class="btn btn-tip" id="copy-eth" title="click to copy">krusz.eth</button>
+        <a class="btn btn-tip" href="mailto:lexkrusz@gmail.com?subject=aloud">kind words</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-download" id="download">
+    <h2 class="section-title">download</h2>
+    <p class="section-lead">latest release: <span id="release-version" class="version-chip">checking…</span></p>
+
+    <div class="download-grid">
+      <a class="download-card" id="dl-macos" href="https://github.com/akrusz/aloud/releases/latest" data-platform="macos">
+        <div class="download-os">macOS</div>
+        <div class="download-file" data-file>.dmg installer</div>
+        <div class="download-note">drag to Applications</div>
+      </a>
+      <a class="download-card" id="dl-windows" href="https://github.com/akrusz/aloud/releases/latest" data-platform="windows">
+        <div class="download-os">Windows</div>
+        <div class="download-file" data-file>.exe installer</div>
+        <div class="download-note">double-click to install</div>
+      </a>
+      <a class="download-card" id="dl-linux" href="https://github.com/akrusz/aloud/releases/latest" data-platform="linux">
+        <div class="download-os">Linux</div>
+        <div class="download-file" data-file>.AppImage</div>
+        <div class="download-note"><code>chmod +x</code>, double-click or run</div>
+      </a>
+    </div>
+
+    <p class="download-alt">prefer to build from source? <a href="https://github.com/akrusz/aloud#running-from-source">it's a clone + one script.</a></p>
+  </section>
+
+  <section class="section section-thanks">
+    <p>with gratitude to <a href="https://lovingawakening.net/" target="_blank" rel="noopener">Maija Haavisto</a>, <a href="https://www.jhourney.io/" target="_blank" rel="noopener">Jhourney</a> (who thank Doug Kraft), and <a href="https://www.buddhistgeeks.org/" target="_blank" rel="noopener">Vince Horn</a> for guiding me in similar practices.</p>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-brand"><span class="brand-mark">aloud.</span></div>
+    <div class="footer-links">
+      <a href="https://github.com/akrusz/aloud" target="_blank" rel="noopener">source</a>
+      <span class="footer-dot">·</span>
+      <a href="https://github.com/akrusz/aloud/releases" target="_blank" rel="noopener">releases</a>
+      <span class="footer-dot">·</span>
+      <a href="https://github.com/akrusz/aloud/blob/main/LICENSE" target="_blank" rel="noopener">license</a>
+    </div>
+    <p class="footer-fine">made with care by <a href="https://krusz.net" target="_blank" rel="noopener">Alex Krusz</a>.</p>
+  </footer>
+
+  <script src="js/download.js" defer></script>
+  <script src="js/theme.js" defer></script>
+</body>
+</html>
