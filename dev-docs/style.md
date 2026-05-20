@@ -74,7 +74,7 @@ The dark-mode backgrounds are **neutral-warm browns**, not pink-tinted. We tried
 --text-primary:  #f5efe6   /* warm off-white */
 --text-secondary:#c4b49e
 --text-muted:    #b0a090
---accent:        #d63a85   /* muted pink (less harsh on dark) */
+--accent:        #df3f88   /* pink, tuned for legibility on dark */
 --accent-hover:  #c02a72
 --accent-glow:   rgba(245, 165, 47, 0.30)   /* same orange, lower alpha */
 --brand-stroke:  #e8b820   /* warmer gold */

@@ -20,7 +20,7 @@
   --text-primary:  light-dark(#1f1a18, #f5efe6);
   --text-secondary:light-dark(#5c4a44, #c4b49e);
   --text-muted:    light-dark(#756058, #b0a090);
-  --accent:        light-dark(#e71f75, #d63a85);
+  --accent:        light-dark(#e71f75, #df3f88);
   --accent-hover:  light-dark(#c01560, #c02a72);
   --accent-glow:   light-dark(rgba(245, 206, 82, 0.45), rgba(245, 165, 47, 0.30));
   --brand-stroke:  light-dark(#ffd820, #e8b820);
@@ -265,6 +265,17 @@ code {
   background: var(--accent);
   color: var(--bg-surface);
 }
+
+/* Dark mode: the dark (--bg-surface) label on a pink fill is low-contrast,
+   so bold it. Single-source weight var keeps the two dark-mode entry paths
+   (forced data-theme + OS preference) from duplicating the value. */
+:root { --btn-fill-weight: 500; }
+:root[data-theme="dark"] { --btn-fill-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --btn-fill-weight: 700; }
+}
+.btn-primary,
+.btn-tip { font-weight: var(--btn-fill-weight); }
 
 /* ===== generic section ===== */
 .section {
@@ -539,7 +550,7 @@ code {
   text-align: center;
   padding: 3rem 1.5rem 4rem;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 .footer-brand { margin-bottom: 1rem; }
 .footer-brand .brand-mark { font-size: 1.8em; }
@@ -555,7 +566,7 @@ code {
 }
 .footer-links a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .footer-dot { color: var(--text-muted); }
-.footer-fine { margin: 0; font-size: 0.85rem; }
+.footer-fine { margin: 0; font-size: 0.95rem; }
 .footer-fine a {
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);

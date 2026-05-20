@@ -15,8 +15,8 @@ html { font-size: 16px; }
     --text-primary: #f5efe6;
     --text-secondary: #c4b49e;
     --text-muted: #b0a090;
-    --accent: #d63a85;
-    --accent-dim: rgba(214, 58, 133, 0.15);
+    --accent: #df3f88;
+    --accent-dim: rgba(223, 63, 136, 0.15);
     --accent-glow: rgba(245, 165, 47, 0.30);
     --brand-glow: rgba(255, 220, 80, 0.55);
     --brand-stroke: #e8b820;
@@ -24,7 +24,7 @@ html { font-size: 16px; }
     --warm-dim: rgba(196, 168, 80, 0.12);
     --border: #302618;
     --danger: #c0503e;
-    --facilitator-bg: rgba(214, 58, 133, 0.06);
+    --facilitator-bg: rgba(223, 63, 136, 0.06);
     --user-bg: rgba(196, 168, 80, 0.06);
     --overlay-bg: rgba(17, 13, 8, 0.95);
     --accent-hover: #c02a72;
