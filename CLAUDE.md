@@ -50,10 +50,19 @@ Both share the same backend modules for facilitation, LLM, STT, and TTS.
 
 ### Web server (`src/web/`)
 
-- `app.py` — `create_app()` factory, background tasks (check-in loop, whisper loading, update check)
-- `routes.py` — HTTP routes: pages, API endpoints for providers/models/sessions/voices/updates
-- `socketio_handlers.py` — WebSocket events: `start_session`, `user_message`, `audio_data`, `end_session`, etc.
+- `app.py` — `create_app()` factory
+- `background.py` — background tasks (check-in loop, whisper loading, update check)
+- `routes.py` — page routes (`/`, `/session`, `/history`, `/settings`, `sw.js`) + session/voice/TTS/window API endpoints; also registers the specialized route modules below
+- `config_routes.py` — config GET/POST + config-folder routes
+- `provider_routes.py` — provider/model endpoints (Ollama version/RAM/GPU checks, model-tier recommendation)
+- `tool_routes.py` — tool-install endpoints (Ollama restart/upgrade)
+- `socketio_handlers.py` — registers socket events (delegates to the handler modules below) + shared helpers (`get_session`, `speak_to_audio`)
+- `session_handlers.py` — socket events: connect/disconnect, `start_session`, `end_session`, summary prefetch
+- `message_handlers.py` — socket events: `user_message` (LLM response), resume-intent classification, noting labels
+- `audio_handlers.py` — socket events: `audio_data` (Whisper transcription)
 - `meditation_session.py` — `WebMeditationSession` wraps per-session state (LLM provider, prompts, pacing, session manager)
+- `auth.py` — optional password authentication
+- `cert.py` — self-signed certificate generation for LAN HTTPS
 
 ### Frontend (`src/web/static/js/`)
 
