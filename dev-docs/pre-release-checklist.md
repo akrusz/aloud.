@@ -21,8 +21,10 @@ check each of these still reflects reality:
   tagline if the positioning/tagline changed.
 - **`README.md`** — product description, modes, provider list, platform notes,
   tips, install instructions, screenshot reference.
-- **`dev-docs/store-listings.md`** — App Store / Play name, subtitle, description,
-  keywords; especially the provider/feature claims and the mobile-provider caveat.
+- **App Store / Play listings** — name, subtitle, description, keywords; especially
+  the provider/feature claims and the mobile-provider caveat. These live in the
+  consoles (App Store Connect / Play Console), not the repo — the draft copy isn't
+  tracked here.
 - **`dev-docs/style.md`** — visual identity (orb gradient, color tokens, fonts) if
   branding changed.
 - **`dev-docs/dev-cheatsheet.md`, `building.md`, `README.nix.md`, `voice-barge-in.md`**
@@ -38,7 +40,7 @@ check each of these still reflects reality:
 ## Part B — change → consequence matrix
 
 - **Added/removed/renamed an LLM provider** → settings dropdown + provider routes,
-  README provider list, site provider pills, privacy-policy examples, store-listings
+  README provider list, site provider pills, privacy-policy examples, store-listing
   provider claims.
 - **Added/removed a feature or mode** → README, site, store listings, CLAUDE.md
   architecture, and privacy policy *if it changes a data flow*.

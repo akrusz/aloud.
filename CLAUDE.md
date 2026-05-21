@@ -41,7 +41,7 @@ Both share the same backend modules for facilitation, LLM, STT, and TTS.
 | Module | Purpose |
 |--------|---------|
 | `facilitation/` | Core logic: `PacingController` (turn-taking state machine), `PromptBuilder` (composable system prompts), `SessionManager` (conversation history) |
-| `llm/` | Protocol-based LLM providers: claude_proxy (subprocess to `claude` CLI for subscription routing), anthropic, openai, openrouter, venice, ollama |
+| `llm/` | Protocol-based LLM providers: claude_proxy (subprocess to `claude` CLI for subscription routing), anthropic, openai, openrouter, venice, groq, ollama |
 | `stt/whisper.py` | Whisper speech-to-text, loads model in background |
 | `tts/` | Protocol-based TTS engines: macos, piper, elevenlabs; falls back to browser speechSynthesis |
 | `audio/` | Audio I/O and `VoiceActivityDetector` (energy-based with adaptive noise floor) |
@@ -91,7 +91,7 @@ Background check-in loop runs every 10s, sends gentle prompts after extended sil
 All config is in `config/default.yaml` with dataclass defaults in `src/config.py`. Key env vars:
 - `ALOUD_SECRET_KEY` — Flask secret key
 - `ALOUD_AUTO_OPEN` — auto-open browser on startup
-- API keys: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `VENICE_API_KEY`, `OPENAI_API_KEY`
+- API keys: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `VENICE_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`
 - YAML supports `${ENV_VAR}` substitution for `llm.api_key` and `tts.api_key`
 
 ## Workflow notes
