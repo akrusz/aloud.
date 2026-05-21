@@ -98,6 +98,8 @@ All config is in `config/default.yaml` with dataclass defaults in `src/config.py
 
 - **Use `uv`** for all Python commands (`uv run`, `uv pip`). Do not use `.venv/bin/python` directly.
 - **No git push access** — Claude Code is not configured to push to GitHub. End sessions with `git commit` only; the user will push manually.
+- **Pre-release check** — when asked to "run the pre-release check", or before cutting a release, work through `dev-docs/pre-release-checklist.md`: verify docs/copy still match the code and flag downstream consequences of recent changes.
+- **Docs reference code by file + symbol, not line numbers** — line numbers rot on every edit; a `file.js` path plus a function/constant name stays greppable and durable. Don't write line numbers into docs.
 
 ## Issue tracking
 

@@ -2982,23 +2982,10 @@ html:has(.nav-brand.has-update) .update-btn {
     pointer-events: none;
 }
 
-/* Preview-local theme overrides */
-.text-scale-preview[data-preview-theme="dark"] {
-    --bg-primary: #110d08;
-    --text-primary: #f5efe6;
-    --text-muted: #b0a090;
-    --border: #302618;
-    --bg-input: #281f16;
-    --text-secondary: #c4b49e;
-}
-.text-scale-preview[data-preview-theme="light"] {
-    --bg-primary: #f5f0e8;
-    --text-primary: #221d19;
-    --text-muted: #685c50;
-    --border: #d4c8b8;
-    --bg-input: #fffcf8;
-    --text-secondary: #5c5248;
-}
+/* The preview box carries its own data-theme (set by settings.js), so the
+   plain [data-theme="light"] / [data-theme="dark"] palette blocks above apply
+   to it directly and cascade to its children — no preview-local literals to
+   drift out of sync with the real theme. */
 
 .settings-section .form-group > label {
     display: block;

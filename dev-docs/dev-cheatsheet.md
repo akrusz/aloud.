@@ -113,7 +113,7 @@ scripts/release.sh 1.2.3
 scripts/release.sh same
 ```
 
-The release script: bumps `src/__init__.py`, updates README download links, commits, tags, pushes, and creates a GitHub release (which triggers the build workflow). The macOS job in CI signs + notarizes automatically if the signing secrets are configured (see *Building* below); without them it produces an unsigned DMG.
+The release script: offers to run the pre-release doc/copy check (`dev-docs/pre-release-checklist.md`, via the headless `claude` CLI), then bumps `src/__init__.py`, updates README download links, commits, tags, pushes, and creates a GitHub release (which triggers the build workflow). The macOS job in CI signs + notarizes automatically if the signing secrets are configured (see *Building* below); without them it produces an unsigned DMG.
 
 **Prerequisites**: clean working directory, `gh` CLI authenticated.
 
