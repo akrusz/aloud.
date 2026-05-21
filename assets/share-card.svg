@@ -35,7 +35,7 @@
 
   <!-- tagline + url -->
   <text x="600" y="488" text-anchor="middle" font-family="Helvetica, Arial, sans-serif"
-        font-size="40" fill="#f5efe6">a voice-based meditation facilitator</text>
+        font-size="44" fill="#f5e8e6">a voice-based meditation facilitator</text>
   <text x="600" y="560" text-anchor="middle" font-family="Helvetica, Arial, sans-serif"
-        font-size="36" fill="#c4a850" letter-spacing="1">aloud.rest</text>
+        font-size="40" fill="#d4b880" letter-spacing="1">aloud.rest</text>
 </svg>
