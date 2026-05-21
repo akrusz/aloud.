@@ -2,7 +2,9 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────
-# Generate aloud.app icon from favicon.svg
+# Generate aloud.app icon from assets/app-icon.svg (the opaque dark rounded-rect
+# tile — distinct from the transparent web favicon, which stays in
+# src/web/static/favicon.svg).
 # Requires: rsvg-convert (librsvg), iconutil (macOS built-in)
 # Install: brew install librsvg
 # ─────────────────────────────────────────────────
@@ -10,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-SVG="$PROJECT_DIR/src/web/static/favicon.svg"
+SVG="$PROJECT_DIR/assets/app-icon.svg"
 ICONSET="$PROJECT_DIR/aloud.iconset"
 ICNS="$PROJECT_DIR/assets/aloud.icns"
 

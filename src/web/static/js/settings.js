@@ -511,7 +511,9 @@ function installTool(tool, btn) {
     }
 
     function syncPreview() {
-        previewBox.setAttribute('data-preview-theme', resolveTheme(themeSelect.value));
+        // Use data-theme (not a preview-specific attribute) so the box picks up
+        // the real [data-theme="…"] palette and never drifts from the app theme.
+        previewBox.setAttribute('data-theme', resolveTheme(themeSelect.value));
     }
     syncPreview();
 

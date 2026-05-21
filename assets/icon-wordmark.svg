@@ -14,6 +14,14 @@
       <stop offset="1" stop-color="#870a3e" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <circle cx="512" cy="512" r="500" fill="url(#glow)"/>
-  <circle cx="512" cy="512" r="452" fill="url(#orb)"/>
+
+  <circle cx="512" cy="512" r="492" fill="url(#glow)"/>
+  <circle cx="512" cy="512" r="392" fill="url(#orb)"/>
+
+  <g font-family="Knewave" font-size="298" text-anchor="middle" letter-spacing="7">
+    <text x="512" y="600" fill="#000000" stroke="#000000" stroke-width="55"
+          stroke-linejoin="round" paint-order="stroke">aloud.</text>
+    <text x="512" y="600" fill="#e71f75" stroke="#ffd820" stroke-width="26"
+          stroke-linejoin="round" paint-order="stroke">aloud.</text>
+  </g>
 </svg>

@@ -4,7 +4,7 @@ your voice is an overpowered and underrated tool for meditation and inner work.
 
 **aloud.** is a meditation facilitator that listens and responds to your voice. it can be a partner for somatic exploration, parts work, and spaced noting. it uses your mic for voice input, whisper.cpp for speech recognition, an LLM to guide you, and speaks using text-to-speech.
 
-aloud works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription (may draw from extra-use), or connect any API provider (anthropic, openai, openrouter, venice). all providers are configurable from the settings page. the app will also help you set up text-to-speech if necessary.
+aloud works on macOS, Linux, and Windows. choose your LLM — run fully local and private with ollama, use a claude subscription (may draw from extra-use), or connect any API provider (anthropic, openai, openrouter, venice, groq). all providers are configurable from the settings page. the app will also help you set up text-to-speech if necessary.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/aloud-screen-dark.webp">
@@ -33,9 +33,9 @@ grab the latest release for your platform below, or from [releases](https://gith
 
 | platform | download |
 |----------|----------|
-| **macOS** | [`aloud-1.0.0-macOS.dmg`](https://github.com/akrusz/aloud/releases/download/v1.0.0/aloud-1.0.0-macOS.dmg) — open the DMG, drag aloud to Applications |
-| **Windows** | [`aloud-1.0.0-Windows.exe`](https://github.com/akrusz/aloud/releases/download/v1.0.0/aloud-1.0.0-Windows.exe) — run the installer |
-| **Linux** | [`aloud-1.0.0-Linux.AppImage`](https://github.com/akrusz/aloud/releases/download/v1.0.0/aloud-1.0.0-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
+| **macOS** | [`aloud-1.0.2-macOS.dmg`](https://github.com/akrusz/aloud/releases/download/v1.0.2/aloud-1.0.2-macOS.dmg) — open the DMG, drag aloud to Applications |
+| **Windows** | [`aloud-1.0.2-Windows.exe`](https://github.com/akrusz/aloud/releases/download/v1.0.2/aloud-1.0.2-Windows.exe) — run the installer |
+| **Linux** | [`aloud-1.0.2-Linux.AppImage`](https://github.com/akrusz/aloud/releases/download/v1.0.2/aloud-1.0.2-Linux.AppImage) — `chmod +x`, double-click or run from terminal |
 
 all settings (LLM provider, voice, whisper model, display) are configurable from the settings page inside the app. whisper models download automatically on first launch. the app checks for updates on startup and will prompt you when a new version is available.
 

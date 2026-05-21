@@ -111,12 +111,41 @@ else
         TITLE="v${VERSION}"
     fi
 
-    printf "  Proceed? [Y/n] "
-    read -r REPLY
-    if [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ]; then
-        echo "  Aborted."
-        exit 0
-    fi
+    # Pre-release doc/copy check. Default (Enter) runs it via the headless
+    # claude CLI (read-only review); "n" skips; "q" bails. If the check finds
+    # anything (or is inconclusive), it asks to continue; a clean check proceeds
+    # silently. Past that point the script bumps, commits, tags, and pushes.
+    printf "  Run the pre-release check? [Y/n/q] "
+    read -r PRECHECK
+    case "$PRECHECK" in
+        q|Q)
+            echo "  Aborted."
+            exit 0
+            ;;
+        n|N)
+            ;;
+        *)
+            if command -v claude >/dev/null 2>&1; then
+                echo "  Running pre-release check via Claude (changes since v${CURRENT})…"
+                echo ""
+                CHECK_OUT=$(claude -p "Run the pre-release check. Work through dev-docs/pre-release-checklist.md against the changes since the last release — review the diff and commits in v${CURRENT}..HEAD. Report any documentation or product copy (website, README, privacy policy, store listings, settings UI text, CLAUDE.md, config comments, etc.) that has drifted out of sync with the code, plus downstream consequences. Read the actual files; don't guess. Be concise: a punch list of what needs updating. End your reply with a line that is exactly 'PRERELEASE: CLEAN' if nothing needs updating, or 'PRERELEASE: ISSUES' if anything does.")
+                printf '%s\n\n' "$CHECK_OUT"
+                # Only gate if the check didn't come back explicitly clean
+                # (covers found-issues AND any inconclusive/errored output).
+                if ! printf '%s' "$CHECK_OUT" | grep -q 'PRERELEASE: CLEAN'; then
+                    printf "  Check flagged items above (or was inconclusive). Continue anyway? [y/N] "
+                    read -r CONT
+                    case "$CONT" in
+                        y|Y) ;;
+                        *) echo "  Aborted."; exit 0 ;;
+                    esac
+                fi
+            else
+                echo "  (claude CLI not found — skipping; review dev-docs/pre-release-checklist.md manually.)"
+                echo ""
+            fi
+            ;;
+    esac
 fi
 
 # Bump __version__

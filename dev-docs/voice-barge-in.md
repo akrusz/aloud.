@@ -1,18 +1,24 @@
 # Voice Barge-In Behavior
 
-The barge-in system is **entirely client-side**, implemented in `src/web/static/js/session.js`. The server is unaware of barge-in — it simply receives audio and sends TTS audio.
+The barge-in system is **entirely client-side**, implemented in the audio loop
+(`src/web/static/js/audio.js`, the `onaudioprocess` handler). The server is
+unaware of barge-in — it simply receives audio and sends TTS audio back.
 
 ## Detection
 
-Three conditions must all be true (session.js lines 964–993):
+Three conditions must all be true:
 
 1. **TTS is active** — any of: `ttsSpeaking`, `synth.speaking`, or `serverAudioPlaying` is true
-2. **Mic RMS energy > `BARGE_IN_THRESHOLD` (0.04)** — intentionally higher than the normal speech threshold (0.015) to avoid triggering on TTS bleed picked up by the mic
-3. **Sustained for 3 consecutive chunks (~280ms)** — if any chunk drops below threshold, the counter resets to 0
+2. **Mic RMS energy > `BARGE_IN_THRESHOLD` (0.04)** — intentionally higher than the normal speech threshold (`SILENCE_THRESHOLD`, 0.015) to avoid triggering on TTS bleed picked up by the mic
+3. **Sustained for `BARGE_IN_CHUNKS` (3) consecutive chunks (~280ms)** — if any chunk drops below threshold, the counter resets to 0
+
+## Echo cancellation (first line of defense)
+
+The mic stream is opened with `echoCancellation`, `noiseSuppression`, and `autoGainControl` enabled (the `getUserMedia` constraints in `audio.js`). Echo cancellation matters most here: the browser subtracts the speaker output from the mic feed, so the facilitator's own TTS is far less likely to cross `BARGE_IN_THRESHOLD` and trigger a false barge-in. The elevated threshold is the *second* line of defense, for environments where AEC is imperfect — notably some WebViews (pywebview) and speaker-heavy setups. If false barge-ins recur, suspect AEC not being honored on that platform.
 
 ## What Happens on Trigger
 
-When 3 consecutive above-threshold chunks are detected (lines 975–984):
+When `BARGE_IN_CHUNKS` consecutive above-threshold chunks are detected:
 
 1. `stopServerAudio()` — kills the Web Audio `AudioBufferSourceNode`, sets `serverAudioPlaying = false`
 2. `synth.cancel()` — kills browser speechSynthesis
@@ -33,11 +39,11 @@ When TTS ends naturally (not via barge-in), an 800ms cooldown (`TTS_COOLDOWN_MS`
 
 ## TTS Watchdog
 
-Chrome sometimes fails to fire `onend` on `SpeechSynthesisUtterance`. A watchdog (lines 933–952) checks: if `ttsSpeaking` is true but neither `synth.speaking` nor `serverAudioPlaying` is true for > 1500ms (`TTS_WATCHDOG_MS`), it force-resets `ttsSpeaking`. This prevents the system from getting permanently stuck in the "TTS is playing" state.
+Chrome sometimes fails to fire `onend` on `SpeechSynthesisUtterance`. A watchdog checks: if `ttsSpeaking` is true but neither `synth.speaking` nor `serverAudioPlaying` is true for longer than `TTS_WATCHDOG_MS` (1500ms), it force-resets `ttsSpeaking`. This prevents the system from getting permanently stuck in the "TTS is playing" state.
 
 ## Thresholds
 
-All defined as constants in session.js (lines 354–366):
+Defined as constants in `audio.js`:
 
 | Constant | Value | Purpose |
 |---|---|---|
@@ -59,12 +65,10 @@ After barge-in, the normal VAD state machine takes over:
 
 ## Key Files
 
-| File | Lines | Role |
-|---|---|---|
-| `src/web/static/js/session.js` | 331–366 | State variables and threshold constants |
-| `src/web/static/js/session.js` | 932–993 | Core barge-in detection in `onaudioprocess` |
-| `src/web/static/js/session.js` | 1011–1105 | VAD state machine (post-barge-in flow) |
-| `src/web/static/js/session.js` | 1405–1479 | `speak()`, `playServerAudio()`, `stopServerAudio()` |
-| `src/tts/macos.py` | 71–102 | `speak_to_bytes()` — generates WAV for client playback |
-| `src/web/app.py` | 441–476 | `handle_user_message` — server processing after barge-in |
-| `src/web/app.py` | 520–582 | `handle_audio_data` — Whisper transcription handler |
+| File | Role |
+|---|---|
+| `src/web/static/js/audio.js` | Threshold constants, barge-in detection (`onaudioprocess`), VAD state machine, `submitUtterance()` |
+| `src/web/static/js/tts.js` | `speak()`, `playServerAudio()`, `stopServerAudio()` |
+| `src/tts/macos.py` | `speak_to_bytes()` — generates WAV for client playback |
+| `src/web/message_handlers.py` | `handle_user_message` — server processing after barge-in |
+| `src/web/audio_handlers.py` | `handle_audio_data` — Whisper transcription handler |

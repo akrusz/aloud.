@@ -304,7 +304,7 @@ code {
 }
 .notfound-code {
   margin: 0 0 0.6rem;
-  font-size: 0.85rem;
+  font-size: 1rem;
   letter-spacing: 0.35em;
   text-transform: uppercase;
   color: var(--text-muted);

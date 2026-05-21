@@ -10,10 +10,14 @@
       <stop offset="0.76" stop-color="#870a3e"/>
     </radialGradient>
     <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0.5" stop-color="#e71f75" stop-opacity="0.3"/>
+      <stop offset="0.5" stop-color="#e71f75" stop-opacity="0.35"/>
       <stop offset="1" stop-color="#870a3e" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <circle cx="512" cy="512" r="500" fill="url(#glow)"/>
-  <circle cx="512" cy="512" r="452" fill="url(#orb)"/>
+
+  <!-- Full-bleed opaque square: iOS masks the corners and rejects alpha.
+       Orb kept centered with margin so the corner mask never clips it. -->
+  <rect x="0" y="0" width="1024" height="1024" fill="#110d08"/>
+  <circle cx="512" cy="512" r="460" fill="url(#glow)"/>
+  <circle cx="512" cy="512" r="360" fill="url(#orb)"/>
 </svg>
