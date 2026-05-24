@@ -96,11 +96,22 @@ class AnthropicProvider(BaseLLMProvider):
         text = response.content[0].text if response.content else ""
 
         tokens_used = None
+        input_tokens = output_tokens = None
+        cache_read = cache_create = None
         if response.usage:
-            tokens_used = response.usage.input_tokens + response.usage.output_tokens
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+            tokens_used = input_tokens + output_tokens
+            # Present when prompt caching is in play (cache_control above).
+            cache_read = getattr(response.usage, "cache_read_input_tokens", None)
+            cache_create = getattr(response.usage, "cache_creation_input_tokens", None)
 
         return CompletionResult(
             text=text,
             finish_reason=response.stop_reason,
             tokens_used=tokens_used,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cache_read_tokens=cache_read,
+            cache_creation_tokens=cache_create,
         )

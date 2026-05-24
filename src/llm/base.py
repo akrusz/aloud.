@@ -15,11 +15,22 @@ class Message:
 
 @dataclass
 class CompletionResult:
-    """Result from an LLM completion."""
+    """Result from an LLM completion.
+
+    ``tokens_used`` is the input+output total (kept for backward compat).
+    The split fields below are what session usage tracking records, since
+    input and output tokens are priced very differently and cache reads are
+    far cheaper than fresh input. Any field may be None if the provider
+    doesn't report it.
+    """
 
     text: str
     finish_reason: str | None = None
     tokens_used: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    cache_read_tokens: int | None = None
+    cache_creation_tokens: int | None = None
 
 
 class LLMProvider(Protocol):

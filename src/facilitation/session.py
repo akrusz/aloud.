@@ -14,6 +14,12 @@ class Exchange:
     content: str
     timestamp: float = field(default_factory=time.time)
     name: str | None = None  # display name (e.g. participant name in noting)
+    # LLM usage for assistant turns produced by a completion (None otherwise,
+    # e.g. user turns and static/fallback facilitator messages).
+    tokens_in: int | None = None
+    tokens_out: int | None = None
+    cache_read: int | None = None
+    cache_creation: int | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
@@ -25,7 +31,44 @@ class Exchange:
         }
         if self.name:
             d["name"] = self.name
+        if self.tokens_in is not None or self.tokens_out is not None:
+            d["tokens_in"] = self.tokens_in
+            d["tokens_out"] = self.tokens_out
+            if self.cache_read:
+                d["cache_read"] = self.cache_read
+            if self.cache_creation:
+                d["cache_creation"] = self.cache_creation
         return d
+
+
+@dataclass
+class SessionUsage:
+    """Running tally of compute consumed by a session.
+
+    Three legs mirror the metered-billing model (LLM tokens + STT seconds +
+    TTS chars). ``llm_calls`` counts every completion, including off-transcript
+    ones (summary, resume-intent, noting labels), so totals here can exceed the
+    sum of per-exchange token counts.
+    """
+
+    llm_calls: int = 0
+    llm_tokens_in: int = 0
+    llm_tokens_out: int = 0
+    llm_cache_read: int = 0
+    llm_cache_creation: int = 0
+    stt_seconds: float = 0.0
+    tts_chars: int = 0
+
+    def to_dict(self) -> dict:
+        return {
+            "llm_calls": self.llm_calls,
+            "llm_tokens_in": self.llm_tokens_in,
+            "llm_tokens_out": self.llm_tokens_out,
+            "llm_cache_read": self.llm_cache_read,
+            "llm_cache_creation": self.llm_cache_creation,
+            "stt_seconds": round(self.stt_seconds, 2),
+            "tts_chars": self.tts_chars,
+        }
 
 
 @dataclass
@@ -43,6 +86,9 @@ class SessionState:
     # Session tags/notes
     tags: list[str] = field(default_factory=list)
     notes: str = ""
+
+    # Compute usage tally
+    usage: SessionUsage = field(default_factory=SessionUsage)
 
     @property
     def duration(self) -> float:
@@ -135,12 +181,24 @@ class SessionManager:
             name=name,
         ))
 
-    def add_assistant_message(self, content: str, name: str | None = None) -> None:
+    def add_assistant_message(
+        self,
+        content: str,
+        name: str | None = None,
+        tokens_in: int | None = None,
+        tokens_out: int | None = None,
+        cache_read: int | None = None,
+        cache_creation: int | None = None,
+    ) -> None:
         """Add an assistant (facilitator) message to the session.
 
         Args:
             content: The facilitator's response
             name: Optional display name (e.g. participant name in noting)
+            tokens_in/tokens_out/cache_read/cache_creation: LLM usage from the
+                completion that produced this message. Pass None for static or
+                fallback messages (no LLM call). When token counts are given,
+                they're also folded into the session-level usage tally.
         """
         if self._state is None:
             raise RuntimeError("No active session")
@@ -149,7 +207,53 @@ class SessionManager:
             role="assistant",
             content=content,
             name=name,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            cache_read=cache_read,
+            cache_creation=cache_creation,
         ))
+
+        if tokens_in is not None or tokens_out is not None:
+            self.record_llm_usage(tokens_in, tokens_out, cache_read, cache_creation)
+
+    def record_llm_usage(
+        self,
+        tokens_in: int | None,
+        tokens_out: int | None,
+        cache_read: int | None = None,
+        cache_creation: int | None = None,
+    ) -> None:
+        """Fold one LLM completion into the session usage tally.
+
+        Use directly for off-transcript completions (summary, resume-intent,
+        noting labels); ``add_assistant_message`` calls this for on-transcript
+        turns so callers don't double-count.
+        """
+        if self._state is None:
+            return
+        u = self._state.usage
+        u.llm_calls += 1
+        u.llm_tokens_in += tokens_in or 0
+        u.llm_tokens_out += tokens_out or 0
+        u.llm_cache_read += cache_read or 0
+        u.llm_cache_creation += cache_creation or 0
+
+    def record_stt(self, seconds: float) -> None:
+        """Accumulate STT audio seconds transcribed this session.
+
+        Counts all transcriptions (including speculative/command audio), since
+        each consumes STT compute.
+        """
+        if self._state is not None and seconds:
+            self._state.usage.stt_seconds += seconds
+
+    def record_tts(self, chars: int) -> None:
+        """Accumulate TTS characters synthesized server-side this session.
+
+        Browser-side speechSynthesis isn't counted (no server compute).
+        """
+        if self._state is not None and chars:
+            self._state.usage.tts_chars += chars
 
     def load_exchanges(self, exchanges: list[dict]) -> None:
         """Load saved exchanges into the current session (for continuation).
@@ -239,5 +343,6 @@ class SessionManager:
             "exchange_count": self._state.exchange_count,
             "tags": self._state.tags,
             "notes": self._state.notes,
+            "usage": self._state.usage.to_dict(),
             "exchanges": [e.to_dict() for e in self._state.exchanges],
         }
