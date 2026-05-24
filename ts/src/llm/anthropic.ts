@@ -40,10 +40,17 @@ export interface AnthropicProviderOptions {
     fetchImpl?: typeof fetch;
 }
 
+interface AnthropicUsage {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+}
+
 interface AnthropicMessagesResponse {
     content?: Array<{ type: string; text?: string }>;
     stop_reason?: string | null;
-    usage?: { input_tokens?: number; output_tokens?: number };
+    usage?: AnthropicUsage;
 }
 
 export class AnthropicProvider implements LLMProvider {
@@ -119,13 +126,11 @@ export class AnthropicProvider implements LLMProvider {
 
         const data = (await response.json()) as AnthropicMessagesResponse;
         const text = data.content?.[0]?.text ?? '';
-        const tokensUsed =
-            data.usage && (data.usage.input_tokens ?? 0) + (data.usage.output_tokens ?? 0);
 
         return {
             text,
             finishReason: data.stop_reason ?? null,
-            tokensUsed: typeof tokensUsed === 'number' ? tokensUsed : null,
+            ...usageToResult(data.usage),
         };
     }
 
@@ -146,7 +151,7 @@ export class AnthropicProvider implements LLMProvider {
         //   message_delta       — final stop_reason + usage
         //   message_stop        — terminator (no payload we need)
         let stopReason: string | null = null;
-        let tokensUsed: number | null = null;
+        let usage: AnthropicUsage | undefined;
 
         for await (const evt of iterateSseEvents(response)) {
             if (evt.event === 'content_block_delta') {
@@ -155,25 +160,60 @@ export class AnthropicProvider implements LLMProvider {
                 if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
                     yield { text: delta.text, done: false };
                 }
+            } else if (evt.event === 'message_start') {
+                // Initial usage (input + cache tokens) arrives here; output
+                // tokens are finalized in message_delta. Merge both.
+                const parsed = safeJson<{ message?: { usage?: AnthropicUsage } }>(evt.data);
+                if (parsed?.message?.usage) usage = { ...usage, ...parsed.message.usage };
             } else if (evt.event === 'message_delta') {
                 const parsed = safeJson<{
                     delta?: { stop_reason?: string | null };
-                    usage?: { input_tokens?: number; output_tokens?: number };
+                    usage?: AnthropicUsage;
                 }>(evt.data);
                 if (parsed?.delta?.stop_reason !== undefined) {
                     stopReason = parsed.delta.stop_reason;
                 }
-                if (parsed?.usage) {
-                    tokensUsed =
-                        (parsed.usage.input_tokens ?? 0) + (parsed.usage.output_tokens ?? 0);
-                }
+                if (parsed?.usage) usage = { ...usage, ...parsed.usage };
             } else if (evt.event === 'message_stop') {
                 break;
             }
         }
 
-        yield { text: '', done: true, finishReason: stopReason, tokensUsed };
+        yield { text: '', done: true, finishReason: stopReason, ...usageToResult(usage) };
     }
+}
+
+/**
+ * Map Anthropic's usage object to the CompletionResult split fields. Cache
+ * fields are only present when prompt caching is active. `tokensUsed` keeps
+ * the input+output sum for back-compat (cache reads/creation excluded, to
+ * match how the Python provider sums input+output).
+ */
+function usageToResult(usage: AnthropicUsage | undefined): {
+    tokensUsed: number | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    cacheReadTokens: number | null;
+    cacheCreationTokens: number | null;
+} {
+    if (!usage) {
+        return {
+            tokensUsed: null,
+            inputTokens: null,
+            outputTokens: null,
+            cacheReadTokens: null,
+            cacheCreationTokens: null,
+        };
+    }
+    const inputTokens = usage.input_tokens ?? 0;
+    const outputTokens = usage.output_tokens ?? 0;
+    return {
+        tokensUsed: inputTokens + outputTokens,
+        inputTokens,
+        outputTokens,
+        cacheReadTokens: usage.cache_read_input_tokens ?? null,
+        cacheCreationTokens: usage.cache_creation_input_tokens ?? null,
+    };
 }
 
 function safeJson<T>(s: string): T | null {

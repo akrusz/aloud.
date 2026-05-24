@@ -32,7 +32,15 @@ class FakeStreamingProvider implements LLMProvider {
         for (const c of this.chunks) {
             yield { text: c, done: false };
         }
-        yield { text: '', done: true, finishReason: 'stop', tokensUsed: null };
+        yield {
+            text: '',
+            done: true,
+            finishReason: 'stop',
+            tokensUsed: 33,
+            inputTokens: 25,
+            outputTokens: 8,
+            cacheReadTokens: 20,
+        };
     }
 }
 
@@ -40,7 +48,13 @@ class FakeNonStreamingProvider implements LLMProvider {
     readonly model = 'fake';
     constructor(private readonly text: string) {}
     async complete(): Promise<CompletionResult> {
-        return { text: this.text, finishReason: 'stop', tokensUsed: null };
+        return {
+            text: this.text,
+            finishReason: 'stop',
+            tokensUsed: 15,
+            inputTokens: 10,
+            outputTokens: 5,
+        };
     }
     // No completeStream — exercises the fallback path.
 }
@@ -132,6 +146,32 @@ describe('streamCompletionWithChunkedTts', () => {
         expect(result.text).toBe("[HOLD] I'll be right here.");
         // No speech — entering silence mode out loud defeats the point.
         expect(tts.spoken).toEqual([]);
+    });
+
+    it('surfaces the usage split from the final stream chunk', async () => {
+        const tts = new RecordingTts();
+        const provider = new FakeStreamingProvider(['Hello', ' there.']);
+        const result = await streamCompletionWithChunkedTts(provider, tts, [
+            { role: 'user', content: 'hi' },
+        ]);
+        await result.ttsDone;
+        expect(result.usage).toEqual({
+            tokensIn: 25,
+            tokensOut: 8,
+            cacheRead: 20,
+            cacheCreation: null,
+        });
+    });
+
+    it('surfaces the usage split from the non-streaming fallback', async () => {
+        const tts = new RecordingTts();
+        const result = await streamCompletionWithChunkedTts(
+            new FakeNonStreamingProvider('Hi.'),
+            tts,
+            [{ role: 'user', content: 'hi' }]
+        );
+        await result.ttsDone;
+        expect(result.usage).toMatchObject({ tokensIn: 10, tokensOut: 5 });
     });
 
     it('forwards onTextDelta with the cumulative text after each chunk', async () => {

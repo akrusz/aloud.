@@ -124,14 +124,18 @@ export class ClaudeProxyProvider implements LLMProvider {
         }
 
         const usage = data.usage ?? {};
+        const reported = usage.input_tokens !== undefined;
         const inputTokens = usage.input_tokens ?? 0;
         const outputTokens = usage.output_tokens ?? 0;
-        const tokensUsed = usage.input_tokens !== undefined ? inputTokens + outputTokens : null;
 
         return {
             text: data.result ?? '',
             finishReason: data.stop_reason ?? null,
-            tokensUsed,
+            tokensUsed: reported ? inputTokens + outputTokens : null,
+            inputTokens: reported ? inputTokens : null,
+            outputTokens: reported ? outputTokens : null,
+            cacheReadTokens: usage.cache_read_input_tokens ?? null,
+            cacheCreationTokens: usage.cache_creation_input_tokens ?? null,
         };
     }
 }

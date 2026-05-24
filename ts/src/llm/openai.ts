@@ -43,12 +43,18 @@ export interface OpenAIProviderOptions {
     fetchImpl?: typeof fetch;
 }
 
+interface OpenAIUsage {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+}
+
 interface OpenAIChatResponse {
     choices?: Array<{
         message?: { content?: string | null };
         finish_reason?: string | null;
     }>;
-    usage?: { total_tokens?: number };
+    usage?: OpenAIUsage;
 }
 
 export class OpenAIProvider implements LLMProvider {
@@ -127,12 +133,11 @@ export class OpenAIProvider implements LLMProvider {
         const data = (await response.json()) as OpenAIChatResponse;
         const choice = data.choices?.[0];
         const text = choice?.message?.content ?? '';
-        const tokensUsed = data.usage?.total_tokens ?? null;
 
         return {
             text,
             finishReason: choice?.finish_reason ?? null,
-            tokensUsed,
+            ...usageToResult(data.usage),
         };
     }
 
@@ -154,7 +159,7 @@ export class OpenAIProvider implements LLMProvider {
         //   data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{...}}
         //   data: [DONE]
         let finishReason: string | null = null;
-        let tokensUsed: number | null = null;
+        let usage: OpenAIUsage | undefined;
 
         for await (const evt of iterateSseEvents(response)) {
             const raw = evt.data.trim();
@@ -167,13 +172,32 @@ export class OpenAIProvider implements LLMProvider {
                 yield { text, done: false };
             }
             if (choice?.finish_reason) finishReason = choice.finish_reason;
-            if (parsed.usage?.total_tokens !== undefined) {
-                tokensUsed = parsed.usage.total_tokens;
-            }
+            if (parsed.usage) usage = parsed.usage;
         }
 
-        yield { text: '', done: true, finishReason, tokensUsed };
+        yield { text: '', done: true, finishReason, ...usageToResult(usage) };
     }
+}
+
+/**
+ * Map an OpenAI-compatible usage object to the CompletionResult split.
+ * `tokensUsed` keeps the provider-reported total. No cache fields — the
+ * OpenAI-style providers we use don't surface cache-token breakdowns (and
+ * the Python provider doesn't track them either).
+ */
+function usageToResult(usage: OpenAIUsage | undefined): {
+    tokensUsed: number | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+} {
+    if (!usage) {
+        return { tokensUsed: null, inputTokens: null, outputTokens: null };
+    }
+    return {
+        tokensUsed: usage.total_tokens ?? null,
+        inputTokens: usage.prompt_tokens ?? null,
+        outputTokens: usage.completion_tokens ?? null,
+    };
 }
 
 interface OpenAIStreamChunk {
@@ -181,7 +205,7 @@ interface OpenAIStreamChunk {
         delta?: { content?: string };
         finish_reason?: string | null;
     }>;
-    usage?: { total_tokens?: number };
+    usage?: OpenAIUsage;
 }
 
 function safeJson<T>(s: string): T | null {

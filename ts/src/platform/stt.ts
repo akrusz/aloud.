@@ -15,7 +15,17 @@
 
 export type SttEvent =
     | { type: 'partial'; text: string }
-    | { type: 'final'; text: string }
+    | {
+          type: 'final';
+          text: string;
+          /**
+           * Seconds of audio transcribed, when the engine ran billable
+           * server-side STT compute (e.g. Whisper). Omitted for on-device
+           * engines (Web Speech, native), which consume no metered compute —
+           * the caller folds this into session STT-seconds usage.
+           */
+          seconds?: number;
+      }
     | { type: 'error'; error: unknown };
 
 export interface SttEngine {

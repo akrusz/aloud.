@@ -228,7 +228,10 @@ export class ServerWhisperSttEngine implements SttEngine {
                 yield { type: 'error', error: new Error(data.error) };
                 return;
             }
-            yield { type: 'final', text: (data.text ?? '').trim() };
+            // Billable server-side STT compute — report the transcribed
+            // audio duration (16 kHz mono) for session usage tracking.
+            const seconds = downsampled.length / TARGET_SAMPLE_RATE;
+            yield { type: 'final', text: (data.text ?? '').trim(), seconds };
         } finally {
             this.cleanup();
         }

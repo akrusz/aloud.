@@ -169,4 +169,34 @@ describe('ClaudeProxyProvider', () => {
         const result = await provider.complete([{ role: 'user', content: 'hi' }]);
         expect(result.tokensUsed).toBe(55);
     });
+
+    it('reports the input/output/cache split', async () => {
+        fakeSpawn(
+            JSON.stringify({
+                result: 'ok',
+                usage: {
+                    input_tokens: 50,
+                    output_tokens: 5,
+                    cache_read_input_tokens: 30,
+                    cache_creation_input_tokens: 8,
+                },
+            })
+        );
+        const provider = new ClaudeProxyProvider({ binaryPath: '/bin/claude' });
+        const result = await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(result.inputTokens).toBe(50);
+        expect(result.outputTokens).toBe(5);
+        expect(result.cacheReadTokens).toBe(30);
+        expect(result.cacheCreationTokens).toBe(8);
+    });
+
+    it('reports null splits when usage is absent', async () => {
+        fakeSpawn(JSON.stringify({ result: 'ok' }));
+        const provider = new ClaudeProxyProvider({ binaryPath: '/bin/claude' });
+        const result = await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(result.tokensUsed).toBeNull();
+        expect(result.inputTokens).toBeNull();
+        expect(result.outputTokens).toBeNull();
+        expect(result.cacheReadTokens).toBeNull();
+    });
 });

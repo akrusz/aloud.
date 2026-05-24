@@ -27,20 +27,42 @@ function mockNdjsonResponse(lines: object[]): Response {
     });
 }
 
-async function collectStream(
-    iter: AsyncIterable<StreamChunk>
-): Promise<{ text: string; finishReason: string | null; tokensUsed: number | null }> {
+async function collectStream(iter: AsyncIterable<StreamChunk>): Promise<{
+    text: string;
+    finishReason: string | null;
+    tokensUsed: number | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    cacheReadTokens: number | null;
+    cacheCreationTokens: number | null;
+}> {
     let text = '';
     let finishReason: string | null = null;
     let tokensUsed: number | null = null;
+    let inputTokens: number | null = null;
+    let outputTokens: number | null = null;
+    let cacheReadTokens: number | null = null;
+    let cacheCreationTokens: number | null = null;
     for await (const chunk of iter) {
         text += chunk.text;
         if (chunk.done) {
             finishReason = chunk.finishReason ?? null;
             tokensUsed = chunk.tokensUsed ?? null;
+            inputTokens = chunk.inputTokens ?? null;
+            outputTokens = chunk.outputTokens ?? null;
+            cacheReadTokens = chunk.cacheReadTokens ?? null;
+            cacheCreationTokens = chunk.cacheCreationTokens ?? null;
         }
     }
-    return { text, finishReason, tokensUsed };
+    return {
+        text,
+        finishReason,
+        tokensUsed,
+        inputTokens,
+        outputTokens,
+        cacheReadTokens,
+        cacheCreationTokens,
+    };
 }
 
 function mockJsonResponse(data: unknown, init: { ok?: boolean; status?: number } = {}): Response {
@@ -512,5 +534,108 @@ describe('Preconfigured OpenAI-compatible providers', () => {
             include_venice_system_prompt: false,
         });
         expect(body.foo).toBe('bar');
+    });
+});
+
+describe('usage split — input/output/cache kept separate', () => {
+    it('Anthropic complete() parses input/output + cache fields', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({
+                content: [{ type: 'text', text: 'hi' }],
+                stop_reason: 'end_turn',
+                usage: {
+                    input_tokens: 100,
+                    output_tokens: 20,
+                    cache_read_input_tokens: 80,
+                    cache_creation_input_tokens: 12,
+                },
+            })
+        );
+        const provider = new AnthropicProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(result.inputTokens).toBe(100);
+        expect(result.outputTokens).toBe(20);
+        expect(result.cacheReadTokens).toBe(80);
+        expect(result.cacheCreationTokens).toBe(12);
+        // tokensUsed stays the input+output sum (cache excluded)
+        expect(result.tokensUsed).toBe(120);
+    });
+
+    it('Anthropic completeStream merges message_start + message_delta usage', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockSseResponse([
+                'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":50,"cache_read_input_tokens":40}}}',
+                'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"hi"}}',
+                'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":7}}',
+                'event: message_stop\ndata: {"type":"message_stop"}',
+            ])
+        );
+        const provider = new AnthropicProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await collectStream(
+            provider.completeStream([{ role: 'user', content: 'hi' }])
+        );
+        expect(result.text).toBe('hi');
+        expect(result.inputTokens).toBe(50);
+        expect(result.outputTokens).toBe(7);
+        expect(result.cacheReadTokens).toBe(40);
+        expect(result.tokensUsed).toBe(57);
+    });
+
+    it('OpenAI complete() maps prompt/completion tokens to input/output', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({
+                choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+                usage: { prompt_tokens: 30, completion_tokens: 9, total_tokens: 39 },
+            })
+        );
+        const provider = new OpenAIProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(result.inputTokens).toBe(30);
+        expect(result.outputTokens).toBe(9);
+        expect(result.tokensUsed).toBe(39);
+        // OpenAI-style providers don't surface cache breakdowns
+        expect(result.cacheReadTokens ?? null).toBeNull();
+    });
+
+    it('Ollama maps prompt_eval_count/eval_count to input/output (no cache)', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({
+                message: { content: 'ok' },
+                done_reason: 'stop',
+                prompt_eval_count: 25,
+                eval_count: 6,
+            })
+        );
+        const provider = new OllamaProvider({
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(result.inputTokens).toBe(25);
+        expect(result.outputTokens).toBe(6);
+        expect(result.tokensUsed).toBe(31);
+        expect(result.cacheReadTokens ?? null).toBeNull();
+    });
+
+    it('null usage yields null splits, not zeros', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({ content: [{ type: 'text', text: 'hi' }], stop_reason: 'end_turn' })
+        );
+        const provider = new AnthropicProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(result.tokensUsed).toBeNull();
+        expect(result.inputTokens).toBeNull();
+        expect(result.outputTokens).toBeNull();
     });
 });

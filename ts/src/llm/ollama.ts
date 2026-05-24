@@ -83,14 +83,11 @@ export class OllamaProvider implements LLMProvider {
 
         const data = (await response.json()) as OllamaChatResponse;
         const text = data.message?.content ?? '';
-        const promptTokens = data.prompt_eval_count ?? 0;
-        const evalTokens = data.eval_count ?? 0;
-        const tokensUsed = data.eval_count !== undefined ? promptTokens + evalTokens : null;
 
         return {
             text,
             finishReason: data.done_reason ?? null,
-            tokensUsed,
+            ...ollamaUsage(data),
         };
     }
 
@@ -119,7 +116,9 @@ export class OllamaProvider implements LLMProvider {
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
         let finishReason: string | null = null;
-        let tokensUsed: number | null = null;
+        let usage = { tokensUsed: null, inputTokens: null, outputTokens: null } as ReturnType<
+            typeof ollamaUsage
+        >;
 
         try {
             while (true) {
@@ -139,9 +138,7 @@ export class OllamaProvider implements LLMProvider {
                     }
                     if (parsed.done) {
                         finishReason = parsed.done_reason ?? 'stop';
-                        const pt = parsed.prompt_eval_count ?? 0;
-                        const et = parsed.eval_count ?? 0;
-                        tokensUsed = pt + et;
+                        usage = ollamaUsage(parsed);
                     }
                 }
             }
@@ -153,7 +150,7 @@ export class OllamaProvider implements LLMProvider {
             }
         }
 
-        yield { text: '', done: true, finishReason, tokensUsed };
+        yield { text: '', done: true, finishReason, ...usage };
     }
 
     /** True if the configured model (exact or prefix match) is pulled. */
@@ -207,6 +204,24 @@ interface OllamaStreamChunk {
     done_reason?: string | null;
     prompt_eval_count?: number;
     eval_count?: number;
+}
+
+/**
+ * Map Ollama's eval counts to the CompletionResult split: prompt_eval_count
+ * is input, eval_count is output. Local models have no prompt caching, so no
+ * cache fields. `tokensUsed` is the sum, null when the model reported nothing.
+ */
+function ollamaUsage(data: { prompt_eval_count?: number; eval_count?: number }): {
+    tokensUsed: number | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+} {
+    if (data.eval_count === undefined && data.prompt_eval_count === undefined) {
+        return { tokensUsed: null, inputTokens: null, outputTokens: null };
+    }
+    const inputTokens = data.prompt_eval_count ?? 0;
+    const outputTokens = data.eval_count ?? 0;
+    return { tokensUsed: inputTokens + outputTokens, inputTokens, outputTokens };
 }
 
 function safeJson<T>(s: string): T | null {

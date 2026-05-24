@@ -16,8 +16,21 @@ export interface Message {
 export interface CompletionResult {
     text: string;
     finishReason: string | null;
-    /** Total tokens (prompt + completion) when the provider reports it. */
+    /**
+     * Total tokens (prompt + completion) when the provider reports it.
+     * Kept for back-compat; usage tracking uses the split fields below.
+     */
     tokensUsed: number | null;
+    /**
+     * Usage split. Input and output are priced very differently (output
+     * ~4-5x input on Claude) and cache reads ~10x cheaper than fresh input,
+     * so these are kept SEPARATE, never summed. Any field is null when the
+     * provider doesn't report it. Mirrors src/llm/base.py CompletionResult.
+     */
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    cacheReadTokens?: number | null;
+    cacheCreationTokens?: number | null;
 }
 
 export interface CompletionOptions {
@@ -36,6 +49,11 @@ export interface StreamChunk {
     done: boolean;
     finishReason?: string | null;
     tokensUsed?: number | null;
+    /** Usage split, populated on the final chunk. See CompletionResult. */
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    cacheReadTokens?: number | null;
+    cacheCreationTokens?: number | null;
 }
 
 export interface LLMProvider {

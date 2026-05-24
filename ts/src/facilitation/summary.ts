@@ -7,6 +7,22 @@
  */
 
 import type { LLMProvider, Message } from '../llm/index.js';
+import type { LlmUsage } from './session.js';
+
+/** Extract the usage split from a CompletionResult into LlmUsage shape. */
+function resultUsage(r: {
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    cacheReadTokens?: number | null;
+    cacheCreationTokens?: number | null;
+}): LlmUsage {
+    return {
+        tokensIn: r.inputTokens ?? null,
+        tokensOut: r.outputTokens ?? null,
+        cacheRead: r.cacheReadTokens ?? null,
+        cacheCreation: r.cacheCreationTokens ?? null,
+    };
+}
 
 const SUMMARY_SYSTEM_PROMPT =
     'You are a helpful assistant. The conversation above is a completed ' +
@@ -21,6 +37,12 @@ const SUMMARY_USER_PROMPT =
 export interface GenerateSummaryOptions {
     /** Override the max-tokens hint for shorter completions. */
     maxTokens?: number;
+    /**
+     * Reports the off-transcript LLM usage for this call so the caller can
+     * fold it into session usage tracking. Fired only when the LLM call
+     * succeeds (a failed/empty summary made no billable completion).
+     */
+    onUsage?: (usage: LlmUsage) => void;
 }
 
 /**
@@ -41,6 +63,7 @@ export async function generateSessionSummary(
             system: SUMMARY_SYSTEM_PROMPT,
             maxTokens: options.maxTokens ?? 60,
         });
+        options.onUsage?.(resultUsage(result));
         return stripThinkTags(result.text).trim();
     } catch {
         return '';

@@ -37,7 +37,19 @@ export interface CreateTtsResult {
  * the picker is name-based, and reconciling those two is more brittle
  * than just trusting the name.
  */
-export async function createTtsForVoice(voiceId: string | null): Promise<CreateTtsResult> {
+export interface CreateTtsOptions {
+    /**
+     * Forwarded to ServerTtsEngine — reports characters synthesized
+     * server-side for session usage tracking. Browser TTS ignores it (no
+     * server compute, not counted).
+     */
+    onServerSynthesize?: (chars: number) => void;
+}
+
+export async function createTtsForVoice(
+    voiceId: string | null,
+    options: CreateTtsOptions = {}
+): Promise<CreateTtsResult> {
     if (!voiceId) {
         return { engine: new BrowserTtsEngine(), voice: null };
     }
@@ -61,18 +73,20 @@ export async function createTtsForVoice(voiceId: string | null): Promise<CreateT
             voices.find((v) => v.id === voiceId) ??
             voices.find((v) => v.name === name && v.source === 'server') ??
             null;
-        const options: ConstructorParameters<typeof ServerTtsEngine>[0] = { voice: name };
-        if (voice?.engine) options.engine = voice.engine;
-        return { engine: new ServerTtsEngine(options), voice };
+        const sttOptions: ConstructorParameters<typeof ServerTtsEngine>[0] = { voice: name };
+        if (voice?.engine) sttOptions.engine = voice.engine;
+        if (options.onServerSynthesize) sttOptions.onSynthesize = options.onServerSynthesize;
+        return { engine: new ServerTtsEngine(sttOptions), voice };
     }
 
     // Legacy / unprefixed id — try the catalog one more time.
     const voices = await allVoices();
     const voice = findVoice(voices, voiceId);
     if (voice && voice.source === 'server') {
-        const options: ConstructorParameters<typeof ServerTtsEngine>[0] = { voice: voice.name };
-        if (voice.engine) options.engine = voice.engine;
-        return { engine: new ServerTtsEngine(options), voice };
+        const sttOptions: ConstructorParameters<typeof ServerTtsEngine>[0] = { voice: voice.name };
+        if (voice.engine) sttOptions.engine = voice.engine;
+        if (options.onServerSynthesize) sttOptions.onSynthesize = options.onServerSynthesize;
+        return { engine: new ServerTtsEngine(sttOptions), voice };
     }
     return {
         engine: voice ? new BrowserTtsEngine({ defaultVoice: voice.name }) : new BrowserTtsEngine(),

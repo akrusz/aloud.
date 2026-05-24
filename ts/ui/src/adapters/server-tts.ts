@@ -18,6 +18,12 @@ export interface ServerTtsEngineOptions {
     engine?: string;
     endpointUrl?: string;
     fetchImpl?: typeof fetch;
+    /**
+     * Reports characters synthesized server-side, for session usage
+     * tracking. Fires once per successful synthesis with the text length.
+     * Browser-side TTS has no equivalent (no server compute, not counted).
+     */
+    onSynthesize?: (chars: number) => void;
 }
 
 export class ServerTtsEngine implements TtsEngine {
@@ -25,6 +31,7 @@ export class ServerTtsEngine implements TtsEngine {
     private readonly engine: string | undefined;
     private readonly endpointUrl: string;
     private readonly fetchImpl: typeof fetch;
+    private readonly onSynthesize: ((chars: number) => void) | undefined;
 
     private currentAudio: HTMLAudioElement | null = null;
     private currentUrl: string | null = null;
@@ -36,6 +43,7 @@ export class ServerTtsEngine implements TtsEngine {
         this.engine = options.engine;
         this.endpointUrl = options.endpointUrl ?? '/api/voices/preview';
         this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
+        this.onSynthesize = options.onSynthesize;
     }
 
     async speak(text: string, options?: TtsOptions): Promise<void> {
@@ -58,6 +66,8 @@ export class ServerTtsEngine implements TtsEngine {
                 throw new Error(`Server TTS responded ${response.status}`);
             }
             blob = await response.blob();
+            // Successful server synthesis — count the characters rendered.
+            this.onSynthesize?.(text.length);
         } catch (err) {
             this.currentAbort = null;
             if ((err as Error).name === 'AbortError') return;

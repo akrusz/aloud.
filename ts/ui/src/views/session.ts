@@ -170,7 +170,10 @@ export async function mountSessionView(
             },
         };
     }
-    const { engine: rawTts } = await createTtsForVoice(setup.voice);
+    const { engine: rawTts } = await createTtsForVoice(setup.voice, {
+        // Server-side synthesis is billable compute — fold chars into usage.
+        onServerSynthesize: (chars) => session.recordTts(chars),
+    });
     // Wrap TTS with a barge-in listener so the user can interrupt the
     // facilitator mid-sentence by speaking. The listener opens its own
     // mic stream during speak() — separate from the STT adapter — and
@@ -389,14 +392,14 @@ export async function mountSessionView(
             // because the [HOLD] prefix (if any) hasn't been stripped from
             // the early deltas. Render the cleaned full text at the end.
             setStatus('Speaking…');
-            const { text: rawText, ttsDone } = await streamCompletionWithChunkedTts(
+            const { text: rawText, ttsDone, usage } = await streamCompletionWithChunkedTts(
                 provider,
                 tts,
                 session.getContextMessages(),
                 { system: systemPrompt, ttsOptions: { rate: setup.ttsRate } }
             );
             const { signal, cleanText } = parseHoldSignal(rawText);
-            session.addAssistantMessage(cleanText);
+            session.addAssistantMessage(cleanText, undefined, usage);
             appendMessage('assistant', cleanText);
 
             // Wait for any in-flight TTS chunks to finish so the next
@@ -459,6 +462,9 @@ export async function mountSessionView(
                             }
                         } else if (event.type === 'final') {
                             finalText = event.text;
+                            // Billable server-side STT compute (Whisper) reports
+                            // audio seconds; on-device engines omit it.
+                            if (event.seconds) session.recordStt(event.seconds);
                         } else if (event.type === 'error') {
                             micError = describeSttError(event.error);
                         }
@@ -655,7 +661,7 @@ export async function mountSessionView(
                 { role: 'user' as const, content: continuationNote },
             ];
             setStatus('Speaking…');
-            const { text: rawText, ttsDone } = await streamCompletionWithChunkedTts(
+            const { text: rawText, ttsDone, usage } = await streamCompletionWithChunkedTts(
                 provider,
                 tts,
                 messages,
@@ -665,7 +671,7 @@ export async function mountSessionView(
                 }
             );
             const { cleanText } = parseHoldSignal(rawText);
-            session.addAssistantMessage(cleanText);
+            session.addAssistantMessage(cleanText, undefined, usage);
             appendMessage('assistant', cleanText);
             try {
                 await ttsDone;
@@ -849,7 +855,13 @@ export async function mountSessionView(
             setStatus('Saving session…');
             let summary = '';
             try {
-                summary = await generateSessionSummary(provider, finalState.exchanges);
+                // The summary is an off-transcript completion — fold its token
+                // usage into the session tally before we persist finalState
+                // (same object reference as session.state, so recording still
+                // mutates it after endSession()).
+                summary = await generateSessionSummary(provider, finalState.exchanges, {
+                    onUsage: (u) => session.recordLlmUsage(u),
+                });
             } catch {
                 /* fall through to fallback */
             }

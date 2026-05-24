@@ -11,8 +11,25 @@
  * implement streaming.
  */
 
-import type { LLMProvider, Message, CompletionOptions } from '../../src/llm/index.js';
+import type {
+    LLMProvider,
+    Message,
+    CompletionOptions,
+    CompletionResult,
+    StreamChunk,
+} from '../../src/llm/index.js';
+import type { LlmUsage } from '../../src/facilitation/index.js';
 import type { TtsEngine, TtsOptions } from '../../src/platform/index.js';
+
+/** Pull the usage split out of a completion result or final stream chunk. */
+export function usageFrom(r: CompletionResult | StreamChunk): LlmUsage {
+    return {
+        tokensIn: r.inputTokens ?? null,
+        tokensOut: r.outputTokens ?? null,
+        cacheRead: r.cacheReadTokens ?? null,
+        cacheCreation: r.cacheCreationTokens ?? null,
+    };
+}
 
 export interface StreamCompletionOptions extends CompletionOptions {
     /** Called whenever new text has been accumulated (for live transcript). */
@@ -26,6 +43,8 @@ export interface StreamCompletionResult {
     text: string;
     /** Promise that resolves when the last TTS chunk finishes playing. */
     ttsDone: Promise<void>;
+    /** LLM usage split from this completion (for session usage tracking). */
+    usage: LlmUsage;
 }
 
 /**
@@ -53,6 +72,7 @@ export async function streamCompletionWithChunkedTts(
         return {
             text: result.text,
             ttsDone: tts.speak(result.text, ttsOptions),
+            usage: usageFrom(result),
         };
     }
 
@@ -64,6 +84,7 @@ export async function streamCompletionWithChunkedTts(
     // TTS queue — each entry awaits the previous one so utterances play
     // sequentially and we can return a single "all done" promise.
     let ttsQueue: Promise<void> = Promise.resolve();
+    let usage: LlmUsage = {};
 
     function enqueueSpeak(text: string): void {
         if (!text.trim() || inHoldMode) return;
@@ -109,6 +130,7 @@ export async function streamCompletionWithChunkedTts(
             pendingTtsText = split.remainder;
         }
         if (chunk.done) {
+            usage = usageFrom(chunk);
             checkHoldPrefix(true);
             if (!inHoldMode && pendingTtsText.trim()) {
                 enqueueSpeak(pendingTtsText);
@@ -117,7 +139,7 @@ export async function streamCompletionWithChunkedTts(
         }
     }
 
-    return { text: fullText, ttsDone: ttsQueue };
+    return { text: fullText, ttsDone: ttsQueue, usage };
 }
 
 const HOLD_PREFIX = '[HOLD]';

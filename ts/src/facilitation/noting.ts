@@ -14,6 +14,7 @@
  */
 
 import type { LLMProvider, Message } from '../llm/index.js';
+import type { LlmUsage } from './session.js';
 
 // ---------------------------------------------------------------------------
 // System prompts (verbatim from Python)
@@ -124,6 +125,12 @@ export interface GenerateLabelOptions {
     reactive?: ReactiveLevel;
     /** Token cap for the label — labels are 1–3 words, so this is a tiny number. */
     maxTokens?: number;
+    /**
+     * Reports the off-transcript LLM usage for this label call so the caller
+     * can fold it into session usage tracking. Fired only on a successful
+     * completion.
+     */
+    onUsage?: (usage: LlmUsage) => void;
 }
 
 /**
@@ -145,6 +152,7 @@ export async function generateNotingLabel(
         ownLabels = [],
         reactive = 'none',
         maxTokens = 20,
+        onUsage,
     } = options;
 
     let system = NOTING_LABEL_SYSTEM_PROMPT;
@@ -170,6 +178,12 @@ export async function generateNotingLabel(
 
     try {
         const result = await provider.complete(messages, { system, maxTokens });
+        onUsage?.({
+            tokensIn: result.inputTokens ?? null,
+            tokensOut: result.outputTokens ?? null,
+            cacheRead: result.cacheReadTokens ?? null,
+            cacheCreation: result.cacheCreationTokens ?? null,
+        });
         const cleaned = stripThinkTags(result.text)
             .trim()
             .replace(/^["']+|["']+$/g, '') // strip surrounding quotes

@@ -12,8 +12,11 @@ export {
 // LLM message shapes; the session module narrows it internally.
 export {
     SessionManager,
+    emptyUsage,
     type Exchange,
     type SessionState,
+    type SessionUsage,
+    type LlmUsage,
     type ContextStrategy,
     type SessionManagerOptions,
 } from './session.js';
