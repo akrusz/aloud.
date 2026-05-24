@@ -16,9 +16,6 @@ uv run python -m src.web --host 0.0.0.0 --port 8080
 
 # Debug logging (verbose output from src.* loggers)
 uv run python -m src.web --debug
-
-# CLI mode (headless, mic + system TTS)
-uv run python -m src
 ```
 
 ## Debug & Testing Flags
@@ -71,15 +68,11 @@ uv run python -m src.web --browser --fresh --hide-premium
 | `--debug` | Sets log level to DEBUG for all `src.*` loggers |
 | `--browser` | Opens in system browser instead of pywebview native window |
 
-## Session Management (CLI)
+## Session Management
 
-```bash
-# List saved sessions
-uv run python -m src --list-sessions
-
-# View a session transcript
-uv run python -m src --view-session SESSION_ID
-```
+Saved sessions are viewed and deleted from the **History** page in the web UI
+(`/history`). On disk they live as `<id>.json` / `<id>.txt` under the configured
+`session.save_directory` (default `sessions/`).
 
 ## Tests
 

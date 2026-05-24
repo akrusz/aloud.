@@ -59,7 +59,6 @@
         '' else ''
           echo "  python -m src.web --browser  # start (opens in browser)"
         '') + ''
-          echo "  python -m src               # CLI mode"
           echo "  ./scripts/start.sh          # full launcher (auto-bootstraps config)"
           echo ""
         '';
