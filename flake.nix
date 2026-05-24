@@ -1,5 +1,5 @@
 {
-  description = "glooow - voice-based meditation facilitator";
+  description = "aloud. — voice-based meditation facilitator";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -31,7 +31,7 @@
         ];
 
         makeShellHook = { requirementsFile, mode }: ''
-          echo "glooow development environment (${mode})"
+          echo "aloud. development environment (${mode})"
           echo ""
 
           # Set up library paths for native deps (portaudio for audio, libstdc++ for numpy/scipy)
