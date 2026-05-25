@@ -66,8 +66,22 @@ const MODELS: Record<string, ModelPricing> = {
         model: 'llama-3.3-70b-versatile',
         input: 0.59 / M,
         output: 0.79 / M,
-        cacheRead: 0.59 / M, // Groq doesn't price cache separately; treat as input.
+        cacheRead: 0.59 / M, // Groq has NO prompt caching — re-sent history bills at full input.
         cacheCreation: 0.59 / M,
+    },
+    // The genuine VALUE tier: cheap per-token AND cache-capable. On this
+    // ~98%-re-sent-history workload, the combination crushes both Haiku and
+    // Groq. (cacheRead modeled at the full input rate for now — conservative,
+    // matching current billing, since the OpenRouter usage parser doesn't yet
+    // read cached_tokens; capturing Gemini/DeepSeek implicit caching would make
+    // it cheaper still — see follow-up bead. It's already the cheapest here.)
+    'openrouter:google/gemini-2.5-flash-lite': {
+        provider: 'openrouter',
+        model: 'google/gemini-2.5-flash-lite',
+        input: 0.1 / M,
+        output: 0.4 / M,
+        cacheRead: 0.1 / M,
+        cacheCreation: 0.1 / M,
     },
 };
 
