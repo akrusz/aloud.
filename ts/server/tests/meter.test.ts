@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
-    CREDIT_USD,
-    MARGIN_MULTIPLIER,
+    USD_PER_CREDIT,
+    PACK_MARKUP,
     assertSolvent,
     llmCostUsd,
+    packPriceUsd,
     priceLlmTurn,
     priceSession,
+    type PackLike,
 } from '../src/pricing/meter.js';
 
 describe('llmCostUsd', () => {
@@ -32,15 +34,15 @@ describe('llmCostUsd', () => {
 });
 
 describe('priceLlmTurn', () => {
-    it('applies the margin multiplier and rounds credits up', () => {
+    it('debits at COST (no markup) and rounds credits up', () => {
         const turn = priceLlmTurn('anthropic', 'claude-sonnet-4-6', {
             tokensIn: 1000,
             tokensOut: 500,
         });
         const expectedUsd = (1000 * 3 + 500 * 15) / 1_000_000; // raw provider cost
         expect(turn.providerCostUsd).toBeCloseTo(expectedUsd, 9);
-        expect(turn.retailUsd).toBeCloseTo(expectedUsd * MARGIN_MULTIPLIER, 9);
-        expect(turn.credits).toBe(Math.ceil((expectedUsd * MARGIN_MULTIPLIER) / CREDIT_USD));
+        // Credits are cost / USD_PER_CREDIT — margin is NOT applied here.
+        expect(turn.credits).toBe(Math.ceil(expectedUsd / USD_PER_CREDIT));
         expect(Number.isInteger(turn.credits)).toBe(true);
     });
 });
@@ -61,20 +63,30 @@ describe('priceSession', () => {
     });
 });
 
+describe('packPriceUsd', () => {
+    it('marks credits up over the provider cost they fund', () => {
+        expect(packPriceUsd(100)).toBeCloseTo(100 * USD_PER_CREDIT * PACK_MARKUP, 9);
+    });
+});
+
 describe('assertSolvent', () => {
-    it('clears every channel at the default 2x multiplier', () => {
-        const reports = assertSolvent();
-        expect(reports.length).toBeGreaterThan(0);
-        for (const r of reports) {
-            expect(r.clears).toBe(true);
-            expect(r.netMarginRatio).toBeGreaterThan(0);
-        }
+    const required = 1 / (1 - 0.18); // worst-case EU commission floor
+
+    it('passes packs whose markup clears the worst channel', () => {
+        // 100 credits fund 100*USD_PER_CREDIT of cost; price it well above.
+        const ok: PackLike[] = [
+            { id: 'p1', credits: 100, priceUsdCents: Math.ceil(100 * USD_PER_CREDIT * 2.5 * 100) },
+        ];
+        const reports = assertSolvent(ok);
+        expect(reports[0]!.clears).toBe(true);
+        expect(reports[0]!.effectiveMarkup).toBeGreaterThanOrEqual(required);
     });
 
-    it('the 15% IAP floor requires >= ~1.176x and 2x clears it', () => {
-        const iap = assertSolvent().find((r) => r.channel === 'iap_apple');
-        expect(iap).toBeDefined();
-        expect(iap!.requiredMultiplier).toBeCloseTo(1 / 0.85, 3);
-        expect(MARGIN_MULTIPLIER).toBeGreaterThanOrEqual(iap!.requiredMultiplier);
+    it('throws if a pack is priced below the worst-channel markup floor', () => {
+        // Priced at exactly cost (1x markup) — must fail.
+        const bad: PackLike[] = [
+            { id: 'loss', credits: 100, priceUsdCents: Math.ceil(100 * USD_PER_CREDIT * 100) },
+        ];
+        expect(() => assertSolvent(bad)).toThrow(/insolvent/);
     });
 });

@@ -23,11 +23,12 @@ describe('app', () => {
         expect(res.status).toBe(401);
     });
 
-    it('GET /v1/me/models is public and publishes the margin', async () => {
+    it('GET /v1/me/models is public and publishes the markup', async () => {
         const res = await app().request('/v1/me/models');
         expect(res.status).toBe(200);
-        const body = (await res.json()) as { marginMultiplier: number; models: unknown[] };
-        expect(body.marginMultiplier).toBeGreaterThan(1);
+        const body = (await res.json()) as { packMarkup: number; usdPerCredit: number; models: unknown[] };
+        expect(body.packMarkup).toBeGreaterThan(1);
+        expect(body.usdPerCredit).toBeGreaterThan(0);
         expect(body.models.length).toBeGreaterThan(0);
     });
 

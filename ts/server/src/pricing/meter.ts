@@ -1,25 +1,28 @@
 /**
  * The metered-billing core (meditation-pal-8sj): price each unit of usage by
- * its ACTUAL underlying cost x a margin multiplier, debited from a credit
- * balance. Metered debit is the direct fix for the cost-math trap
- * meditation-pal-a2j flags — a daily power user's heavy use can never run at a
- * loss, because every token they burn is repriced upward, not amortized
- * against a flat subscription.
+ * its ACTUAL underlying provider cost, debited from a credit balance. Metered
+ * debit is the direct fix for the cost-math trap meditation-pal-a2j flags — a
+ * daily power user's heavy use can never run at a loss, because every token
+ * they burn is debited at real cost, not amortized against a flat subscription.
  *
- * Money model (kept deliberately simple and transparent):
- *   - 1 credit = CREDIT_USD of retail value (default $0.01).
- *   - A unit of usage costs `providerCostUsd`; the user is charged
- *     providerCostUsd * MARGIN_MULTIPLIER, converted to credits.
- *   - Credits are sold at face value, so the per-credit economics reduce to:
- *     a pack of N credits costs N * CREDIT_USD; the provider cost those
- *     credits will fund is (creditsSpent * CREDIT_USD) / MARGIN_MULTIPLIER.
+ * Money model (Model B — margin lives at PURCHASE, not in the debit):
+ *   - 1 credit = USD_PER_CREDIT of PROVIDER COST (what we pay). The debit is at
+ *     cost: credits_spent = providerCostUsd / USD_PER_CREDIT. No markup here.
+ *   - Margin is applied when CREDITS ARE SOLD: a pack of N credits funds
+ *     N * USD_PER_CREDIT of provider cost, and sells for that * PACK_MARKUP
+ *     (see billing/stripe.ts). Markup is visible at checkout — the most
+ *     transparent place to put it — and sales tax/VAT is collected on top via
+ *     Stripe Tax (not absorbed from margin).
+ *   - Net of the ~$0.05 cost basis and a ~2.5x pack markup, the user pays
+ *     ~$0.125/credit at purchase. Keeping margin out of the debit means the
+ *     per-session credit counts the user watches tick down map 1:1 to real
+ *     compute cost — easy to verify, on-brand for the published-margin stance.
  *
- * Solvency requirement (the addendum's "must clear positive margin at the 15%
- * IAP floor"): net revenue after commission must exceed the provider cost the
- * sold credits fund. With face-value pricing that is exactly
- *     MARGIN_MULTIPLIER >= 1 / (1 - commission)
- * e.g. 15% IAP needs >= 1.176x; 18% EU needs >= 1.22x; 30% needs >= 1.43x.
- * `assertSolvent()` enforces this at boot against the worst configured channel.
+ * Solvency (the addendum's "must clear positive margin at the 15% IAP floor"):
+ * net pack revenue after commission must exceed the provider cost the sold
+ * credits fund, i.e. effective pack markup >= 1 / (1 - commission). 15% IAP
+ * needs >=1.176x; 18% EU >=1.22x; 30% >=1.43x. assertSolvent() enforces this at
+ * boot against every pack and channel.
  */
 
 import type { LlmUsage, SessionUsage } from '@aloud/core/facilitation';
@@ -32,15 +35,18 @@ import {
 } from './providers.js';
 import type { ProviderId } from '../contract.js';
 
-/** Retail value of one credit, in USD. Tentative $0.12 — chosen so per-session
- *  estimates read as small friendly integers (Opus ~hr ≈ single digits). To be
- *  calibrated against real testing before launch (meditation-pal-7xl). */
-export const CREDIT_USD = 0.12;
+/** Provider COST that one credit represents, in USD. Margin is NOT here — it's
+ *  added at purchase (PACK_MARKUP). Tentative $0.05; with a ~2.5x pack markup
+ *  the user pays ~$0.125/credit, and a ~50-min Opus session lands at a friendly
+ *  single-digit credit count. Calibrate against real testing (meditation-pal-7xl). */
+export const USD_PER_CREDIT = 0.05;
 
-/** Markup over raw provider cost. 2x is comfortably above the worst-case
- *  commission floor (see assertSolvent) and leaves headroom for STT/TTS and
- *  unpriced overhead. Tune in the open; it's published. */
-export const MARGIN_MULTIPLIER = 2.0;
+/** Markup applied when SELLING credits (in pack pricing), over the provider
+ *  cost the credits fund. Covers margin + payment commission; sales tax is
+ *  added on top by Stripe Tax. Comfortably above every channel's commission
+ *  floor (see assertSolvent). Published — it's the one "sensitive" number, and
+ *  trivially derivable anyway. */
+export const PACK_MARKUP = 2.5;
 
 /** USD provider cost of one LLM turn from its usage split. */
 export function llmCostUsd(provider: ProviderId, model: string, usage: LlmUsage): number {
@@ -59,22 +65,17 @@ export function llmCostUsd(provider: ProviderId, model: string, usage: LlmUsage)
 
 export interface CostBreakdown {
     providerCostUsd: number;
-    retailUsd: number;
-    /** Credits to debit (rounded up — we never under-charge to a fraction). */
+    /** Credits to debit (at cost, rounded up — never under-charge to a fraction). */
     credits: number;
 }
 
-function toCredits(providerCostUsd: number): CostBreakdown {
-    const retailUsd = providerCostUsd * MARGIN_MULTIPLIER;
-    const credits = Math.ceil(retailUsd / CREDIT_USD);
-    return { providerCostUsd, retailUsd, credits };
+/** Credits for a raw provider-cost USD amount, at cost (no markup), rounded up. */
+export function usdToCredits(providerCostUsd: number): number {
+    return Math.ceil(providerCostUsd / USD_PER_CREDIT);
 }
 
-/** Retail credits for a raw provider-cost USD amount (margin applied, rounded
- *  up). Used by the estimate engine to price legs (e.g. TTS) outside a full
- *  SessionUsage. */
-export function usdToCredits(providerCostUsd: number): number {
-    return Math.ceil((providerCostUsd * MARGIN_MULTIPLIER) / CREDIT_USD);
+function toCredits(providerCostUsd: number): CostBreakdown {
+    return { providerCostUsd, credits: usdToCredits(providerCostUsd) };
 }
 
 /** Price a single LLM turn (the proxy's hot path). */
@@ -103,58 +104,71 @@ export function priceSession(
     return toCredits(llm + stt + tts);
 }
 
+/** USD a pack of `credits` sells for: the provider cost it funds, marked up.
+ *  Sales tax is added on top at checkout (Stripe Tax), not included here. */
+export function packPriceUsd(credits: number): number {
+    return credits * USD_PER_CREDIT * PACK_MARKUP;
+}
+
 /** A conservative pre-auth hold placed at session start, before any usage is
  *  known (meditation-pal-8sj: "a small pre-auth hold at session start").
  *  Sized to a few minutes of premium use; the unused remainder is released on
- *  settle. */
-export const SESSION_HOLD_CREDITS = 25;
+ *  settle. At cost-denominated credits this is a few cents of headroom. */
+export const SESSION_HOLD_CREDITS = 10;
 
-export interface SolvencyReport {
-    marginMultiplier: number;
-    channel: PurchaseChannel;
-    jurisdiction: string;
-    commission: number;
-    requiredMultiplier: number;
-    clears: boolean;
-    netMarginRatio: number;
+export interface PackLike {
+    id: string;
+    credits: number;
+    priceUsdCents: number;
 }
 
-/** Does MARGIN_MULTIPLIER clear positive net margin on every channel we sell
- *  through? Called at boot; throws if any channel would run at a loss. This is
- *  the addendum's hard requirement made executable. */
-export function assertSolvent(): SolvencyReport[] {
+export interface SolvencyReport {
+    packId: string;
+    /** price / (credits * USD_PER_CREDIT) — net revenue per cost-dollar funded. */
+    effectiveMarkup: number;
+    /** Worst commission across channels we sell through. */
+    worstCommission: number;
+    requiredMarkup: number;
+    clears: boolean;
+}
+
+/** Does every pack clear positive net margin on the worst channel we sell
+ *  through? Called at boot with the live packs; throws if any would run at a
+ *  loss after commission. The addendum's hard requirement, made executable. */
+export function assertSolvent(packs: readonly PackLike[]): SolvencyReport[] {
+    // The worst commission we'd ever pay on a sale bounds the required markup.
     const channels: Array<[PurchaseChannel, string]> = [
         ['web_stripe', 'US'],
         ['web_stripe', 'EU'],
         ['iap_apple', 'US'],
         ['iap_google', 'US'],
     ];
-    const reports = channels.map(([channel, jurisdiction]): SolvencyReport => {
-        const commission = commissionFor(channel, jurisdiction).rate;
-        const requiredMultiplier = 1 / (1 - commission);
-        // Net margin per credit spent, as a fraction above break-even:
-        //   revenue after commission = CREDIT_USD * (1 - commission)
-        //   cost funded              = CREDIT_USD / MARGIN_MULTIPLIER
-        const netMarginRatio =
-            (1 - commission) - 1 / MARGIN_MULTIPLIER;
+    const worstCommission = Math.max(
+        ...channels.map(([c, j]) => commissionFor(c, j).rate),
+        WORST_CASE_COMMISSION
+    );
+    const requiredMarkup = 1 / (1 - worstCommission);
+
+    const reports = packs.map((pack): SolvencyReport => {
+        const costFunded = pack.credits * USD_PER_CREDIT;
+        const effectiveMarkup = costFunded > 0 ? pack.priceUsdCents / 100 / costFunded : 0;
         return {
-            marginMultiplier: MARGIN_MULTIPLIER,
-            channel,
-            jurisdiction,
-            commission,
-            requiredMultiplier,
-            clears: MARGIN_MULTIPLIER >= requiredMultiplier,
-            netMarginRatio,
+            packId: pack.id,
+            effectiveMarkup,
+            worstCommission,
+            requiredMarkup,
+            clears: effectiveMarkup >= requiredMarkup,
         };
     });
+
     const failing = reports.filter((r) => !r.clears);
     if (failing.length > 0) {
         const detail = failing
-            .map((r) => `${r.channel}/${r.jurisdiction} needs >=${r.requiredMultiplier.toFixed(3)}x`)
+            .map((r) => `${r.packId} markup ${r.effectiveMarkup.toFixed(2)}x < required ${r.requiredMarkup.toFixed(3)}x`)
             .join('; ');
         throw new Error(
-            `Pricing is insolvent: MARGIN_MULTIPLIER=${MARGIN_MULTIPLIER} does not clear ${detail}. ` +
-                `Worst-case commission is ${WORST_CASE_COMMISSION}. Raise MARGIN_MULTIPLIER or drop the channel.`
+            `Pricing is insolvent on the worst channel (commission ${worstCommission}): ${detail}. ` +
+                `Raise pack prices or PACK_MARKUP.`
         );
     }
     return reports;

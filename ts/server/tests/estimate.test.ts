@@ -14,9 +14,9 @@ describe('estimateModels', () => {
     });
 
     it('orders by cost: Opus > Sonnet > Haiku, with a large Opus:Haiku spread', () => {
-        // Compare on retail USD, not rounded credits — at CREDIT_USD $0.12 the
-        // per-hour credit counts round to small integers and lose ratio precision.
-        const usd = (model: string) => models.find((m) => m.model === model)!.retailUsdPerHour;
+        // Compare on provider-cost USD, not rounded credits — at this denomination
+        // the per-hour credit counts round to small integers and lose ratio precision.
+        const usd = (model: string) => models.find((m) => m.model === model)!.costUsdPerHour;
         expect(usd('claude-opus-4-7')).toBeGreaterThan(usd('claude-sonnet-4-6'));
         expect(usd('claude-sonnet-4-6')).toBeGreaterThan(usd('claude-haiku-4-5-20251001'));
         // ~5x on this cache-heavy workload.
@@ -25,7 +25,7 @@ describe('estimateModels', () => {
 
     it('a NO-CACHE model (Groq) can beat a cached cheap model (Haiku) on cost: '
         + 'this workload is ~98% re-sent history, so cheap cache reads matter more than sticker price', () => {
-        const usd = (model: string) => models.find((m) => m.model === model)!.retailUsdPerHour;
+        const usd = (model: string) => models.find((m) => m.model === model)!.costUsdPerHour;
         // Groq has no prompt caching, so the heavy re-sent prefix bills at full
         // input rate — making it pricier here than Haiku-with-caching despite a
         // lower sticker price. A real, counterintuitive cost-model fact.
@@ -39,7 +39,7 @@ describe('estimateStt', () => {
         expect(stt.creditsPerHour).toBeGreaterThan(0);
         // VAD-segmented speech makes STT cheap relative to a premium model hour.
         const opus = estimateModels().find((m) => m.model === 'claude-opus-4-7')!;
-        expect(stt.retailUsdPerHour).toBeLessThan(opus.retailUsdPerHour);
+        expect(stt.costUsdPerHour).toBeLessThan(opus.costUsdPerHour);
     });
 });
 

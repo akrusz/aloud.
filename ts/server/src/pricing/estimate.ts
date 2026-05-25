@@ -20,7 +20,7 @@
 
 import type { SessionUsage } from '@aloud/core/facilitation';
 import type { ProviderId } from '../contract.js';
-import { MARGIN_MULTIPLIER, priceSession, usdToCredits } from './meter.js';
+import { priceSession, usdToCredits } from './meter.js';
 import { allowedModels } from './providers.js';
 import { ttsRateFor, ttsVoices } from './voices.js';
 
@@ -62,8 +62,9 @@ function round1(n: number): number {
 export interface LegEstimate {
     creditsPerSession: number;
     creditsPerHour: number;
-    /** Underlying provider cost per hour, for transparency / denomination tuning. */
-    retailUsdPerHour: number;
+    /** Underlying provider cost per hour (credits debit at cost). For
+     *  transparency / denomination tuning. */
+    costUsdPerHour: number;
 }
 
 export interface ModelEstimate extends LegEstimate {
@@ -83,8 +84,8 @@ export interface VoiceEstimate {
     label: string;
     /** Credits/hr at each point in the talk band. Local voices are all 0. */
     creditsPerHour: CreditBand;
-    /** Underlying retail $/hr at "typical", for denomination tuning. */
-    retailUsdPerHourTypical: number;
+    /** Underlying provider cost $/hr at "typical", for denomination tuning. */
+    costUsdPerHourTypical: number;
 }
 
 /** LLM-only credits for the typical session (zero STT/TTS — those are separate
@@ -98,7 +99,7 @@ export function estimateModels(): ModelEstimate[] {
             model: m.model,
             creditsPerSession: cost.credits,
             creditsPerHour: Math.ceil(cost.credits * PER_HOUR),
-            retailUsdPerHour: round1(cost.retailUsd * PER_HOUR * 100) / 100,
+            costUsdPerHour: round1(cost.providerCostUsd * PER_HOUR * 100) / 100,
         };
     });
 }
@@ -112,7 +113,7 @@ export function estimateStt(): LegEstimate {
     return {
         creditsPerSession: cost.credits,
         creditsPerHour: Math.ceil(cost.credits * PER_HOUR),
-        retailUsdPerHour: round1(cost.retailUsd * PER_HOUR * 100) / 100,
+        costUsdPerHour: round1(cost.providerCostUsd * PER_HOUR * 100) / 100,
     };
 }
 
@@ -130,8 +131,8 @@ export function estimateVoices(): VoiceEstimate[] {
                 typical: perHour(TTS_CHAR_PROFILES.typical),
                 engaged: perHour(TTS_CHAR_PROFILES.engaged),
             },
-            retailUsdPerHourTypical:
-                round1(TTS_CHAR_PROFILES.typical * rate * MARGIN_MULTIPLIER * PER_HOUR * 100) / 100,
+            costUsdPerHourTypical:
+                round1(TTS_CHAR_PROFILES.typical * rate * PER_HOUR * 100) / 100,
         };
     });
 }

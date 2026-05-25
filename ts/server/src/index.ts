@@ -11,7 +11,8 @@ import { serve } from '@hono/node-server';
 import { loadConfig, configuredProviders } from './config.js';
 import { buildDeps } from './deps.js';
 import { createApp } from './app.js';
-import { assertSolvent } from './pricing/meter.js';
+import { assertSolvent, PACK_MARKUP } from './pricing/meter.js';
+import { CREDIT_PACKS } from './billing/stripe.js';
 import { setStrictContentCheck, log } from './logger.js';
 
 function main(): void {
@@ -21,8 +22,8 @@ function main(): void {
     // log field can't crash a paying request — but it still never logs content.
     setStrictContentCheck(!config.strict);
 
-    // Refuse to start if the margin can't clear the worst configured channel.
-    const solvency = assertSolvent();
+    // Refuse to start if any pack's margin can't clear the worst channel.
+    const solvency = assertSolvent(CREDIT_PACKS);
 
     const deps = buildDeps(config);
     const app = createApp(deps);
@@ -32,7 +33,8 @@ function main(): void {
             port: info.port,
             providers: configuredProviders(config),
             billing: Boolean(config.stripeSecretKey),
-            marginMultiplier: solvency[0]?.marginMultiplier,
+            packMarkup: PACK_MARKUP,
+            packsClear: solvency.every((r) => r.clears),
             freeSignupCredits: config.freeSignupCredits,
         });
     });

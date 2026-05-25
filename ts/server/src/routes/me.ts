@@ -10,7 +10,7 @@ import type { Deps } from '../deps.js';
 import type { AuthVars } from '../auth/middleware.js';
 import { requireAuth } from '../auth/middleware.js';
 import { allowedModels } from '../pricing/providers.js';
-import { CREDIT_USD, MARGIN_MULTIPLIER } from '../pricing/meter.js';
+import { USD_PER_CREDIT, PACK_MARKUP } from '../pricing/meter.js';
 import { CREDIT_PACKS } from '../billing/stripe.js';
 import {
     TYPICAL_SESSION_MINUTES,
@@ -36,8 +36,9 @@ export function meRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
     // Public pricing transparency — no auth needed; the margin is published.
     app.get('/models', (c) =>
         c.json({
-            creditUsd: CREDIT_USD,
-            marginMultiplier: MARGIN_MULTIPLIER,
+            // Credits debit at provider COST; margin is added at purchase.
+            usdPerCredit: USD_PER_CREDIT,
+            packMarkup: PACK_MARKUP,
             models: allowedModels(),
         })
     );
@@ -49,8 +50,8 @@ export function meRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
     // The client composes a session estimate as: model + stt + chosen voice.
     app.get('/estimates', (c) =>
         c.json({
-            creditUsd: CREDIT_USD,
-            marginMultiplier: MARGIN_MULTIPLIER,
+            usdPerCredit: USD_PER_CREDIT,
+            packMarkup: PACK_MARKUP,
             basis: {
                 source: 'one measured ~50-min session, history-caching on',
                 sessionMinutes: TYPICAL_SESSION_MINUTES,

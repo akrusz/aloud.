@@ -65,7 +65,7 @@ describe('parseCheckoutCompleted', () => {
 
 describe('packById', () => {
     it('looks up known packs', () => {
-        expect(packById('starter')?.credits).toBe(500);
+        expect(packById('starter')?.credits).toBe(50);
         expect(packById('nope')).toBeUndefined();
     });
 });

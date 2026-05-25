@@ -15,7 +15,14 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-/** A purchasable credit pack. Sold at face value (see meter.ts: CREDIT_USD). */
+/** A purchasable credit pack. Price embeds the margin (Model B — see meter.ts):
+ *  credits debit at COST, so a pack is priced at the provider cost its credits
+ *  fund times the markup. Sales tax/VAT is added on top at checkout (Stripe Tax).
+ *
+ *  At USD_PER_CREDIT $0.05, each credit funds $0.05 of compute; prices below
+ *  give effective markups of ~2.0–2.4x (bigger packs = a small volume discount,
+ *  still clearing the worst-channel commission — verified by assertSolvent at
+ *  boot). All tunable during pre-launch calibration (meditation-pal-7xl). */
 export interface CreditPack {
     id: string;
     credits: number;
@@ -24,9 +31,12 @@ export interface CreditPack {
 }
 
 export const CREDIT_PACKS: CreditPack[] = [
-    { id: 'starter', credits: 500, priceUsdCents: 500, label: '500 credits — $5' },
-    { id: 'plus', credits: 1200, priceUsdCents: 1000, label: '1,200 credits — $10 (best value)' },
-    { id: 'pro', credits: 3000, priceUsdCents: 2500, label: '3,000 credits — $25' },
+    // ~$0.120/credit · funds $2.50 of compute · ~2.4x markup
+    { id: 'starter', credits: 50, priceUsdCents: 600, label: '50 credits — $6' },
+    // ~$0.109/credit · funds $5.50 of compute · ~2.2x markup
+    { id: 'plus', credits: 110, priceUsdCents: 1200, label: '110 credits — $12 (best value)' },
+    // ~$0.100/credit · funds $12 of compute · ~2.0x markup
+    { id: 'pro', credits: 240, priceUsdCents: 2400, label: '240 credits — $24' },
 ];
 
 export function packById(id: string): CreditPack | undefined {
