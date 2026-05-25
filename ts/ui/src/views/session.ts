@@ -279,12 +279,16 @@ export async function mountSessionView(
         return el;
     }
 
+    // The lifted CSS hides the bubble with `.typing-bubble { display: none }`
+    // and reveals it via `.typing-bubble.visible` — so toggle the class, not
+    // the `hidden` attribute (which that display rule overrides). Matches
+    // src/web/static/js/ui.js showTyping/hideTyping.
     function showTyping(): void {
-        typingIndicator.hidden = false;
+        typingIndicator.classList.add('visible');
         conversation.scrollTop = conversation.scrollHeight;
     }
     function hideTyping(): void {
-        typingIndicator.hidden = true;
+        typingIndicator.classList.remove('visible');
     }
 
     // Session timer — counts since mount, formatted m:ss or h:mm:ss.
@@ -372,6 +376,9 @@ export async function mountSessionView(
             }
             appendMessage('user', userText);
             session.addUserMessage(userText);
+            // Show the "…" bubble the instant we submit, before any network
+            // round-trips, so the user sees their turn was received.
+            showTyping();
 
             // For Ollama: if the model isn't currently loaded into
             // memory, surface that so the user knows why the first
@@ -382,7 +389,6 @@ export async function mountSessionView(
             } else {
                 setStatus('Thinking…');
             }
-            showTyping();
 
             const systemPrompt = builder.buildSystemPrompt();
             // Streaming + sentence-chunked TTS — falls back to non-streaming
@@ -557,17 +563,32 @@ export async function mountSessionView(
     // gaze object (.orb-kasina), can be dragged anywhere, and a shake or
     // 4 quick clicks toggles the rainbow easter egg. Click outside (or
     // re-toggle) exits. Forces dark theme while gazing.
-    // Document-level kasina listeners outlive the orb element, so (unlike
-    // the Flask MPA, which reloaded per navigation) we must remove them on
-    // teardown or they leak across sessions. AbortController does it in one
-    // shot; endSession() aborts it.
-    const kasinaCleanup = new AbortController();
+    // Window/document-level listeners (kasina drag, beforeunload) outlive the
+    // view's own elements, so (unlike the Flask MPA, which reloaded per
+    // navigation) we must remove them on teardown or they leak across
+    // sessions. One AbortController covers them all; endSession() aborts it.
+    const viewCleanup = new AbortController();
+
+    // Guard against accidentally closing/reloading the tab mid-session —
+    // mirrors the Flask beforeunload in src/web/static/js/chrome.js. The
+    // browser shows its native "Leave site?" prompt. (In-app nav away from a
+    // live session is already guarded by showEndConfirm on the End/History
+    // links below.)
+    window.addEventListener(
+        'beforeunload',
+        (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        },
+        { signal: viewCleanup.signal }
+    );
+
     initKasinaMode();
 
     function initKasinaMode(): void {
         if (!orbEl) return;
         const sessionContainer = root.querySelector<HTMLElement>('.session-container');
-        const docOpts = { signal: kasinaCleanup.signal };
+        const docOpts = { signal: viewCleanup.signal };
 
         let orbClickTimes: number[] = [];
         let orbDragStartX = 0;
@@ -1147,8 +1168,8 @@ export async function mountSessionView(
             kasinaToggle.checked = false;
             kasinaToggle.dispatchEvent(new Event('change'));
         }
-        // Remove the document-level kasina drag/click listeners.
-        kasinaCleanup.abort();
+        // Remove the window/document-level listeners (kasina drag, beforeunload).
+        viewCleanup.abort();
         // Restore the global nav slots we replaced on mount.
         if (navCenter) navCenter.innerHTML = '';
         if (navLinks && savedNavLinks !== null) {
@@ -1224,7 +1245,7 @@ function renderSessionHTML(): string {
     return `
     <div class="session-container">
         <div class="conversation" id="conversation">
-            <div class="message facilitator typing-bubble" id="typing-indicator" hidden>
+            <div class="message facilitator typing-bubble" id="typing-indicator">
                 <div class="message-content">
                     <span></span><span></span><span></span>
                 </div>
