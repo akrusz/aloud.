@@ -52,14 +52,28 @@ export function authRoutes(deps: Deps): Hono {
             isNewAccount = true;
 
             const grant = decideSignupGrant(identity.emailVerified, deps.config.freeSignupCredits);
+            // Emergency brake: refuse the grant if the global hourly free-credit
+            // budget is exhausted (mass-signup flood). The account is still
+            // created and can buy credits — it just gets no freebie right now.
+            let granted = 0;
+            let breakerTripped = false;
             if (grant.grantCredits > 0) {
-                await deps.ledger.grant(account.id, grant.grantCredits, grant.reason);
+                if (deps.grantBreaker.tryConsume(grant.grantCredits)) {
+                    await deps.ledger.grant(account.id, grant.grantCredits, grant.reason);
+                    granted = grant.grantCredits;
+                } else {
+                    breakerTripped = true;
+                }
             }
             log.info('account created', {
                 accountId: account.id,
                 emailVerified: identity.emailVerified,
-                granted: grant.grantCredits,
+                granted,
+                ...(breakerTripped ? { breakerTripped: true } : {}),
             });
+            if (breakerTripped) {
+                log.warn('free-grant breaker tripped', { accountId: account.id });
+            }
         }
 
         const token = await issueSessionToken(account.id, deps.config.sessionSecret);

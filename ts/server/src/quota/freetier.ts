@@ -26,6 +26,36 @@ export function decideSignupGrant(emailVerified: boolean, freeCredits: number): 
     return { grantCredits: freeCredits, reason: 'verified signup grant' };
 }
 
+/**
+ * Global free-grant circuit breaker (meditation-pal-kq4) — the emergency brake
+ * the dev wants "in the pocket". Tracks free credits granted across ALL signups
+ * in a rolling window; once the budget is hit, further grants are refused until
+ * the window drains. Deliberately lean: in-memory sliding sum, no persistence
+ * (a restart resets it, which is fine for a brake whose whole job is to blunt a
+ * live flood). Multi-instance would move this to Redis — not needed at trial
+ * scale.
+ */
+export class FreeGrantBreaker {
+    private grants: Array<{ ts: number; credits: number }> = [];
+
+    constructor(
+        private readonly budgetPerWindow: number,
+        private readonly windowMs = 3_600_000, // 1 hour
+        private readonly now: () => number = Date.now
+    ) {}
+
+    /** Reserve `credits` against the budget. Returns true if within budget (and
+     *  records them), false if the grant would exceed it (caller grants 0). */
+    tryConsume(credits: number): boolean {
+        const cutoff = this.now() - this.windowMs;
+        this.grants = this.grants.filter((g) => g.ts > cutoff);
+        const used = this.grants.reduce((sum, g) => sum + g.credits, 0);
+        if (used + credits > this.budgetPerWindow) return false;
+        this.grants.push({ ts: this.now(), credits });
+        return true;
+    }
+}
+
 /** Simple in-memory sliding-window rate limiter, keyed by account id. */
 export class RateGuard {
     private hits = new Map<string, number[]>();

@@ -31,6 +31,12 @@ export interface Config {
     /** Free credits granted to a new verified account. meditation-pal-2yb. */
     freeSignupCredits: number;
 
+    /** Emergency brake: max free credits granted across ALL signups per rolling
+     *  hour. A mass-signup attack can't drain more than this; legit bursts stay
+     *  well under it. When tripped, new signups get 0 free credits (they can
+     *  still buy) and it's logged. Default is generous (~100 signups/hr). */
+    freeGrantBudgetPerHour: number;
+
     /** Stripe — optional; billing routes report "not configured" without it. */
     stripeSecretKey?: string;
     stripeWebhookSecret?: string;
@@ -66,6 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         googleClientIds: list(env['GOOGLE_CLIENT_IDS']),
         providerKeys,
         freeSignupCredits: Number(env['ALOUD_FREE_SIGNUP_CREDITS'] ?? 20),
+        freeGrantBudgetPerHour: Number(env['ALOUD_FREE_GRANT_BUDGET_PER_HOUR'] ?? 2000),
         strict,
     };
     if (env['STRIPE_SECRET_KEY']) config.stripeSecretKey = env['STRIPE_SECRET_KEY'];

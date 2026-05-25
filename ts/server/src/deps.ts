@@ -10,7 +10,7 @@ import type { CreditsStore } from './credits/store.js';
 import { MemoryCreditsStore } from './credits/memory-store.js';
 import { Ledger } from './credits/ledger.js';
 import { Forwarder } from './providers/forward.js';
-import { RateGuard } from './quota/freetier.js';
+import { FreeGrantBreaker, RateGuard } from './quota/freetier.js';
 
 export interface Deps {
     config: Config;
@@ -18,6 +18,7 @@ export interface Deps {
     ledger: Ledger;
     forwarder: Forwarder;
     rateGuard: RateGuard;
+    grantBreaker: FreeGrantBreaker;
 }
 
 export interface BuildDepsOptions {
@@ -32,5 +33,6 @@ export function buildDeps(config: Config, options: BuildDepsOptions = {}): Deps 
         ledger: new Ledger(store),
         forwarder: new Forwarder(config.providerKeys),
         rateGuard: new RateGuard(),
+        grantBreaker: new FreeGrantBreaker(config.freeGrantBudgetPerHour),
     };
 }
