@@ -32,8 +32,10 @@ import {
 } from './providers.js';
 import type { ProviderId } from '../contract.js';
 
-/** Retail value of one credit, in USD. */
-export const CREDIT_USD = 0.01;
+/** Retail value of one credit, in USD. Tentative $0.12 — chosen so per-session
+ *  estimates read as small friendly integers (Opus ~hr ≈ single digits). To be
+ *  calibrated against real testing before launch (meditation-pal-7xl). */
+export const CREDIT_USD = 0.12;
 
 /** Markup over raw provider cost. 2x is comfortably above the worst-case
  *  commission floor (see assertSolvent) and leaves headroom for STT/TTS and

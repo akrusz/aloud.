@@ -74,7 +74,7 @@ const MODELS: Record<string, ModelPricing> = {
 /** Per-second cost of cloud STT (Groq Whisper) and per-character cost of
  *  cloud TTS (ElevenLabs-class). The free/browser engines bill zero — only
  *  the server-side engines feed these. */
-export const STT_USD_PER_SECOND = 0.111 / 3600; // ~$0.111/hr (Groq whisper-large-v3-turbo)
+export const STT_USD_PER_SECOND = 0.04 / 3600; // $0.04/hr (Groq whisper-large-v3-turbo; large-v3 is ~$0.111/hr)
 export const TTS_USD_PER_CHAR = 0.00003; // ~ElevenLabs flagship per-char
 
 export function pricingFor(provider: ProviderId, model: string): ModelPricing | undefined {

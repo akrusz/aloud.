@@ -17,7 +17,7 @@
  * before launch — see the estimate-validation bead.
  */
 
-export type TtsEngine = 'browser' | 'os' | 'openai' | 'neural' | 'elevenlabs';
+export type TtsEngine = 'browser' | 'os' | 'openai' | 'neural' | 'hume' | 'elevenlabs';
 
 export interface TtsVoiceRate {
     id: string;
@@ -33,9 +33,21 @@ export interface TtsVoiceRate {
 // NOTE: MS Edge "read aloud" voices (a common free local option) are Azure
 // neural voices — i.e. the os-premium/free path often gives neural quality at
 // $0. Validate all rates against a real bill before launch (see TTS bead).
+//
+// Cheaper options NOT in this table (evaluate later, meditation-pal-2gz):
+//   - Unreal Speech ~$8/1M ("11x cheaper than ElevenLabs"; steep volume tiers)
+//   - Speechify API ~$10/1M; Fish Audio s2-pro ~$15/1M
+//   - Kokoro 82B (open-weight) ~$0.70/1M self-hosted — but self-hosting breaks
+//     the cheap stateless-proxy model (same tradeoff as self-hosting Whisper).
 const VOICES: Record<string, TtsVoiceRate> = {
     'browser-default': { id: 'browser-default', label: 'Device voice (free)', engine: 'browser', usdPerChar: 0 },
     'os-premium': { id: 'os-premium', label: 'System premium voice (free)', engine: 'os', usdPerChar: 0 },
+    'hume-octave': {
+        id: 'hume-octave',
+        label: 'Cloud voice — Hume Octave (emotion-aware)',
+        engine: 'hume',
+        usdPerChar: 0.0000076, // ~$7.60/1M. Emotion-native TTS — strong fit for calm meditation delivery.
+    },
     'openai-tts': {
         id: 'openai-tts',
         label: 'Cloud voice — OpenAI',
@@ -46,25 +58,32 @@ const VOICES: Record<string, TtsVoiceRate> = {
         id: 'neural-budget',
         label: 'Cloud voice — Neural (Google/Azure/Polly)',
         engine: 'neural',
-        usdPerChar: 0.000016, // ~$16/1M (WaveNet/Neural2/Azure Neural/Polly Neural)
+        usdPerChar: 0.000015, // Azure Neural ~$14/1M; Google Neural2/WaveNet & Polly Neural ~$16/1M
+    },
+    'deepgram-aura': {
+        id: 'deepgram-aura',
+        label: 'Cloud voice — Deepgram Aura',
+        engine: 'neural',
+        usdPerChar: 0.000015, // Aura-1 $0.015/1k; Aura-2 (enterprise) ~$0.03/1k. Cheap + low-latency.
     },
     'elevenlabs-flash': {
         id: 'elevenlabs-flash',
         label: 'Cloud voice — ElevenLabs Flash',
         engine: 'elevenlabs',
-        usdPerChar: 0.00003, // ~$30/1M
+        usdPerChar: 0.00005, // $0.05/1k chars PAYG (cut from $0.11 in 2026); ~half a credit/char
     },
     'elevenlabs-standard': {
         id: 'elevenlabs-standard',
         label: 'Cloud voice — ElevenLabs Premium',
         engine: 'elevenlabs',
-        usdPerChar: 0.00009, // ~$90/1M (lower tiers cost more per char)
+        usdPerChar: 0.0001, // ~$0.10/1k (Multilingual v2, ~1 credit/char); lower plan tiers cost more
     },
 };
 
 /** Default cloud rate used when a specific voice id isn't recognized (so a new
- *  ElevenLabs voice never bills at zero by accident). */
-export const DEFAULT_CLOUD_USD_PER_CHAR = 0.00003;
+ *  cloud voice never bills at zero by accident). Set at the ElevenLabs Flash
+ *  rate — a safe upper-ish bound among the cloud options. */
+export const DEFAULT_CLOUD_USD_PER_CHAR = 0.00005;
 
 export function ttsRateFor(voiceId: string): number {
     return VOICES[voiceId]?.usdPerChar ?? DEFAULT_CLOUD_USD_PER_CHAR;

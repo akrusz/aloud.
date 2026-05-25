@@ -14,27 +14,22 @@ describe('estimateModels', () => {
     });
 
     it('orders by cost: Opus > Sonnet > Haiku, with a large Opus:Haiku spread', () => {
-        const by = (model: string) => models.find((m) => m.model === model)!;
-        const opus = by('claude-opus-4-7').creditsPerHour;
-        const sonnet = by('claude-sonnet-4-6').creditsPerHour;
-        const haiku = by('claude-haiku-4-5-20251001').creditsPerHour;
-        expect(opus).toBeGreaterThan(sonnet);
-        expect(sonnet).toBeGreaterThan(haiku);
-        // At current rates (Opus $5/$25, Haiku $1/$5) the spread is ~4-5x on
-        // this cache-heavy workload, not the sticker-rate 5x — cache reads
-        // compress it. Just assert a clear, several-fold gap.
-        expect(opus / haiku).toBeGreaterThan(3);
+        // Compare on retail USD, not rounded credits — at CREDIT_USD $0.12 the
+        // per-hour credit counts round to small integers and lose ratio precision.
+        const usd = (model: string) => models.find((m) => m.model === model)!.retailUsdPerHour;
+        expect(usd('claude-opus-4-7')).toBeGreaterThan(usd('claude-sonnet-4-6'));
+        expect(usd('claude-sonnet-4-6')).toBeGreaterThan(usd('claude-haiku-4-5-20251001'));
+        // ~5x on this cache-heavy workload.
+        expect(usd('claude-opus-4-7') / usd('claude-haiku-4-5-20251001')).toBeGreaterThan(3);
     });
 
     it('a NO-CACHE model (Groq) can beat a cached cheap model (Haiku) on cost: '
         + 'this workload is ~98% re-sent history, so cheap cache reads matter more than sticker price', () => {
-        const by = (model: string) => models.find((m) => m.model === model)!;
+        const usd = (model: string) => models.find((m) => m.model === model)!.retailUsdPerHour;
         // Groq has no prompt caching, so the heavy re-sent prefix bills at full
         // input rate — making it pricier here than Haiku-with-caching despite a
         // lower sticker price. A real, counterintuitive cost-model fact.
-        expect(by('llama-3.3-70b-versatile').creditsPerHour).toBeGreaterThan(
-            by('claude-haiku-4-5-20251001').creditsPerHour
-        );
+        expect(usd('llama-3.3-70b-versatile')).toBeGreaterThan(usd('claude-haiku-4-5-20251001'));
     });
 });
 
@@ -44,7 +39,7 @@ describe('estimateStt', () => {
         expect(stt.creditsPerHour).toBeGreaterThan(0);
         // VAD-segmented speech makes STT cheap relative to a premium model hour.
         const opus = estimateModels().find((m) => m.model === 'claude-opus-4-7')!;
-        expect(stt.creditsPerHour).toBeLessThan(opus.creditsPerHour);
+        expect(stt.retailUsdPerHour).toBeLessThan(opus.retailUsdPerHour);
     });
 });
 
