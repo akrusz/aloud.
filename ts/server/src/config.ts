@@ -61,7 +61,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         sessionSecret: env['ALOUD_SESSION_SECRET'] ?? (strict ? '' : 'dev-insecure-secret'),
         googleClientIds: list(env['GOOGLE_CLIENT_IDS']),
         providerKeys,
-        freeSignupCredits: Number(env['ALOUD_FREE_SIGNUP_CREDITS'] ?? 100),
+        freeSignupCredits: Number(env['ALOUD_FREE_SIGNUP_CREDITS'] ?? 20),
         strict,
     };
     if (env['STRIPE_SECRET_KEY']) config.stripeSecretKey = env['STRIPE_SECRET_KEY'];
