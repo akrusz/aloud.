@@ -4,6 +4,17 @@
    src/web/static/css/style.css; this is a faithful subset.
    ============================================================ */
 
+/* Self-hosted + preloaded (see index.html) so the brand face is ready
+   before first paint — avoids a fallback→Knewave swap reflow that nudged
+   the page on the first interaction after a mid-page reload. */
+@font-face {
+  font-family: 'Knewave';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/knewave-v15.woff2') format('woff2');
+}
+
 /* Theme tokens are single-source via light-dark(): first value = light,
    second = dark. color-scheme decides which resolves. Default follows the
    OS (light dark); the nav toggle sets data-theme to force one (see the
@@ -209,7 +220,7 @@ code {
 .hero-soon {
   font-style: italic;
   margin-top: 0.15rem;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 /* ===== orb =====
@@ -589,6 +600,63 @@ code {
 }
 .section-thanks a { color: var(--text-secondary); border-bottom: 1px solid var(--border); }
 .section-thanks a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ===== faq ===== */
+.faq-list {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.faq-controls {
+  max-width: 720px;
+  margin: 0 auto 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+.faq-toggle-all {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  color: var(--accent);
+  padding: 0.25rem 0.25rem;
+  border-bottom: 1px solid transparent;
+}
+.faq-toggle-all:hover { border-bottom-color: var(--accent); }
+.faq-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0 1.25rem;
+}
+.faq-item summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 1rem 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: "+";
+  color: var(--accent);
+  font-size: 1.4rem;
+  line-height: 1;
+  margin-left: 1rem;
+  transition: transform 0.2s ease;
+}
+.faq-item[open] summary::after { transform: rotate(45deg); }
+.faq-item p {
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
 
 /* ===== footer ===== */
 .footer {
