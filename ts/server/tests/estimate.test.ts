@@ -20,8 +20,10 @@ describe('estimateModels', () => {
         const haiku = by('claude-haiku-4-5-20251001').creditsPerHour;
         expect(opus).toBeGreaterThan(sonnet);
         expect(sonnet).toBeGreaterThan(haiku);
-        // The measured ~14x Opus:Haiku ratio should be in the right ballpark.
-        expect(opus / haiku).toBeGreaterThan(8);
+        // At current rates (Opus $5/$25, Haiku $1/$5) the spread is ~4-5x on
+        // this cache-heavy workload, not the sticker-rate 5x — cache reads
+        // compress it. Just assert a clear, several-fold gap.
+        expect(opus / haiku).toBeGreaterThan(3);
     });
 
     it('a NO-CACHE model (Groq) can beat a cached cheap model (Haiku) on cost: '

@@ -40,10 +40,10 @@ const MODELS: Record<string, ModelPricing> = {
     'anthropic:claude-opus-4-7': {
         provider: 'anthropic',
         model: 'claude-opus-4-7',
-        input: 15 / M,
-        output: 75 / M,
-        cacheRead: 1.5 / M,
-        cacheCreation: 18.75 / M,
+        input: 5 / M,
+        output: 25 / M,
+        cacheRead: 0.5 / M,
+        cacheCreation: 6.25 / M,
     },
     'anthropic:claude-sonnet-4-6': {
         provider: 'anthropic',
