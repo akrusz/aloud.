@@ -47,6 +47,11 @@ interface OpenAIUsage {
     prompt_tokens?: number;
     completion_tokens?: number;
     total_tokens?: number;
+    /** Cached-prompt breakdown. OpenAI and OpenRouter surface this for models
+     *  with implicit/automatic prompt caching (e.g. Gemini, DeepSeek). When
+     *  present, `cached_tokens` is the portion of prompt_tokens served from
+     *  cache — billed far cheaper, so it's split out for the cost model. */
+    prompt_tokens_details?: { cached_tokens?: number };
 }
 
 interface OpenAIChatResponse {
@@ -181,22 +186,31 @@ export class OpenAIProvider implements LLMProvider {
 
 /**
  * Map an OpenAI-compatible usage object to the CompletionResult split.
- * `tokensUsed` keeps the provider-reported total. No cache fields — the
- * OpenAI-style providers we use don't surface cache-token breakdowns (and
- * the Python provider doesn't track them either).
+ * `tokensUsed` keeps the provider-reported total. When the provider reports
+ * cached prompt tokens (prompt_tokens_details.cached_tokens — Gemini/DeepSeek
+ * via OpenRouter, OpenAI prompt caching), they're split out as cacheRead and
+ * subtracted from inputTokens, so `inputTokens` is the FRESH (full-price)
+ * portion. Cache reads price ~75-98% cheaper, so collapsing them would
+ * mis-bill cache-friendly value models. cacheCreation isn't reported by this
+ * API shape, so it's left null.
  */
 function usageToResult(usage: OpenAIUsage | undefined): {
     tokensUsed: number | null;
     inputTokens: number | null;
     outputTokens: number | null;
+    cacheReadTokens: number | null;
 } {
     if (!usage) {
-        return { tokensUsed: null, inputTokens: null, outputTokens: null };
+        return { tokensUsed: null, inputTokens: null, outputTokens: null, cacheReadTokens: null };
     }
+    const cached = usage.prompt_tokens_details?.cached_tokens ?? 0;
+    const prompt = usage.prompt_tokens ?? null;
     return {
         tokensUsed: usage.total_tokens ?? null,
-        inputTokens: usage.prompt_tokens ?? null,
+        // Fresh (uncached) input = prompt_tokens - cached_tokens.
+        inputTokens: prompt === null ? null : prompt - cached,
         outputTokens: usage.completion_tokens ?? null,
+        cacheReadTokens: cached > 0 ? cached : null,
     };
 }
 
