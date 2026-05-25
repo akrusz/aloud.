@@ -51,17 +51,24 @@ describe('estimateStt', () => {
 describe('estimateVoices', () => {
     const voices = estimateVoices();
 
-    it('local engines cost zero, cloud voices cost something', () => {
+    it('local engines cost zero across the whole band', () => {
         const browser = voices.find((v) => v.voiceId === 'browser-default')!;
-        const flash = voices.find((v) => v.voiceId === 'elevenlabs-flash')!;
-        expect(browser.creditsPerHour).toBe(0);
-        expect(flash.creditsPerHour).toBeGreaterThan(0);
+        expect(browser.creditsPerHour.spacious).toBe(0);
+        expect(browser.creditsPerHour.typical).toBe(0);
+        expect(browser.creditsPerHour.engaged).toBe(0);
     });
 
-    it('premium cloud voice costs more than flash', () => {
+    it('cloud voice cost rises across the talk band (spacious < typical < engaged)', () => {
         const flash = voices.find((v) => v.voiceId === 'elevenlabs-flash')!;
-        const premium = voices.find((v) => v.voiceId === 'elevenlabs-standard')!;
-        expect(premium.creditsPerHour).toBeGreaterThan(flash.creditsPerHour);
+        expect(flash.creditsPerHour.spacious).toBeLessThan(flash.creditsPerHour.typical);
+        expect(flash.creditsPerHour.typical).toBeLessThan(flash.creditsPerHour.engaged);
+    });
+
+    it('ElevenLabs is the pricey end; OpenAI/neural are several times cheaper', () => {
+        const at = (id: string) => voices.find((v) => v.voiceId === id)!.creditsPerHour.typical;
+        expect(at('elevenlabs-standard')).toBeGreaterThan(at('elevenlabs-flash'));
+        expect(at('elevenlabs-flash')).toBeGreaterThan(at('openai-tts'));
+        expect(at('elevenlabs-flash') / at('openai-tts')).toBeGreaterThan(1.5);
     });
 });
 

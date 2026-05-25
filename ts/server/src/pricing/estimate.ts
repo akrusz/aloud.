@@ -37,6 +37,22 @@ export const TYPICAL_SESSION: SessionUsage = {
     ttsChars: 10_000, // facilitator speech, if spoken by cloud TTS
 };
 
+/**
+ * TTS chars per ~50-min session is NOT a single number — it's a band driven by
+ * facilitator verbosity, how much the user shares (the facilitator mirrors
+ * length), and the model (smaller open models like Gemma run chattier; a Claude
+ * model often stays terser at the same setting). The measured 10k sits at
+ * "typical" (Gemma at default verbosity + an engaged user). So the UI should
+ * show a RANGE per voice, not a worst case.
+ */
+export const TTS_CHAR_PROFILES = {
+    spacious: 5_000, // terser model / low verbosity / lots of held silence
+    typical: 10_000, // the measured session
+    engaged: 16_000, // chatty session, long user shares mirrored back
+} as const;
+
+export type TtsProfile = keyof typeof TTS_CHAR_PROFILES;
+
 const PER_HOUR = 60 / TYPICAL_SESSION_MINUTES;
 
 function round1(n: number): number {
@@ -55,9 +71,20 @@ export interface ModelEstimate extends LegEstimate {
     model: string;
 }
 
-export interface VoiceEstimate extends LegEstimate {
+/** Credits/hr for a leg across the TTS char band. */
+export interface CreditBand {
+    spacious: number;
+    typical: number;
+    engaged: number;
+}
+
+export interface VoiceEstimate {
     voiceId: string;
     label: string;
+    /** Credits/hr at each point in the talk band. Local voices are all 0. */
+    creditsPerHour: CreditBand;
+    /** Underlying retail $/hr at "typical", for denomination tuning. */
+    retailUsdPerHourTypical: number;
 }
 
 /** LLM-only credits for the typical session (zero STT/TTS — those are separate
@@ -89,17 +116,22 @@ export function estimateStt(): LegEstimate {
     };
 }
 
-/** Per-voice TTS leg. Local engines come out at 0. */
+/** Per-voice TTS leg, as a band across the talk profile. Local engines are 0. */
 export function estimateVoices(): VoiceEstimate[] {
     return ttsVoices().map((v) => {
-        const usd = TYPICAL_SESSION.ttsChars * ttsRateFor(v.id);
-        const creditsPerSession = usdToCredits(usd);
+        const rate = ttsRateFor(v.id);
+        const perHour = (chars: number): number =>
+            Math.ceil(usdToCredits(chars * rate) * PER_HOUR);
         return {
             voiceId: v.id,
             label: v.label,
-            creditsPerSession,
-            creditsPerHour: Math.ceil(creditsPerSession * PER_HOUR),
-            retailUsdPerHour: round1(usd * MARGIN_MULTIPLIER * PER_HOUR * 100) / 100,
+            creditsPerHour: {
+                spacious: perHour(TTS_CHAR_PROFILES.spacious),
+                typical: perHour(TTS_CHAR_PROFILES.typical),
+                engaged: perHour(TTS_CHAR_PROFILES.engaged),
+            },
+            retailUsdPerHourTypical:
+                round1(TTS_CHAR_PROFILES.typical * rate * MARGIN_MULTIPLIER * PER_HOUR * 100) / 100,
         };
     });
 }

@@ -17,7 +17,7 @@
  * before launch — see the estimate-validation bead.
  */
 
-export type TtsEngine = 'browser' | 'os' | 'elevenlabs';
+export type TtsEngine = 'browser' | 'os' | 'openai' | 'neural' | 'elevenlabs';
 
 export interface TtsVoiceRate {
     id: string;
@@ -27,20 +27,38 @@ export interface TtsVoiceRate {
     usdPerChar: number;
 }
 
+// Approximate early-2026 list rates, per char (= $/1M chars ÷ 1e6). ElevenLabs
+// is the expressive premium end; for calm meditation guidance the cheaper
+// neural voices are likely more than good enough at a fraction of the cost.
+// NOTE: MS Edge "read aloud" voices (a common free local option) are Azure
+// neural voices — i.e. the os-premium/free path often gives neural quality at
+// $0. Validate all rates against a real bill before launch (see TTS bead).
 const VOICES: Record<string, TtsVoiceRate> = {
     'browser-default': { id: 'browser-default', label: 'Device voice (free)', engine: 'browser', usdPerChar: 0 },
     'os-premium': { id: 'os-premium', label: 'System premium voice (free)', engine: 'os', usdPerChar: 0 },
+    'openai-tts': {
+        id: 'openai-tts',
+        label: 'Cloud voice — OpenAI',
+        engine: 'openai',
+        usdPerChar: 0.000015, // ~$15/1M (tts-1)
+    },
+    'neural-budget': {
+        id: 'neural-budget',
+        label: 'Cloud voice — Neural (Google/Azure/Polly)',
+        engine: 'neural',
+        usdPerChar: 0.000016, // ~$16/1M (WaveNet/Neural2/Azure Neural/Polly Neural)
+    },
     'elevenlabs-flash': {
         id: 'elevenlabs-flash',
-        label: 'Cloud voice — Flash',
+        label: 'Cloud voice — ElevenLabs Flash',
         engine: 'elevenlabs',
-        usdPerChar: 0.00003,
+        usdPerChar: 0.00003, // ~$30/1M
     },
     'elevenlabs-standard': {
         id: 'elevenlabs-standard',
-        label: 'Cloud voice — Premium',
+        label: 'Cloud voice — ElevenLabs Premium',
         engine: 'elevenlabs',
-        usdPerChar: 0.00009,
+        usdPerChar: 0.00009, // ~$90/1M (lower tiers cost more per char)
     },
 };
 
