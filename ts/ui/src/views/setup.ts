@@ -163,6 +163,17 @@ export async function mountSetupView(
         }
         const server: readonly ServerVoice[] | null = await fetchServerVoices();
         scoredVoices = buildScoredVoiceList(server, true);
+        // Auto-select the top available voice when the user hasn't chosen one
+        // — never leave the picker on a bare "Default". The list is sorted
+        // best-first; skip voices that still need downloading.
+        if (!stripVoicePrefix(setup.voice)) {
+            const top = scoredVoices.find((v) => !v.needsDownload);
+            if (top) {
+                const idPrefix = top.engine === 'browser' ? 'browser:' : 'server:';
+                setup.voice = `${idPrefix}${top.name}`;
+                persist();
+            }
+        }
         updateVoiceButtonLabel();
     }
 

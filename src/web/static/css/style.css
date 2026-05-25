@@ -2153,7 +2153,9 @@ body::before {
     margin: auto;
     width: 140px;
     height: 140px;
-    z-index: 50;
+    /* Above the sticky nav (z-index: 100) so the centered gaze object — and
+       its FLIP transition / drag near the top — floats over the bar. */
+    z-index: 150;
     cursor: grab;
     background: radial-gradient(circle at 45% 45% in oklab, #fff4c0 0%, #f8f288 18%, #f5d820 38%, #ffb805 49%, #ed7326 65%, #e71f75 71%, #870a3e 76%);
     box-shadow:

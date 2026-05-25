@@ -18,6 +18,21 @@
    TS-preview-only additions
    ============================================ */
 
+/* The TS SPA mounts views into #app-root, an extra wrapper between .main
+   and the view that the Flask MPA didn't have. The lifted session layout
+   pins .input-area to the bottom by making .session-container flex:1 inside
+   a full-height .main — but that chain breaks across #app-root unless it
+   also grows and stays a flex column. Scope it to session views (:has) so
+   scrollable pages like setup/settings/history keep their natural height. */
+.main:has(.session-container) > #app-root,
+.main:has(.noting-container) > #app-root {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
 /* .main is supplied by the lifted CSS (max-width: 900px, etc.). We
    only add the header / app-nav strip that the original UI doesn't
    have an exact equivalent for. */

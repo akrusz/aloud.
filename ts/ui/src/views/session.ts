@@ -382,6 +382,7 @@ export async function mountSessionView(
             } else {
                 setStatus('Thinking…');
             }
+            showTyping();
 
             const systemPrompt = builder.buildSystemPrompt();
             // Streaming + sentence-chunked TTS — falls back to non-streaming
@@ -400,6 +401,7 @@ export async function mountSessionView(
                 { system: systemPrompt, ttsOptions: { rate: setup.ttsRate } }
             );
             const { signal, cleanText } = parseHoldSignal(rawText);
+            hideTyping();
             session.addAssistantMessage(cleanText, undefined, usage);
             appendMessage('assistant', cleanText);
 
@@ -424,6 +426,7 @@ export async function mountSessionView(
             }
             pacing.onResponseEnd();
         } catch (err) {
+            hideTyping();
             setStatus(`Error: ${(err as Error).message}`);
         } finally {
             busy = false;
@@ -495,9 +498,11 @@ export async function mountSessionView(
 
     function setMicButtonState(): void {
         if (!stt) return;
-        // The Python app toggles a 'muted' class to flip the icon's
-        // mute-line on; the icon SVG is the same in both states.
-        micBtn.classList.toggle('muted', muted);
+        // The mic button's mute-line is driven by `.btn-voice.active` in the
+        // CSS (active = mic on, line hidden); .active off shows the line. Mute
+        // = remove .active. Also desaturate the orb while muted (.orb-muted).
+        micBtn.classList.toggle('active', !muted);
+        orbEl?.classList.toggle('orb-muted', muted);
         micBtn.setAttribute(
             'aria-label',
             muted ? 'Unmute microphone' : 'Mute microphone'
@@ -873,18 +878,72 @@ export async function mountSessionView(
         modal.addEventListener('click', onBackdrop);
     }
 
-    // Generate a warm continuation opener via the LLM when resuming.
-    // Fire before starting the listen loop; mark busy so the loop
-    // won't start hearing mic input until the opener has finished.
-    if (continueFrom && continueFrom.exchanges.length > 0) {
+    // Open the session with a facilitator greeting before the listen loop
+    // starts. Mark busy so the mic loop doesn't hear input until the opener
+    // finishes. Resuming → a warm welcome-back; fresh → a normal opener.
+    {
         busy = true;
         void (async () => {
             try {
-                await generateContinuationOpener();
+                if (continueFrom && continueFrom.exchanges.length > 0) {
+                    await generateContinuationOpener();
+                } else {
+                    await generateOpener();
+                }
             } finally {
                 busy = false;
             }
         })();
+    }
+
+    /**
+     * Fresh-session opener — mirrors meditation_session.py::generate_opener.
+     * Asks the LLM for a brief welcome via buildOpenerPrompt (the prompt is
+     * a one-shot instruction, NOT kept in history), falling back to the
+     * static opener pool on any error.
+     */
+    async function generateOpener(): Promise<void> {
+        const openerPrompt = builder.buildOpenerPrompt(setup.intention.trim());
+        try {
+            setStatus('Speaking…');
+            showTyping();
+            const messages = [
+                ...session.getContextMessages(),
+                { role: 'user' as const, content: openerPrompt },
+            ];
+            const { text: rawText, ttsDone, usage } = await streamCompletionWithChunkedTts(
+                provider,
+                tts,
+                messages,
+                { system: builder.buildSystemPrompt(), ttsOptions: { rate: setup.ttsRate } }
+            );
+            const { cleanText } = parseHoldSignal(rawText);
+            hideTyping();
+            // The opener prompt was a one-shot instruction — don't persist it;
+            // record only the assistant greeting (with its usage).
+            session.addAssistantMessage(cleanText, undefined, usage);
+            appendMessage('assistant', cleanText);
+            try {
+                await ttsDone;
+            } catch {
+                /* non-fatal */
+            }
+            pacing.onResponseEnd();
+            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+        } catch (err) {
+            console.warn('LLM opener failed, using static fallback', err);
+            hideTyping();
+            const fallback = builder.getSessionOpener();
+            session.addAssistantMessage(fallback);
+            appendMessage('assistant', fallback);
+            try {
+                await tts.speak(fallback, { rate: setup.ttsRate });
+            } catch {
+                /* non-fatal */
+            }
+            pacing.onResponseEnd();
+            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+        }
     }
 
     async function generateContinuationOpener(): Promise<void> {
@@ -902,6 +961,7 @@ export async function mountSessionView(
                 { role: 'user' as const, content: continuationNote },
             ];
             setStatus('Speaking…');
+            showTyping();
             const { text: rawText, ttsDone, usage } = await streamCompletionWithChunkedTts(
                 provider,
                 tts,
@@ -912,6 +972,7 @@ export async function mountSessionView(
                 }
             );
             const { cleanText } = parseHoldSignal(rawText);
+            hideTyping();
             session.addAssistantMessage(cleanText, undefined, usage);
             appendMessage('assistant', cleanText);
             try {
@@ -923,6 +984,7 @@ export async function mountSessionView(
             setStatus(stt ? 'Listening…' : 'Ready — type to continue');
         } catch (err) {
             console.warn('Continuation opener failed', err);
+            hideTyping();
             // Fall back to a static welcome — better than nothing.
             const fallback = 'Welcome back. Let’s continue.';
             session.addAssistantMessage(fallback);
