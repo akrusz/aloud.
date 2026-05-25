@@ -35,12 +35,18 @@ export function authRoutes(deps: Deps): Hono {
         let account = await deps.store.getAccountByGoogleSub(identity.sub);
         let isNewAccount = false;
         if (!account) {
+            // Client IP for velocity-based abuse detection (mass-account creation
+            // clusters by IP/subnet). x-forwarded-for is set by Fly/Render; take
+            // the first hop. Absent locally / behind some proxies — that's fine.
+            const fwd = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+            const signupIp = fwd || c.req.header('x-real-ip') || undefined;
             account = {
                 id: randomUUID(),
                 googleSub: identity.sub,
                 email: identity.email,
                 emailVerified: identity.emailVerified,
                 createdAt: Date.now() / 1000,
+                ...(signupIp ? { signupIp } : {}),
             } satisfies Account;
             await deps.store.createAccount(account);
             isNewAccount = true;

@@ -39,4 +39,12 @@ export class MemoryCreditsStore implements CreditsStore {
     async listEntries(accountId: string): Promise<LedgerEntry[]> {
         return [...(this.entries.get(accountId) ?? [])];
     }
+
+    async allAccounts(): Promise<Account[]> {
+        return [...this.accounts.values()];
+    }
+
+    async allEntries(): Promise<LedgerEntry[]> {
+        return [...this.entries.values()].flat();
+    }
 }

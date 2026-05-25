@@ -35,6 +35,10 @@ export interface Config {
     stripeSecretKey?: string;
     stripeWebhookSecret?: string;
 
+    /** Bearer token for the /v1/admin/* spend-monitoring endpoints. When unset,
+     *  those endpoints are disabled (404) rather than open. */
+    adminToken?: string;
+
     /** When true, refuse to start unless every prod-critical secret is set.
      *  Off in dev so the server boots with an in-memory store and stubs. */
     strict: boolean;
@@ -66,6 +70,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     };
     if (env['STRIPE_SECRET_KEY']) config.stripeSecretKey = env['STRIPE_SECRET_KEY'];
     if (env['STRIPE_WEBHOOK_SECRET']) config.stripeWebhookSecret = env['STRIPE_WEBHOOK_SECRET'];
+    if (env['ALOUD_ADMIN_TOKEN']) config.adminToken = env['ALOUD_ADMIN_TOKEN'];
 
     if (strict) {
         const missing: string[] = [];

@@ -47,6 +47,10 @@ export interface Account {
     email: string;
     emailVerified: boolean;
     createdAt: number;
+    /** Client IP at signup, if captured. Feeds velocity-based abuse detection
+     *  (mass-account creation tends to cluster by IP/subnet). Optional — absent
+     *  when behind a proxy that doesn't forward it. */
+    signupIp?: string;
 }
 
 export interface CreditsStore {
@@ -58,4 +62,13 @@ export interface CreditsStore {
     appendEntry(entry: LedgerEntry): Promise<void>;
     /** All entries for an account, oldest first. */
     listEntries(accountId: string): Promise<LedgerEntry[]>;
+
+    // ---- Aggregation reads (spend monitoring) -------------------------------
+    // Trial-scale implementations may scan; a SQL store should answer these with
+    // indexed aggregate queries. Kept narrow so the metrics layer stays pure.
+
+    /** All accounts (for signup counts + velocity signals). */
+    allAccounts(): Promise<Account[]>;
+    /** Every ledger entry across all accounts (for spend aggregates). */
+    allEntries(): Promise<LedgerEntry[]>;
 }

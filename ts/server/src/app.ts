@@ -12,6 +12,7 @@ import { authRoutes } from './routes/auth.js';
 import { meRoutes } from './routes/me.js';
 import { llmRoutes } from './routes/llm.js';
 import { billingRoutes } from './routes/billing.js';
+import { adminRoutes } from './routes/admin.js';
 
 export function createApp(deps: Deps): Hono {
     const app = new Hono();
@@ -38,6 +39,7 @@ export function createApp(deps: Deps): Hono {
     app.route('/v1/me', meRoutes(deps));
     app.route('/v1/llm', llmRoutes(deps));
     app.route('/v1/billing', billingRoutes(deps));
+    app.route('/v1/admin', adminRoutes(deps));
 
     return app;
 }
