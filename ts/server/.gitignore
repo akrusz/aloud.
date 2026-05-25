@@ -1,0 +1,8 @@
+# Secrets live in the environment, never in the repo.
+.env
+.env.*
+!.env.example
+
+# Local SQLite store if a dev implementation writes one.
+*.sqlite
+*.sqlite-*
