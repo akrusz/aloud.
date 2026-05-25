@@ -12,6 +12,12 @@ import { requireAuth } from '../auth/middleware.js';
 import { allowedModels } from '../pricing/providers.js';
 import { CREDIT_USD, MARGIN_MULTIPLIER } from '../pricing/meter.js';
 import { CREDIT_PACKS } from '../billing/stripe.js';
+import {
+    TYPICAL_SESSION_MINUTES,
+    estimateModels,
+    estimateStt,
+    estimateVoices,
+} from '../pricing/estimate.js';
 
 export function meRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
     const app = new Hono<{ Variables: AuthVars }>();
@@ -37,6 +43,24 @@ export function meRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
     );
 
     app.get('/packs', (c) => c.json({ packs: CREDIT_PACKS }));
+
+    // Public credit-use estimates for the UI ("Opus ~N credits/hr", per-voice
+    // cost lines). Seeded from one measured session; refine with telemetry.
+    // The client composes a session estimate as: model + stt + chosen voice.
+    app.get('/estimates', (c) =>
+        c.json({
+            creditUsd: CREDIT_USD,
+            marginMultiplier: MARGIN_MULTIPLIER,
+            basis: {
+                source: 'one measured ~50-min session, history-caching on',
+                sessionMinutes: TYPICAL_SESSION_MINUTES,
+                confidence: 'order-of-magnitude (±~35%); validate before launch',
+            },
+            models: estimateModels(),
+            stt: estimateStt(),
+            voices: estimateVoices(),
+        })
+    );
 
     return app;
 }

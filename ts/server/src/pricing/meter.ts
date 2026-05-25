@@ -44,10 +44,14 @@ export const MARGIN_MULTIPLIER = 2.0;
 export function llmCostUsd(provider: ProviderId, model: string, usage: LlmUsage): number {
     const p = pricingFor(provider, model);
     if (!p) return 0;
+    // Cache CREATION is billed (Anthropic ~1.25x input) — not free. With
+    // history caching on it's a real leg, so it must be charged here or the
+    // proxy under-bills. cache READ is the cheap ~0.1x leg.
     return (
         (usage.tokensIn ?? 0) * p.input +
         (usage.tokensOut ?? 0) * p.output +
-        (usage.cacheRead ?? 0) * p.cacheRead
+        (usage.cacheRead ?? 0) * p.cacheRead +
+        (usage.cacheCreation ?? 0) * p.cacheCreation
     );
 }
 
@@ -62,6 +66,13 @@ function toCredits(providerCostUsd: number): CostBreakdown {
     const retailUsd = providerCostUsd * MARGIN_MULTIPLIER;
     const credits = Math.ceil(retailUsd / CREDIT_USD);
     return { providerCostUsd, retailUsd, credits };
+}
+
+/** Retail credits for a raw provider-cost USD amount (margin applied, rounded
+ *  up). Used by the estimate engine to price legs (e.g. TTS) outside a full
+ *  SessionUsage. */
+export function usdToCredits(providerCostUsd: number): number {
+    return Math.ceil((providerCostUsd * MARGIN_MULTIPLIER) / CREDIT_USD);
 }
 
 /** Price a single LLM turn (the proxy's hot path). */
@@ -82,7 +93,8 @@ export function priceSession(
     const llm = p
         ? usage.llmTokensIn * p.input +
           usage.llmTokensOut * p.output +
-          usage.llmCacheRead * p.cacheRead
+          usage.llmCacheRead * p.cacheRead +
+          usage.llmCacheCreation * p.cacheCreation
         : 0;
     const stt = usage.sttSeconds * STT_USD_PER_SECOND;
     const tts = usage.ttsChars * TTS_USD_PER_CHAR;
