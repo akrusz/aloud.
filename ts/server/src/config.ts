@@ -1,0 +1,105 @@
+/**
+ * Server config from environment. Secrets NEVER live in the repo — this
+ * reads them from the process environment (a .env loaded by the host, or
+ * Fly/Render secrets). See .env.example for the full list.
+ *
+ * The whole config is logged at boot with secret values redacted (see
+ * logger.ts) so operators can confirm what's set without leaking keys.
+ */
+
+import type { ProviderId } from './contract.js';
+
+export interface ProviderKeys {
+    anthropic?: string;
+    groq?: string;
+    openrouter?: string;
+}
+
+export interface Config {
+    port: number;
+    /** Allowed CORS origins for the browser client (the static ui/dist host). */
+    corsOrigins: string[];
+
+    /** Secret used to sign our own session JWTs. Required. */
+    sessionSecret: string;
+    /** Google OAuth client id(s) accepted as the `aud` of incoming ID tokens. */
+    googleClientIds: string[];
+
+    /** Provider API keys, server-held. The whole point: the client never sees these. */
+    providerKeys: ProviderKeys;
+
+    /** Free credits granted to a new verified account. meditation-pal-2yb. */
+    freeSignupCredits: number;
+
+    /** Emergency brake: max free credits granted across ALL signups per rolling
+     *  hour. A mass-signup attack can't drain more than this; legit bursts stay
+     *  well under it. When tripped, new signups get 0 free credits (they can
+     *  still buy) and it's logged. Default is generous (~100 signups/hr). */
+    freeGrantBudgetPerHour: number;
+
+    /** Stripe — optional; billing routes report "not configured" without it. */
+    stripeSecretKey?: string;
+    stripeWebhookSecret?: string;
+
+    /** Bearer token for the /v1/admin/* spend-monitoring endpoints. When unset,
+     *  those endpoints are disabled (404) rather than open. */
+    adminToken?: string;
+
+    /** When true, refuse to start unless every prod-critical secret is set.
+     *  Off in dev so the server boots with an in-memory store and stubs. */
+    strict: boolean;
+}
+
+function list(v: string | undefined): string[] {
+    return (v ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+    const strict = env['ALOUD_ENV'] === 'production';
+
+    const providerKeys: ProviderKeys = {};
+    if (env['ANTHROPIC_API_KEY']) providerKeys.anthropic = env['ANTHROPIC_API_KEY'];
+    if (env['GROQ_API_KEY']) providerKeys.groq = env['GROQ_API_KEY'];
+    if (env['OPENROUTER_API_KEY']) providerKeys.openrouter = env['OPENROUTER_API_KEY'];
+
+    const config: Config = {
+        port: Number(env['PORT'] ?? 8787),
+        corsOrigins: list(env['ALOUD_CORS_ORIGINS']) || [],
+        sessionSecret: env['ALOUD_SESSION_SECRET'] ?? (strict ? '' : 'dev-insecure-secret'),
+        googleClientIds: list(env['GOOGLE_CLIENT_IDS']),
+        providerKeys,
+        freeSignupCredits: Number(env['ALOUD_FREE_SIGNUP_CREDITS'] ?? 20),
+        freeGrantBudgetPerHour: Number(env['ALOUD_FREE_GRANT_BUDGET_PER_HOUR'] ?? 2000),
+        strict,
+    };
+    if (env['STRIPE_SECRET_KEY']) config.stripeSecretKey = env['STRIPE_SECRET_KEY'];
+    if (env['STRIPE_WEBHOOK_SECRET']) config.stripeWebhookSecret = env['STRIPE_WEBHOOK_SECRET'];
+    if (env['ALOUD_ADMIN_TOKEN']) config.adminToken = env['ALOUD_ADMIN_TOKEN'];
+
+    if (strict) {
+        const missing: string[] = [];
+        if (!config.sessionSecret) missing.push('ALOUD_SESSION_SECRET');
+        if (config.googleClientIds.length === 0) missing.push('GOOGLE_CLIENT_IDS');
+        if (Object.keys(config.providerKeys).length === 0)
+            missing.push('at least one provider key (ANTHROPIC_API_KEY/GROQ_API_KEY/OPENROUTER_API_KEY)');
+        if (missing.length > 0) {
+            throw new Error(
+                `Refusing to start in production: missing required config: ${missing.join(', ')}`
+            );
+        }
+    }
+
+    return config;
+}
+
+/** Which providers this server can actually forward to right now (have a key). */
+export function configuredProviders(config: Config): ProviderId[] {
+    const out: ProviderId[] = [];
+    if (config.providerKeys.anthropic) out.push('anthropic');
+    if (config.providerKeys.groq) out.push('groq');
+    if (config.providerKeys.openrouter) out.push('openrouter');
+    return out;
+}
