@@ -882,6 +882,8 @@ const API_KEY_INFO: Record<Provider, { url: string; prefix: string } | undefined
     // claude_proxy uses the local `claude` CLI's existing login —
     // no API key entered through this page.
     claude_proxy: undefined,
+    // aloud (hosted) holds keys server-side; the user signs in, never pastes a key.
+    aloud: undefined,
 };
 
 const ELEVENLABS_KEY_INFO = {

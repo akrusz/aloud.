@@ -84,6 +84,49 @@ npm run dev
 token. The route-level logic is unit-tested against the in-memory store in
 `tests/app.test.ts` without network.
 
+## Running the full loop locally (UI ↔ server)
+
+The browser UI can drive the metered proxy end-to-end. The `aloud (hosted)`
+provider in Setup/Settings routes LLM turns through this server instead of
+Flask or BYOK.
+
+```bash
+# Terminal 1 — the server (needs a real provider key to actually complete)
+cd ts/server
+cp .env.example .env        # set ANTHROPIC_API_KEY (or GROQ / OPENROUTER)
+npm run dev                 # :8787
+
+# Terminal 2 — the UI (Vite proxies /v1/* → :8787; override via ALOUD_SERVER_URL)
+cd ts
+npm run ui:dev              # :5173
+```
+
+In the UI: pick provider **aloud (hosted)**, choose a model (the picker is
+populated live from `GET /v1/me/models`), start a session. On first LLM turn
+the UI auto-signs-in via the dev route and caches the token.
+
+**Auth — dev shortcut.** `/v1/llm/complete` is behind bearer auth. Until the
+Google OAuth flow exists (`meditation-pal-rfb`), the UI's `server-auth.ts`
+falls back to `POST /v1/auth/dev` — a **local-only** route that mints a session
+for a fixed `dev@localhost` account (seeded with `ALOUD_FREE_SIGNUP_CREDITS`,
+auto-refilled when it runs dry). It **404s in production** (strict mode), so
+it's a dev convenience, not a backdoor. Client wiring: `ui/src/server-auth.ts`
+(token) + `ui/src/adapters/server-llm.ts` (`complete` + SSE `completeStream`).
+
+Quick handshake without the UI:
+
+```bash
+TOK=$(curl -s -X POST localhost:8787/v1/auth/dev | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+curl -s localhost:8787/v1/me -H "authorization: Bearer $TOK"          # account + balance
+curl -s -X POST localhost:8787/v1/llm/complete -H "authorization: Bearer $TOK" \
+  -H 'content-type: application/json' \
+  -d '{"provider":"anthropic","model":"claude-sonnet-4-6","messages":[{"role":"user","content":"hi"}]}'
+```
+
+> STT and TTS still go through Flask / browser-native — the server has no
+> STT/TTS routes yet (`meditation-pal-age` / `2gz`). Only the LLM path is
+> repointed at the server today.
+
 ## Routes
 
 Wired in `app.ts`; the entire client↔server wire surface is `contract.ts`.
@@ -92,6 +135,7 @@ Wired in `app.ts`; the entire client↔server wire surface is `contract.ts`.
 |---|---|---|
 | `GET /health` | public | liveness + what's configured |
 | `POST /v1/auth/google` | public | verify Google ID token, create account, grant free credits |
+| `POST /v1/auth/dev` | public (dev only) | local dev sign-in; mints a session for `dev@localhost`. 404s in production |
 | `GET /v1/me` | session | account + live balance |
 | `GET /v1/me/models` `/estimates` `/packs` | public | published pricing |
 | `POST /v1/llm/complete` | session | metered proxy: hold → forward → settle to actual cost (SSE or JSON) |

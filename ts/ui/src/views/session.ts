@@ -30,6 +30,8 @@ import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
 import { streamCompletionWithChunkedTts } from '../streaming-tts.js';
 import { wrapTtsWithBargeIn } from '../barge-in.js';
 import { ClaudeProxyHttpProvider } from '../adapters/claude-proxy-http.js';
+import { ServerLlmProvider, type ServerProviderId } from '../adapters/server-llm.js';
+import { ensureServerToken } from '../server-auth.js';
 
 import {
     createBestStt,
@@ -72,6 +74,19 @@ const OLLAMA_PROXY_URL = '/ollama';
 export async function buildProvider(setup: SessionSetup): Promise<LLMProvider> {
     const modelOpt = setup.model ? { model: setup.model } : {};
     switch (setup.provider) {
+        case 'aloud': {
+            // Hosted, metered proxy. Sign in (dev flow until OAuth lands) so the
+            // request carries a bearer token. setup.model is "provider/model";
+            // the model id itself may contain a slash (openrouter), so split once.
+            await ensureServerToken();
+            const slash = setup.model.indexOf('/');
+            const sub = slash > 0 ? setup.model.slice(0, slash) : '';
+            const model = slash > 0 ? setup.model.slice(slash + 1) : '';
+            if (!sub || !model) {
+                throw new Error('Pick a model for the hosted aloud server in Settings.');
+            }
+            return new ServerLlmProvider({ provider: sub as ServerProviderId, model });
+        }
         case 'ollama':
             return new OllamaProvider({ baseUrl: OLLAMA_PROXY_URL, ...modelOpt });
         case 'anthropic':

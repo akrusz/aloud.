@@ -25,6 +25,27 @@ let providerStatusCache: Record<string, { available: boolean; models?: string[] 
 export async function fetchModels(provider: string): Promise<ModelOption[] | null> {
     if (cache.has(provider)) return cache.get(provider)!;
 
+    // Hosted aloud server publishes its allowlisted models (with pricing) at
+    // /v1/me/models — public, no auth. The option value encodes provider/model
+    // so buildProvider can route the turn (model ids may themselves contain a
+    // slash, e.g. openrouter, so the leading segment is the provider).
+    if (provider === 'aloud') {
+        try {
+            const resp = await fetch('/v1/me/models');
+            if (!resp.ok) return null;
+            const data = (await resp.json()) as { models?: Array<{ provider: string; model: string }> };
+            if (!data.models?.length) return null;
+            const opts: ModelOption[] = data.models.map((m) => ({
+                value: `${m.provider}/${m.model}`,
+                label: m.model,
+            }));
+            cache.set(provider, opts);
+            return opts;
+        } catch {
+            return null;
+        }
+    }
+
     // Ollama models come from /api/providers, not /api/models — same
     // shape as the Python setup.js handling.
     if (provider === 'ollama') {
@@ -147,6 +168,8 @@ export function mountModelPicker(
 
 function modelPlaceholder(provider: string): string {
     switch (provider) {
+        case 'aloud':
+            return 'anthropic/claude-sonnet-4-6';
         case 'ollama':
             return 'qwen3.5:4b';
         case 'anthropic':

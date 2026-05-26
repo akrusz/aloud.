@@ -16,6 +16,7 @@ import { LocalStorageKv } from './adapters/localstorage-kv.js';
 import { loadAppSettings } from './app-settings.js';
 
 export type Provider =
+    | 'aloud'
     | 'ollama'
     | 'claude_proxy'
     | 'anthropic'
@@ -33,6 +34,9 @@ export interface ProviderMeta {
 }
 
 export const ALL_PROVIDERS: ReadonlyArray<ProviderMeta> = [
+    // Hosted aloud server: no key, no local model — credits-metered premium
+    // LLMs. The only LLM source for the web tier (meditation-pal-vd3).
+    { value: 'aloud', label: 'aloud (hosted)', needsKey: false },
     { value: 'ollama', label: 'Ollama (Local)', needsKey: false },
     // claude_proxy shells out to the local `claude` CLI for Pro/Max
     // subscription routing. Doesn't run on mobile (no subprocess); the

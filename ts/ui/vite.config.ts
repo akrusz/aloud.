@@ -8,6 +8,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // via ALOUD_BACKEND_URL if you're running Flask on a non-default port.
 const BACKEND_URL = process.env['ALOUD_BACKEND_URL'] ?? 'http://localhost:4649';
 const OLLAMA_URL = process.env['OLLAMA_URL'] ?? 'http://localhost:11434';
+// Hosted aloud server (@aloud/server) — the metered LLM proxy. Defaults to the
+// dev port in ts/server/.env.example; override with ALOUD_SERVER_URL.
+const SERVER_URL = process.env['ALOUD_SERVER_URL'] ?? 'http://localhost:8787';
 
 export default defineConfig({
     root: __dirname,
@@ -21,6 +24,8 @@ export default defineConfig({
         port: 5173,
         strictPort: false,
         proxy: {
+            // Hosted aloud server: auth + the metered LLM proxy (/v1/*).
+            '/v1': SERVER_URL,
             // Anthropic / future cloud LLM proxy lives on the Flask backend.
             '/api': BACKEND_URL,
             // Ollama is direct-to-local but we route through Vite so the
