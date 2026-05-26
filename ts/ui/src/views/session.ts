@@ -397,6 +397,9 @@ export async function mountSessionView(
     let listenLoopRunning = false;
     let torn = false;
     let silenceMode = false;
+    // True while the voice-picker modal is open: pause listening so the
+    // mic doesn't transcribe a voice preview's own audio and "respond" to it.
+    let voiceModalOpen = false;
     let currentPartial: HTMLElement | null = null;
     let scoredVoices: ScoredVoice[] = [];
 
@@ -491,7 +494,7 @@ export async function mountSessionView(
         listenLoopRunning = true;
         try {
             while (!torn && !muted) {
-                while (busy && !torn && !muted) {
+                while ((busy || voiceModalOpen) && !torn && !muted) {
                     await new Promise<void>((r) => setTimeout(r, 100));
                 }
                 if (torn || muted) break;
@@ -528,6 +531,9 @@ export async function mountSessionView(
                     currentPartial = null;
                 }
                 if (torn || muted) break;
+                // The voice modal opened mid-capture — discard whatever was
+                // heard (likely a voice preview) and wait it out.
+                if (voiceModalOpen) continue;
 
                 if (finalText.trim()) {
                     await respondTo(finalText.trim());
@@ -558,10 +564,13 @@ export async function mountSessionView(
 
     // Mic input-level ring (the .btn-voice.active --mic-level box-shadow). Its
     // own small analyser stream, since Web Speech hides its audio. Cosmetic —
-    // failures are swallowed.
+    // failures are swallowed. Web-Speech only: the server-Whisper adapter
+    // already holds its own mic stream + AudioContext, and stacking a second
+    // pair was a likely contributor to the Firefox/WebRender instability.
+    // (A server-Whisper meter can later reuse that adapter's existing energy.)
     let micMeter: MicMeter | null = null;
     function startMeter(): void {
-        if (micMeter) return;
+        if (micMeter || sttBackend !== 'web-speech') return;
         void startMicMeter(micBtn)
             .then((m) => {
                 if (torn || muted) m.stop(); // raced with teardown/mute
@@ -913,6 +922,10 @@ export async function mountSessionView(
         speedSlider.value = String(setup.ttsRate);
         speedLabel.textContent = `${setup.ttsRate} wpm`;
         modal.classList.remove('hidden');
+        // Pause listening while the modal is open and stop any in-flight
+        // capture, so voice previews aren't transcribed as user turns.
+        voiceModalOpen = true;
+        void stt?.stop();
 
         const onListClick = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
@@ -945,6 +958,10 @@ export async function mountSessionView(
         const closeModal = () => {
             modal.classList.add('hidden');
             stopVoicePreview();
+            // Resume listening — the loop is parked in its busy/modal wait and
+            // picks back up on its own; restart it if it had exited.
+            voiceModalOpen = false;
+            if (stt && !muted && !torn && !listenLoopRunning) void listenLoop();
             listEl.removeEventListener('click', onListClick);
             speedSlider.removeEventListener('input', onSpeedInput);
             closeBtn.removeEventListener('click', closeModal);
