@@ -69,7 +69,7 @@ import {
 const ANTHROPIC_PROXY_URL = '/api/llm/anthropic/messages';
 const OLLAMA_PROXY_URL = '/ollama';
 
-async function buildProvider(setup: SessionSetup): Promise<LLMProvider> {
+export async function buildProvider(setup: SessionSetup): Promise<LLMProvider> {
     const modelOpt = setup.model ? { model: setup.model } : {};
     switch (setup.provider) {
         case 'ollama':

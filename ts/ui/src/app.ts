@@ -202,12 +202,10 @@ async function goSetup(root: HTMLElement): Promise<void> {
     }
     setActiveNav('setup');
     await mountSetupView(root, (setup, continueFrom) => {
-        // Branch on the meditation type the user picked via the tab
-        // bar. Noting routes to a placeholder view today (the
-        // circle UI isn't ported yet) — same URL '/' since this is
-        // still conceptually inside Setup.
+        // Branch on the meditation type the user picked via the tab bar.
+        // Both stay under the Setup tab conceptually (same '/session' trap).
         if (setup.meditationType === 'noting') {
-            void goNotingSession(root);
+            void goNotingSession(root, setup);
         } else {
             void goSession(root, setup, continueFrom);
         }
@@ -240,11 +238,11 @@ async function goSession(
     );
 }
 
-async function goNotingSession(root: HTMLElement): Promise<void> {
+async function goNotingSession(root: HTMLElement, setup: SessionSetup): Promise<void> {
     setActiveNav('setup');
     // Same back-button trap as goSession (see wirePopstate).
     window.history.pushState({ view: 'session' }, '', '/session');
-    currentNoting = await mountNotingSessionView(root, () => {
+    currentNoting = await mountNotingSessionView(root, setup, () => {
         void routeTo(root, 'setup');
     });
 }

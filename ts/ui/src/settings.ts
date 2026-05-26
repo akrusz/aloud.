@@ -69,6 +69,26 @@ export interface SessionSetup {
     voice: string | null;
     /** TTS rate in words-per-minute. Browser TTS normalizes; server TTS passes through. */
     ttsRate: number;
+    /**
+     * Noting circle participants (noting mode only). Empty = solo noting (just
+     * you + an opener). Each LLM participant takes a turn after you, generating
+     * a 1–2 word label in its own voice.
+     */
+    notingParticipants: NotingParticipantConfig[];
+    /** Play a short chime when it becomes the user's turn in the noting circle. */
+    notingUserTurnCue: boolean;
+}
+
+export type NotingReactive = 'none' | 'low' | 'high';
+
+/** One configured noting-circle participant. (LLM-driven for now; sound/fixed
+ *  participants from the Flask app can be added later.) */
+export interface NotingParticipantConfig {
+    type: 'llm';
+    /** Voice id ('browser:<name>' | 'server:<name>') or null for the default. */
+    voice: string | null;
+    /** How much this participant's labels react to what others have noted. */
+    reactive: NotingReactive;
 }
 
 export const DIRECTIVENESS_VALUES: readonly number[] = [0, 3, 5, 7, 10];
@@ -91,6 +111,8 @@ export const defaultSetup: SessionSetup = {
     model: '',
     voice: null,
     ttsRate: 160,
+    notingParticipants: [],
+    notingUserTurnCue: true,
 };
 
 const SETTINGS_KEY = 'preview:setup';

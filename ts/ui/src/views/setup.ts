@@ -175,6 +175,8 @@ export async function mountSetupView(
             }
         }
         updateVoiceButtonLabel();
+        // Voices just arrived — repopulate participant voice dropdowns.
+        renderParticipantList();
     }
 
     function findVoice(name: string | null): ScoredVoice | null {
@@ -269,6 +271,7 @@ export async function mountSetupView(
         root.innerHTML = renderSetupHTML();
         wireTabBar();
         wireInfoButtons();
+        wireNotingPanel();
 
         // Intention
         const intentionEl = root.querySelector<HTMLTextAreaElement>('#intention')!;
@@ -534,6 +537,84 @@ export async function mountSetupView(
                 void resetGuide();
             });
         }
+    }
+
+    // ---- Noting circle participants ----
+    function renderParticipantList(): void {
+        const listEl = root.querySelector<HTMLElement>('#participant-list');
+        if (!listEl) return;
+        const ps = setup.notingParticipants ?? [];
+        const reactiveLabels: Record<string, string> = {
+            none: 'in their own world',
+            low: 'a little reactive',
+            high: 'very reactive',
+        };
+        listEl.innerHTML = ps
+            .map((p, i) => {
+                const reactiveOpts = (['none', 'low', 'high'] as const)
+                    .map(
+                        (r) =>
+                            `<option value="${r}"${p.reactive === r ? ' selected' : ''}>${reactiveLabels[r]}</option>`
+                    )
+                    .join('');
+                const voiceOpts = ['<option value="">Default voice</option>']
+                    .concat(
+                        scoredVoices.map((v) => {
+                            const id = `${v.engine === 'browser' ? 'browser:' : 'server:'}${v.name}`;
+                            return `<option value="${escapeAttr(id)}"${p.voice === id ? ' selected' : ''}>${escapeAttr(v.name)}</option>`;
+                        })
+                    )
+                    .join('');
+                return `<div class="noting-participant" data-index="${i}">
+                    <span class="noting-participant-label">AI ${i + 1}</span>
+                    <select class="noting-voice" aria-label="Participant voice">${voiceOpts}</select>
+                    <select class="noting-reactive" aria-label="Reactivity">${reactiveOpts}</select>
+                    <button type="button" class="noting-remove" aria-label="Remove participant" title="Remove">&times;</button>
+                </div>`;
+            })
+            .join('');
+
+        listEl.querySelectorAll<HTMLElement>('.noting-participant').forEach((row) => {
+            const i = Number(row.dataset['index']);
+            const p = (setup.notingParticipants ?? [])[i];
+            if (!p) return;
+            row.querySelector<HTMLSelectElement>('.noting-voice')?.addEventListener('change', (e) => {
+                p.voice = (e.target as HTMLSelectElement).value || null;
+                persist();
+            });
+            row.querySelector<HTMLSelectElement>('.noting-reactive')?.addEventListener('change', (e) => {
+                p.reactive = (e.target as HTMLSelectElement).value as typeof p.reactive;
+                persist();
+            });
+            row.querySelector<HTMLButtonElement>('.noting-remove')?.addEventListener('click', () => {
+                setup.notingParticipants.splice(i, 1);
+                persist();
+                renderParticipantList();
+            });
+        });
+    }
+
+    function wireNotingPanel(): void {
+        const cue = root.querySelector<HTMLInputElement>('#user-turn-cue');
+        if (cue) {
+            cue.disabled = false;
+            cue.checked = setup.notingUserTurnCue;
+            cue.addEventListener('change', () => {
+                setup.notingUserTurnCue = cue.checked;
+                persist();
+            });
+        }
+        const addBtn = root.querySelector<HTMLButtonElement>('#add-participant-btn');
+        if (addBtn) {
+            addBtn.disabled = false;
+            addBtn.removeAttribute('title');
+            addBtn.addEventListener('click', () => {
+                setup.notingParticipants.push({ type: 'llm', voice: null, reactive: 'low' });
+                persist();
+                renderParticipantList();
+            });
+        }
+        renderParticipantList();
     }
 
     function updatePresetHighlights(): void {
