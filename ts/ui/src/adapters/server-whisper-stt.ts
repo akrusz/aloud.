@@ -7,10 +7,12 @@
  * browser the Web Speech API doesn't cover. Trade-off vs. native /
  * Web Speech: requires a running Flask backend with Whisper.cpp.
  *
- * The VAD is intentionally simple — RMS-energy threshold with a
- * silence timeout. No speculative submission, no adaptive thresholding,
- * no pre-buffer (yet). The existing Flask UI's audio.js has all those
- * niceties; we can port them when the loop is solid.
+ * VAD: RMS-energy threshold over an adaptive noise floor, with an adaptive
+ * silence timeout (base + speech×ramp, capped at max). After a short pause it
+ * fires a SPECULATIVE transcription and emits it as a `partial` (so the user
+ * sees their words during the pause), then submits the `final` once the full
+ * adaptive silence elapses — mirroring audio.js's speculative submission.
+ * Still TODO from audio.js: pre-buffer for utterance onset.
  */
 
 import type { SttEngine, SttEvent } from '../../../src/platform/stt.js';
@@ -18,6 +20,11 @@ import { defaultPacingConfig, type PacingConfig } from '../../../src/facilitatio
 
 const TARGET_SAMPLE_RATE = 16_000;
 const FRAME_SIZE = 4096;
+// Short silence (ms) that triggers a speculative transcription mid-utterance —
+// so the user sees their words during a pause, before the (longer) adaptive
+// silence actually submits the turn. Speculation is skipped when the submit
+// threshold is shorter than this (nothing to preview).
+const SPECULATIVE_SILENCE_MS = 500;
 
 /** The subset of PacingConfig fields the VAD here cares about. */
 type VadFields = Pick<
@@ -105,7 +112,6 @@ export class ServerWhisperSttEngine implements SttEngine {
         let speechStartMs = 0;
         let lastSpeechMs = 0;
         let utteranceDone = false;
-        let wake: (() => void) | null = null;
         // Adaptive noise floor — track ambient room sound so the speech
         // threshold rides above background noise instead of a fixed cut.
         let noiseFloor = 0.005;
@@ -146,11 +152,6 @@ export class ServerWhisperSttEngine implements SttEngine {
                 );
                 if (now - lastSpeechMs >= needed) {
                     utteranceDone = true;
-                    if (wake) {
-                        const w = wake;
-                        wake = null;
-                        w();
-                    }
                 }
             } else {
                 // Truly silent frame — update the noise floor. Fast
@@ -163,29 +164,84 @@ export class ServerWhisperSttEngine implements SttEngine {
 
             if (speechStarted && now - speechStartMs >= this.opts.maxUtteranceMs) {
                 utteranceDone = true;
-                if (wake) {
-                    const w = wake;
-                    wake = null;
-                    w();
-                }
             }
         };
 
         this.source.connect(this.processor);
         this.processor.connect(this.context.destination);
 
-        try {
-            await new Promise<void>((resolve) => {
-                wake = resolve;
-                // Wake at least once a second so stopRequested gets observed
-                // even if no audio frames are flowing for some reason.
-                const interval = setInterval(() => {
-                    if (utteranceDone || this.stopRequested) {
-                        clearInterval(interval);
-                        resolve();
+        // Transcribe a snapshot of captured frames via the Whisper endpoint —
+        // used for both speculative interim passes and the final submission.
+        const transcribeChunks = async (
+            frames: readonly Float32Array[]
+        ): Promise<
+            { ok: true; text: string; seconds: number } | { ok: false; error: unknown }
+        > => {
+            const combined = concatFloat32(frames as Float32Array[]);
+            const downsampled =
+                nativeRate === TARGET_SAMPLE_RATE
+                    ? combined
+                    : downsampleLinear(combined, nativeRate, TARGET_SAMPLE_RATE);
+            try {
+                const response = await this.opts.fetchImpl(
+                    `${this.opts.endpointUrl}?sample_rate=${TARGET_SAMPLE_RATE}`,
+                    {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/octet-stream' },
+                        body: downsampled.buffer.slice(
+                            downsampled.byteOffset,
+                            downsampled.byteOffset + downsampled.byteLength
+                        ) as ArrayBuffer,
                     }
-                }, 250);
-            });
+                );
+                if (!response.ok) {
+                    const detail = await response.text().catch(() => '');
+                    return {
+                        ok: false,
+                        error: new Error(`Whisper endpoint ${response.status}: ${detail}`),
+                    };
+                }
+                const data = (await response.json()) as { text?: string; error?: string };
+                if (data.error !== undefined) return { ok: false, error: new Error(data.error) };
+                return {
+                    ok: true,
+                    text: (data.text ?? '').trim(),
+                    seconds: downsampled.length / TARGET_SAMPLE_RATE,
+                };
+            } catch (err) {
+                return { ok: false, error: err };
+            }
+        };
+
+        try {
+            // Poll while capturing. A short pause (SPECULATIVE_SILENCE_MS) fires
+            // a speculative transcription so the user sees their words during
+            // the pause (a partial, shown with the "…" marker); the adaptive
+            // `needed` silence (set in the audio callback) ends the turn. Each
+            // speculative pass re-transcribes the growing buffer.
+            let lastSpecChunkCount = 0;
+            let specInFlight = false;
+            while (!utteranceDone && !this.stopRequested) {
+                await new Promise<void>((r) => setTimeout(r, 200));
+                if (utteranceDone || this.stopRequested) break;
+                if (!speechStarted) continue;
+                const silence = performance.now() - lastSpeechMs;
+                if (
+                    silence >= SPECULATIVE_SILENCE_MS &&
+                    !specInFlight &&
+                    chunks.length > lastSpecChunkCount
+                ) {
+                    specInFlight = true;
+                    lastSpecChunkCount = chunks.length;
+                    const result = await transcribeChunks(chunks.slice());
+                    specInFlight = false;
+                    // Drop the preview if the turn ended while it was in flight
+                    // (the final pass will emit the authoritative text).
+                    if (!utteranceDone && result.ok && result.text) {
+                        yield { type: 'partial', text: result.text };
+                    }
+                }
+            }
 
             if (this.stopRequested && !utteranceDone) {
                 return; // user explicitly stopped before end-of-speech
@@ -197,41 +253,16 @@ export class ServerWhisperSttEngine implements SttEngine {
                 return; // sound too short — likely a cough / mic bump
             }
 
-            const combined = concatFloat32(chunks);
-            const downsampled =
-                nativeRate === TARGET_SAMPLE_RATE
-                    ? combined
-                    : downsampleLinear(combined, nativeRate, TARGET_SAMPLE_RATE);
-
-            const response = await this.opts.fetchImpl(
-                `${this.opts.endpointUrl}?sample_rate=${TARGET_SAMPLE_RATE}`,
-                {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/octet-stream' },
-                    body: downsampled.buffer.slice(
-                        downsampled.byteOffset,
-                        downsampled.byteOffset + downsampled.byteLength
-                    ) as ArrayBuffer,
-                }
-            );
-
-            if (!response.ok) {
-                const detail = await response.text().catch(() => '');
-                yield {
-                    type: 'error',
-                    error: new Error(`Whisper endpoint ${response.status}: ${detail}`),
-                };
+            const result = await transcribeChunks(chunks);
+            if (!result.ok) {
+                yield { type: 'error', error: result.error };
                 return;
             }
-            const data = (await response.json()) as { text?: string; error?: string };
-            if (data.error !== undefined) {
-                yield { type: 'error', error: new Error(data.error) };
-                return;
-            }
-            // Billable server-side STT compute — report the transcribed
-            // audio duration (16 kHz mono) for session usage tracking.
-            const seconds = downsampled.length / TARGET_SAMPLE_RATE;
-            yield { type: 'final', text: (data.text ?? '').trim(), seconds };
+            // Billable server-side STT compute — report the transcribed audio
+            // duration (16 kHz mono) for session usage tracking. Only the final
+            // pass is counted; speculative passes aren't, to keep the tally
+            // simple (revisit if a hosted cloud-STT meters speculation).
+            yield { type: 'final', text: result.text, seconds: result.seconds };
         } finally {
             this.cleanup();
         }
