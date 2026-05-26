@@ -120,16 +120,19 @@ export class WebSpeechSttEngine implements SttEngine {
         };
 
         recognition.onresult = (event) => {
-            for (let i = event.resultIndex; i < event.results.length; i++) {
+            // Build the full utterance by concatenating every result segment,
+            // not just the latest one — otherwise the live bubble only shows
+            // the last word or two. The turn is final once a segment finalizes
+            // (continuous: false → one utterance per recognition).
+            let transcript = '';
+            let isFinal = false;
+            for (let i = 0; i < event.results.length; i++) {
                 const result = event.results[i];
-                if (!result) continue;
-                const item = result[0];
-                if (!item) continue;
-                push({
-                    type: result.isFinal ? 'final' : 'partial',
-                    text: item.transcript,
-                });
+                if (!result || !result[0]) continue;
+                transcript += result[0].transcript;
+                if (result.isFinal) isFinal = true;
             }
+            push({ type: isFinal ? 'final' : 'partial', text: transcript.trim() });
         };
         recognition.onerror = (event) => {
             // 'no-speech' and 'aborted' are routine end-of-turn signals, not errors.
