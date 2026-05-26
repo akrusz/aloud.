@@ -259,7 +259,9 @@ export async function mountNotingSessionView(
             const cueDelay = userCadences.length === 0 ? 0 : USER_TURN_CUE_DELAY_MS;
             if (cueDelay > 0) await sleep(cueDelay);
             if (torn || paused) return;
-            playChime();
+            // A chosen sound file, or the built-in synth chime.
+            if (setup.notingUserTurnCueSound) await playSoundFile(setup.notingUserTurnCueSound);
+            else playChime();
             await sleep(250);
         }
         if (torn || paused) return;

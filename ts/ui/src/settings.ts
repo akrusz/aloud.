@@ -75,8 +75,10 @@ export interface SessionSetup {
      * a 1–2 word label in its own voice.
      */
     notingParticipants: NotingParticipantConfig[];
-    /** Play a short chime when it becomes the user's turn in the noting circle. */
+    /** Play a sound when it becomes the user's turn in the noting circle. */
     notingUserTurnCue: boolean;
+    /** Which cue sound to play; null = the built-in synth chime. */
+    notingUserTurnCueSound: NotingSound | null;
 }
 
 export type NotingReactive = 'none' | 'low' | 'high';
@@ -141,7 +143,8 @@ export const defaultSetup: SessionSetup = {
     // Default circle: one AI participant at the settings default voice, middle
     // reactivity, adaptive timing. (voice: null = inherit the resolved default.)
     notingParticipants: [{ type: 'llm', voice: null, reactive: 'low', timing: 'adaptive', fixedDelaySec: 4 }],
-    notingUserTurnCue: true,
+    notingUserTurnCue: false,
+    notingUserTurnCueSound: null,
 };
 
 const SETTINGS_KEY = 'preview:setup';

@@ -132,46 +132,84 @@
 
 /* Noting circle participant rows (setup) */
 .noting-participant {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.5rem;
-    padding: 0.4rem 0.5rem;
+    margin-bottom: 0.6rem;
+    padding: 0.6rem 0.75rem;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
 }
+.noting-participant-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
 .noting-participant-label {
+    font-weight: 600;
+}
+/* Fields wrap: multiple per row on a wide viewport, stacking toward one per
+   row on narrow screens (down to iPhone 13 / 390px). */
+.noting-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+.noting-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1 1 9rem;
+    min-width: 7rem;
+}
+.noting-field.hidden {
+    display: none;
+}
+/* Field labels match the app's other labels — never smaller (enforced min). */
+.noting-field label,
+.noting-reactive-label {
     font-size: 0.9rem;
-    font-weight: 500;
-    min-width: 3.5rem;
+    color: var(--text-muted);
 }
-.noting-participant select,
-.noting-phrase {
-    min-width: 0;
+.noting-field select,
+.noting-field input,
+.noting-field .setup-voice-btn {
+    width: 100%;
 }
-.noting-phrase {
-    flex: 1;
-}
-.noting-delay {
-    width: 4rem;
-}
-.noting-reactive-wrap {
-    display: inline-flex;
+.noting-sound-wrap {
+    display: flex;
     align-items: center;
     gap: 0.4rem;
 }
+.noting-sound-wrap select {
+    flex: 1;
+    min-width: 0;
+}
+.noting-sound-preview {
+    flex-shrink: 0;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+.noting-sound-preview:hover {
+    border-color: var(--accent);
+}
+.noting-reactive-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 .noting-reactive {
-    width: 5rem;
+    flex: 1;
+    min-width: 0;
 }
 .noting-reactive-label {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    min-width: 2.5rem;
+    min-width: 2.6rem;
 }
 .noting-remove {
-    margin-left: auto;
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -182,6 +220,17 @@
 }
 .noting-remove:hover {
     color: var(--danger);
+}
+/* The turn-cue sound picker sits inline next to the toggle, wrapping below it
+   on narrow screens. */
+.noting-option-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+#user-turn-cue-sound-slot .noting-sound-wrap {
+    min-width: 10rem;
 }
 /* Trailing "…" marks speech that's transcribed but not yet submitted (the
    pause-before-submit window). Pulses gently so it reads as "still listening".

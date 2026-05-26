@@ -209,7 +209,15 @@ export async function mountSetupView(
      * button. Re-running render() blows the modal away with the rest of
      * the form, so the wiring lives inline here instead of in render().
      */
-    function openVoiceModal(): void {
+    /**
+     * Open the shared voice picker. With no target it edits setup.voice (the
+     * exploration/narrator voice); pass a target to edit a noting participant's
+     * voice with the exact same modal + previews.
+     */
+    function openVoiceModal(target?: {
+        current: () => string | null;
+        onSelect: (voiceId: string) => void;
+    }): void {
         const modal = root.querySelector<HTMLElement>('#setup-voice-modal');
         const listEl = root.querySelector<HTMLElement>('#setup-voice-modal-list');
         const closeBtn = root.querySelector<HTMLButtonElement>('#setup-voice-modal-close');
@@ -217,33 +225,38 @@ export async function mountSetupView(
         const speedLabel = root.querySelector<HTMLElement>('#setup-speed-label');
         if (!modal || !listEl || !closeBtn || !speedSlider || !speedLabel) return;
 
-        const currentName = stripVoicePrefix(setup.voice);
+        const currentName = stripVoicePrefix(target ? target.current() : setup.voice);
         renderVoiceList(listEl, scoredVoices, currentName, { showEngine: true });
         speedSlider.value = String(setup.ttsRate);
         speedLabel.textContent = `${setup.ttsRate} wpm`;
         modal.classList.remove('hidden');
 
         const onListClick = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            const row = target.closest<HTMLElement>('.voice-row');
+            const target2 = e.target as HTMLElement;
+            const row = target2.closest<HTMLElement>('.voice-row');
             if (!row) return;
             const name = row.dataset['voiceName'];
             if (!name) return;
-            if (target.closest('.voice-row-preview')) {
+            if (target2.closest('.voice-row-preview')) {
                 if (row.classList.contains('voice-row-locked')) return;
                 const entry = findVoice(name);
                 void runPreview(name, setup.ttsRate, entry?.engine);
                 return;
             }
             if (row.classList.contains('voice-row-locked')) return;
-            // Select the voice. Persist with engine prefix so the
-            // session view's createTtsForVoice picks the right backend.
+            // Select the voice. Persist with engine prefix so createTtsForVoice
+            // picks the right backend.
             const entry = findVoice(name);
             const idPrefix = entry?.engine === 'browser' ? 'browser:' : 'server:';
-            setup.voice = `${idPrefix}${name}`;
-            persist();
+            const voiceId = `${idPrefix}${name}`;
             updateVoiceSelection(listEl, name);
-            updateVoiceButtonLabel();
+            if (target) {
+                target.onSelect(voiceId);
+            } else {
+                setup.voice = voiceId;
+                persist();
+                updateVoiceButtonLabel();
+            }
         };
         const onSpeedInput = () => {
             const rate = Number(speedSlider.value);
@@ -550,8 +563,7 @@ export async function mountSetupView(
     /** Display name for a participant: its voice name (AI/fixed) or sound. */
     function participantLabel(p: NotingParticipantConfig): string {
         if (p.type === 'sound') return capitalize(p.sound);
-        const id = p.voice ?? setup.voice;
-        return voiceNameFromId(id) || 'AI';
+        return voiceNameFromId(p.voice ?? setup.voice) || 'AI';
     }
     function voiceNameFromId(id: string | null): string {
         if (!id) return '';
@@ -568,72 +580,124 @@ export async function mountSetupView(
         return { type, voice, reactive: 'low', timing, fixedDelaySec };
     }
 
+    /** Preview a sound effect (used by sound participants + the turn cue). */
+    function previewSound(sound: string): void {
+        try {
+            const audio = new Audio(`/audio/${encodeURIComponent(sound)}.mp3`);
+            void audio.play().catch(() => {});
+        } catch {
+            /* preview is optional */
+        }
+    }
+
+    function field(label: string, control: string, extraClass = ''): string {
+        return `<div class="noting-field ${extraClass}">
+            <label>${label}</label>
+            ${control}
+        </div>`;
+    }
+
     function renderParticipantList(): void {
         const listEl = root.querySelector<HTMLElement>('#participant-list');
         if (!listEl) return;
         const ps = setup.notingParticipants ?? [];
 
-        const voiceOptions = (selected: string | null): string =>
-            scoredVoices
-                .map((v) => {
-                    const id = `${v.engine === 'browser' ? 'browser:' : 'server:'}${v.name}`;
-                    const sel = (selected ?? setup.voice) === id ? ' selected' : '';
-                    return `<option value="${escapeAttr(id)}"${sel}>${escapeAttr(v.name)}</option>`;
-                })
-                .join('');
+        const selectField = (
+            label: string,
+            cls: string,
+            opts: ReadonlyArray<readonly [string, string]>,
+            selected: string
+        ): string =>
+            field(
+                label,
+                `<select class="${cls}">${opts
+                    .map(([v, l]) => `<option value="${v}"${selected === v ? ' selected' : ''}>${escapeAttr(l)}</option>`)
+                    .join('')}</select>`
+            );
 
         listEl.innerHTML = ps
             .map((p, i) => {
-                const typeOpts = (
-                    [
-                        ['llm', 'AI participant'],
-                        ['fixed', 'Fixed phrase'],
-                        ['sound', 'Sound effect'],
-                    ] as const
-                )
-                    .map(([v, l]) => `<option value="${v}"${p.type === v ? ' selected' : ''}>${l}</option>`)
-                    .join('');
-                const timingOpts = (
-                    [
-                        ['adaptive', 'Adaptive'],
-                        ['fixed', 'Fixed (sec)'],
-                    ] as const
-                )
-                    .map(([v, l]) => `<option value="${v}"${p.timing === v ? ' selected' : ''}>${l}</option>`)
-                    .join('');
+                const fields: string[] = [
+                    selectField(
+                        'Type',
+                        'noting-type',
+                        [
+                            ['llm', 'AI participant'],
+                            ['fixed', 'Fixed phrase'],
+                            ['sound', 'Sound effect'],
+                        ],
+                        p.type
+                    ),
+                ];
 
-                const voiceField =
-                    p.type !== 'sound'
-                        ? `<select class="noting-voice" aria-label="Voice">${voiceOptions(p.voice)}</select>`
-                        : '';
-                const reactiveIdx = p.type === 'llm' ? REACTIVE_LEVELS.indexOf(p.reactive) : 1;
-                const reactiveField =
-                    p.type === 'llm'
-                        ? `<span class="noting-reactive-wrap" title="How much this AI reacts to others' notes">
-                               <input type="range" class="noting-reactive" min="0" max="2" step="1" value="${reactiveIdx}">
-                               <span class="noting-reactive-label">${REACTIVE_LABELS[reactiveIdx]}</span>
-                           </span>`
-                        : '';
-                const phraseField =
-                    p.type === 'fixed'
-                        ? `<input type="text" class="noting-phrase" maxlength="40" placeholder="e.g. breathing" value="${escapeAttr(p.phrase)}">`
-                        : '';
-                const soundField =
-                    p.type === 'sound'
-                        ? `<select class="noting-sound" aria-label="Sound">${NOTING_SOUNDS.map(
-                              (s) => `<option value="${s}"${p.sound === s ? ' selected' : ''}>${capitalize(s)}</option>`
-                          ).join('')}</select>`
-                        : '';
-                const delaySec = p.fixedDelaySec || 4;
-                const delayField = `<input type="number" class="noting-delay${p.timing === 'fixed' ? '' : ' hidden'}" min="1" max="30" step="1" value="${delaySec}" aria-label="Seconds before turn">`;
+                // Type-specific fields, ordered so the defining attribute comes
+                // first (phrase/sound), then voice, then reactivity.
+                if (p.type === 'fixed') {
+                    fields.push(
+                        field(
+                            'Phrase',
+                            `<input type="text" class="noting-phrase" maxlength="40" placeholder="e.g. breathing" value="${escapeAttr(p.phrase)}">`
+                        )
+                    );
+                }
+                if (p.type === 'sound') {
+                    fields.push(
+                        field(
+                            'Sound',
+                            `<span class="noting-sound-wrap">
+                                <select class="noting-sound">${NOTING_SOUNDS.map(
+                                    (s) => `<option value="${s}"${p.sound === s ? ' selected' : ''}>${capitalize(s)}</option>`
+                                ).join('')}</select>
+                                <button type="button" class="noting-sound-preview" aria-label="Preview sound" title="Preview">&#9654;</button>
+                            </span>`
+                        )
+                    );
+                }
+                if (p.type !== 'sound') {
+                    fields.push(
+                        field(
+                            'Voice',
+                            `<button type="button" class="setup-voice-btn noting-voice-btn">${escapeAttr(voiceNameFromId(p.voice ?? setup.voice) || 'Choose voice')}</button>`
+                        )
+                    );
+                }
+                if (p.type === 'llm') {
+                    const idx = REACTIVE_LEVELS.indexOf(p.reactive);
+                    fields.push(
+                        field(
+                            'Reacts to others',
+                            `<span class="noting-reactive-wrap">
+                                <input type="range" class="noting-reactive" min="0" max="2" step="1" value="${idx}">
+                                <span class="noting-reactive-label">${REACTIVE_LABELS[idx]}</span>
+                            </span>`
+                        )
+                    );
+                }
+                fields.push(
+                    selectField(
+                        'Timing',
+                        'noting-timing',
+                        [
+                            ['adaptive', 'Adaptive'],
+                            ['fixed', 'Fixed'],
+                        ],
+                        p.timing
+                    )
+                );
+                fields.push(
+                    field(
+                        'Seconds',
+                        `<input type="number" class="noting-delay" min="1" max="30" step="1" value="${p.fixedDelaySec || 4}">`,
+                        p.timing === 'fixed' ? '' : 'hidden'
+                    )
+                );
 
                 return `<div class="noting-participant" data-index="${i}">
-                    <span class="noting-participant-label">${escapeAttr(participantLabel(p))}</span>
-                    <select class="noting-type" aria-label="Participant type">${typeOpts}</select>
-                    ${voiceField}${phraseField}${soundField}${reactiveField}
-                    <select class="noting-timing" aria-label="Timing">${timingOpts}</select>
-                    ${delayField}
-                    <button type="button" class="noting-remove" aria-label="Remove participant" title="Remove">&times;</button>
+                    <div class="noting-participant-header">
+                        <span class="noting-participant-label">${escapeAttr(participantLabel(p))}</span>
+                        <button type="button" class="noting-remove" aria-label="Remove participant" title="Remove">&times;</button>
+                    </div>
+                    <div class="noting-fields">${fields.join('')}</div>
                 </div>`;
             })
             .join('');
@@ -643,27 +707,32 @@ export async function mountSetupView(
             const ps2 = setup.notingParticipants ?? [];
             const p = ps2[i];
             if (!p) return;
-            const refreshLabel = () => {
-                const label = row.querySelector('.noting-participant-label');
-                if (label) label.textContent = participantLabel(ps2[i]!);
-            };
 
             row.querySelector<HTMLSelectElement>('.noting-type')?.addEventListener('change', (e) => {
                 ps2[i] = newParticipant((e.target as HTMLSelectElement).value as NotingParticipantConfig['type']);
                 persist();
                 renderParticipantList();
             });
-            row.querySelector<HTMLSelectElement>('.noting-voice')?.addEventListener('change', (e) => {
+            row.querySelector<HTMLButtonElement>('.noting-voice-btn')?.addEventListener('click', () => {
                 if (p.type === 'sound') return;
-                p.voice = (e.target as HTMLSelectElement).value || null;
-                persist();
-                refreshLabel();
+                openVoiceModal({
+                    current: () => p.voice ?? setup.voice,
+                    onSelect: (id) => {
+                        p.voice = id;
+                        persist();
+                        renderParticipantList();
+                    },
+                });
             });
             row.querySelector<HTMLSelectElement>('.noting-sound')?.addEventListener('change', (e) => {
                 if (p.type !== 'sound') return;
                 p.sound = (e.target as HTMLSelectElement).value as NotingSound;
                 persist();
-                refreshLabel();
+                const label = row.querySelector('.noting-participant-label');
+                if (label) label.textContent = participantLabel(p);
+            });
+            row.querySelector<HTMLButtonElement>('.noting-sound-preview')?.addEventListener('click', () => {
+                if (p.type === 'sound') previewSound(p.sound);
             });
             row.querySelector<HTMLInputElement>('.noting-phrase')?.addEventListener('input', (e) => {
                 if (p.type !== 'fixed') return;
@@ -681,8 +750,10 @@ export async function mountSetupView(
             });
             row.querySelector<HTMLSelectElement>('.noting-timing')?.addEventListener('change', (e) => {
                 p.timing = (e.target as HTMLSelectElement).value as typeof p.timing;
-                const delay = row.querySelector<HTMLInputElement>('.noting-delay');
-                if (delay) delay.classList.toggle('hidden', p.timing !== 'fixed');
+                const delayField = row
+                    .querySelector<HTMLInputElement>('.noting-delay')
+                    ?.closest('.noting-field');
+                delayField?.classList.toggle('hidden', p.timing !== 'fixed');
                 persist();
             });
             row.querySelector<HTMLInputElement>('.noting-delay')?.addEventListener('input', (e) => {
@@ -698,14 +769,44 @@ export async function mountSetupView(
         });
     }
 
+    function renderCueSoundPicker(): void {
+        const slot = root.querySelector<HTMLElement>('#user-turn-cue-sound-slot');
+        if (!slot) return;
+        if (!setup.notingUserTurnCue) {
+            slot.innerHTML = '';
+            return;
+        }
+        const current = setup.notingUserTurnCueSound ?? '';
+        const opts = [`<option value=""${current === '' ? ' selected' : ''}>Chime</option>`]
+            .concat(
+                NOTING_SOUNDS.map(
+                    (s) => `<option value="${s}"${current === s ? ' selected' : ''}>${capitalize(s)}</option>`
+                )
+            )
+            .join('');
+        slot.innerHTML = `<span class="noting-sound-wrap">
+            <select id="user-turn-cue-sound" aria-label="Turn cue sound">${opts}</select>
+            <button type="button" id="user-turn-cue-preview" class="noting-sound-preview" aria-label="Preview cue" title="Preview">&#9654;</button>
+        </span>`;
+        slot.querySelector<HTMLSelectElement>('#user-turn-cue-sound')?.addEventListener('change', (e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            setup.notingUserTurnCueSound = (v || null) as NotingSound | null;
+            persist();
+        });
+        slot.querySelector<HTMLButtonElement>('#user-turn-cue-preview')?.addEventListener('click', () => {
+            if (setup.notingUserTurnCueSound) previewSound(setup.notingUserTurnCueSound);
+            // (No file preview for the synth chime — it's generated at runtime.)
+        });
+    }
+
     function wireNotingPanel(): void {
         const cue = root.querySelector<HTMLInputElement>('#user-turn-cue');
         if (cue) {
-            cue.disabled = false;
             cue.checked = setup.notingUserTurnCue;
             cue.addEventListener('change', () => {
                 setup.notingUserTurnCue = cue.checked;
                 persist();
+                renderCueSoundPicker();
             });
         }
         const addBtn = root.querySelector<HTMLButtonElement>('#add-participant-btn');
@@ -719,6 +820,7 @@ export async function mountSetupView(
             });
         }
         renderParticipantList();
+        renderCueSoundPicker();
     }
 
     function capitalize(s: string): string {
@@ -907,9 +1009,10 @@ function renderSetupHTML(): string {
 
             <div class="noting-option-row">
                 <label class="noting-option">
-                    <input type="checkbox" id="user-turn-cue" disabled>
+                    <input type="checkbox" id="user-turn-cue">
                     <span>Play a sound when it's your turn</span>
                 </label>
+                <span id="user-turn-cue-sound-slot"></span>
             </div>
         </div>
 
