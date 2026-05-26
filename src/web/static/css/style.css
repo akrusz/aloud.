@@ -2092,16 +2092,19 @@ body:has(.session-container) {
     animation: breathe 10s ease-in-out infinite;
 }
 
+/* Breathing pulse — animate ONLY transform + opacity (both composited
+   without repainting). The orb's static box-shadow (.orb / .orb-nav) supplies
+   the glow; opacity dims/brightens the whole orb including that shadow, so the
+   glow still appears to breathe. Animating box-shadow here forced Firefox's
+   compositor to re-rasterize the blur every frame, pegging the GPU process. */
 @keyframes breathe {
     0%, 100% {
         transform: scale(0.92);
         opacity: 0.5;
-        box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(231, 31, 117, 0.06);
     }
     50% {
         transform: scale(1.08);
         opacity: 0.85;
-        box-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(231, 31, 117, 0.18);
     }
 }
 
@@ -2109,12 +2112,10 @@ body:has(.session-container) {
     0%, 100% {
         transform: scale(0.92);
         opacity: 0.5;
-        box-shadow: 0 0 8px var(--accent-glow), 0 0 16px rgba(231, 31, 117, 0.06);
     }
     50% {
         transform: scale(1.08);
         opacity: 0.85;
-        box-shadow: 0 0 16px var(--accent-glow), 0 0 32px rgba(231, 31, 117, 0.15);
     }
 }
 
@@ -2166,20 +2167,15 @@ body::before {
     opacity: 1;
 }
 
+/* Gaze-mode pulse — transform only (the large static .orb-kasina box-shadow
+   supplies the glow). Animating that 200px+ blur every frame was the single
+   most expensive thing on screen for the compositor. */
 @keyframes kasinaPulse {
     0%, 100% {
         transform: scale(0.98);
-        box-shadow:
-            0 0 60px rgba(245, 165, 47, 0.30),
-            0 0 120px rgba(231, 31, 117, 0.32),
-            0 0 200px rgba(231, 31, 117, 0.16);
     }
     50% {
         transform: scale(1.02);
-        box-shadow:
-            0 0 70px rgba(245, 165, 47, 0.38),
-            0 0 140px rgba(231, 31, 117, 0.40),
-            0 0 240px rgba(231, 31, 117, 0.22);
     }
 }
 
