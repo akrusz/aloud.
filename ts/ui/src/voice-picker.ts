@@ -64,7 +64,7 @@ const ENGINE_LABELS: Record<string, string> = {
     browser: 'Browser',
 };
 
-export const PREVIEW_PHRASE = "Welcome to glow. I'll be your guide.";
+export const PREVIEW_PHRASE = "Welcome to aloud. I'll be your facilitator.";
 
 // Known high-quality macOS base voice names (without Premium/Enhanced suffix).
 const MACOS_QUALITY_VOICES =

@@ -171,35 +171,51 @@ export async function mountSessionView(
             },
         };
     }
-    const { engine: rawTts } = await createTtsForVoice(setup.voice, {
-        // Server-side synthesis is billable compute — fold chars into usage.
-        onServerSynthesize: (chars) => session.recordTts(chars),
-    });
-    // Wrap TTS with a barge-in listener so the user can interrupt the
-    // facilitator mid-sentence by speaking. The listener opens its own
-    // mic stream during speak() — separate from the STT adapter — and
-    // calls cancel() when energy crosses the threshold for a few
+    // Build a TTS engine for a voice id, wrapped with a barge-in listener so
+    // the user can interrupt the facilitator mid-sentence by speaking. The
+    // listener opens its own mic stream during speak() — separate from the STT
+    // adapter — and calls cancel() when energy crosses the threshold for a few
     // consecutive frames.
-    const ttsWithBargeIn = wrapTtsWithBargeIn(rawTts, {
-        onBargeIn: () => {
-            // Visual cue: drop the holding-orb if it was up. The listen
-            // loop will pick up the user's next utterance naturally.
-            setOrbHolding(false);
-        },
-    });
+    const onBargeIn = () => {
+        // Visual cue: drop the holding-orb if it was up. The listen loop will
+        // pick up the user's next utterance naturally.
+        setOrbHolding(false);
+    };
+    async function buildTts(voiceId: string | null) {
+        const { engine } = await createTtsForVoice(voiceId, {
+            // Server-side synthesis is billable compute — fold chars into usage.
+            onServerSynthesize: (chars) => session.recordTts(chars),
+        });
+        return wrapTtsWithBargeIn(engine, { onBargeIn });
+    }
+    // `let` so an in-session voice change can swap the engine (see the voice
+    // modal). Reassigning here is picked up by the outer `tts` wrapper.
+    let activeTts = await buildTts(setup.voice);
+
+    /** Rebuild the live engine when the user picks a new voice mid-session. */
+    async function rebuildTts(voiceId: string | null): Promise<void> {
+        const next = await buildTts(voiceId);
+        try {
+            await activeTts.cancel();
+        } catch {
+            /* ignore */
+        }
+        activeTts = next;
+    }
+
     // Outer wrapper: respect the TTS toggle button. When the user mutes
     // TTS, speak() becomes a no-op and any in-flight playback is
     // cancelled. Cheaper than tearing down the whole barge-in wrapper.
     const tts = {
         async speak(text: string, options?: import('../../../src/platform/index.js').TtsOptions): Promise<void> {
             if (!ttsEnabled) return;
-            return ttsWithBargeIn.speak(text, options);
+            return activeTts.speak(text, options);
         },
         cancel(): Promise<void> {
-            return ttsWithBargeIn.cancel();
+            return activeTts.cancel();
         },
         listVoices() {
-            return ttsWithBargeIn.listVoices();
+            return activeTts.listVoices();
         },
     } satisfies TtsEngine;
     // Re-probe each time the user starts a session: Flask may have come up
@@ -894,11 +910,10 @@ export async function mountSessionView(
             setup.voice = `${idPrefix}${name}`;
             updateVoiceSelection(listEl, name);
             updateVoicePickerLabel();
-            // Voice change mid-session: future utterances pick up the
-            // new voice via createTtsForVoice. For now the active `tts`
-            // is fixed at session start; a follow-up commit can rebuild
-            // it. The label updating is the visible part the user
-            // wanted today.
+            // Rebuild the live engine so the next utterance uses the new
+            // voice (previously only the label updated — browser/server
+            // voice changes silently kept the old engine).
+            void rebuildTts(setup.voice);
         };
         const onSpeedInput = () => {
             const rate = Number(speedSlider.value);

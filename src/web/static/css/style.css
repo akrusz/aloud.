@@ -2216,7 +2216,13 @@ body::before {
         #e8a0d8 calc(86% + var(--rainbow-shift)),
         #f7a8c4 calc(100% + var(--rainbow-shift))
     ) !important;
-    animation: kasinaPulse 8s ease-in-out infinite, rainbowRotate 3s linear infinite, rainbowFlow 6s linear infinite !important;
+    /* rainbowRotate (hue-rotate) is a GPU-composited filter pass — keep it for
+       the color cycling. rainbowFlow animated --rainbow-shift, scrolling the
+       gradient stops, which repaints the gradient every frame and pegged the
+       GPU process on Firefox/WebRender; dropped so the easter egg can stay up
+       indefinitely without freezing. The gradient now holds still and the hue
+       rotation carries the rainbow. */
+    animation: kasinaPulse 8s ease-in-out infinite, rainbowRotate 3s linear infinite !important;
     box-shadow:
         0 0 60px rgba(200, 160, 220, 0.35),
         0 0 120px rgba(168, 230, 207, 0.2),
