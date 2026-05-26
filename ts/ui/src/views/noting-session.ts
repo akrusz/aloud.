@@ -343,7 +343,12 @@ export async function mountNotingSessionView(
             // Sound effect — show a bracketed marker, play the clip.
             session.addAssistantMessage(`〈${name}〉`, name);
             appendMessage('facilitator', `〈${name}〉`, name);
-            await playSoundFile(p.sound);
+            if (p.sound === 'chime') {
+                playChime();
+                await sleep(300);
+            } else {
+                await playSoundFile(p.sound);
+            }
         }
         if (torn || paused) return;
         scheduleNextTurn(300);

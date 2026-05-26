@@ -151,7 +151,11 @@ export function buildScoredVoiceList(
         let score = scoreVoice(v.name);
         // Non-local browser voices (Google etc.) bump up — they're usually
         // the better option than local-but-low-quality fallbacks.
-        if (!v.localService) score = Math.max(score, 2);
+        const remote = !v.localService;
+        if (remote) score = Math.max(score, 2);
+        // Chrome's cloud voices (Google/Natural/Online, all non-local) are
+        // genuinely good — surface them in the Recommended section.
+        const recommended = remote && /Google|Natural|Online/i.test(v.name);
 
         scored.push({
             name: v.name,
@@ -159,6 +163,7 @@ export function buildScoredVoiceList(
             score,
             engine: 'browser',
             browserVoice: v,
+            ...(recommended ? { recommended: true } : {}),
         });
         seen.add(v.name);
     }

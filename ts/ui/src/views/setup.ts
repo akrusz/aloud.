@@ -723,11 +723,11 @@ export async function mountSetupView(
                     p.sound,
                     (name) => {
                         if (p.type !== 'sound') return;
-                        p.sound = name as NotingSound;
+                        p.sound = name as NotingSound | 'chime';
                         persist();
                         renderParticipantList();
                     },
-                    { includeChime: false }
+                    { includeChime: true }
                 );
             });
             row.querySelector<HTMLButtonElement>('.participant-sound-preview')?.addEventListener('click', () => {

@@ -115,7 +115,8 @@ export type NotingParticipantConfig =
       }
     | {
           type: 'sound';
-          sound: NotingSound;
+          /** A bundled effect, or 'chime' for the built-in synth chime. */
+          sound: NotingSound | 'chime';
           timing: NotingTiming;
           fixedDelaySec: number;
       };
