@@ -48,6 +48,7 @@ import {
     setRainbow,
 } from '../embers.js';
 import { initThemeToggle } from '../theme.js';
+import { startMicMeter, type MicMeter } from '../mic-meter.js';
 import { acquireWakeLock, releaseWakeLock } from '../wakelock.js';
 import {
     buildScoredVoiceList,
@@ -555,15 +556,35 @@ export async function mountSessionView(
         );
     }
 
+    // Mic input-level ring (the .btn-voice.active --mic-level box-shadow). Its
+    // own small analyser stream, since Web Speech hides its audio. Cosmetic —
+    // failures are swallowed.
+    let micMeter: MicMeter | null = null;
+    function startMeter(): void {
+        if (micMeter) return;
+        void startMicMeter(micBtn)
+            .then((m) => {
+                if (torn || muted) m.stop(); // raced with teardown/mute
+                else micMeter = m;
+            })
+            .catch(() => {});
+    }
+    function stopMeter(): void {
+        micMeter?.stop();
+        micMeter = null;
+    }
+
     micBtn.addEventListener('click', () => {
         if (!stt) return;
         if (muted) {
             muted = false;
             setMicButtonState();
+            startMeter();
             void listenLoop();
         } else {
             muted = true;
             void stt.stop();
+            stopMeter();
             setMicButtonState();
             setStatus('Muted');
         }
@@ -1068,6 +1089,7 @@ export async function mountSessionView(
     // Kick off always-on listening when the view mounts.
     if (stt) {
         setMicButtonState();
+        startMeter();
         void listenLoop();
     }
 
@@ -1199,6 +1221,7 @@ export async function mountSessionView(
         pacing.endSession();
         const finalState = session.endSession();
         void stt?.stop();
+        stopMeter();
         void tts.cancel();
         // Release the wake lock and clear the session-active flag so the
         // visibility-change handler stops re-acquiring it.
