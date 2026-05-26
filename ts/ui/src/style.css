@@ -210,77 +210,9 @@
     font-size: 0.8em;
 }
 
-/* History view — TS-preview-only */
-.history-empty {
-    padding: 2rem 1rem;
-    text-align: center;
-    color: var(--text-muted);
-}
-.history-empty .muted {
-    font-size: 0.85rem;
-}
-.history-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-.history-row {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-}
-.history-row.expanded {
-    border-color: var(--accent);
-}
-.history-row-header {
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-}
-.history-row-header:hover {
-    background: var(--accent-dim);
-}
-.history-row-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-}
-.history-date {
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-.history-notes {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    font-style: italic;
-}
-.history-meta {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-}
-.history-delete {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    font-size: 1.4rem;
-    line-height: 1;
-    padding: 0 0.25rem;
-    cursor: pointer;
-}
-.history-delete:hover {
-    color: var(--danger);
-}
-.history-transcript {
-    border-top: 1px solid var(--border);
-    margin: 0;
-    border-radius: 0;
-    max-height: 50vh;
-    padding: 1rem;
-}
+/* History view: the markup uses the lifted .history-container / .history-header
+   / .session-item classes, so styling cascades from the @import. (The earlier
+   from-scratch .history-row/.history-list rules were dead and removed.) */
 
 /* Setup view — light layout glue. The existing app uses .setup-container
    class names verbatim so most styling cascades through the @import.

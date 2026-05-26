@@ -33,6 +33,12 @@ export async function mountHistoryView(
 
         root.innerHTML = renderShellHTML(sessions);
         wireEvents(sessions);
+
+        const folderBtn = root.querySelector<HTMLButtonElement>('#btn-open-sessions-folder');
+        folderBtn?.addEventListener('click', () => {
+            // Best-effort; only meaningful when a local Flask backend is present.
+            void fetch('/api/open-sessions-folder', { method: 'POST' }).catch(() => {});
+        });
     }
 
     function wireEvents(sessions: readonly SessionState[]): void {
@@ -140,21 +146,24 @@ export async function mountHistoryView(
 // ---- rendering ----
 
 function renderShellHTML(sessions: readonly SessionState[]): string {
-    if (sessions.length === 0) {
-        return `
-        <div class="session-list-container">
-            <div id="empty-state" class="empty-state">
-                <p>No saved sessions yet.</p>
-                <p class="muted">Sessions you end with at least one turn show up here.</p>
-            </div>
+    // "Open sessions folder" is a local/desktop affordance — it POSTs to the
+    // Flask backend, which opens the folder on the machine running it. Harmless
+    // in local dev; a hosted web deploy should hide it (TODO when that lands).
+    const header = `
+        <div class="history-header">
+            <h1>Past Sessions</h1>
+            <button class="btn-config-path" id="btn-open-sessions-folder" type="button">Open sessions folder</button>
         </div>`;
-    }
 
-    const rows = sessions.map(renderItem).join('');
-    return `
-    <div class="session-list-container">
-        <div id="session-list">${rows}</div>
-    </div>`;
+    const body =
+        sessions.length === 0
+            ? `<div id="empty-state" class="empty-state">
+                   <p>No saved sessions yet.</p>
+                   <p class="muted">Sessions you end with at least one turn show up here.</p>
+               </div>`
+            : `<div class="session-list" id="session-list">${sessions.map(renderItem).join('')}</div>`;
+
+    return `<div class="history-container">${header}${body}</div>`;
 }
 
 function renderItem(session: SessionState): string {
