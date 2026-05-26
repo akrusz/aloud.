@@ -12,6 +12,10 @@ import type { Focus, Quality, Verbosity } from '../../../src/facilitation/index.
 import {
     type SessionSetup,
     type Provider,
+    type NotingParticipantConfig,
+    type NotingReactive,
+    type NotingSound,
+    NOTING_SOUNDS,
     ALL_PROVIDERS,
     DIRECTIVENESS_VALUES,
     loadSetup,
@@ -540,35 +544,95 @@ export async function mountSetupView(
     }
 
     // ---- Noting circle participants ----
+    const REACTIVE_LEVELS: NotingReactive[] = ['none', 'low', 'high'];
+    const REACTIVE_LABELS = ['None', 'Low', 'High'];
+
+    /** Display name for a participant: its voice name (AI/fixed) or sound. */
+    function participantLabel(p: NotingParticipantConfig): string {
+        if (p.type === 'sound') return capitalize(p.sound);
+        const id = p.voice ?? setup.voice;
+        return voiceNameFromId(id) || 'AI';
+    }
+    function voiceNameFromId(id: string | null): string {
+        if (!id) return '';
+        const name = id.replace(/^(browser:|server:)/, '');
+        const found = scoredVoices.find((v) => v.name === name);
+        return found ? found.name : name;
+    }
+    function newParticipant(type: NotingParticipantConfig['type']): NotingParticipantConfig {
+        const timing = 'adaptive' as const;
+        const fixedDelaySec = 4;
+        if (type === 'sound') return { type, sound: 'crow', timing, fixedDelaySec };
+        const voice = setup.voice; // resolved default voice (no bare "Default")
+        if (type === 'fixed') return { type, voice, phrase: 'breathing', timing, fixedDelaySec };
+        return { type, voice, reactive: 'low', timing, fixedDelaySec };
+    }
+
     function renderParticipantList(): void {
         const listEl = root.querySelector<HTMLElement>('#participant-list');
         if (!listEl) return;
         const ps = setup.notingParticipants ?? [];
-        const reactiveLabels: Record<string, string> = {
-            none: 'in their own world',
-            low: 'a little reactive',
-            high: 'very reactive',
-        };
+
+        const voiceOptions = (selected: string | null): string =>
+            scoredVoices
+                .map((v) => {
+                    const id = `${v.engine === 'browser' ? 'browser:' : 'server:'}${v.name}`;
+                    const sel = (selected ?? setup.voice) === id ? ' selected' : '';
+                    return `<option value="${escapeAttr(id)}"${sel}>${escapeAttr(v.name)}</option>`;
+                })
+                .join('');
+
         listEl.innerHTML = ps
             .map((p, i) => {
-                const reactiveOpts = (['none', 'low', 'high'] as const)
-                    .map(
-                        (r) =>
-                            `<option value="${r}"${p.reactive === r ? ' selected' : ''}>${reactiveLabels[r]}</option>`
-                    )
+                const typeOpts = (
+                    [
+                        ['llm', 'AI participant'],
+                        ['fixed', 'Fixed phrase'],
+                        ['sound', 'Sound effect'],
+                    ] as const
+                )
+                    .map(([v, l]) => `<option value="${v}"${p.type === v ? ' selected' : ''}>${l}</option>`)
                     .join('');
-                const voiceOpts = ['<option value="">Default voice</option>']
-                    .concat(
-                        scoredVoices.map((v) => {
-                            const id = `${v.engine === 'browser' ? 'browser:' : 'server:'}${v.name}`;
-                            return `<option value="${escapeAttr(id)}"${p.voice === id ? ' selected' : ''}>${escapeAttr(v.name)}</option>`;
-                        })
-                    )
+                const timingOpts = (
+                    [
+                        ['adaptive', 'Adaptive'],
+                        ['fixed', 'Fixed (sec)'],
+                    ] as const
+                )
+                    .map(([v, l]) => `<option value="${v}"${p.timing === v ? ' selected' : ''}>${l}</option>`)
                     .join('');
+
+                const voiceField =
+                    p.type !== 'sound'
+                        ? `<select class="noting-voice" aria-label="Voice">${voiceOptions(p.voice)}</select>`
+                        : '';
+                const reactiveIdx = p.type === 'llm' ? REACTIVE_LEVELS.indexOf(p.reactive) : 1;
+                const reactiveField =
+                    p.type === 'llm'
+                        ? `<span class="noting-reactive-wrap" title="How much this AI reacts to others' notes">
+                               <input type="range" class="noting-reactive" min="0" max="2" step="1" value="${reactiveIdx}">
+                               <span class="noting-reactive-label">${REACTIVE_LABELS[reactiveIdx]}</span>
+                           </span>`
+                        : '';
+                const phraseField =
+                    p.type === 'fixed'
+                        ? `<input type="text" class="noting-phrase" maxlength="40" placeholder="e.g. breathing" value="${escapeAttr(p.phrase)}">`
+                        : '';
+                const soundField =
+                    p.type === 'sound'
+                        ? `<select class="noting-sound" aria-label="Sound">${NOTING_SOUNDS.map(
+                              (s) => `<option value="${s}"${p.sound === s ? ' selected' : ''}>${capitalize(s)}</option>`
+                          ).join('')}</select>`
+                        : '';
+                const delaySec = p.fixedDelaySec || 4;
+                const delayField = `<input type="number" class="noting-delay${p.timing === 'fixed' ? '' : ' hidden'}" min="1" max="30" step="1" value="${delaySec}" aria-label="Seconds before turn">`;
+
                 return `<div class="noting-participant" data-index="${i}">
-                    <span class="noting-participant-label">AI ${i + 1}</span>
-                    <select class="noting-voice" aria-label="Participant voice">${voiceOpts}</select>
-                    <select class="noting-reactive" aria-label="Reactivity">${reactiveOpts}</select>
+                    <span class="noting-participant-label">${escapeAttr(participantLabel(p))}</span>
+                    <select class="noting-type" aria-label="Participant type">${typeOpts}</select>
+                    ${voiceField}${phraseField}${soundField}${reactiveField}
+                    <select class="noting-timing" aria-label="Timing">${timingOpts}</select>
+                    ${delayField}
                     <button type="button" class="noting-remove" aria-label="Remove participant" title="Remove">&times;</button>
                 </div>`;
             })
@@ -576,18 +640,58 @@ export async function mountSetupView(
 
         listEl.querySelectorAll<HTMLElement>('.noting-participant').forEach((row) => {
             const i = Number(row.dataset['index']);
-            const p = (setup.notingParticipants ?? [])[i];
+            const ps2 = setup.notingParticipants ?? [];
+            const p = ps2[i];
             if (!p) return;
+            const refreshLabel = () => {
+                const label = row.querySelector('.noting-participant-label');
+                if (label) label.textContent = participantLabel(ps2[i]!);
+            };
+
+            row.querySelector<HTMLSelectElement>('.noting-type')?.addEventListener('change', (e) => {
+                ps2[i] = newParticipant((e.target as HTMLSelectElement).value as NotingParticipantConfig['type']);
+                persist();
+                renderParticipantList();
+            });
             row.querySelector<HTMLSelectElement>('.noting-voice')?.addEventListener('change', (e) => {
+                if (p.type === 'sound') return;
                 p.voice = (e.target as HTMLSelectElement).value || null;
                 persist();
+                refreshLabel();
             });
-            row.querySelector<HTMLSelectElement>('.noting-reactive')?.addEventListener('change', (e) => {
-                p.reactive = (e.target as HTMLSelectElement).value as typeof p.reactive;
+            row.querySelector<HTMLSelectElement>('.noting-sound')?.addEventListener('change', (e) => {
+                if (p.type !== 'sound') return;
+                p.sound = (e.target as HTMLSelectElement).value as NotingSound;
+                persist();
+                refreshLabel();
+            });
+            row.querySelector<HTMLInputElement>('.noting-phrase')?.addEventListener('input', (e) => {
+                if (p.type !== 'fixed') return;
+                p.phrase = (e.target as HTMLInputElement).value;
+                persist();
+            });
+            const reactive = row.querySelector<HTMLInputElement>('.noting-reactive');
+            reactive?.addEventListener('input', () => {
+                if (p.type !== 'llm') return;
+                const idx = Number(reactive.value);
+                p.reactive = REACTIVE_LEVELS[idx] ?? 'low';
+                const lbl = row.querySelector('.noting-reactive-label');
+                if (lbl) lbl.textContent = REACTIVE_LABELS[idx] ?? 'Low';
+                persist();
+            });
+            row.querySelector<HTMLSelectElement>('.noting-timing')?.addEventListener('change', (e) => {
+                p.timing = (e.target as HTMLSelectElement).value as typeof p.timing;
+                const delay = row.querySelector<HTMLInputElement>('.noting-delay');
+                if (delay) delay.classList.toggle('hidden', p.timing !== 'fixed');
+                persist();
+            });
+            row.querySelector<HTMLInputElement>('.noting-delay')?.addEventListener('input', (e) => {
+                const v = Number((e.target as HTMLInputElement).value);
+                if (Number.isFinite(v)) p.fixedDelaySec = Math.max(1, Math.min(30, v));
                 persist();
             });
             row.querySelector<HTMLButtonElement>('.noting-remove')?.addEventListener('click', () => {
-                setup.notingParticipants.splice(i, 1);
+                ps2.splice(i, 1);
                 persist();
                 renderParticipantList();
             });
@@ -609,12 +713,16 @@ export async function mountSetupView(
             addBtn.disabled = false;
             addBtn.removeAttribute('title');
             addBtn.addEventListener('click', () => {
-                setup.notingParticipants.push({ type: 'llm', voice: null, reactive: 'low' });
+                setup.notingParticipants.push(newParticipant('llm'));
                 persist();
                 renderParticipantList();
             });
         }
         renderParticipantList();
+    }
+
+    function capitalize(s: string): string {
+        return s.charAt(0).toUpperCase() + s.slice(1);
     }
 
     function updatePresetHighlights(): void {

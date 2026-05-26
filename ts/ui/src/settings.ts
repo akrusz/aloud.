@@ -80,16 +80,43 @@ export interface SessionSetup {
 }
 
 export type NotingReactive = 'none' | 'low' | 'high';
+export type NotingTiming = 'adaptive' | 'fixed';
 
-/** One configured noting-circle participant. (LLM-driven for now; sound/fixed
- *  participants from the Flask app can be added later.) */
-export interface NotingParticipantConfig {
-    type: 'llm';
-    /** Voice id ('browser:<name>' | 'server:<name>') or null for the default. */
-    voice: string | null;
-    /** How much this participant's labels react to what others have noted. */
-    reactive: NotingReactive;
-}
+/** Sound effects bundled in ui/public/audio (and src/web/static/audio). */
+export const NOTING_SOUNDS = ['bell', 'bottle', 'card', 'crow', 'plop', 'poof', 'rattle'] as const;
+export type NotingSound = (typeof NOTING_SOUNDS)[number];
+
+/**
+ * One configured noting-circle participant. Mirrors the Flask participant
+ * model: an AI that notes a generated label, a fixed phrase spoken aloud, or a
+ * sound effect. Timing is adaptive (matches the user's cadence) or a fixed
+ * number of seconds before the participant takes its turn.
+ */
+export type NotingParticipantConfig =
+    | {
+          type: 'llm';
+          /** Voice id ('browser:<name>' | 'server:<name>'). */
+          voice: string | null;
+          /** How much this participant reacts to what others have noted. */
+          reactive: NotingReactive;
+          timing: NotingTiming;
+          /** Seconds before this turn, when timing === 'fixed'. */
+          fixedDelaySec: number;
+      }
+    | {
+          type: 'fixed';
+          voice: string | null;
+          /** The phrase this participant always says. */
+          phrase: string;
+          timing: NotingTiming;
+          fixedDelaySec: number;
+      }
+    | {
+          type: 'sound';
+          sound: NotingSound;
+          timing: NotingTiming;
+          fixedDelaySec: number;
+      };
 
 export const DIRECTIVENESS_VALUES: readonly number[] = [0, 3, 5, 7, 10];
 
@@ -111,7 +138,9 @@ export const defaultSetup: SessionSetup = {
     model: '',
     voice: null,
     ttsRate: 160,
-    notingParticipants: [],
+    // Default circle: one AI participant at the settings default voice, middle
+    // reactivity, adaptive timing. (voice: null = inherit the resolved default.)
+    notingParticipants: [{ type: 'llm', voice: null, reactive: 'low', timing: 'adaptive', fixedDelaySec: 4 }],
     notingUserTurnCue: true,
 };
 

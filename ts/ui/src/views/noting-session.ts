@@ -17,9 +17,7 @@
 import {
     SessionManager,
     generateNotingLabel,
-    NOTING_OPENER_PROMPT,
     NOTING_STATIC_OPENER,
-    parseHoldSignal,
 } from '../../../src/facilitation/index.js';
 import { OllamaProvider, type LLMProvider } from '../../../src/llm/index.js';
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
@@ -126,6 +124,10 @@ export async function mountNotingSessionView(
         silenceBaseMs: 1200,
         silenceMaxMs: 6000,
         silenceRampRate: 1,
+        // Noting notes are SHORT ("warmth", "tension") — keep the min-speech
+        // gate low so a quick word isn't discarded by the server-Whisper VAD
+        // (which would leave the turn stuck re-listening).
+        minSpeechDurationMs: 150,
     });
 
     // One TTS engine per distinct voice id (participants + narrator).
@@ -184,8 +186,8 @@ export async function mountNotingSessionView(
     function participantName(index: number): string {
         const p = participants[index];
         if (!p) return `Participant ${index + 1}`;
-        const name = stripVoiceLabel(p.voice);
-        return name || `Participant ${index + 1}`;
+        if (p.type === 'sound') return capitalize(p.sound);
+        return stripVoiceLabel(p.voice ?? setup.voice) || `Participant ${index + 1}`;
     }
 
     function clearWait(): void {
@@ -291,6 +293,15 @@ export async function mountNotingSessionView(
         }
     }
 
+    async function speakVia(voiceId: string | null, text: string): Promise<void> {
+        try {
+            const tts = await ttsFor(voiceId);
+            await tts.speak(text, { rate: setup.ttsRate });
+        } catch {
+            /* TTS optional */
+        }
+    }
+
     async function participantTurn(index: number): Promise<void> {
         if (torn || paused) return;
         const p = participants[index];
@@ -298,61 +309,68 @@ export async function mountNotingSessionView(
             scheduleNextTurn(1000);
             return;
         }
-        // Wait a human-like beat before noting (adaptive to the user's cadence).
-        await sleep(adaptiveDelay());
+        // Wait before noting: a fixed number of seconds, or adapt to the user's
+        // cadence. Mirrors the Flask per-participant timing option.
+        const delayMs = p.timing === 'fixed' ? (p.fixedDelaySec || 4) * 1000 : adaptiveDelay();
+        await sleep(delayMs);
         if (torn || paused) return;
 
-        setStatus(`${participantName(index)} is noting…`);
-        const label = await generateNotingLabel(provider, {
-            context: recentLabels.slice(),
-            ownLabels: ownLabels[index]!.slice(),
-            reactive: p.reactive,
-            onUsage: (u) => session.recordLlmUsage(u),
-        });
-        if (torn || paused) return;
-
-        recentLabels.push(label);
-        ownLabels[index]!.push(label);
-        session.addAssistantMessage(label, participantName(index));
-        appendMessage('facilitator', label, participantName(index));
-
-        try {
-            const tts = await ttsFor(p.voice);
-            await tts.speak(label, { rate: setup.ttsRate });
-        } catch {
-            /* TTS optional */
+        const name = participantName(index);
+        if (p.type === 'llm') {
+            setStatus(`${name} is noting…`);
+            const label = await generateNotingLabel(provider, {
+                context: recentLabels.slice(),
+                ownLabels: ownLabels[index]!.slice(),
+                reactive: p.reactive,
+                onUsage: (u) => session.recordLlmUsage(u),
+            });
+            if (torn || paused) return;
+            recentLabels.push(label);
+            ownLabels[index]!.push(label);
+            session.addAssistantMessage(label, name);
+            appendMessage('facilitator', label, name);
+            await speakVia(p.voice, label);
+        } else if (p.type === 'fixed') {
+            const phrase = p.phrase.trim() || 'breathing';
+            recentLabels.push(phrase);
+            ownLabels[index]!.push(phrase);
+            session.addAssistantMessage(phrase, name);
+            appendMessage('facilitator', phrase, name);
+            await speakVia(p.voice, phrase);
+        } else {
+            // Sound effect — show a bracketed marker, play the clip.
+            session.addAssistantMessage(`〈${name}〉`, name);
+            appendMessage('facilitator', `〈${name}〉`, name);
+            await playSoundFile(p.sound);
         }
+        if (torn || paused) return;
         scheduleNextTurn(300);
     }
 
+    function playSoundFile(sound: string): Promise<void> {
+        return new Promise((resolve) => {
+            try {
+                const audio = new Audio(`/audio/${encodeURIComponent(sound)}.mp3`);
+                audio.onended = () => resolve();
+                audio.onerror = () => resolve();
+                void audio.play().catch(() => resolve());
+            } catch {
+                resolve();
+            }
+        });
+    }
+
     // ---- opener ----
+    // Use the static noting opener (deterministic). An LLM opener here tended
+    // to return meta-commentary ("Here are a few ways to say this…") from some
+    // models, so we keep it fixed and clean.
     async function speakOpener(): Promise<void> {
-        let text = NOTING_STATIC_OPENER;
-        try {
-            const result = await provider.complete([{ role: 'user', content: NOTING_OPENER_PROMPT }], {
-                maxTokens: 80,
-            });
-            session.recordLlmUsage({
-                tokensIn: result.inputTokens ?? null,
-                tokensOut: result.outputTokens ?? null,
-                cacheRead: result.cacheReadTokens ?? null,
-                cacheCreation: result.cacheCreationTokens ?? null,
-            });
-            const clean = parseHoldSignal(result.text).cleanText.trim();
-            if (clean) text = clean;
-        } catch {
-            /* fall back to the static opener */
-        }
         if (torn) return;
+        const text = NOTING_STATIC_OPENER;
         session.addAssistantMessage(text, 'Facilitator');
         appendMessage('facilitator', text, 'Facilitator');
         setStatus('Speaking…');
-        try {
-            const tts = await ttsFor(setup.voice);
-            await tts.speak(text, { rate: setup.ttsRate });
-        } catch {
-            /* optional */
-        }
+        await speakVia(setup.voice, text);
     }
 
     // ---- mute / pause ----
@@ -432,6 +450,10 @@ export async function mountNotingSessionView(
 
 function sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
+}
+
+function capitalize(s: string): string {
+    return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /** Strip the 'browser:'/'server:' prefix and any "(Premium)"-style qualifier. */
