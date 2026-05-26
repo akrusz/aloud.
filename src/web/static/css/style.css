@@ -2494,6 +2494,11 @@ html:has(.nav-brand.has-update) .update-btn {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
+    /* Never taller than the viewport (minus room for the top bar); the body
+       scrolls when content — e.g. the source-checkout commit list — is long. */
+    max-height: calc(100dvh - 6rem);
+    display: flex;
+    flex-direction: column;
 }
 
 .about-modal-header {
@@ -2513,6 +2518,8 @@ html:has(.nav-brand.has-update) .update-btn {
 .about-modal-body {
     padding: 1.5rem 1rem;
     text-align: center;
+    /* Scrolls within the height-capped modal (header stays pinned). */
+    overflow-y: auto;
 }
 
 .about-app-name {

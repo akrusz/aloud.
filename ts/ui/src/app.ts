@@ -94,6 +94,20 @@ function wireNav(): void {
 function wirePopstate(): void {
     window.addEventListener('popstate', () => {
         const root = $('app-root');
+        // Back/forward out of a live session: confirm first, matching the
+        // beforeunload guard (the Flask MPA caught Back via beforeunload too).
+        // goSession pushes a '/session' entry, so this popstate fires while
+        // the session is still mounted.
+        if (currentSession || currentNoting) {
+            const ok = window.confirm(
+                'Leave your session? Your session so far will be saved.'
+            );
+            if (!ok) {
+                // Re-arm the trap so the user stays in the session.
+                window.history.pushState({ view: 'session' }, '', '/session');
+                return;
+            }
+        }
         const target = viewFromPath(window.location.pathname);
         void routeTo(root, target, { fromPopstate: true });
     });
@@ -208,15 +222,21 @@ async function goSession(
     continueFrom: SessionState | null = null
 ): Promise<void> {
     setActiveNav('setup'); // session is still under Setup tab conceptually
+    // Push a '/session' history entry so the browser Back button has
+    // something to pop while the session is live — wirePopstate intercepts
+    // it to confirm before leaving. (Normal exits below route via routeTo,
+    // which replaces this URL.)
+    window.history.pushState({ view: 'session' }, '', '/session');
     currentSession = await mountSessionView(
         root,
         setup,
         (destination) => {
             // Session view tells us where to land the user. Defaults
             // to setup; "history" comes from the in-session History
-            // link confirm flow.
+            // link confirm flow. Route via routeTo so the '/session' URL
+            // we pushed above gets replaced with the destination's.
             if (destination === 'history') void routeTo(root, 'history');
-            else void goSetup(root);
+            else void routeTo(root, 'setup');
         },
         continueFrom
     );
@@ -224,8 +244,10 @@ async function goSession(
 
 async function goNotingSession(root: HTMLElement): Promise<void> {
     setActiveNav('setup');
+    // Same back-button trap as goSession (see wirePopstate).
+    window.history.pushState({ view: 'session' }, '', '/session');
     currentNoting = await mountNotingSessionView(root, () => {
-        void goSetup(root);
+        void routeTo(root, 'setup');
     });
 }
 

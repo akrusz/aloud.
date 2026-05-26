@@ -289,6 +289,27 @@ export async function mountSessionView(
     }
     function hideTyping(): void {
         typingIndicator.classList.remove('visible');
+        setFacilitatorHint(null);
+    }
+
+    // Transient hint shown next to the typing dots (e.g. Ollama "Loading
+    // model into memory…" on first hit). Mirrors ui.js setFacilitatorStatus —
+    // a .facilitator-status-hint inserted right after the typing indicator.
+    function setFacilitatorHint(message: string | null): void {
+        let el = document.getElementById('facilitator-status-hint');
+        if (!message) {
+            el?.classList.remove('visible');
+            return;
+        }
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'facilitator-status-hint';
+            el.className = 'facilitator-status-hint';
+            typingIndicator.insertAdjacentElement('afterend', el);
+        }
+        el.textContent = message;
+        el.classList.add('visible');
+        conversation.scrollTop = conversation.scrollHeight;
     }
 
     // Session timer — counts since mount, formatted m:ss or h:mm:ss.
@@ -379,15 +400,13 @@ export async function mountSessionView(
             // Show the "…" bubble the instant we submit, before any network
             // round-trips, so the user sees their turn was received.
             showTyping();
+            setStatus('Thinking…');
 
-            // For Ollama: if the model isn't currently loaded into
-            // memory, surface that so the user knows why the first
+            // For Ollama: if the model isn't currently loaded into memory,
+            // surface that next to the dots so the user knows why the first
             // response is slow. Cheap (one HTTP call), and Ollama-only.
             if (provider instanceof OllamaProvider) {
-                const coldMsg = await provider.coldLoadMessage();
-                setStatus(coldMsg ?? 'Thinking…');
-            } else {
-                setStatus('Thinking…');
+                setFacilitatorHint(await provider.coldLoadMessage());
             }
 
             const systemPrompt = builder.buildSystemPrompt();
@@ -468,7 +487,12 @@ export async function mountSessionView(
                             if (!currentPartial) {
                                 currentPartial = appendMessage('user', event.text, true);
                             } else {
-                                currentPartial.textContent = event.text;
+                                // Update the inner .message-content, not the
+                                // bubble itself — setting textContent on the
+                                // bubble would wipe that wrapper element.
+                                const content =
+                                    currentPartial.querySelector('.message-content');
+                                if (content) content.textContent = event.text;
                             }
                         } else if (event.type === 'final') {
                             finalText = event.text;
@@ -928,6 +952,12 @@ export async function mountSessionView(
         try {
             setStatus('Speaking…');
             showTyping();
+            // The opener is the first LLM call, so it's where Ollama pays the
+            // cold-load cost — surface that wait like the Python app does on
+            // session start (session_handlers.py).
+            if (provider instanceof OllamaProvider) {
+                setFacilitatorHint(await provider.coldLoadMessage());
+            }
             const messages = [
                 ...session.getContextMessages(),
                 { role: 'user' as const, content: openerPrompt },
