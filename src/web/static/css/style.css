@@ -2303,6 +2303,9 @@ body::before {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     overflow: hidden;
+    /* Lift rows off the page with the card surface (lighter than the page bg
+       in dark, a warm tint in light) so the list reads as distinct cards. */
+    background: var(--bg-card);
 }
 
 .session-item-header {
@@ -2315,7 +2318,8 @@ body::before {
 }
 
 .session-item-header:hover {
-    background: var(--bg-card);
+    /* One step lighter than the row's base card bg for a subtle hover lift. */
+    background: var(--bg-input);
 }
 
 .session-item-info {
