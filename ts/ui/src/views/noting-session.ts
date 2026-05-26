@@ -21,7 +21,7 @@ import {
     NOTING_STATIC_OPENER,
     parseHoldSignal,
 } from '../../../src/facilitation/index.js';
-import type { LLMProvider } from '../../../src/llm/index.js';
+import { OllamaProvider, type LLMProvider } from '../../../src/llm/index.js';
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
 import { buildProvider } from './session.js';
 import { createTtsForVoice } from '../adapters/tts-picker.js';
@@ -392,6 +392,7 @@ export async function mountNotingSessionView(
         paused = true;
         clearWait();
         void stt?.stop();
+        if (provider instanceof OllamaProvider) void provider.relaxKeepAlive();
         if (audioCtx && audioCtx.state !== 'closed') void audioCtx.close().catch(() => {});
         const finalState = session.endSession();
         // Save if there's at least one user turn (skip empty/abandoned circles).

@@ -22,6 +22,12 @@ export interface OllamaProviderOptions {
     maxTokens?: number;
     /** Enable thinking/reasoning mode (slower, off by default). */
     think?: boolean;
+    /**
+     * How long Ollama keeps the model in memory after a request. Default '30m'
+     * so it stays warm across a meditation's long silences. Mirrors the Python
+     * provider; call unload() on session end to free it sooner.
+     */
+    keepAlive?: string;
     /** Override fetch for testing. */
     fetchImpl?: typeof fetch;
 }
@@ -41,6 +47,7 @@ export class OllamaProvider implements LLMProvider {
     readonly model: string;
     readonly maxTokens: number;
     readonly think: boolean;
+    readonly keepAlive: string;
     private readonly baseUrl: string;
     private readonly fetchImpl: typeof fetch;
 
@@ -49,6 +56,7 @@ export class OllamaProvider implements LLMProvider {
         this.model = options.model ?? DEFAULT_MODEL;
         this.maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
         this.think = options.think ?? false;
+        this.keepAlive = options.keepAlive ?? '30m';
         this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
     }
 
@@ -65,8 +73,31 @@ export class OllamaProvider implements LLMProvider {
             messages: ollamaMessages,
             stream,
             think: this.think,
+            keep_alive: this.keepAlive,
             options: { num_predict: options.maxTokens ?? this.maxTokens },
         });
+    }
+
+    /**
+     * On session end, relax the model's keep_alive to Ollama's short default
+     * (5m) so it idles out soon rather than holding memory for the full 30m —
+     * but stays warm long enough that starting another session right away
+     * still reuses it (no full unload). Best-effort; swallows errors.
+     */
+    async relaxKeepAlive(idleKeepAlive = '5m'): Promise<void> {
+        try {
+            await this.fetchImpl(`${this.baseUrl}/api/chat`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    model: this.model,
+                    messages: [],
+                    keep_alive: idleKeepAlive,
+                }),
+            });
+        } catch {
+            /* best-effort */
+        }
     }
 
     async complete(messages: Message[], options: CompletionOptions = {}): Promise<CompletionResult> {

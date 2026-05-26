@@ -1240,6 +1240,9 @@ export async function mountSessionView(
         void stt?.stop();
         stopMeter();
         void tts.cancel();
+        // Relax the Ollama keep_alive to the short default so the model idles
+        // out soon (not the full 30m) but stays warm for an immediate restart.
+        if (provider instanceof OllamaProvider) void provider.relaxKeepAlive();
         // Release the wake lock and clear the session-active flag so the
         // visibility-change handler stops re-acquiring it.
         releaseWakeLock();
