@@ -116,10 +116,13 @@ export async function createBestStt(vadOpts: VadOpts = {}): Promise<SttEngine | 
         case 'capacitor':
             return new CapacitorSttEngine();
         case 'web-speech': {
-            // Honor the "minimum pause before submission" setting here too —
-            // without it, Chrome submits the instant it detects a pause.
+            // Honor the pause-before-submission settings here too (Chrome
+            // otherwise submits the instant it detects a pause). Mirror the
+            // server-Whisper adaptive ramp: base + speech×ramp, capped at max.
             const opts: WebSpeechSttEngineOptions = {};
             if (vadOpts.silenceBaseMs !== undefined) opts.submitDelayMs = vadOpts.silenceBaseMs;
+            if (vadOpts.silenceMaxMs !== undefined) opts.submitMaxDelayMs = vadOpts.silenceMaxMs;
+            if (vadOpts.silenceRampRate !== undefined) opts.submitRampRate = vadOpts.silenceRampRate;
             return new WebSpeechSttEngine(opts);
         }
         case 'server-whisper':

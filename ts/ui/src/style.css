@@ -129,6 +129,18 @@
     color: var(--text-muted);
     font-style: italic;
 }
+/* Trailing "…" marks speech that's transcribed but not yet submitted (the
+   pause-before-submit window). Pulses gently so it reads as "still listening".
+   Applies to any partial bubble, so it'll cover per-chunk speculative
+   transcription (Firefox/server-Whisper) once that lands. */
+.message.partial .message-content::after {
+    content: ' …';
+    animation: partialPulse 1.4s ease-in-out infinite;
+}
+@keyframes partialPulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.8; }
+}
 
 .controls {
     display: flex;

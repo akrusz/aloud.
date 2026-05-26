@@ -70,13 +70,24 @@ export interface WebSpeechSttEngineOptions {
     /** Emit `partial` events as the recognizer narrows in. On by default. */
     interimResults?: boolean;
     /**
-     * Pause (ms) of no new speech before the turn is submitted. When > 0, the
-     * recognizer runs continuously and WE decide the turn is over after this
-     * much silence — so a mid-thought pause doesn't make the facilitator jump
-     * in. Maps to the user's "minimum pause before your speech is submitted"
+     * Base pause (ms) of no new speech before the turn is submitted. When > 0,
+     * the recognizer runs continuously and WE decide the turn is over after
+     * this much silence — so a mid-thought pause doesn't make the facilitator
+     * jump in. Maps to the "minimum pause before your speech is submitted"
      * setting. 0 (default) defers to the browser's own end-of-speech detection.
      */
     submitDelayMs?: number;
+    /**
+     * Max pause (ms) tolerated, the cap on the adaptive ramp below. Maps to
+     * "maximum pause tolerance after longer speech". Defaults to submitDelayMs.
+     */
+    submitMaxDelayMs?: number;
+    /**
+     * Adaptive ramp: each ms of speech buys this many ms of extra pause
+     * tolerance, capped at submitMaxDelayMs — mirrors the server-Whisper VAD
+     * (longer turns get more patience for mid-sentence pauses). 0 = flat delay.
+     */
+    submitRampRate?: number;
 }
 
 export class WebSpeechSttEngine implements SttEngine {
@@ -100,6 +111,8 @@ export class WebSpeechSttEngine implements SttEngine {
             continuous: options.continuous ?? submitDelayMs > 0,
             interimResults: options.interimResults ?? true,
             submitDelayMs,
+            submitMaxDelayMs: options.submitMaxDelayMs ?? submitDelayMs,
+            submitRampRate: options.submitRampRate ?? 0,
         };
     }
 
@@ -114,10 +127,11 @@ export class WebSpeechSttEngine implements SttEngine {
         let done = false;
         let wake: (() => void) | null = null;
 
-        const { submitDelayMs } = this.options;
+        const { submitDelayMs, submitMaxDelayMs, submitRampRate } = this.options;
         let silenceTimer: ReturnType<typeof setTimeout> | null = null;
         let latestTranscript = '';
         let submitted = false;
+        let speechStartMs = 0; // when this turn's speech began (for the ramp)
 
         const push = (event: SttEvent): void => {
             queue.push(event);
@@ -158,26 +172,34 @@ export class WebSpeechSttEngine implements SttEngine {
         };
 
         recognition.onresult = (event) => {
-            // Concatenate every result segment, not just the latest — otherwise
-            // the live bubble only shows the last word or two.
-            let transcript = '';
+            // Concatenate every result segment (joined with spaces so phrases
+            // don't run together), not just the latest — otherwise the live
+            // bubble only shows the last word or two.
+            const parts: string[] = [];
             let isFinal = false;
             for (let i = 0; i < event.results.length; i++) {
                 const result = event.results[i];
                 if (!result || !result[0]) continue;
-                transcript += result[0].transcript;
+                parts.push(result[0].transcript.trim());
                 if (result.isFinal) isFinal = true;
             }
-            transcript = transcript.trim();
+            const transcript = tidyTranscript(parts.join(' '));
             latestTranscript = transcript;
 
             if (submitDelayMs > 0) {
                 // We own end-of-turn: show interim text live, and (re)arm the
-                // silence timer so a pause shorter than submitDelayMs doesn't
-                // submit. Speaking again resets it.
+                // silence timer. The tolerated pause ramps with how long the
+                // user has been speaking (capped at submitMaxDelayMs), mirroring
+                // the server-Whisper VAD. Speaking again resets the timer.
+                if (speechStartMs === 0) speechStartMs = Date.now();
+                const speechDur = Date.now() - speechStartMs;
+                const needed = Math.min(
+                    submitDelayMs + speechDur * submitRampRate,
+                    submitMaxDelayMs
+                );
                 push({ type: 'partial', text: transcript });
                 clearSilenceTimer();
-                silenceTimer = setTimeout(submit, submitDelayMs);
+                silenceTimer = setTimeout(submit, needed);
             } else {
                 // Browser-driven: submit as soon as a segment finalizes.
                 push({ type: isFinal ? 'final' : 'partial', text: transcript });
@@ -235,4 +257,20 @@ export class WebSpeechSttEngine implements SttEngine {
             }
         }
     }
+}
+
+/**
+ * Light cleanup for Web Speech output, which arrives lowercase, unpunctuated,
+ * and (across result segments) can run together. Collapse whitespace and
+ * capitalize the first letter plus anything after sentence-ending punctuation.
+ * We don't try to restore punctuation — just make it read less like a jumble.
+ * (Server Whisper already returns cased, punctuated text, so it skips this.)
+ */
+function tidyTranscript(text: string): string {
+    const collapsed = text.replace(/\s+/g, ' ').trim();
+    if (!collapsed) return '';
+    return collapsed.replace(
+        /(^|[.!?]\s+)([a-z])/g,
+        (_m, lead: string, ch: string) => lead + ch.toUpperCase()
+    );
 }
