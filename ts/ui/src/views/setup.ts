@@ -644,7 +644,10 @@ export async function mountSetupView(
                         </div>
                         <div class="participant-field participant-sound-field${p.type === 'sound' ? '' : ' hidden'}">
                             <label>Sound</label>
-                            <button type="button" class="btn btn-secondary btn-small participant-sound-btn sound-pick-btn">${escapeAttr(soundLabel)}</button>
+                            <div class="phrase-input-wrap">
+                                <button type="button" class="btn btn-secondary btn-small participant-sound-btn sound-pick-btn">${escapeAttr(soundLabel)}</button>
+                                <button type="button" class="participant-sound-preview btn btn-secondary btn-small" title="Play sound">&#9654;</button>
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -726,6 +729,9 @@ export async function mountSetupView(
                     },
                     { includeChime: false }
                 );
+            });
+            row.querySelector<HTMLButtonElement>('.participant-sound-preview')?.addEventListener('click', () => {
+                if (p.type === 'sound') previewSoundOrChime(p.sound);
             });
             row.querySelector<HTMLButtonElement>('.participant-remove')?.addEventListener('click', () => {
                 ps2.splice(i, 1);
