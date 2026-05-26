@@ -21,7 +21,11 @@ import type { PacingConfig } from '../../../src/facilitation/pacing.js';
 
 import { CapacitorSttEngine } from './capacitor-stt.js';
 import { ServerWhisperSttEngine } from './server-whisper-stt.js';
-import { WebSpeechSttEngine, isWebSpeechSupported } from './web-speech-stt.js';
+import {
+    WebSpeechSttEngine,
+    isWebSpeechSupported,
+    type WebSpeechSttEngineOptions,
+} from './web-speech-stt.js';
 
 /** VAD-tuning subset of PacingConfig the picker forwards to adapters. */
 type VadOpts = Partial<
@@ -111,8 +115,13 @@ export async function createBestStt(vadOpts: VadOpts = {}): Promise<SttEngine | 
     switch (backend) {
         case 'capacitor':
             return new CapacitorSttEngine();
-        case 'web-speech':
-            return new WebSpeechSttEngine();
+        case 'web-speech': {
+            // Honor the "minimum pause before submission" setting here too —
+            // without it, Chrome submits the instant it detects a pause.
+            const opts: WebSpeechSttEngineOptions = {};
+            if (vadOpts.silenceBaseMs !== undefined) opts.submitDelayMs = vadOpts.silenceBaseMs;
+            return new WebSpeechSttEngine(opts);
+        }
         case 'server-whisper':
             return new ServerWhisperSttEngine(vadOpts);
         case 'none':

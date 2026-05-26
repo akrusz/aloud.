@@ -99,9 +99,7 @@ function wirePopstate(): void {
         // goSession pushes a '/session' entry, so this popstate fires while
         // the session is still mounted.
         if (currentSession || currentNoting) {
-            const ok = window.confirm(
-                'Leave your session? Your session so far will be saved.'
-            );
+            const ok = window.confirm('Leave your session?');
             if (!ok) {
                 // Re-arm the trap so the user stays in the session.
                 window.history.pushState({ view: 'session' }, '', '/session');

@@ -121,29 +121,13 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
 }
-.message {
-    padding: 0.6rem 0.9rem;
-    border-radius: var(--radius-sm);
-    max-width: 85%;
-}
-.message.user {
-    align-self: flex-end;
-    background: var(--user-bg);
-}
-.message.assistant {
-    align-self: flex-start;
-    background: var(--facilitator-bg);
-}
-.message.partial {
+/* Bubble shape, padding, background, max-width, and right/left alignment all
+   come from the lifted .message-content rules (style.css). Don't restyle
+   .message itself — doing so wrapped the user's text in a SECOND bubble and,
+   with the nested max-widths, forced short messages onto a second line. */
+.message.partial .message-content {
     color: var(--text-muted);
     font-style: italic;
-}
-.message.intention {
-    align-self: center;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    font-style: italic;
-    background: transparent;
 }
 
 .controls {

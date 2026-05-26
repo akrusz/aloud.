@@ -69,6 +69,14 @@ export interface WebSpeechSttEngineOptions {
     continuous?: boolean;
     /** Emit `partial` events as the recognizer narrows in. On by default. */
     interimResults?: boolean;
+    /**
+     * Pause (ms) of no new speech before the turn is submitted. When > 0, the
+     * recognizer runs continuously and WE decide the turn is over after this
+     * much silence — so a mid-thought pause doesn't make the facilitator jump
+     * in. Maps to the user's "minimum pause before your speech is submitted"
+     * setting. 0 (default) defers to the browser's own end-of-speech detection.
+     */
+    submitDelayMs?: number;
 }
 
 export class WebSpeechSttEngine implements SttEngine {
@@ -84,10 +92,14 @@ export class WebSpeechSttEngine implements SttEngine {
             );
         }
         this.Ctor = Ctor;
+        const submitDelayMs = options.submitDelayMs ?? 0;
         this.options = {
             lang: options.lang ?? document.documentElement.lang ?? 'en-US',
-            continuous: options.continuous ?? false,
+            // A submit delay means we own end-of-turn detection, so keep the
+            // recognizer open across pauses.
+            continuous: options.continuous ?? submitDelayMs > 0,
             interimResults: options.interimResults ?? true,
+            submitDelayMs,
         };
     }
 
@@ -102,6 +114,11 @@ export class WebSpeechSttEngine implements SttEngine {
         let done = false;
         let wake: (() => void) | null = null;
 
+        const { submitDelayMs } = this.options;
+        let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+        let latestTranscript = '';
+        let submitted = false;
+
         const push = (event: SttEvent): void => {
             queue.push(event);
             if (wake) {
@@ -110,7 +127,14 @@ export class WebSpeechSttEngine implements SttEngine {
                 w();
             }
         };
+        const clearSilenceTimer = (): void => {
+            if (silenceTimer) {
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+            }
+        };
         const finish = (): void => {
+            clearSilenceTimer();
             done = true;
             if (wake) {
                 const w = wake;
@@ -118,12 +142,24 @@ export class WebSpeechSttEngine implements SttEngine {
                 w();
             }
         };
+        // Emit the accumulated transcript as the final turn and stop the
+        // recognizer (its onend then ends iteration). Guarded so the timer
+        // and onend can't both submit.
+        const submit = (): void => {
+            if (submitted) return;
+            submitted = true;
+            clearSilenceTimer();
+            if (latestTranscript) push({ type: 'final', text: latestTranscript });
+            try {
+                recognition.stop();
+            } catch {
+                /* already stopped */
+            }
+        };
 
         recognition.onresult = (event) => {
-            // Build the full utterance by concatenating every result segment,
-            // not just the latest one — otherwise the live bubble only shows
-            // the last word or two. The turn is final once a segment finalizes
-            // (continuous: false → one utterance per recognition).
+            // Concatenate every result segment, not just the latest — otherwise
+            // the live bubble only shows the last word or two.
             let transcript = '';
             let isFinal = false;
             for (let i = 0; i < event.results.length; i++) {
@@ -132,14 +168,35 @@ export class WebSpeechSttEngine implements SttEngine {
                 transcript += result[0].transcript;
                 if (result.isFinal) isFinal = true;
             }
-            push({ type: isFinal ? 'final' : 'partial', text: transcript.trim() });
+            transcript = transcript.trim();
+            latestTranscript = transcript;
+
+            if (submitDelayMs > 0) {
+                // We own end-of-turn: show interim text live, and (re)arm the
+                // silence timer so a pause shorter than submitDelayMs doesn't
+                // submit. Speaking again resets it.
+                push({ type: 'partial', text: transcript });
+                clearSilenceTimer();
+                silenceTimer = setTimeout(submit, submitDelayMs);
+            } else {
+                // Browser-driven: submit as soon as a segment finalizes.
+                push({ type: isFinal ? 'final' : 'partial', text: transcript });
+            }
         };
         recognition.onerror = (event) => {
             // 'no-speech' and 'aborted' are routine end-of-turn signals, not errors.
             if (event.error === 'no-speech' || event.error === 'aborted') return;
             push({ type: 'error', error: event.error });
         };
-        recognition.onend = finish;
+        recognition.onend = () => {
+            // If the recognizer ends on its own (Chrome's timeout, network)
+            // while we're holding speech for the submit delay, flush it.
+            if (submitDelayMs > 0 && !submitted && latestTranscript) {
+                submitted = true;
+                push({ type: 'final', text: latestTranscript });
+            }
+            finish();
+        };
 
         try {
             recognition.start();
@@ -161,6 +218,7 @@ export class WebSpeechSttEngine implements SttEngine {
                 });
             }
         } finally {
+            clearSilenceTimer();
             recognition.onresult = null;
             recognition.onerror = null;
             recognition.onend = null;
