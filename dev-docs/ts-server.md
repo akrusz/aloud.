@@ -160,7 +160,28 @@ Wired in `app.ts`; the entire client↔server wire surface is `contract.ts`.
 | `POST /v1/tts` | session | metered TTS: `{text,voice?,rate?}` → Google Cloud TTS → audio/mpeg; cost in headers |
 | `POST /v1/billing/checkout` | session | start Stripe Checkout for a pack |
 | `POST /v1/billing/webhook` | Stripe sig | credit the ledger after signature verify |
+| `GET /v1/voices` | public | curated hosted voices (empty when TTS unconfigured) |
 | `GET /v1/admin/metrics` | admin token | ledger aggregates for spend monitoring |
+
+## Hosted voices & auditioning new ones
+
+The curated hosted voices live in `src/providers/voice-catalog.ts` — a
+short-name → Google Cloud TTS id map (currently Pulcherrima/androgynous,
+Sadachbia/male, Leda/female, all Chirp3-HD). `GET /v1/voices` publishes them;
+the client merges them into its picker (top "Recommended" tier) and sends the
+short name back, which `/v1/tts` resolves. To add more: audition the catalog
+and append the winners to `CURATED_VOICES`.
+
+```bash
+cd ts/server
+npx tsx scripts/preview-voices.ts                 # all Chirp3-HD en-US voices
+npx tsx scripts/preview-voices.ts Studio          # filter by name substring
+npx tsx scripts/preview-voices.ts Chirp3-HD en-GB # filter + language
+# → writes voice-previews/index.html (gitignored): a labeled <audio> player
+#   per voice playing the same meditation sample. Open it and listen.
+```
+
+Needs `GOOGLE_TTS_API_KEY` in `.env`. Costs a few cents (one short clip/voice).
 
 ## Gaps before a real deploy
 
