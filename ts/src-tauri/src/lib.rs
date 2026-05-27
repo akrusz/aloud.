@@ -1,6 +1,6 @@
 mod server;
 
-use tauri::{WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,7 +18,13 @@ pub fn run() {
       // webview before any page script runs, so ui/src/api-base.ts can resolve
       // /api/* against it. The window is built here (not in tauri.conf.json)
       // because an initialization_script can only be attached at build time.
-      let port = server::start();
+      // Models (Whisper, later Piper) are cached under the app data dir.
+      let model_dir = app
+        .path()
+        .app_data_dir()
+        .expect("resolve app data dir")
+        .join("models");
+      let port = server::start(model_dir);
       let init = format!("window.__ALOUD_API_BASE__ = 'http://127.0.0.1:{port}';");
 
       let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())

@@ -30,3 +30,5 @@ axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "macros"] }
 tower-http = { version = "0.6", features = ["cors"] }
 which = "7"
+whisper-rs = "0.16.0"
+ureq = "3.2.1"

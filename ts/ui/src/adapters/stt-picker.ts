@@ -29,6 +29,7 @@ import {
 import { serverUrl } from '../server-base.js';
 import { ensureServerToken } from '../server-auth.js';
 import { isTauri } from '../is-desktop.js';
+import { apiUrl } from '../api-base.js';
 
 /** VAD-tuning subset of PacingConfig the picker forwards to adapters. */
 type VadOpts = Partial<
@@ -40,18 +41,20 @@ type VadOpts = Partial<
 
 export type SttBackend = 'capacitor' | 'web-speech' | 'server-whisper' | 'none';
 
-const SERVER_WHISPER_PROBE_URL = '/api/stt/whisper';
+// Resolved through apiUrl() so it targets the desktop's embedded Rust backend
+// (127.0.0.1:<port>) under Tauri, or the relative path (Flask via the Vite
+// proxy / same-origin) in the browser dev + web builds.
+const SERVER_WHISPER_PATH = '/api/stt/whisper';
 let cachedBackend: SttBackend | null = null;
 
 async function isServerWhisperReachable(): Promise<boolean> {
     if (!ServerWhisperSttEngine.isAvailable()) return false;
     try {
-        // Empty POST → Flask returns 400 (route exists, body missing) or
-        // 503 (model still loading). Either proves Flask is up and the
-        // route is wired. A 5xx from Vite's proxy (ECONNREFUSED, etc.)
-        // means the backend is down — fail closed so we don't pretend
-        // the mic will work.
-        const response = await fetch(SERVER_WHISPER_PROBE_URL, {
+        // Empty POST → the backend returns 400 (route exists, body missing) or
+        // 503 (model still loading). Either proves the STT route is wired. A 5xx
+        // from Vite's proxy (ECONNREFUSED, etc.) means the backend is down —
+        // fail closed so we don't pretend the mic will work.
+        const response = await fetch(apiUrl(SERVER_WHISPER_PATH), {
             method: 'POST',
             headers: { 'content-type': 'application/octet-stream' },
         });
@@ -151,7 +154,10 @@ export async function createBestStt(vadOpts: VadOpts = {}): Promise<SttEngine | 
             return new WebSpeechSttEngine(opts);
         }
         case 'server-whisper':
-            return new ServerWhisperSttEngine(vadOpts);
+            return new ServerWhisperSttEngine({
+                ...vadOpts,
+                endpointUrl: apiUrl(SERVER_WHISPER_PATH),
+            });
         case 'none':
             return null;
     }
