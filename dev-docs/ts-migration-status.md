@@ -79,7 +79,7 @@ Suggested sequence for finishing the Python deprecation (top-down dependency ord
 2. **Server-pushed events**. SSE end-to-end for LLM streaming first (already partly there), then check-in loop and noting events.
 3. **Noting circle UI port**. Once SSE / equivalent is in place, port `noting.js` faithfully — participant configurator on setup, turn-rotation orchestrator, sound playback infrastructure.
 4. **Mobile-quirks register pattern**. Small AudioContext registry that `BargeInListener` and `ServerWhisperStt` opt into; visibility-driven resume + bfcache resume. Should be done before any mobile-shell spike.
-5. **Shell decision**. Per the prior status doc — Tauri 2 vs Capacitor for mobile, Tauri 2 looks clear for desktop. Spike picks the loser.
+5. **Shell decision** (`meditation-pal-nn1`). Desktop is settled: Tauri 2, unconditional. Mobile is gated on one thing — whether Tauri 2 can do the iOS `playAndRecord` + concurrent-mic audio session without a tar-pit custom plugin. A 3–5 day spike answers it; pass → single Tauri shell everywhere, fail → Capacitor for mobile + Tauri for desktop. The ticket carries the full plugin/library research, the on-device Whisper/Piper findings, and the bundle-size/capability-tiering plan.
 6. **Native runtimes for Whisper + Piper + LLM**. Whisper.cpp / llama.cpp / Piper bindings in the chosen shell.
 7. **Flask deprecation**. Once the routes above all have shell-side equivalents, the Flask process becomes optional, then removable.
 
