@@ -24,9 +24,9 @@ export interface CuratedVoice {
 export const CURATED_VOICES: readonly CuratedVoice[] = [
     // Pulcherrima reads androgynous despite Google's "female" label — a neutral
     // default for a meditation facilitator.
-    { name: 'Pulcherrima', googleId: 'en-US-Chirp3-HD-Pulcherrima', gender: 'androgynous', default: true },
+    { name: 'Pulcherrima', googleId: 'en-US-Chirp3-HD-Pulcherrima', gender: 'androgynous' },
     { name: 'Sadachbia', googleId: 'en-US-Chirp3-HD-Sadachbia', gender: 'male' },
-    { name: 'Leda', googleId: 'en-US-Chirp3-HD-Leda', gender: 'female' },
+    { name: 'Leda', googleId: 'en-US-Chirp3-HD-Leda', gender: 'female', default: true},
 ];
 
 export function defaultVoice(): CuratedVoice {
