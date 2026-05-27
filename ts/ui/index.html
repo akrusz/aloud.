@@ -13,13 +13,17 @@
         <link rel="stylesheet" href="/src/style.css" />
     </head>
     <body>
-        <nav class="nav">
-            <div class="nav-start">
+        <!-- data-tauri-drag-region: in the Tauri desktop shell the nav doubles
+             as the window title bar (titleBarStyle "Overlay"). The attribute is
+             inert in a browser. Child links/buttons keep their own clicks; only
+             the bar's own background drags the window. -->
+        <nav class="nav" data-tauri-drag-region>
+            <div class="nav-start" data-tauri-drag-region>
                 <a href="#" class="nav-brand" id="aboutLink" title="About aloud.">aloud.</a>
             </div>
             <!-- nav-center is populated by the session view (orb + hamburger).
                  Idle pages leave it empty. -->
-            <div class="nav-center" id="navCenter"></div>
+            <div class="nav-center" id="navCenter" data-tauri-drag-region></div>
             <div class="nav-links" id="navLinks">
                 <a href="#" data-nav="setup" class="nav-active"><span class="nav-word-new">New </span>Session</a>
                 <a href="#" data-nav="history">History</a>

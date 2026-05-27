@@ -28,6 +28,7 @@ import {
 } from './web-speech-stt.js';
 import { serverUrl } from '../server-base.js';
 import { ensureServerToken } from '../server-auth.js';
+import { isTauri } from '../is-desktop.js';
 
 /** VAD-tuning subset of PacingConfig the picker forwards to adapters. */
 type VadOpts = Partial<
@@ -106,7 +107,13 @@ export async function detectSttBackend(): Promise<SttBackend> {
         }
     }
 
-    if (isWebSpeechSupported()) {
+    // The macOS WKWebView exposes `webkitSpeechRecognition` (so
+    // isWebSpeechSupported() is true) but recognition silently never returns
+    // results inside an embedded app webview — the mic captures audio but no
+    // transcript ever arrives. Skip Web Speech under Tauri and fall through to
+    // server-Whisper (the desktop's own STT backend), which is also the
+    // free/on-device path we want on desktop anyway.
+    if (!isTauri() && isWebSpeechSupported()) {
         cachedBackend = 'web-speech';
         return cachedBackend;
     }

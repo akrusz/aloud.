@@ -3,6 +3,12 @@ import { bootApp } from './app.js';
 import { applyTheme, initThemeToggle, resolveTheme } from './theme.js';
 import { regenerateEmbers } from './embers.js';
 import { initAbout } from './about.js';
+import { isTauri } from './is-desktop.js';
+
+// Tag the document for the Tauri desktop shell so CSS can apply app-like
+// chrome (block text selection, pad the nav clear of the macOS traffic
+// lights). Set before first paint to avoid a flash of selectable web chrome.
+if (isTauri()) document.documentElement.setAttribute('data-shell', 'tauri');
 
 // Apply theme before the app renders so the FOUC is invisible.
 applyTheme(resolveTheme());

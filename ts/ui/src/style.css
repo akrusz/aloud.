@@ -252,3 +252,34 @@
     flex: 1;
     min-width: 180px;
 }
+
+/* ============================================
+   Tauri desktop shell chrome ([data-shell="tauri"] on <html>)
+   ============================================ */
+
+/* App-like feel: don't let the UI chrome be drag-selected like a web page.
+   Real content (conversation, history, form fields) stays selectable. */
+[data-shell="tauri"] {
+    -webkit-user-select: none;
+    user-select: none;
+    /* Belt-and-suspenders: WKWebView shows a callout/magnifier on long-press
+       and a text I-beam on chrome; keep the default arrow cursor on chrome. */
+    cursor: default;
+}
+[data-shell="tauri"] .message-content,
+[data-shell="tauri"] .transcript,
+[data-shell="tauri"] .history-container,
+[data-shell="tauri"] input,
+[data-shell="tauri"] textarea,
+[data-shell="tauri"] [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    cursor: auto;
+}
+
+/* macOS titleBarStyle "Overlay" draws the traffic-light buttons over the
+   top-left of the webview. The nav is the title bar (data-tauri-drag-region),
+   so pad the brand clear of the buttons. */
+[data-shell="tauri"] .nav-start {
+    padding-left: 72px;
+}

@@ -13,6 +13,23 @@
  * yank the controls.
  */
 
+/**
+ * Synchronous "are we running inside the Tauri desktop shell" check.
+ * Tauri v2 always injects `window.__TAURI_INTERNALS__` into the webview
+ * (independent of the `withGlobalTauri` config), so this is reliable at
+ * boot without a probe. Used to gate shell-specific behavior: the macOS
+ * WKWebView's Web Speech API is unreliable, so STT must prefer
+ * server-Whisper (see stt-picker.ts); chrome (drag region, no-select)
+ * keys off it too.
+ */
+export function isTauri(): boolean {
+    return (
+        typeof window !== 'undefined' &&
+        (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !==
+            undefined
+    );
+}
+
 let cached: boolean | null = null;
 let inflight: Promise<boolean> | null = null;
 
