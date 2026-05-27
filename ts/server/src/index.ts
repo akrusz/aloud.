@@ -16,6 +16,15 @@ import { CREDIT_PACKS } from './billing/stripe.js';
 import { setStrictContentCheck, log } from './logger.js';
 
 function main(): void {
+    // Load .env into process.env for local dev (Fly/Render inject real env, so
+    // there's no file there — hence the guard). Tests build config explicitly
+    // and never import this entrypoint, so they stay hermetic.
+    try {
+        process.loadEnvFile();
+    } catch {
+        /* no .env present — rely on the ambient environment */
+    }
+
     const config = loadConfig();
 
     // In production, drop the content-check from throw to drop-field so a stray
