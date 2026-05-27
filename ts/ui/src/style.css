@@ -213,6 +213,18 @@
     font-size: 0.8em;
 }
 
+/* meditation-pal-93b: the lifted breakpoints key off viewport width only,
+   so a bumped --text-scale widens content without moving the breakpoint and
+   these rows overflow. Let them reflow intrinsically — wraps on overflow from
+   any cause (narrow viewport or large text), independent of the px breakpoints. */
+.settings-footer-secondary {
+    flex-wrap: wrap;
+}
+.btn-begin {
+    max-width: 100%;
+    flex-wrap: wrap;
+}
+
 /* History view: the markup uses the lifted .history-container / .history-header
    / .session-item classes, so styling cascades from the @import. (The earlier
    from-scratch .history-row/.history-list rules were dead and removed.) */
