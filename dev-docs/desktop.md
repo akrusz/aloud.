@@ -11,6 +11,12 @@ npm run tauri:dev      # builds the Rust shell, starts Vite, opens the window
 npm run tauri:build    # production .app/.dmg (macOS) — see caveat below
 ```
 
+**Build prerequisites:** the Rust toolchain (rustup), and **cmake** (`brew install
+cmake`) — `whisper-rs` compiles whisper.cpp from source. On first run the app
+downloads the Whisper model (base.en GGML, ~142 MB) to
+`<app-data>/models/` (`~/Library/Application Support/app.aloud.meditation/models`
+on macOS); STT returns 503 until that finishes loading.
+
 `tauri:dev` runs `beforeDevCommand` (`npm run ui:dev -- --port 1420 --strictPort`)
 and points the webview at `http://localhost:1420`. The port is **pinned** on
 purpose: Tauri's `devUrl` is a fixed string, so if Vite were allowed to drift to
@@ -40,13 +46,20 @@ users get cloud forwarding (`ts/server`) or browser-native STT/TTS, so the two
 targets split cleanly and the Rust choice doesn't force a parallel Node
 inference backend.
 
-The UI already abstracts the hosted server base via `ui/src/server-base.ts`
-(`serverUrl()`). The `/api/*` endpoints currently rely on the Vite proxy; the
-Flask-removal phase mirrors `server-base.ts` with an `apiUrl()` helper pointed at
-an embedded local server (or Tauri commands) in the desktop build. Endpoints to
-replace: `/api/stt/whisper`, `/api/voices` + `/api/voices/preview`,
-`/api/providers`, `/api/models`, `/api/tts-engines`, `/api/system-info`,
-`/api/llm/claude_proxy/complete`, `/api/open-*`.
+The UI abstracts the local backend base via `ui/src/api-base.ts` (`apiUrl()`),
+mirroring `server-base.ts` (`serverUrl()`) for the hosted `/v1/*` server. In a
+Tauri build the Rust shell starts an embedded `axum` server (`src-tauri/server.rs`)
+on an ephemeral loopback port and injects `window.__ALOUD_API_BASE__` via an
+`initialization_script`; `apiUrl()` reads it (empty → relative paths in dev/web).
+
+Endpoint progress (replacing Flask `/api/*`):
+
+- ✅ `/api/system-info` — platform + tool availability (`which`).
+- ✅ `/api/stt/whisper` — local Whisper via `whisper-rs` (whisper.cpp).
+- ⬜ `/api/voices` + `/api/voices/preview` — Piper (ONNX) / macOS `say`.
+- ⬜ `/api/providers`, `/api/models`, `/api/tts-engines`.
+- ⬜ `/api/llm/claude_proxy/complete` — spawn the `claude` CLI.
+- ⬜ `/api/open-config-folder`, `/api/open-sessions-folder`, `/api/open-voice-settings`.
 
 ## Config notes
 
