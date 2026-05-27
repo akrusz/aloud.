@@ -23,7 +23,7 @@ import type {
 import { ensureServerToken, clearServerToken } from '../server-auth.js';
 
 /** Providers the server is willing to forward to (mirrors contract.ts ProviderId). */
-export type ServerProviderId = 'anthropic' | 'groq' | 'openrouter';
+export type ServerProviderId = 'anthropic' | 'groq' | 'openrouter' | 'google';
 
 const ENDPOINT = '/v1/llm/complete';
 const DEFAULT_MAX_TOKENS = 400;

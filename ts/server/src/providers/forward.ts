@@ -17,6 +17,7 @@ import {
     AnthropicProvider,
     GroqProvider,
     OpenRouterProvider,
+    GoogleProvider,
     type CompletionResult,
     type LLMProvider,
     type Message,
@@ -51,6 +52,9 @@ function buildProvider(keys: ProviderKeys, opts: ForwardOptions): LLMProvider {
         case 'openrouter':
             if (!keys.openrouter) throw new ProviderNotConfiguredError('openrouter');
             return new OpenRouterProvider({ apiKey: keys.openrouter, ...common });
+        case 'google':
+            if (!keys.google) throw new ProviderNotConfiguredError('google');
+            return new GoogleProvider({ apiKey: keys.google, ...common });
     }
 }
 

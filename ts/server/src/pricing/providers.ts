@@ -71,13 +71,15 @@ const MODELS: Record<string, ModelPricing> = {
     },
     // The genuine VALUE tier: cheap per-token AND cache-capable. On this
     // ~98%-re-sent-history workload, the combination crushes both Haiku and
-    // Groq. Gemini implicit caching is ~75% off input; the OpenAI provider now
-    // parses prompt_tokens_details.cached_tokens, so cache reads bill at the
+    // Groq. Accessed DIRECT via Google's OpenAI-compatible endpoint (no
+    // OpenRouter middleman fee — these are Google's own list prices). Gemini
+    // implicit caching is ~75% off input; the OpenAI provider parses
+    // prompt_tokens_details.cached_tokens, so cache reads bill at the
     // discounted rate. (cacheCreation isn't surfaced by the OpenAI usage shape,
     // so it never accrues for this provider — left at input rate harmlessly.)
-    'openrouter:google/gemini-2.5-flash-lite': {
-        provider: 'openrouter',
-        model: 'google/gemini-2.5-flash-lite',
+    'google:gemini-2.5-flash-lite': {
+        provider: 'google',
+        model: 'gemini-2.5-flash-lite',
         input: 0.1 / M,
         output: 0.4 / M,
         cacheRead: 0.025 / M, // ~75% off (Gemini implicit caching)

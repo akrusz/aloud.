@@ -13,6 +13,7 @@ export interface ProviderKeys {
     anthropic?: string;
     groq?: string;
     openrouter?: string;
+    google?: string;
 }
 
 export interface Config {
@@ -64,6 +65,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (env['ANTHROPIC_API_KEY']) providerKeys.anthropic = env['ANTHROPIC_API_KEY'];
     if (env['GROQ_API_KEY']) providerKeys.groq = env['GROQ_API_KEY'];
     if (env['OPENROUTER_API_KEY']) providerKeys.openrouter = env['OPENROUTER_API_KEY'];
+    // Gemini direct (AI Studio key) — value tier without the OpenRouter fee.
+    if (env['GEMINI_API_KEY']) providerKeys.google = env['GEMINI_API_KEY'];
 
     const config: Config = {
         port: Number(env['PORT'] ?? 8787),
@@ -101,5 +104,6 @@ export function configuredProviders(config: Config): ProviderId[] {
     if (config.providerKeys.anthropic) out.push('anthropic');
     if (config.providerKeys.groq) out.push('groq');
     if (config.providerKeys.openrouter) out.push('openrouter');
+    if (config.providerKeys.google) out.push('google');
     return out;
 }

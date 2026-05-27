@@ -279,3 +279,11 @@ export const GroqProvider = preconfigured({
     baseUrl: 'https://api.groq.com/openai/v1',
     defaultModel: 'llama-3.3-70b-versatile',
 });
+
+/** Google Gemini via its OpenAI-compatible endpoint. Direct (no OpenRouter
+ *  middleman fee). Gemini does implicit prompt caching and reports it as
+ *  prompt_tokens_details.cached_tokens — already parsed by usageToResult. */
+export const GoogleProvider = preconfigured({
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    defaultModel: 'gemini-2.5-flash-lite',
+});

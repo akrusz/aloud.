@@ -32,7 +32,7 @@ import { usageOf } from '../providers/forward.js';
 import { InsufficientCreditsError } from '../credits/ledger.js';
 import { log } from '../logger.js';
 
-const VALID_PROVIDERS = new Set(['anthropic', 'groq', 'openrouter']);
+const VALID_PROVIDERS = new Set(['anthropic', 'groq', 'openrouter', 'google']);
 
 export function llmRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
     const app = new Hono<{ Variables: AuthVars }>();

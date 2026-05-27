@@ -19,7 +19,7 @@ import type { Message } from '@aloud/core/llm';
 /** Providers the hosted server is willing to forward to. The web tier's
  *  ONLY LLM source is this server; on-device + bring-your-own-key live in
  *  the app-store / desktop builds and never touch this contract. */
-export type ProviderId = 'anthropic' | 'groq' | 'openrouter';
+export type ProviderId = 'anthropic' | 'groq' | 'openrouter' | 'google';
 
 /** Channel a credit purchase flowed through. Drives the commission lookup —
  *  see pricing/commission.ts and the meditation-pal-8sj addendum. */
