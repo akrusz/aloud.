@@ -113,7 +113,7 @@ scripts/release.sh 1.2.3
 scripts/release.sh same
 ```
 
-The release script: bumps `src/__init__.py`, updates README download links, commits, tags, pushes, and creates a GitHub release (which triggers the build workflow).
+The release script: offers to run the pre-release doc/copy check (`dev-docs/pre-release-checklist.md`, via the headless `claude` CLI), then bumps `src/__init__.py`, updates README download links, commits, tags, pushes, and creates a GitHub release (which triggers the build workflow). The macOS job in CI signs + notarizes automatically if the signing secrets are configured (see *Building* below); without them it produces an unsigned DMG.
 
 **Prerequisites**: clean working directory, `gh` CLI authenticated.
 
@@ -139,9 +139,59 @@ Supports `${ENV_VAR}` substitution for API keys in YAML.
 
 ## Building
 
-See [docs/building.md](building.md) for desktop builds (PyInstaller → DMG/EXE/AppImage).
+See [building.md](building.md) for desktop builds (PyInstaller → DMG/EXE/AppImage).
 
 ```bash
 # macOS DMG (requires create-dmg, pyinstaller)
 scripts/build-dmg.sh
+
+# Skip notarization (fast dev rebuild — DMG still signed, just not Apple-stamped)
+SKIP_NOTARIZE=1 scripts/build-dmg.sh
 ```
+
+### macOS signing + notarization (local)
+
+The build script auto-detects a Developer ID cert in your keychain and the `notary` notarytool profile. One-time setup:
+
+```bash
+# 1. Developer ID Application cert installed in login keychain
+#    (verify with: security find-identity -v -p codesigning | grep 'Developer ID')
+
+# 2. Store notarytool credentials under the profile name "notary":
+xcrun notarytool store-credentials "notary" \
+  --apple-id YOUR_APPLE_ID_EMAIL \
+  --team-id  YOUR_TEAM_ID \
+  --password YOUR_APP_SPECIFIC_PASSWORD
+```
+
+Overrides via env vars: `CODESIGN_IDENTITY` (full cert name), `NOTARYTOOL_PROFILE` (defaults to `notary`), `SKIP_NOTARIZE=1`.
+
+If neither a Developer ID cert nor the `notary` profile exists, the script falls back to an `aloud Dev` self-signed cert (or ad-hoc) and skips notarization — fine for local testing.
+
+### macOS signing + notarization (CI)
+
+`.github/workflows/build.yml` does the same dance from GitHub Secrets:
+
+| Secret | Purpose |
+|---|---|
+| `MACOS_CERTIFICATE` | base64 of the Developer ID `.p12` |
+| `MACOS_CERTIFICATE_PWD` | password set when exporting the `.p12` |
+| `MACOS_KEYCHAIN_PWD` | any random string — unlocks the temp keychain on the runner |
+| `MACOS_SIGN_IDENTITY` | e.g. `Developer ID Application: Name (TEAMID)` |
+| `APPLE_ID` | Apple ID email |
+| `APPLE_TEAM_ID` | 10-char Team ID |
+| `APPLE_APP_PASSWORD` | app-specific password from appleid.apple.com |
+
+With those configured, `scripts/release.sh patch` produces a fully signed + notarized DMG with no manual steps.
+
+## Landing site
+
+Static site at `docs/` (hand-written, no build step). The folder is named `docs/` because GitHub Pages serves from `/docs` on main; internal developer documentation lives in `dev-docs/`. The download buttons fetch `releases/latest` from the GitHub API at page load, so the site doesn't need redeploying after each release.
+
+```bash
+# Local preview
+python3 -m http.server -d docs 8000
+# then open http://localhost:8000
+```
+
+Deployment: Porkbun's GitHub-pulled static hosting pointed at the `docs/` folder, or GitHub Pages from `/docs` on main.

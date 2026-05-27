@@ -208,6 +208,13 @@ def register_session_handlers(socketio: SocketIO, app: Flask) -> None:
                     summary = ""
 
         session_data = web_session.end()
+
+        # Free a local model (Ollama) from memory now rather than waiting out
+        # its keep_alive window. Best-effort; no-op for cloud providers.
+        try:
+            asyncio.run(web_session.unload_llm())
+        except Exception:
+            pass
         if summary:
             session_data["summary"] = summary
         if web_session.meditation_type != "exploration":

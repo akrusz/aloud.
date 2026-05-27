@@ -110,7 +110,16 @@ export function toggleListenMode() {
 }
 
 export function activateVoice() {
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    // echoCancellation keeps TTS playing through speakers from leaking into the
+    // mic and falsely tripping barge-in (the facilitator interrupting itself).
+    // noiseSuppression/autoGainControl steady the input across rooms and mics.
+    navigator.mediaDevices.getUserMedia({
+        audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+        },
+    }).then(function (stream) {
         state.mediaStream = stream;
         state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
 

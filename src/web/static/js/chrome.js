@@ -36,6 +36,14 @@ window.toggleNoVoicesBanner = function(anchorEl, customMessage) {
         e.stopPropagation();
         aboutModal.classList.toggle('hidden');
     });
+    var updateBtn = document.getElementById('updateBtn');
+    if (updateBtn) {
+        updateBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            aboutModal.classList.remove('hidden');
+        });
+    }
     document.getElementById('aboutClose').addEventListener('click', function() {
         aboutModal.classList.add('hidden');
     });

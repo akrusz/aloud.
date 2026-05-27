@@ -27,19 +27,51 @@ jobs:
           uv pip install --system -r requirements.txt
           uv pip install --system pyinstaller
 
+      - name: Import signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_KEYCHAIN_PWD: ${{ secrets.MACOS_KEYCHAIN_PWD }}
+        run: |
+          # Create a temp keychain just for this build, import the .p12,
+          # and unlock it so codesign can use the private key non-interactively.
+          KEYCHAIN=build.keychain
+          echo "$MACOS_CERTIFICATE" | base64 --decode > cert.p12
+          security create-keychain -p "$MACOS_KEYCHAIN_PWD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PWD" "$KEYCHAIN"
+          security import cert.p12 -k "$KEYCHAIN" \
+            -P "$MACOS_CERTIFICATE_PWD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$MACOS_KEYCHAIN_PWD" "$KEYCHAIN"
+          # Make the build keychain the default + first in search list so
+          # codesign finds the identity and notarytool finds its profile.
+          security default-keychain -s "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f cert.p12
+
+      - name: Store notarytool credentials
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials "notary" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD"
+
       - name: Build app and DMG
+        env:
+          CODESIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARYTOOL_PROFILE: notary
         run: scripts/build-dmg.sh
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/aloud-*.dmg
-          append_body: true
-          body: |
-
-            <!-- install-notes -->
-            ---
-            **macOS note:** If macOS blocks the app on first launch, right-click (or Control-click) the app and choose **Open**. If it refuses, you can click the [?] for instructions on how to run it anyway. Eventually I may get an Apple Developer license which will fix this!
 
   build-windows:
     runs-on: windows-latest

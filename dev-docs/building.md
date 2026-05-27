@@ -2,6 +2,8 @@
 
 aloud uses PyInstaller to create standalone desktop apps. Each platform must be built on its own OS — PyInstaller doesn't cross-compile.
 
+Releases are fully automated: see `.github/workflows/build.yml`. This doc covers **manual builds** for development.
+
 ## Prerequisites (all platforms)
 
 ```bash
@@ -10,14 +12,14 @@ uv pip install pyinstaller
 
 ## macOS (.dmg)
 
-Already automated. Requires `create-dmg`:
-
 ```bash
 brew install create-dmg
 scripts/build-dmg.sh
 ```
 
-Output: `dist/aloud-{version}.dmg`
+Output: `dist/aloud-{version}-macOS.dmg`
+
+`build-dmg.sh` signs with hardened runtime + entitlements, submits to Apple's notary service, and staples the ticket. One-time setup for signing/notarization is in [dev-cheatsheet.md](dev-cheatsheet.md#macos-signing--notarization-local). For fast iteration, `SKIP_NOTARIZE=1 scripts/build-dmg.sh` skips the (multi-minute) Apple round-trip.
 
 ## Windows (.exe)
 
@@ -35,32 +37,9 @@ uv pip install -r requirements.txt
 uv pip install pyinstaller
 ```
 
-### Icon
-
-Convert the macOS icon to `.ico`. You can do this on any machine with ImageMagick:
-
-```bash
-# On your Mac (one-time, commit the result)
-magick assets/aloud.icns assets/aloud.ico
-```
-
-Or use an online converter. Place the file at `assets/aloud.ico`.
-
-### Spec changes
-
-The `aloud.spec` file needs minor adjustments for Windows. The `BUNDLE(...)` block at the bottom is macOS-only. PyInstaller ignores it on Windows, but you'll also want to set the icon on the EXE:
-
-```python
-exe = EXE(
-    ...
-    icon='assets/aloud.ico',   # add this line
-    console=False,              # already set — hides the terminal window
-)
-```
-
-The `BUNDLE(...)` section is skipped automatically on non-macOS.
-
 ### Build
+
+`aloud.spec` already handles per-platform icon selection and skips the macOS-only `BUNDLE(...)` block on Windows. The committed `assets/aloud.ico` is used automatically.
 
 ```powershell
 uv run pyinstaller aloud.spec --noconfirm
@@ -126,22 +105,13 @@ sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
 sudo apt install portaudio19-dev python3-pyaudio
 ```
 
-### Icon
-
-Convert to PNG if you don't already have one:
-
-```bash
-# On Mac (one-time, commit the result)
-sips -s format png --resampleWidth 256 assets/aloud.icns --out assets/aloud.png
-```
-
 ### Build
 
 ```bash
 uv run pyinstaller aloud.spec --noconfirm
 ```
 
-Output: `dist/aloud/` folder
+Output: `dist/aloud/` folder. The committed `assets/aloud.png` is used by the AppImage packaging step below.
 
 ### Package as AppImage
 
@@ -189,77 +159,26 @@ chmod +x aloud.AppDir/AppRun
 - **pywebview**: Uses GTK+WebKit. Needs the system packages listed above.
 - **Microphone**: PulseAudio or PipeWire must be running (standard on modern distros).
 
-## CI/CD (GitHub Actions)
+## CI/CD
 
-To automate builds for all three platforms on each release:
+Releases run through `.github/workflows/build.yml`, triggered when `scripts/release.sh` creates a GitHub release. Three parallel jobs:
 
-```yaml
-# .github/workflows/build.yml
-name: Build Release
-on:
-  release:
-    types: [created]
+- **macOS** — runs `scripts/build-dmg.sh` with the signing keychain set up from secrets. Output is a signed + notarized `.dmg`.
+- **Windows** — builds via PyInstaller and packages with Inno Setup (`iscc`) into a `.exe` installer.
+- **Linux** — builds via PyInstaller and packages with `appimagetool` into an `.AppImage`.
 
-jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest
-            artifact: "*.dmg"
-          - os: windows-latest
-            artifact: "*.zip"
-          - os: ubuntu-latest
-            artifact: "*.AppImage"
+All three upload artifacts to the GitHub Release via `softprops/action-gh-release@v2`.
 
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Install dependencies
-        run: |
-          uv pip install --system -r requirements.txt
-          uv pip install --system pyinstaller
-
-      - name: Install Linux deps
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-gi python3-gi-cairo \
-            gir1.2-gtk-3.0 gir1.2-webkit2-4.1 portaudio19-dev
-
-      - name: Install macOS deps
-        if: runner.os == 'macOS'
-        run: brew install create-dmg
-
-      - name: Build
-        run: uv run pyinstaller aloud.spec --noconfirm
-
-      # Platform-specific packaging steps here (DMG/zip/AppImage)
-      # Then upload to the release with:
-      # - uses: softprops/action-gh-release@v2
-      #   with:
-      #     files: dist/aloud-*
-```
-
-This is a starting point — you'll flesh out the packaging step for each OS (the scripts above). The key idea: each platform builds on its own runner, packages the result, and uploads it to the GitHub Release.
+macOS signing secrets and the certificate-import dance are documented in [dev-cheatsheet.md](dev-cheatsheet.md#macos-signing--notarization-ci).
 
 ## Asset naming for auto-updates
 
-The in-app update system matches assets by file extension:
+The in-app update system matches assets by suffix:
 
-| Platform | Expected filename |
-|----------|-------------------|
-| macOS    | `aloud-{version}.dmg` |
-| Windows  | `aloud-{version}.exe` (or `.zip`) |
-| Linux    | `aloud-{version}.AppImage` |
+| Platform | Filename |
+|----------|----------|
+| macOS    | `aloud-{version}-macOS.dmg` |
+| Windows  | `aloud-{version}-Windows.exe` |
+| Linux    | `aloud-{version}-Linux.AppImage` |
 
 Attach these to a GitHub Release tagged `v{version}` and the app will detect and offer the update.

@@ -1,0 +1,687 @@
+/* ============================================================
+   aloud. landing page — brand tokens lifted from dev-docs/style.md
+   Single source of truth for visual identity is the app's
+   src/web/static/css/style.css; this is a faithful subset.
+   ============================================================ */
+
+/* Self-hosted + preloaded (see index.html) so the brand face is ready
+   before first paint — avoids a fallback→Knewave swap reflow that nudged
+   the page on the first interaction after a mid-page reload. */
+@font-face {
+  font-family: 'Knewave';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/knewave-v15.woff2') format('woff2');
+}
+
+/* Theme tokens are single-source via light-dark(): first value = light,
+   second = dark. color-scheme decides which resolves. Default follows the
+   OS (light dark); the nav toggle sets data-theme to force one (see the
+   inline bootstrap + toggle script in index.html). */
+:root {
+  color-scheme: light dark;
+
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
+  --bg-primary:    light-dark(#fffae0, #110d08);
+  --bg-secondary:  light-dark(#f5efd7, #1a1410);
+  --bg-card:       light-dark(#fad8c0, #221a13);
+  --bg-surface:    light-dark(#ffffff, #2e2419);
+  --text-primary:  light-dark(#1f1a18, #f5efe6);
+  --text-secondary:light-dark(#5c4a44, #c4b49e);
+  --text-muted:    light-dark(#756058, #b0a090);
+  --accent:        light-dark(#e71f75, #df3f88);
+  --accent-hover:  light-dark(#c01560, #c02a72);
+  --accent-glow:   light-dark(rgba(245, 206, 82, 0.45), rgba(245, 165, 47, 0.30));
+  --brand-stroke:  light-dark(#ffd820, #e8b820);
+  --brand-glow:    light-dark(rgba(245, 216, 32, 0.90), rgba(255, 220, 80, 0.60));
+  --warm:          light-dark(#e5a01a, #c4a850);
+  --border:        light-dark(#e2d0b8, #302618);
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+a:hover { color: var(--accent-hover); border-bottom-color: var(--accent-hover); }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  background: var(--bg-card);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+/* ===== brand mark =====
+   Knewave ONLY for these classes (nav-brand, brand-mark).
+   Pink fill, yellow outer stroke via paint-order. */
+.nav-brand,
+.brand-mark {
+  font-family: 'Knewave', cursive;
+  color: var(--accent);
+  -webkit-text-stroke: 3px var(--brand-stroke);
+  paint-order: stroke fill;
+  letter-spacing: 0.05em;
+  font-weight: 400;
+}
+
+.brand-mark {
+  font-size: 1.4em;
+  -webkit-text-stroke-width: 2px;
+  letter-spacing: 0.04em;
+  display: inline-block;
+  line-height: 1;
+  vertical-align: baseline;
+}
+
+/* ===== nav ===== */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.nav-brand {
+  font-size: 1.8rem;
+  text-decoration: none;
+  border: none;
+  transition: -webkit-text-stroke-width 0.2s ease;
+  margin-right: auto;
+}
+.nav-brand:hover {
+  -webkit-text-stroke-width: 4px;
+  border: none;
+}
+.nav-link {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  border-bottom: 1px solid transparent;
+}
+.nav-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.theme-toggle {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.1rem;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.theme-toggle svg { display: block; }
+
+/* The toggle is viewport-fixed at top-right. Above ~1200px the nav is centered
+   well clear of it; below that the nav spans near full width, so reserve room
+   on the right edge to keep the last nav link from sliding under the button. */
+@media (max-width: 1200px) {
+  .nav { padding-right: 4rem; }
+}
+
+/* ===== hero ===== */
+.hero {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  /* Fill the viewport below the nav so the next section ("two ways to
+     practice") lands right at the fold — but cap it so the hero doesn't
+     balloon (and strand the orb in empty space) on very tall screens.
+     min() picks whichever is smaller: fill-the-viewport vs. the 900px ceiling.
+     9rem ≈ nav height; svh avoids the mobile URL-bar resize jump. */
+  min-height: min(calc(100svh - 9rem), 900px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hero-title {
+  margin: 1.5rem 0 1rem;
+  font-size: 4.5rem;
+  line-height: 1;
+}
+.hero-title .brand-mark {
+  font-size: 1em;
+  -webkit-text-stroke-width: 5px;
+}
+
+.hero-tagline {
+  font-size: 1.35rem;
+  color: var(--text-primary);
+  margin: 0.5rem auto 1.25rem;
+  max-width: 620px;
+  line-height: 1.4;
+}
+.hero-sub {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  margin: 0 auto 1.25rem;
+  max-width: 560px;
+}
+.hero-pun {
+  font-size: 1.2rem;
+  font-style: italic;
+  color: var(--accent);
+  margin: 0 auto 2rem;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.hero-platforms {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+.hero-soon {
+  font-style: italic;
+  margin-top: 0.15rem;
+  font-size: 0.95rem;
+}
+
+/* ===== orb =====
+   Same radial gradient as the app's .orb / .orb-kasina (style.md).
+   Three stacked box-shadow halos: orange inner, pink mid, pink outer. */
+.orb-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+.orb {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 45% 45% in oklab,
+      #fff4c0 0%,
+      #f8f288 18%,
+      #f5d820 38%,
+      #ffb805 49%,
+      #ed7326 65%,
+      #e71f75 71%,
+      #870a3e 76%);
+  box-shadow:
+    0 0 60px var(--accent-glow),
+    0 0 100px rgba(231, 31, 117, 0.32),
+    0 0 160px rgba(231, 31, 117, 0.22);
+  animation: breathe 6s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 60px var(--accent-glow), 0 0 100px rgba(231, 31, 117, 0.32), 0 0 160px rgba(231, 31, 117, 0.22); }
+  50%      { transform: scale(1.04); box-shadow: 0 0 80px var(--accent-glow), 0 0 130px rgba(231, 31, 117, 0.40), 0 0 200px rgba(231, 31, 117, 0.28); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orb { animation: none; }
+}
+
+/* ===== buttons ===== */
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.6rem;
+  font-size: 1rem;
+  font-family: var(--font);
+  font-weight: 500;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 2px solid var(--accent);
+  text-decoration: none;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.15s ease, color 0.15s ease;
+}
+.btn:hover { transform: translateY(-1px); border-bottom: 2px solid var(--accent-hover); }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg-surface);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--bg-surface);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--accent);
+}
+.btn-ghost:hover {
+  background: var(--accent);
+  color: var(--bg-surface);
+}
+
+/* Dark mode: the dark (--bg-surface) label on a pink fill is low-contrast,
+   so bold it. Single-source weight var keeps the two dark-mode entry paths
+   (forced data-theme + OS preference) from duplicating the value. */
+:root { --btn-fill-weight: 500; }
+:root[data-theme="dark"] { --btn-fill-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --btn-fill-weight: 700; }
+}
+.btn-primary,
+.btn-tip { font-weight: var(--btn-fill-weight); }
+
+/* ===== 404 ===== */
+.notfound {
+  min-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1.5rem;
+}
+.notfound-code {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.notfound-title {
+  margin: 0 0 1rem;
+  font-size: 2.6rem;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+.notfound-sub {
+  margin: 0 auto 2rem;
+  max-width: 460px;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+/* ===== generic section ===== */
+.section {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+.section-title {
+  font-size: 1.75rem;
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-weight: 600;
+}
+.section-lead {
+  text-align: center;
+  color: var(--text-secondary);
+  margin: -0.5rem auto 2.5rem;
+  max-width: 600px;
+}
+
+/* ===== modes ===== */
+.modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.mode-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.75rem;
+}
+.mode-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  color: var(--accent);
+}
+.mode-card p { margin: 0 0 0.75rem; color: var(--text-primary); }
+.mode-card p.support { color: var(--text-secondary); }
+.mode-card p:last-child { margin-bottom: 0; }
+
+@media (max-width: 640px) {
+  .modes { grid-template-columns: 1fr; }
+}
+
+/* ===== screenshot ===== */
+.section-shot { padding-top: 1rem; padding-bottom: 1rem; }
+.screenshot-frame {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border-radius: 16px;
+}
+.screenshot-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ===== providers ===== */
+.providers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+.provider-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+}
+.provider-pill strong {
+  display: block;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+  font-size: 1rem;
+}
+.provider-pill span {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+@media (max-width: 640px) {
+  .providers { grid-template-columns: 1fr; }
+}
+
+/* ===== download ===== */
+.section-download { background: var(--bg-secondary); max-width: none; padding: 2rem 1.5rem 3rem; }
+.section-download > * { max-width: 880px; margin-left: auto; margin-right: auto; }
+
+.version-chip {
+  display: inline-block;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  color: var(--text-secondary);
+}
+
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 2rem auto;
+}
+.download-card {
+  background: var(--bg-surface);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.download-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--accent-glow);
+  color: var(--text-primary);
+}
+.download-card[data-detected="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+}
+.download-os {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.download-file {
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+.download-note {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.download-note code {
+  font-size: 0.8em;
+  background: var(--bg-card);
+}
+
+.download-alt {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 720px) {
+  .download-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== tip / donation ===== */
+.section-tip { padding: 2rem 1.5rem 1.5rem; }
+.tip-card {
+  max-width: 680px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.75rem 1.75rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.tip-card::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -20%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, var(--accent-glow), transparent 70%);
+  pointer-events: none;
+}
+.tip-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+  position: relative;
+}
+.tip-body {
+  margin: 0 auto 0.75rem;
+  max-width: 520px;
+  color: var(--text-secondary);
+  position: relative;
+}
+
+.tip-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+  position: relative;
+}
+
+/* Compress tip + download on mobile so users can see both at once. */
+@media (max-width: 720px) {
+  .section-tip { padding: 1.5rem 1rem 1rem; }
+  .tip-card { padding: 1.25rem 1.25rem; }
+  .tip-title { font-size: 1.2rem; margin-bottom: 0.5rem; }
+  .tip-body { font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .tip-buttons { margin-top: 1rem; gap: 0.5rem; }
+  .btn-tip, .btn-tip-ghost { padding: 0.45rem 0.95rem; font-size: 0.9rem; }
+
+  .section-download { padding: 1.5rem 1rem 2rem; }
+  .section-download .section-title { font-size: 1.4rem; margin-bottom: 0.75rem; }
+  .section-download .section-lead { margin-bottom: 1.25rem; }
+  .download-grid { gap: 0.6rem; margin: 1rem auto; }
+  .download-card { padding: 0.9rem 1rem; text-align: left; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem 1rem; }
+  .download-os { font-size: 1.05rem; margin: 0; }
+  .download-file { margin: 0; font-size: 0.85rem; grid-column: 2; }
+  .download-note { grid-column: 1 / -1; font-size: 0.8rem; margin-top: 0.15rem; }
+}
+
+.btn-tip {
+  padding: 0.6rem 1.25rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-surface);
+  border: 2px solid var(--accent);
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.15s ease;
+}
+.btn-tip:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--bg-surface);
+  box-shadow: 0 0 20px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.btn-tip-ghost {
+  padding: 0.6rem 1.25rem;
+  border-radius: 999px;
+  background: transparent;
+  border: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-decoration-color: var(--text-muted);
+  text-underline-offset: 4px;
+}
+.btn-tip-ghost:hover {
+  color: var(--text-primary);
+  text-decoration-color: var(--text-primary);
+  background: transparent;
+  border-color: transparent;
+}
+
+/* ===== thanks ===== */
+.section-thanks {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  padding: 2rem 1.5rem 1rem;
+  max-width: 570px;
+}
+.section-thanks a { color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+.section-thanks a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ===== faq ===== */
+.faq-list {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.faq-controls {
+  max-width: 720px;
+  margin: 0 auto 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+.faq-toggle-all {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  color: var(--accent);
+  padding: 0.25rem 0.25rem;
+  border-bottom: 1px solid transparent;
+}
+.faq-toggle-all:hover { border-bottom-color: var(--accent); }
+.faq-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0 1.25rem;
+}
+.faq-item summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 1rem 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: "+";
+  color: var(--accent);
+  font-size: 1.4rem;
+  line-height: 1;
+  margin-left: 1rem;
+  transition: transform 0.2s ease;
+}
+.faq-item[open] summary::after { transform: rotate(45deg); }
+.faq-item p {
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ===== footer ===== */
+.footer {
+  text-align: center;
+  padding: 3rem 1.5rem 4rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+.footer-brand { margin-bottom: 1rem; }
+.footer-brand .brand-mark { font-size: 1.8em; }
+.footer-links {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+.footer-links a {
+  color: var(--text-secondary);
+  border-bottom: 1px solid transparent;
+}
+.footer-links a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.footer-dot { color: var(--text-muted); }
+.footer-fine { margin: 0; font-size: 0.95rem; }
+.footer-fine a {
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.footer-fine a:hover { color: var(--accent); border-bottom-color: var(--accent); }

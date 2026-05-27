@@ -41,7 +41,7 @@ Both share the same backend modules for facilitation, LLM, STT, and TTS.
 | Module | Purpose |
 |--------|---------|
 | `facilitation/` | Core logic: `PacingController` (turn-taking state machine), `PromptBuilder` (composable system prompts), `SessionManager` (conversation history) |
-| `llm/` | Protocol-based LLM providers: claude_proxy (subprocess to `claude` CLI for subscription routing), anthropic, openai, openrouter, venice, ollama |
+| `llm/` | Protocol-based LLM providers: claude_proxy (subprocess to `claude` CLI for subscription routing), anthropic, openai, openrouter, venice, groq, ollama |
 | `stt/whisper.py` | Whisper speech-to-text, loads model in background |
 | `tts/` | Protocol-based TTS engines: macos, piper, elevenlabs; falls back to browser speechSynthesis |
 | `audio/` | Audio I/O and `VoiceActivityDetector` (energy-based with adaptive noise floor) |
@@ -50,10 +50,19 @@ Both share the same backend modules for facilitation, LLM, STT, and TTS.
 
 ### Web server (`src/web/`)
 
-- `app.py` — `create_app()` factory, background tasks (check-in loop, whisper loading, update check)
-- `routes.py` — HTTP routes: pages, API endpoints for providers/models/sessions/voices/updates
-- `socketio_handlers.py` — WebSocket events: `start_session`, `user_message`, `audio_data`, `end_session`, etc.
+- `app.py` — `create_app()` factory
+- `background.py` — background tasks (check-in loop, whisper loading, update check)
+- `routes.py` — page routes (`/`, `/session`, `/history`, `/settings`, `sw.js`) + session/voice/TTS/window API endpoints; also registers the specialized route modules below
+- `config_routes.py` — config GET/POST + config-folder routes
+- `provider_routes.py` — provider/model endpoints (Ollama version/RAM/GPU checks, model-tier recommendation)
+- `tool_routes.py` — tool-install endpoints (Ollama restart/upgrade)
+- `socketio_handlers.py` — registers socket events (delegates to the handler modules below) + shared helpers (`get_session`, `speak_to_audio`)
+- `session_handlers.py` — socket events: connect/disconnect, `start_session`, `end_session`, summary prefetch
+- `message_handlers.py` — socket events: `user_message` (LLM response), resume-intent classification, noting labels
+- `audio_handlers.py` — socket events: `audio_data` (Whisper transcription)
 - `meditation_session.py` — `WebMeditationSession` wraps per-session state (LLM provider, prompts, pacing, session manager)
+- `auth.py` — optional password authentication
+- `cert.py` — self-signed certificate generation for LAN HTTPS
 
 ### Frontend (`src/web/static/js/`)
 
@@ -74,7 +83,7 @@ A style guide exists in docs/style.md
 - **Protocol-based providers**: LLM and TTS use duck-typed protocols. Add new providers by implementing the interface and registering in the factory function.
 - **Composable prompts**: `PromptBuilder` assembles system prompts from orthogonal dimensions — focuses (body, emotions, parts, open awareness), qualities (playful, compassionate, spacious, etc.), directiveness (0-10), and verbosity.
 - **`[HOLD]` signal**: The LLM can prefix responses with `[HOLD]` to enter silence mode. `parse_hold_signal()` strips this prefix. Silence mode is exited when the user speaks again.
-- **Pacing state machine**: IDLE → LISTENING → PROCESSING → RESPONDING → SILENT_HOLD. Check-ins use exponential backoff (`extended_silence_sec * 2^count`).
+- **Pacing state machine**: IDLE → LISTENING → PROCESSING → RESPONDING → SILENT_HOLD. After `silence_checkin_sec` of silence the facilitator offers a gentle check-in (a canned phrase, not an LLM call); the timer resets after each, so check-ins recur at a fixed interval.
 - **Background model loading**: Whisper loads asynchronously via `socketio.start_background_task()`. The `audio_data` handler guards with `app.whisper_model_ready`.
 - **Context strategies**: SessionManager supports `full` (all history) or `rolling` (last N exchanges) context windows for the LLM.
 
@@ -93,13 +102,15 @@ Background check-in loop runs every 10s, sends gentle prompts after extended sil
 All config is in `config/default.yaml` with dataclass defaults in `src/config.py`. Key env vars:
 - `ALOUD_SECRET_KEY` — Flask secret key
 - `ALOUD_AUTO_OPEN` — auto-open browser on startup
-- API keys: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `VENICE_API_KEY`, `OPENAI_API_KEY`
+- API keys: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `VENICE_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`
 - YAML supports `${ENV_VAR}` substitution for `llm.api_key` and `tts.api_key`
 
 ## Workflow notes
 
 - **Use `uv`** for all Python commands (`uv run`, `uv pip`). Do not use `.venv/bin/python` directly.
 - **No git push access** — Claude Code is not configured to push to GitHub. End sessions with `git commit` only; the user will push manually.
+- **Pre-release check** — when asked to "run the pre-release check", or before cutting a release, work through `dev-docs/pre-release-checklist.md`: verify docs/copy still match the code and flag downstream consequences of recent changes.
+- **Docs reference code by file + symbol, not line numbers** — line numbers rot on every edit; a `file.js` path plus a function/constant name stays greppable and durable. Don't write line numbers into docs.
 
 ## Issue tracking
 

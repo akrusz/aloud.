@@ -14,6 +14,13 @@
       <stop offset="1" stop-color="#870a3e" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <circle cx="512" cy="512" r="500" fill="url(#glow)"/>
-  <circle cx="512" cy="512" r="452" fill="url(#orb)"/>
+
+  <circle cx="512" cy="512" r="492" fill="url(#glow)"/>
+  <circle cx="512" cy="512" r="392" fill="url(#orb)"/>
+
+  <!-- centered "a" monogram: big enough to read at favicon/dock sizes -->
+  <g font-family="Knewave" font-size="810" text-anchor="middle">
+    <text x="500" y="680" fill="#e71f75" stroke="#ffd820" stroke-width="50"
+          stroke-linejoin="round" paint-order="stroke">a</text>
+  </g>
 </svg>
