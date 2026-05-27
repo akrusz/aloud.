@@ -6,3 +6,6 @@
 # Local SQLite store if a dev implementation writes one.
 *.sqlite
 *.sqlite-*
+
+# Generated voice audition output (scripts/preview-voices.ts).
+voice-previews/
