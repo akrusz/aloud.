@@ -64,10 +64,24 @@ load logic is `loadConfig` in `config.ts`.
 | `ALOUD_SESSION_SECRET` | signing session JWTs | `openssl rand -hex 32`; required in prod |
 | `GOOGLE_CLIENT_IDS` | sign-in | comma-sep web/iOS/android client ids; required in prod |
 | `ANTHROPIC_API_KEY` / `GROQ_API_KEY` / `OPENROUTER_API_KEY` | LLM forwarding | ≥1 required in prod; server-held, never sent to client |
+| `GEMINI_API_KEY` | value-tier LLM (Gemini direct) | Google AI Studio key; powers `gemini-2.5-flash-lite` without OpenRouter's fee |
+| `GROQ_API_KEY` | **also** server STT | same key drives `/v1/stt` (Whisper) |
+| `GOOGLE_TTS_API_KEY` | server TTS | Google Cloud TTS key (Cloud TTS API enabled); distinct from `GEMINI_API_KEY`. Unset → `/v1/tts` reports not-configured, client falls back to browser TTS |
 | `ALOUD_FREE_SIGNUP_CREDITS` | free tier | default 20 (≈ $1 provider cost) |
 | `ALOUD_FREE_GRANT_BUDGET_PER_HOUR` | abuse brake | default 2000 (≈ 100 signups/hr) |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | buying credits | optional; without them, free-grant only |
 | `ALOUD_ADMIN_TOKEN` | `/v1/admin/metrics` | unset = endpoint 404s (disabled, not open) |
+
+### Keys for the full hosted pipeline
+
+The whole meditation loop can run through the server (no Flask):
+
+| Hop | Provider | Key |
+|---|---|---|
+| LLM (premium) | Anthropic | `ANTHROPIC_API_KEY` |
+| LLM (value tier) | Google Gemini (direct) | `GEMINI_API_KEY` |
+| STT | Groq Whisper | `GROQ_API_KEY` |
+| TTS | Google Cloud TTS | `GOOGLE_TTS_API_KEY` |
 
 ### Minimal "actually forward an LLM turn" setup
 
@@ -105,6 +119,13 @@ In the UI: pick provider **aloud (hosted)**, choose a model (the picker is
 populated live from `GET /v1/me/models`), start a session. On first LLM turn
 the UI auto-signs-in via the dev route and caches the token.
 
+**On the hosted provider, STT and TTS also route through the server** —
+`/v1/stt` (Groq) and `/v1/tts` (Google), so the whole pipeline is Flask-free.
+STT needs `GROQ_API_KEY`; TTS needs `GOOGLE_TTS_API_KEY` (without it the client
+falls back to browser `speechSynthesis`). Wiring: `stt-picker.createServerAloudStt`
+and `tts-picker.createServerAloudTts`, selected in `views/session.ts` when
+`setup.provider === 'aloud'`.
+
 **Auth — dev shortcut.** `/v1/llm/complete` is behind bearer auth. Until the
 Google OAuth flow exists (`meditation-pal-rfb`), the UI's `server-auth.ts`
 falls back to `POST /v1/auth/dev` — a **local-only** route that mints a session
@@ -123,10 +144,6 @@ curl -s -X POST localhost:8787/v1/llm/complete -H "authorization: Bearer $TOK" \
   -d '{"provider":"anthropic","model":"claude-sonnet-4-6","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-> STT and TTS still go through Flask / browser-native — the server has no
-> STT/TTS routes yet (`meditation-pal-age` / `2gz`). Only the LLM path is
-> repointed at the server today.
-
 ## Routes
 
 Wired in `app.ts`; the entire client↔server wire surface is `contract.ts`.
@@ -139,6 +156,8 @@ Wired in `app.ts`; the entire client↔server wire surface is `contract.ts`.
 | `GET /v1/me` | session | account + live balance |
 | `GET /v1/me/models` `/estimates` `/packs` | public | published pricing |
 | `POST /v1/llm/complete` | session | metered proxy: hold → forward → settle to actual cost (SSE or JSON) |
+| `POST /v1/stt` | session | metered STT: raw PCM body → Groq Whisper → transcript; debits by duration |
+| `POST /v1/tts` | session | metered TTS: `{text,voice?,rate?}` → Google Cloud TTS → audio/mpeg; cost in headers |
 | `POST /v1/billing/checkout` | session | start Stripe Checkout for a pack |
 | `POST /v1/billing/webhook` | Stripe sig | credit the ledger after signature verify |
 | `GET /v1/admin/metrics` | admin token | ledger aggregates for spend monitoring |
@@ -152,21 +171,21 @@ In rough priority order. Tracked under epic `meditation-pal-bot`.
    and vanish on restart. A durable `CreditsStore` impl (Postgres/SQLite) is
    needed before charging anyone. The interface is `credits/store.ts`; swap it
    in `deps.ts`.
-2. **STT endpoint for web** (`meditation-pal-age`) — the server proxies LLM
-   only; there's no `/v1/stt` route yet. Web STT still hits Flask. Plan is
-   Groq Whisper behind this server.
-3. **TTS endpoint for web** (`meditation-pal-2gz`) — same story; no server TTS
-   route yet.
-4. **Repoint the UI adapters** — `ts/ui/src/adapters/{server-whisper-stt,
-   server-tts,claude-proxy-http}` currently target the desktop Flask backend.
-   The web demo needs them pointed at this server (`meditation-pal-vd3`).
-5. **History-prefix caching** (`meditation-pal-cet`) — the cost estimates in
+2. **Real auth** (`meditation-pal-rfb`) — production uses Google OAuth; the dev
+   sign-in 404s in strict mode, so `ensureServerToken()` needs to branch to the
+   real flow for a live deploy.
+3. **History-prefix caching** (`meditation-pal-cet`) — the cost estimates in
    `/v1/me/estimates` assume conversation-history prompt caching that isn't
    implemented, so LLM estimates are optimistic until it lands (needs a 1h
    cache TTL — meditation's silences exceed the 5-min default).
-6. **Deploy infra** (`meditation-pal-a3u`) — pick Fly/Render, real TLS (mic
+4. **Deploy infra** (`meditation-pal-a3u`) — pick Fly/Render, real TLS (mic
    needs a secure context; `cert.py` self-signed is LAN-only), host `ui/dist`
-   static, point the proxy at it via CORS.
+   static, point the proxy at it via CORS + `VITE_ALOUD_SERVER_URL`.
+
+**Done since the first cut:** Google-direct value-tier LLM; the configurable
+build-time server base URL (`VITE_ALOUD_SERVER_URL`); server STT
+(`meditation-pal-age`) and TTS (`meditation-pal-2gz`); the UI LLM/STT/TTS
+adapters repointed at this server on the hosted provider (`meditation-pal-vd3`).
 
 ## Test/lint matrix (what "green" means here)
 
