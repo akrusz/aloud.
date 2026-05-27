@@ -1,0 +1,450 @@
+/**
+ * Voice picker — scoring, modal rendering, preview.
+ *
+ * Port of src/web/static/js/voice-picker.js. The classes used by
+ * renderVoiceList (.voice-row, .voice-tier-label, .voice-row-name,
+ * .voice-row-preview, etc.) come from the lifted CSS, so visual
+ * styling lands automatically.
+ *
+ * Scoring tiers (descending):
+ *   3  Premium  — explicit "Premium" in name
+ *   2  Quality  — "Enhanced", "Online", "Natural"
+ *   1  Standard — Google, known-good macOS voice list, Piper
+ *   0  Other    — everything else
+ *
+ * A separate "Recommended" group appears above the tiers when any
+ * voice carries `recommended: true` (Piper Libritts speakers, macOS
+ * Premium voices in `aggregate_voices()`).
+ */
+
+import type { TtsEngine } from '../../src/platform/index.js';
+
+import { createTtsForVoice } from './adapters/tts-picker.js';
+
+// ---------------------------------------------------------------------------
+// Public types
+// ---------------------------------------------------------------------------
+
+/** Raw voice metadata returned from `/api/voices`. */
+export interface ServerVoice {
+    name: string;
+    lang?: string;
+    engine?: string;
+    recommended?: boolean;
+    needs_download?: boolean;
+    downloaded?: boolean;
+    size_display?: string;
+}
+
+/** Scored, sorted voice entry for the picker UI. */
+export interface ScoredVoice {
+    name: string;
+    lang: string;
+    score: number;
+    engine: string | undefined;
+    /** Backing browser SpeechSynthesisVoice when available. */
+    browserVoice?: SpeechSynthesisVoice;
+    recommended?: boolean;
+    needsDownload?: boolean;
+    downloaded?: boolean;
+    sizeDisplay?: string;
+}
+
+export const TIER_LABELS: Record<number, string> = {
+    3: 'Premium',
+    2: 'Quality',
+    1: 'Standard',
+    0: 'Other',
+};
+
+const ENGINE_LABELS: Record<string, string> = {
+    macos: 'macOS',
+    piper: 'Piper',
+    elevenlabs: 'ElevenLabs',
+    browser: 'Browser',
+};
+
+export const PREVIEW_PHRASE = "Welcome to glow. I'll be your guide.";
+
+// Known high-quality macOS base voice names (without Premium/Enhanced suffix).
+const MACOS_QUALITY_VOICES =
+    /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
+
+// ---------------------------------------------------------------------------
+// Scoring
+// ---------------------------------------------------------------------------
+
+export function scoreVoice(name: string, engine?: string): number {
+    const baseName = name.replace(/\s*\(.*\)$/, '');
+    if (/Premium/i.test(name)) return 3;
+    if (/Enhanced/i.test(name)) return 2;
+    if (/Online|Natural/i.test(name)) return 2;
+    if (/^Google/i.test(name)) return 1;
+    if (MACOS_QUALITY_VOICES.test(baseName)) return 1;
+    if (engine === 'piper') return 1;
+    return 0;
+}
+
+/**
+ * Build a scored, sorted voice list from server + browser voices.
+ * Server voices come first when present (they're what actually speak
+ * through Flask's TTS engines). Browser voices fill in when
+ * `includeBrowserVoices` is true and the server engine is browser-only
+ * or no server is reachable.
+ *
+ * Filters to English plus the navigator's primary language.
+ */
+export function buildScoredVoiceList(
+    serverVoices: readonly ServerVoice[] | null,
+    includeBrowserVoices: boolean
+): ScoredVoice[] {
+    const langPrefix = (navigator.language || 'en').split(/[-_]/)[0];
+    const browserVoices =
+        includeBrowserVoices && typeof speechSynthesis !== 'undefined'
+            ? speechSynthesis.getVoices()
+            : [];
+
+    const browserByName = new Map<string, SpeechSynthesisVoice>();
+    for (const v of browserVoices) browserByName.set(v.name, v);
+
+    const scored: ScoredVoice[] = [];
+    const seen = new Set<string>();
+
+    if (serverVoices) {
+        for (const sv of serverVoices) {
+            const vLang = (sv.lang ?? '').split(/[-_]/)[0];
+            if (vLang !== 'en' && vLang !== langPrefix) continue;
+
+            const score = scoreVoice(sv.name, sv.engine);
+
+            let browserVoice = browserByName.get(sv.name);
+            if (!browserVoice && !sv.name.includes('(')) {
+                const baseName = sv.name.replace(/\s*\(.*\)$/, '');
+                browserVoice = browserByName.get(baseName);
+            }
+
+            const entry: ScoredVoice = {
+                name: sv.name,
+                lang: sv.lang ?? '',
+                score,
+                engine: sv.engine,
+            };
+            if (browserVoice) entry.browserVoice = browserVoice;
+            if (sv.needs_download) {
+                entry.needsDownload = true;
+                if (sv.downloaded) entry.downloaded = true;
+                if (sv.size_display) entry.sizeDisplay = sv.size_display;
+            }
+            if (sv.recommended) entry.recommended = true;
+            scored.push(entry);
+            seen.add(sv.name);
+            if (browserVoice) seen.add(browserVoice.name);
+        }
+    }
+
+    // Browser-only voices not already covered.
+    for (const v of browserVoices) {
+        if (seen.has(v.name)) continue;
+        const vLang = (v.lang || '').split(/[-_]/)[0];
+        if (vLang !== 'en' && vLang !== langPrefix) continue;
+
+        let score = scoreVoice(v.name);
+        // Non-local browser voices (Google etc.) bump up — they're usually
+        // the better option than local-but-low-quality fallbacks.
+        if (!v.localService) score = Math.max(score, 2);
+
+        scored.push({
+            name: v.name,
+            lang: v.lang || '',
+            score,
+            engine: 'browser',
+            browserVoice: v,
+        });
+        seen.add(v.name);
+    }
+
+    scored.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const ar = a.recommended ? 1 : 0;
+        const br = b.recommended ? 1 : 0;
+        if (ar !== br) return br - ar;
+        return a.name.localeCompare(b.name);
+    });
+
+    return scored;
+}
+
+// ---------------------------------------------------------------------------
+// Modal rendering
+// ---------------------------------------------------------------------------
+
+export interface RenderListOptions {
+    /** Show an engine badge (e.g. "macOS") after the voice name. */
+    showEngine?: boolean;
+    /** Show an Uninstall button for downloaded Piper voices. */
+    showUninstall?: boolean;
+}
+
+/**
+ * Render the voice modal list into a container. Splits recommended
+ * voices out into their own section, then groups the rest by tier.
+ */
+export function renderVoiceList(
+    listEl: HTMLElement,
+    voices: readonly ScoredVoice[],
+    selectedName: string | null,
+    options: RenderListOptions = {}
+): void {
+    listEl.innerHTML = '';
+
+    if (voices.length === 0) {
+        listEl.innerHTML =
+            '<div class="voice-tier-label">No text-to-speech voices available</div>';
+        return;
+    }
+
+    const recommended: ScoredVoice[] = [];
+    const tiers: Record<number, ScoredVoice[]> = {};
+    for (const v of voices) {
+        if (v.recommended) {
+            recommended.push(v);
+        } else {
+            (tiers[v.score] ??= []).push(v);
+        }
+    }
+
+    if (recommended.length > 0) {
+        appendTierLabel(listEl, 'Recommended');
+        for (const v of recommended) appendRow(listEl, v, selectedName, options);
+    }
+
+    for (const tier of [3, 2, 1, 0] as const) {
+        const items = tiers[tier];
+        if (!items || items.length === 0) continue;
+        appendTierLabel(listEl, TIER_LABELS[tier] ?? 'Other');
+        for (const v of items) appendRow(listEl, v, selectedName, options);
+    }
+}
+
+function appendTierLabel(parent: HTMLElement, text: string): void {
+    const el = document.createElement('div');
+    el.className = 'voice-tier-label';
+    el.textContent = text;
+    parent.appendChild(el);
+}
+
+function appendRow(
+    parent: HTMLElement,
+    entry: ScoredVoice,
+    selectedName: string | null,
+    options: RenderListOptions
+): void {
+    const row = document.createElement('div');
+    row.className = 'voice-row';
+    if (entry.needsDownload && !entry.downloaded) row.classList.add('voice-row-locked');
+    if (entry.name === selectedName) row.classList.add('selected');
+    row.dataset['voiceName'] = entry.name;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'voice-row-name';
+    nameSpan.textContent = entry.name;
+    if (options.showEngine && entry.engine) {
+        const badge = document.createElement('span');
+        badge.className = 'voice-row-engine';
+        badge.textContent = ENGINE_LABELS[entry.engine] ?? entry.engine;
+        nameSpan.appendChild(badge);
+    }
+    row.appendChild(nameSpan);
+
+    if (entry.name === selectedName) {
+        const check = document.createElement('span');
+        check.className = 'voice-row-check';
+        check.textContent = '✓';
+        row.appendChild(check);
+    }
+
+    if (entry.needsDownload) {
+        if (entry.downloaded) {
+            if (options.showUninstall) {
+                const unBtn = document.createElement('button');
+                unBtn.type = 'button';
+                unBtn.className = 'voice-row-uninstall';
+                unBtn.textContent = 'Uninstall';
+                unBtn.dataset['voiceName'] = entry.name;
+                unBtn.dataset['engine'] = entry.engine ?? '';
+                row.appendChild(unBtn);
+            }
+        } else {
+            if (entry.sizeDisplay) {
+                const size = document.createElement('span');
+                size.className = 'voice-row-size';
+                size.textContent = entry.sizeDisplay;
+                row.appendChild(size);
+            }
+            const dlBtn = document.createElement('button');
+            dlBtn.type = 'button';
+            dlBtn.className = 'voice-row-download';
+            dlBtn.textContent = 'Download';
+            dlBtn.dataset['voiceName'] = entry.name;
+            dlBtn.dataset['engine'] = entry.engine ?? '';
+            row.appendChild(dlBtn);
+        }
+    }
+
+    const previewBtn = document.createElement('button');
+    previewBtn.type = 'button';
+    previewBtn.className = 'voice-row-preview';
+    previewBtn.textContent = 'Preview';
+    previewBtn.dataset['voiceName'] = entry.name;
+    if (entry.needsDownload && !entry.downloaded) {
+        previewBtn.classList.add('preview-unavailable');
+        previewBtn.title = 'Download this voice first to preview it';
+    }
+    row.appendChild(previewBtn);
+
+    parent.appendChild(row);
+}
+
+/**
+ * Update the checkmark/selected state without re-rendering the whole list.
+ */
+export function updateVoiceSelection(
+    listEl: HTMLElement,
+    selectedName: string
+): void {
+    const rows = listEl.querySelectorAll<HTMLElement>('.voice-row');
+    rows.forEach((row) => {
+        const isSelected = row.dataset['voiceName'] === selectedName;
+        row.classList.toggle('selected', isSelected);
+        const existing = row.querySelector<HTMLElement>('.voice-row-check');
+        if (isSelected && !existing) {
+            const check = document.createElement('span');
+            check.className = 'voice-row-check';
+            check.textContent = '✓';
+            const preview = row.querySelector<HTMLElement>('.voice-row-preview');
+            if (preview) row.insertBefore(check, preview);
+            else row.appendChild(check);
+        } else if (!isSelected && existing) {
+            existing.remove();
+        }
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Preview
+// ---------------------------------------------------------------------------
+
+let activePreviewEngine: TtsEngine | null = null;
+
+/**
+ * Construct the right TTS engine for the voice and speak the preview
+ * phrase. `voiceId` here is the raw voice name (not the 'server:'/
+ * 'browser:' prefixed id used by SessionSetup) — matches Python's
+ * previewVoice() signature. Engine override lets callers force a
+ * specific backend when the same voice name exists across engines.
+ */
+export async function previewVoice(
+    voiceName: string,
+    rate?: number,
+    engine?: string
+): Promise<void> {
+    stopPreview();
+    try {
+        // Build a prefixed id that createTtsForVoice understands. We
+        // assume server voices unless the engine is explicitly 'browser'.
+        const id = engine === 'browser' ? `browser:${voiceName}` : `server:${voiceName}`;
+        const { engine: ttsEngine } = await createTtsForVoice(id);
+        activePreviewEngine = ttsEngine;
+        const text =
+            voiceName === 'Zarvox' ? 'Come. On. Fahoogwuhgods.' : PREVIEW_PHRASE;
+        await ttsEngine.speak(text, rate !== undefined ? { rate } : undefined);
+    } catch {
+        // Preview failures are non-fatal — the user can try a different
+        // voice or check that Flask is running.
+    } finally {
+        if (activePreviewEngine) {
+            // Best-effort cleanup; the engine handles double-cancel safely.
+            void activePreviewEngine.cancel();
+            activePreviewEngine = null;
+        }
+    }
+}
+
+export function stopPreview(): void {
+    if (activePreviewEngine) {
+        void activePreviewEngine.cancel();
+        activePreviewEngine = null;
+    }
+    if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+}
+
+// ---------------------------------------------------------------------------
+// Modal HTML helpers
+// ---------------------------------------------------------------------------
+
+export interface VoiceModalConfig {
+    /** id for the overlay div. */
+    modalId: string;
+    /** id for the close button. */
+    closeId: string;
+    /** id for the list container. */
+    listId: string;
+    title?: string;
+    /** Speed slider — omit to hide the footer. */
+    speedSliderId?: string;
+    speedLabelId?: string;
+    /** Initial slider value (wpm). */
+    speedValue?: number;
+}
+
+/**
+ * Render the picker_modal markup. Mirrors templates/_voice_modal.html.
+ */
+export function renderVoiceModalHTML(cfg: VoiceModalConfig): string {
+    const title = cfg.title ?? 'Choose Voice';
+    const speedValue = cfg.speedValue ?? 110;
+    const footer = cfg.speedSliderId
+        ? `
+        <div class="voice-modal-footer">
+            <label class="voice-modal-speed-label" for="${cfg.speedSliderId}">Speed</label>
+            <input type="range" id="${cfg.speedSliderId}" min="60" max="240"
+                value="${speedValue}" step="10">
+            <span class="voice-modal-speed-value" id="${cfg.speedLabelId ?? ''}">${speedValue} wpm</span>
+        </div>`
+        : '';
+    return `
+    <div class="voice-modal-overlay hidden" id="${cfg.modalId}">
+        <div class="voice-modal">
+            <div class="voice-modal-header">
+                <span class="voice-modal-title">${title}</span>
+                <button type="button" class="voice-modal-close" id="${cfg.closeId}">&times;</button>
+            </div>
+            <div class="voice-modal-list" id="${cfg.listId}"></div>${footer}
+        </div>
+    </div>`;
+}
+
+// ---------------------------------------------------------------------------
+// /api/voices loader
+// ---------------------------------------------------------------------------
+
+const SERVER_VOICES_URL = '/api/voices';
+let serverVoicesCache: ServerVoice[] | null = null;
+
+export async function fetchServerVoices(force = false): Promise<ServerVoice[] | null> {
+    if (!force && serverVoicesCache !== null) return serverVoicesCache;
+    try {
+        const response = await fetch(SERVER_VOICES_URL);
+        if (!response.ok) return null;
+        const data = (await response.json()) as ServerVoice[];
+        serverVoicesCache = data;
+        return serverVoicesCache;
+    } catch {
+        // Flask isn't reachable — we'll fall back to browser voices only.
+        return null;
+    }
+}
+
+export function invalidateServerVoicesCache(): void {
+    serverVoicesCache = null;
+}

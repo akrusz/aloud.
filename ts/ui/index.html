@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>aloud.</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Knewave&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="/src/style.css" />
+    </head>
+    <body>
+        <nav class="nav">
+            <div class="nav-start">
+                <a href="#" class="nav-brand" id="aboutLink" title="About aloud.">aloud.</a>
+            </div>
+            <!-- nav-center is populated by the session view (orb + hamburger).
+                 Idle pages leave it empty. -->
+            <div class="nav-center" id="navCenter"></div>
+            <div class="nav-links" id="navLinks">
+                <a href="#" data-nav="setup" class="nav-active"><span class="nav-word-new">New </span>Session</a>
+                <a href="#" data-nav="history">History</a>
+                <a href="#" data-nav="settings">Settings</a>
+                <button type="button" class="theme-toggle"
+                    data-theme-toggle aria-label="Toggle theme"></button>
+            </div>
+        </nav>
+
+        <main class="main">
+            <div id="app-root">
+                <!-- Setup, session, and history views mount here. -->
+            </div>
+        </main>
+
+        <!-- About modal — lifted from base.html. Update checker omitted
+             (desktop-app-specific; tracked in meditation-pal-cfy). -->
+        <div class="about-modal-overlay hidden" id="aboutModal">
+            <div class="about-modal">
+                <div class="about-modal-header">
+                    <span class="about-modal-title">About</span>
+                    <button class="voice-modal-close" id="aboutClose">&times;</button>
+                </div>
+                <div class="about-modal-body">
+                    <div class="about-app-name">aloud.</div>
+                    <div class="about-version" id="aboutVersion"></div>
+                    <div class="about-author">By Alex Krusz</div>
+                    <div class="about-links">
+                        <a href="https://krusz.net" target="_blank" rel="noopener">krusz.net</a>
+                        <a href="https://github.com/akrusz" target="_blank" rel="noopener">GitHub</a>
+                    </div>
+                    <div class="about-donate-label">donate</div>
+                    <div class="about-links about-donate">
+                        <a href="https://ko-fi.com/alexkrusz" target="_blank" rel="noopener">ko-fi</a>
+                        <a href="https://venmo.com/Alex-Krusz" target="_blank" rel="noopener">venmo</a>
+                        <span class="about-eth" title="Click to copy">krusz.eth</span>
+                        <a href="mailto:lexkrusz@gmail.com?subject=aloud">kind words</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>

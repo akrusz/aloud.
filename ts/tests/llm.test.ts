@@ -1,0 +1,516 @@
+import { describe, it, expect, vi } from 'vitest';
+
+import { AnthropicProvider } from '../src/llm/anthropic.js';
+import { OllamaProvider } from '../src/llm/ollama.js';
+import {
+    OpenAIProvider,
+    OpenRouterProvider,
+    VeniceProvider,
+    GroqProvider,
+} from '../src/llm/openai.js';
+import type { StreamChunk } from '../src/llm/base.js';
+
+function mockSseResponse(events: string[]): Response {
+    // Each SSE event is joined as one or more lines, separated by blank line.
+    const body = events.map((e) => e.endsWith('\n\n') ? e : e + '\n\n').join('');
+    return new Response(body, {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+    });
+}
+
+function mockNdjsonResponse(lines: object[]): Response {
+    const body = lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
+    return new Response(body, {
+        status: 200,
+        headers: { 'content-type': 'application/x-ndjson' },
+    });
+}
+
+async function collectStream(
+    iter: AsyncIterable<StreamChunk>
+): Promise<{ text: string; finishReason: string | null; tokensUsed: number | null }> {
+    let text = '';
+    let finishReason: string | null = null;
+    let tokensUsed: number | null = null;
+    for await (const chunk of iter) {
+        text += chunk.text;
+        if (chunk.done) {
+            finishReason = chunk.finishReason ?? null;
+            tokensUsed = chunk.tokensUsed ?? null;
+        }
+    }
+    return { text, finishReason, tokensUsed };
+}
+
+function mockJsonResponse(data: unknown, init: { ok?: boolean; status?: number } = {}): Response {
+    const body = JSON.stringify(data);
+    return new Response(body, {
+        status: init.status ?? (init.ok === false ? 500 : 200),
+        headers: { 'content-type': 'application/json' },
+    });
+}
+
+describe('AnthropicProvider', () => {
+    it('throws if no API key provided and no proxy URL', () => {
+        expect(() => new AnthropicProvider({ apiKey: '' })).toThrow(/API key/);
+    });
+
+    it('accepts an empty apiKey when baseUrl points at a proxy', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({ content: [{ type: 'text', text: 'ok' }] })
+        );
+        const provider = new AnthropicProvider({
+            baseUrl: '/api/llm/anthropic/messages',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const [, init] = fetchImpl.mock.calls[0]!;
+        const headers = (init as RequestInit).headers as Record<string, string>;
+        // No x-api-key header — proxy injects it server-side
+        expect(headers['x-api-key']).toBeUndefined();
+        expect(headers['anthropic-version']).toBe('2023-06-01');
+    });
+
+    it('sends the system prompt with ephemeral cache_control and strips system from messages', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({
+                content: [{ type: 'text', text: 'Welcome.' }],
+                stop_reason: 'end_turn',
+                usage: { input_tokens: 100, output_tokens: 5 },
+            })
+        );
+        const provider = new AnthropicProvider({
+            apiKey: 'test-key',
+            model: 'claude-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+
+        const result = await provider.complete(
+            [
+                { role: 'system', content: 'should be stripped' },
+                { role: 'user', content: 'hi' },
+            ],
+            { system: 'be warm' }
+        );
+
+        expect(result.text).toBe('Welcome.');
+        expect(result.finishReason).toBe('end_turn');
+        expect(result.tokensUsed).toBe(105);
+
+        expect(fetchImpl).toHaveBeenCalledTimes(1);
+        const [url, init] = fetchImpl.mock.calls[0]!;
+        expect(url).toContain('/v1/messages');
+        const headers = (init as RequestInit).headers as Record<string, string>;
+        expect(headers['x-api-key']).toBe('test-key');
+        expect(headers['anthropic-version']).toBe('2023-06-01');
+
+        const body = JSON.parse((init as RequestInit).body as string);
+        expect(body.model).toBe('claude-test');
+        expect(body.system).toEqual([
+            { type: 'text', text: 'be warm', cache_control: { type: 'ephemeral' } },
+        ]);
+        // System messages are filtered out of the messages array
+        expect(body.messages).toEqual([{ role: 'user', content: 'hi' }]);
+    });
+
+    it('omits the system field when no system prompt provided', async () => {
+        const fetchImpl = vi.fn(async () => mockJsonResponse({ content: [{ type: 'text', text: '' }] }));
+        const provider = new AnthropicProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const body = JSON.parse(((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string);
+        expect(body.system).toBeUndefined();
+    });
+
+    it('surfaces API errors with the status code', async () => {
+        const fetchImpl = vi.fn(async () => new Response('rate limited', { status: 429 }));
+        const provider = new AnthropicProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await expect(provider.complete([{ role: 'user', content: 'hi' }])).rejects.toThrow(/429/);
+    });
+
+    it('completeStream yields incremental text deltas + final usage', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockSseResponse([
+                'event: message_start\ndata: {"type":"message_start"}',
+                'event: content_block_start\ndata: {"type":"content_block_start"}',
+                'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello"}}',
+                'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":" there."}}',
+                'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":10,"output_tokens":3}}',
+                'event: message_stop\ndata: {"type":"message_stop"}',
+            ])
+        );
+        const provider = new AnthropicProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await collectStream(
+            provider.completeStream([{ role: 'user', content: 'hi' }])
+        );
+        expect(result.text).toBe('Hello there.');
+        expect(result.finishReason).toBe('end_turn');
+        expect(result.tokensUsed).toBe(13);
+
+        // Request body should have stream: true
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        expect(body.stream).toBe(true);
+    });
+});
+
+describe('OllamaProvider', () => {
+    it('sends system as a leading message and uses num_predict for max tokens', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({
+                message: { content: 'What do you notice?' },
+                done_reason: 'stop',
+                prompt_eval_count: 20,
+                eval_count: 8,
+            })
+        );
+        const provider = new OllamaProvider({
+            model: 'qwen3.5:4b',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+
+        const result = await provider.complete(
+            [{ role: 'user', content: "I'm here" }],
+            { system: 'be a facilitator', maxTokens: 150 }
+        );
+
+        expect(result.text).toBe('What do you notice?');
+        expect(result.finishReason).toBe('stop');
+        expect(result.tokensUsed).toBe(28);
+
+        const [url, init] = fetchImpl.mock.calls[0]!;
+        expect(url).toBe('http://localhost:11434/api/chat');
+        const body = JSON.parse((init as RequestInit).body as string);
+        expect(body.model).toBe('qwen3.5:4b');
+        expect(body.stream).toBe(false);
+        expect(body.think).toBe(false);
+        expect(body.options).toEqual({ num_predict: 150 });
+        expect(body.messages).toEqual([
+            { role: 'system', content: 'be a facilitator' },
+            { role: 'user', content: "I'm here" },
+        ]);
+    });
+
+    it('strips trailing slashes from the base URL', () => {
+        const provider = new OllamaProvider({ baseUrl: 'http://localhost:11434/' });
+        // The trailing-slash strip is private — verify indirectly via a request.
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({ message: { content: '' }, eval_count: 0, prompt_eval_count: 0 })
+        );
+        const p = new OllamaProvider({
+            baseUrl: 'http://localhost:11434/',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        void provider;
+        return p.complete([{ role: 'user', content: 'x' }]).then(() => {
+            expect(fetchImpl.mock.calls[0]?.[0]).toBe('http://localhost:11434/api/chat');
+        });
+    });
+
+    it('checkModelAvailable matches exact and prefixed model names', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({
+                models: [{ name: 'qwen3.5:4b' }, { name: 'gemma:2b' }],
+            })
+        );
+        const provider = new OllamaProvider({
+            model: 'qwen3.5',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(await provider.checkModelAvailable()).toBe(true);
+
+        const notFound = new OllamaProvider({
+            model: 'mistral',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(await notFound.checkModelAvailable()).toBe(false);
+    });
+
+    it('checkModelAvailable returns false on network error', async () => {
+        const fetchImpl = vi.fn(async () => {
+            throw new Error('econnrefused');
+        });
+        const provider = new OllamaProvider({
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(await provider.checkModelAvailable()).toBe(false);
+    });
+
+    it('coldLoadMessage returns null when the model is already loaded', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({ models: [{ name: 'qwen3.5:4b' }] })
+        );
+        const provider = new OllamaProvider({
+            model: 'qwen3.5',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(await provider.coldLoadMessage()).toBeNull();
+        expect(fetchImpl.mock.calls[0]?.[0]).toBe('http://localhost:11434/api/ps');
+    });
+
+    it('coldLoadMessage returns a status string when the model is not loaded', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockJsonResponse({ models: [{ name: 'gemma:2b' }] })
+        );
+        const provider = new OllamaProvider({
+            model: 'qwen3.5:4b',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const msg = await provider.coldLoadMessage();
+        expect(msg).toContain('Loading qwen3.5:4b');
+    });
+
+    it('coldLoadMessage returns null when Ollama is unreachable', async () => {
+        const fetchImpl = vi.fn(async () => {
+            throw new Error('econnrefused');
+        });
+        const provider = new OllamaProvider({
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(await provider.coldLoadMessage()).toBeNull();
+    });
+
+    it('completeStream yields NDJSON deltas with final usage', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockNdjsonResponse([
+                { message: { content: 'Hi' }, done: false },
+                { message: { content: ' there' }, done: false },
+                {
+                    message: { content: '' },
+                    done: true,
+                    done_reason: 'stop',
+                    prompt_eval_count: 10,
+                    eval_count: 4,
+                },
+            ])
+        );
+        const provider = new OllamaProvider({
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await collectStream(
+            provider.completeStream([{ role: 'user', content: 'hi' }])
+        );
+        expect(result.text).toBe('Hi there');
+        expect(result.finishReason).toBe('stop');
+        expect(result.tokensUsed).toBe(14);
+
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        expect(body.stream).toBe(true);
+    });
+});
+
+describe('OpenAIProvider', () => {
+    function mockChatResponse(text: string, extras: Record<string, unknown> = {}): Response {
+        return mockJsonResponse({
+            choices: [{ message: { content: text }, finish_reason: 'stop' }],
+            usage: { total_tokens: 42 },
+            ...extras,
+        });
+    }
+
+    it('throws if no API key and no proxy URL', () => {
+        expect(() => new OpenAIProvider({ apiKey: '' })).toThrow(/API key/);
+    });
+
+    it('accepts an empty apiKey when baseUrl points at a proxy', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse('ok'));
+        const provider = new OpenAIProvider({
+            baseUrl: '/api/llm/openai',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const [, init] = fetchImpl.mock.calls[0]!;
+        const headers = (init as RequestInit).headers as Record<string, string>;
+        // No bearer token — proxy injects it server-side
+        expect(headers['authorization']).toBeUndefined();
+    });
+
+    it('sends system as a leading message, bearer auth, and max_tokens', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse('Welcome.'));
+        const provider = new OpenAIProvider({
+            apiKey: 'sk-test',
+            model: 'gpt-5.4-mini',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+
+        const result = await provider.complete(
+            [{ role: 'user', content: 'hi' }],
+            { system: 'be warm', maxTokens: 150 }
+        );
+
+        expect(result.text).toBe('Welcome.');
+        expect(result.finishReason).toBe('stop');
+        expect(result.tokensUsed).toBe(42);
+
+        const [url, init] = fetchImpl.mock.calls[0]!;
+        expect(url).toBe('https://api.openai.com/v1/chat/completions');
+        const headers = (init as RequestInit).headers as Record<string, string>;
+        expect(headers['authorization']).toBe('Bearer sk-test');
+        const body = JSON.parse((init as RequestInit).body as string);
+        expect(body.model).toBe('gpt-5.4-mini');
+        expect(body.max_tokens).toBe(150);
+        expect(body.messages).toEqual([
+            { role: 'system', content: 'be warm' },
+            { role: 'user', content: 'hi' },
+        ]);
+    });
+
+    it('strips trailing slashes from baseUrl', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse(''));
+        const provider = new OpenAIProvider({
+            apiKey: 'k',
+            baseUrl: 'https://api.openai.com/v1////',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+            'https://api.openai.com/v1/chat/completions'
+        );
+    });
+
+    it('merges extraBody into the request body', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse(''));
+        const provider = new OpenAIProvider({
+            apiKey: 'k',
+            extraBody: { reasoning_effort: 'low' },
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        expect(body.reasoning_effort).toBe('low');
+    });
+
+    it('surfaces API errors with the status code', async () => {
+        const fetchImpl = vi.fn(async () => new Response('rate limited', { status: 429 }));
+        const provider = new OpenAIProvider({
+            apiKey: 'k',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await expect(
+            provider.complete([{ role: 'user', content: 'hi' }])
+        ).rejects.toThrow(/429/);
+    });
+
+    it('completeStream yields SSE deltas + [DONE] terminator', async () => {
+        const fetchImpl = vi.fn(async () =>
+            mockSseResponse([
+                'data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":null}]}',
+                'data: {"choices":[{"delta":{"content":" there."},"finish_reason":null}]}',
+                'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"total_tokens":7}}',
+                'data: [DONE]',
+            ])
+        );
+        const provider = new OpenAIProvider({
+            apiKey: 'sk-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        const result = await collectStream(
+            provider.completeStream([{ role: 'user', content: 'hi' }])
+        );
+        expect(result.text).toBe('Hi there.');
+        expect(result.finishReason).toBe('stop');
+        expect(result.tokensUsed).toBe(7);
+
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        expect(body.stream).toBe(true);
+        expect(body.stream_options).toEqual({ include_usage: true });
+    });
+});
+
+describe('Preconfigured OpenAI-compatible providers', () => {
+    function mockChatResponse(): Response {
+        return new Response(
+            JSON.stringify({
+                choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+                usage: { total_tokens: 1 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } }
+        );
+    }
+
+    it('OpenRouter uses openrouter.ai with deepseek default model', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new OpenRouterProvider({
+            apiKey: 'sk-or-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(provider.model).toBe('deepseek/deepseek-v3.2');
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+            'https://openrouter.ai/api/v1/chat/completions'
+        );
+    });
+
+    it('Venice uses api.venice.ai and injects extraBody for system prompt suppression', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new VeniceProvider({
+            apiKey: 'sk-venice-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(provider.model).toBe('llama-3.3-70b');
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const [url, init] = fetchImpl.mock.calls[0]!;
+        expect(url).toBe('https://api.venice.ai/api/v1/chat/completions');
+        const body = JSON.parse((init as RequestInit).body as string);
+        expect(body.venice_parameters).toEqual({
+            include_venice_system_prompt: false,
+        });
+    });
+
+    it('Groq uses api.groq.com with llama default model', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new GroqProvider({
+            apiKey: 'gsk-test',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(provider.model).toBe('llama-3.3-70b-versatile');
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+            'https://api.groq.com/openai/v1/chat/completions'
+        );
+    });
+
+    it('caller can override the default model', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new GroqProvider({
+            apiKey: 'k',
+            model: 'mixtral-8x7b-32768',
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        expect(provider.model).toBe('mixtral-8x7b-32768');
+    });
+
+    it('caller-provided extraBody merges over the default extraBody', async () => {
+        const fetchImpl = vi.fn(async () => mockChatResponse());
+        const provider = new VeniceProvider({
+            apiKey: 'k',
+            extraBody: { foo: 'bar' },
+            fetchImpl: fetchImpl as unknown as typeof fetch,
+        });
+        await provider.complete([{ role: 'user', content: 'hi' }]);
+        const body = JSON.parse(
+            ((fetchImpl.mock.calls[0]?.[1] as RequestInit).body) as string
+        );
+        // Both venice defaults and caller-added fields appear
+        expect(body.venice_parameters).toEqual({
+            include_venice_system_prompt: false,
+        });
+        expect(body.foo).toBe('bar');
+    });
+});

@@ -2980,6 +2980,15 @@ html:has(.nav-brand.has-update) .update-btn {
 }
 .preview-btn {
     pointer-events: none;
+    /* Override .btn's `font-size: 0.875rem` so the buttons scale with
+       the preview pane's font-size (set via the slider) instead of
+       sticking to the document root's text-scale. Same em-based
+       sizing the other preview elements use. */
+    font-size: 0.875em;
+    /* Padding in em so the button box scales too — otherwise the
+       button stays the same physical size while the inner glyphs
+       grow/shrink, which looks awkward. */
+    padding: 0.6em 1.2em;
 }
 
 /* The preview box carries its own data-theme (set by settings.js), so the
