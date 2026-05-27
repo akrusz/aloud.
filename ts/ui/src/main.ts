@@ -4,6 +4,7 @@ import { applyTheme, initThemeToggle, resolveTheme } from './theme.js';
 import { regenerateEmbers } from './embers.js';
 import { initAbout } from './about.js';
 import { isTauri } from './is-desktop.js';
+import { initTauriWindowDrag } from './tauri-chrome.js';
 
 // Tag the document for the Tauri desktop shell so CSS can apply app-like
 // chrome (block text selection, pad the nav clear of the macOS traffic
@@ -23,6 +24,7 @@ function setupGlobalChrome(): void {
     const btn = document.querySelector<HTMLElement>('[data-theme-toggle]');
     if (btn) initThemeToggle(btn);
     initAbout();
+    initTauriWindowDrag();
 }
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupGlobalChrome, { once: true });

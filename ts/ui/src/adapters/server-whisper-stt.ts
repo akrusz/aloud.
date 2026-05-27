@@ -12,7 +12,13 @@
  * fires a SPECULATIVE transcription and emits it as a `partial` (so the user
  * sees their words during the pause), then submits the `final` once the full
  * adaptive silence elapses — mirroring audio.js's speculative submission.
- * Still TODO from audio.js: pre-buffer for utterance onset.
+ *
+ * Onset capture: the mic stream + AudioContext are opened once and kept alive
+ * across turns (only `stop()` — mute / session end — tears them down). This
+ * avoids paying getUserMedia's ~1s acquisition latency on every turn, which was
+ * eating the first second of a barge-in. A short pre-buffer ring also retains
+ * the sub-threshold ramp before speech crosses the VAD threshold, so the
+ * leading edge of the first word isn't clipped (the audio.js pre-buffer).
  */
 
 import type { SttEngine, SttEvent } from '../../../src/platform/stt.js';
@@ -25,6 +31,10 @@ const FRAME_SIZE = 4096;
 // silence actually submits the turn. Speculation is skipped when the submit
 // threshold is shorter than this (nothing to preview).
 const SPECULATIVE_SILENCE_MS = 500;
+// How much pre-speech audio (ms) to retain so the onset ramp — the start of the
+// first word, which sits below the VAD threshold — survives into the captured
+// utterance instead of being clipped.
+const PRE_BUFFER_MS = 250;
 
 /** The subset of PacingConfig fields the VAD here cares about. */
 type VadFields = Pick<
@@ -93,8 +103,13 @@ export class ServerWhisperSttEngine implements SttEngine {
 
     async *start(): AsyncIterable<SttEvent> {
         this.stopRequested = false;
+        // Reuse a live stream across turns; only re-acquire if it was released
+        // by stop() (mute / session end) or the OS dropped it. Re-acquiring is
+        // the expensive step that used to clip a barge-in's first second.
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            if (!this.stream || !this.stream.active) {
+                this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
         } catch (err) {
             yield { type: 'error', error: err };
             return;
@@ -106,10 +121,21 @@ export class ServerWhisperSttEngine implements SttEngine {
                 .webkitAudioContext;
         if (!AC) {
             yield { type: 'error', error: new Error('AudioContext unavailable') };
-            this.releaseStream();
+            this.releaseAll();
             return;
         }
-        this.context = new AC();
+        if (!this.context || this.context.state === 'closed') {
+            this.context = new AC();
+        }
+        // Autoplay policies can leave the context suspended; resume so the
+        // ScriptProcessor actually receives audio.
+        if (this.context.state === 'suspended') {
+            try {
+                await this.context.resume();
+            } catch {
+                /* best effort */
+            }
+        }
         this.source = this.context.createMediaStreamSource(this.stream);
         // ScriptProcessorNode is deprecated in favour of AudioWorklet, but
         // it's a one-liner and still works everywhere. Migrate later.
@@ -125,6 +151,13 @@ export class ServerWhisperSttEngine implements SttEngine {
         let noiseFloor = 0.005;
         let noiseSamples = 0;
         const nativeRate = this.context.sampleRate;
+        // Rolling pre-speech buffer: the last few frames before the VAD trips,
+        // prepended to the utterance so the word's onset isn't clipped.
+        const preBuffer: Float32Array[] = [];
+        const preBufferFrames = Math.max(
+            1,
+            Math.round((PRE_BUFFER_MS / 1000) * nativeRate / FRAME_SIZE)
+        );
 
         this.processor.onaudioprocess = (e) => {
             if (utteranceDone || this.stopRequested) return;
@@ -146,6 +179,9 @@ export class ServerWhisperSttEngine implements SttEngine {
                 if (!speechStarted) {
                     speechStarted = true;
                     speechStartMs = now;
+                    // Prepend the retained onset ramp, then clear it.
+                    for (const f of preBuffer) chunks.push(f);
+                    preBuffer.length = 0;
                 }
                 lastSpeechMs = now;
                 chunks.push(frame);
@@ -168,6 +204,9 @@ export class ServerWhisperSttEngine implements SttEngine {
                 const alpha = noiseSamples < 100 ? 0.1 : 0.01;
                 noiseFloor = (1 - alpha) * noiseFloor + alpha * energy;
                 noiseSamples++;
+                // Keep the most recent pre-speech frames for onset retention.
+                preBuffer.push(frame);
+                if (preBuffer.length > preBufferFrames) preBuffer.shift();
             }
 
             if (speechStarted && now - speechStartMs >= this.opts.maxUtteranceMs) {
@@ -279,16 +318,19 @@ export class ServerWhisperSttEngine implements SttEngine {
             // simple (revisit if a hosted cloud-STT meters speculation).
             yield { type: 'final', text: result.text, seconds: result.seconds };
         } finally {
-            this.cleanup();
+            // End the turn but keep the stream + context warm for the next one
+            // (and for a low-latency barge-in). Full teardown only on stop().
+            this.cleanupUtterance();
         }
     }
 
     async stop(): Promise<void> {
         this.stopRequested = true;
-        this.cleanup();
+        this.releaseAll();
     }
 
-    private cleanup(): void {
+    /** Tear down the per-turn nodes; leaves the stream + context alive. */
+    private cleanupUtterance(): void {
         if (this.processor) {
             try {
                 this.processor.disconnect();
@@ -306,6 +348,11 @@ export class ServerWhisperSttEngine implements SttEngine {
             }
             this.source = null;
         }
+    }
+
+    /** Full teardown: per-turn nodes + the context and mic stream. */
+    private releaseAll(): void {
+        this.cleanupUtterance();
         if (this.context && this.context.state !== 'closed') {
             this.context.close().catch(() => {});
         }

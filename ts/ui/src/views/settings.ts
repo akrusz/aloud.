@@ -5,7 +5,7 @@
  *   1. LLM Provider     — default provider, model, per-provider API keys
  *   2. Language & STT   — language, Whisper model size (stub)
  *   3. Text-to-Speech   — engine selector, voice picker, ElevenLabs key
- *   4. Display          — text scale, theme mode, window/frameless (stubs)
+ *   4. Display          — text scale, theme mode, window mode (stub)
  *   5. Pacing           — silence base/max, response delay, check-in, hold
  *   6. Network          — host (stub)
  *   7. Updates          — version + check (stub)
@@ -680,13 +680,11 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             markChromeDirty();
         });
 
-        // Window mode / frameless are desktop-shell concerns and stay
-        // disabled until that ships. No explanatory text — disabled is
-        // visible enough.
+        // Window mode is a desktop-shell concern and stays disabled until that
+        // ships. (The frameless toggle was removed — the Tauri shell is always
+        // frameless-with-native-controls; there's nothing to toggle.)
         const windowMode = root.querySelector<HTMLSelectElement>('#s-window-mode');
-        const frameless = root.querySelector<HTMLInputElement>('#s-frameless');
         if (windowMode) windowMode.disabled = true;
-        if (frameless) frameless.disabled = true;
     }
 
     function resolvePreviewTheme(mode: ThemeMode): 'dark' | 'light' {
@@ -1153,10 +1151,6 @@ function renderDisplaySection(s: AppSettings): string {
                     </select>
                     <span class="form-hint">Window options take effect on next launch</span>
                 </div>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="s-frameless" disabled>
-                    <span>Frameless window</span>
-                </label>
             </div>
             <div class="display-preview">
                 <div class="text-scale-preview" id="text-scale-preview">
