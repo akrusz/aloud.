@@ -53,6 +53,7 @@ import {
 } from '../embers.js';
 import { initThemeToggle } from '../theme.js';
 import { startMicMeter, type MicMeter } from '../mic-meter.js';
+import { isTauri } from '../is-desktop.js';
 import { acquireWakeLock, releaseWakeLock } from '../wakelock.js';
 import {
     buildScoredVoiceList,
@@ -604,7 +605,15 @@ export async function mountSessionView(
     // (A server-Whisper meter can later reuse that adapter's existing energy.)
     let micMeter: MicMeter | null = null;
     function startMeter(): void {
-        if (micMeter || sttBackend !== 'web-speech') return;
+        if (micMeter) return;
+        // Web Speech hides its audio, so it always needs the dedicated meter.
+        // server-Whisper holds its own stream; stacking a second meter stream
+        // was implicated in Firefox/WebRender instability, so we only add it in
+        // the Tauri desktop shell (WKWebView, where that concern doesn't apply
+        // and server-Whisper is the default STT path).
+        const wantMeter =
+            sttBackend === 'web-speech' || (sttBackend === 'server-whisper' && isTauri());
+        if (!wantMeter) return;
         void startMicMeter(micBtn)
             .then((m) => {
                 if (torn || muted) m.stop(); // raced with teardown/mute

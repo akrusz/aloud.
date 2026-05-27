@@ -266,6 +266,15 @@
        and a text I-beam on chrome; keep the default arrow cursor on chrome. */
     cursor: default;
 }
+/* Links and buttons are draggable by default in WKWebView — grabbing the
+   "aloud." brand (an <a>) started a native link-drag (ghost image) instead of
+   moving the window. Kill element-dragging on chrome so the title-bar drag
+   region wins. */
+[data-shell="tauri"] a,
+[data-shell="tauri"] button,
+[data-shell="tauri"] img {
+    -webkit-user-drag: none;
+}
 [data-shell="tauri"] .message-content,
 [data-shell="tauri"] .transcript,
 [data-shell="tauri"] .history-container,
