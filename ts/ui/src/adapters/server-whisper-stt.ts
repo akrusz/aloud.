@@ -32,12 +32,13 @@ const FRAME_SIZE = 4096;
 // silence actually submits the turn. Speculation is skipped when the submit
 // threshold is shorter than this (nothing to preview).
 const SPECULATIVE_SILENCE_MS = 500;
-// How much pre-speech audio (ms) to retain so a word's onset survives into the
-// captured utterance. Sized to also cover the gap between a user starting to
-// speak over the facilitator and barge-in detection flipping capture on — the
-// onset would otherwise be lost in that window. Prepended leading near-silence
-// is harmless to Whisper.
-const PRE_BUFFER_MS = 800;
+// ⭐ TWEAK ME if a barge-in clips the first word(s): how much pre-speech audio
+// (ms) to retain so a word's onset survives into the captured utterance. It
+// covers the gap between starting to speak over the facilitator and barge-in
+// detection flipping capture on — the onset is lost in that window otherwise.
+// Bigger = more onset captured (and more harmless leading near-silence sent to
+// Whisper); smaller = tighter. Raise this number if words still get clipped.
+const PRE_BUFFER_MS = 1400;
 
 /** The subset of PacingConfig fields the VAD here cares about. */
 type VadFields = Pick<
