@@ -21,6 +21,7 @@ import type {
     StreamChunk,
 } from '../../../src/llm/index.js';
 import { ensureServerToken, clearServerToken } from '../server-auth.js';
+import { serverUrl } from '../server-base.js';
 
 /** Providers the server is willing to forward to (mirrors contract.ts ProviderId). */
 export type ServerProviderId = 'anthropic' | 'groq' | 'openrouter' | 'google';
@@ -86,7 +87,7 @@ export class ServerLlmProvider implements LLMProvider {
         stream: boolean
     ): Promise<Response> {
         const send = async (token: string): Promise<Response> =>
-            this.fetchImpl(ENDPOINT, {
+            this.fetchImpl(serverUrl(ENDPOINT), {
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json',

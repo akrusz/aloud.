@@ -9,6 +9,8 @@
  * render — this module just supplies the data + helpers.
  */
 
+import { serverUrl } from './server-base.js';
+
 interface ModelOption {
     value: string;
     label: string;
@@ -31,7 +33,7 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
     // slash, e.g. openrouter, so the leading segment is the provider).
     if (provider === 'aloud') {
         try {
-            const resp = await fetch('/v1/me/models');
+            const resp = await fetch(serverUrl('/v1/me/models'));
             if (!resp.ok) return null;
             const data = (await resp.json()) as { models?: Array<{ provider: string; model: string }> };
             if (!data.models?.length) return null;

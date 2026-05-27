@@ -13,6 +13,7 @@
  */
 
 import { LocalStorageKv } from './adapters/localstorage-kv.js';
+import { serverUrl } from './server-base.js';
 import type { KvStorage } from '../../src/platform/storage.js';
 
 const TOKEN_KEY = 'server:token';
@@ -56,7 +57,7 @@ export async function clearServerToken(): Promise<void> {
 
 /** POST /v1/auth/dev — mint (or reuse) the local dev session. */
 export async function devSignIn(): Promise<AuthResponse> {
-    const res = await fetchImpl('/v1/auth/dev', { method: 'POST' });
+    const res = await fetchImpl(serverUrl('/v1/auth/dev'), { method: 'POST' });
     if (!res.ok) {
         throw new Error(
             res.status === 404
