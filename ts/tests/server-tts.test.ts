@@ -54,6 +54,24 @@ describe('ServerTtsEngine (hosted POST mode)', () => {
         expect(onSynthesize).toHaveBeenCalledWith('Breathe in.'.length);
     });
 
+    it('converts a WPM rate to a Google multiplier (160 WPM baseline)', async () => {
+        let body: Record<string, unknown> = {};
+        const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+            body = JSON.parse(init!.body as string);
+            return new Response(new Blob([new Uint8Array([1])], { type: 'audio/mpeg' }), { status: 200 });
+        }) as unknown as typeof fetch;
+
+        const engine = new ServerTtsEngine({
+            voice: 'en-US-Chirp3-HD-Achernar',
+            endpointUrl: '/v1/tts',
+            usePost: true,
+            authProvider: async () => 't',
+            fetchImpl,
+        });
+        await engine.speak('hi', { rate: 200 }); // 200 wpm
+        expect(body['rate']).toBeCloseTo(200 / 160, 6); // → 1.25× multiplier
+    });
+
     it('still supports the legacy GET query mode (Flask)', async () => {
         let seenUrl = '';
         const fetchImpl = (async (url: string | URL | Request) => {

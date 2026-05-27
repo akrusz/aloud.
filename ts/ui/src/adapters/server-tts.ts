@@ -13,6 +13,18 @@
 
 import type { TtsEngine, TtsOptions, TtsVoice } from '../../../src/platform/tts.js';
 
+/**
+ * The UI carries TTS rate as words-per-minute (≈160 neutral; see
+ * SessionSetup.ttsRate). The hosted server contract (and Google Cloud TTS)
+ * wants a multiplier (1.0 = neutral). Mirror BrowserTtsEngine's normalization
+ * so all engines agree on "normal": treat a value >5 as WPM (÷160), else as an
+ * already-relative multiplier. (Flask's GET path takes WPM directly, so this
+ * only applies to the hosted POST body.)
+ */
+function wpmToMultiplier(rate: number): number {
+    return rate > 5 ? rate / 160 : rate;
+}
+
 export interface ServerTtsEngineOptions {
     voice: string;
     engine?: string;
@@ -73,7 +85,7 @@ export class ServerTtsEngine implements TtsEngine {
             }
             const body: Record<string, unknown> = { text };
             if (this.voiceId) body['voice'] = this.voiceId;
-            if (options?.rate !== undefined) body['rate'] = options.rate;
+            if (options?.rate !== undefined) body['rate'] = wpmToMultiplier(options.rate);
             return { url: this.endpointUrl, init: { method: 'POST', headers, body: JSON.stringify(body), signal } };
         }
         const params = new URLSearchParams({ voice: this.voiceId, text });

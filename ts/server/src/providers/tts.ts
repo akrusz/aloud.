@@ -27,13 +27,17 @@ export async function synthesizeWithGoogle(
     apiKey: string,
     fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis)
 ): Promise<Uint8Array> {
+    // `rate` is a multiplier (1.0 = normal); the client converts WPM→multiplier.
+    // Clamp to Google's accepted sync-synthesis range [0.25, 4.0] so a stray
+    // value can't 400 the request.
+    const speakingRate = Math.min(4, Math.max(0.25, rate));
     const res = await fetchImpl(`${GOOGLE_TTS_URL}?key=${encodeURIComponent(apiKey)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
             input: { text },
             voice: { languageCode: languageOf(voice), name: voice },
-            audioConfig: { audioEncoding: 'MP3', speakingRate: rate },
+            audioConfig: { audioEncoding: 'MP3', speakingRate },
         }),
     });
     if (!res.ok) {

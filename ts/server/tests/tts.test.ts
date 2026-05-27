@@ -64,6 +64,20 @@ describe('POST /v1/tts', () => {
         expect(sent.audioConfig.speakingRate).toBe(0.9);
     });
 
+    it('clamps an out-of-range speakingRate into Google\'s accepted band', async () => {
+        const a = app();
+        const token = await devToken(a);
+        // A stray WPM-ish value that slipped through as a "multiplier".
+        const res = await a.request('/v1/tts', {
+            method: 'POST',
+            headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+            body: JSON.stringify({ text: 'hi', rate: 50 }),
+        });
+        expect(res.status).toBe(200);
+        const sent = googleCalls[0]!.body as { audioConfig: { speakingRate: number } };
+        expect(sent.audioConfig.speakingRate).toBe(4); // clamped to the [0.25, 4.0] max
+    });
+
     it('requires auth', async () => {
         const res = await app().request('/v1/tts', {
             method: 'POST',
