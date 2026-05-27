@@ -157,12 +157,14 @@ export async function mountSessionView(
         root.innerHTML = `
             <section class="session-stage">
                 <div class="status">
-                    <div id="status">${(err as Error).message}</div>
+                    <div id="status"></div>
                 </div>
             </section>
             <section class="controls">
                 <button id="back" type="button" data-nav="setup">Back to setup</button>
             </section>`;
+        const errStatus = root.querySelector('#status');
+        if (errStatus) errStatus.textContent = (err as Error).message;
         return {
             teardown() {
                 /* nothing to tear down */
