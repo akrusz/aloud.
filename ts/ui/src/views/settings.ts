@@ -34,6 +34,7 @@ import {
 import { ALL_PROVIDERS, isProviderAvailable, providerNeedsKey, type Provider } from '../settings.js';
 import { isDesktopSync } from '../is-desktop.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
+import { isHostedBuild } from '../server-base.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { mountModelPicker } from '../model-picker.js';
 import {
@@ -136,6 +137,31 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         const infoPanel = root.querySelector<HTMLElement>('#llm-info-panel');
         infoBtn?.addEventListener('click', () => {
             infoPanel?.classList.toggle('hidden');
+        });
+
+        // BYOK opt-in (hosted build only). Rebuild the provider menu live so the
+        // key-based providers appear/disappear without a reload.
+        const byokToggle = root.querySelector<HTMLInputElement>('#s-enable-byok');
+        byokToggle?.addEventListener('change', () => {
+            settings.enableByok = byokToggle.checked;
+            persist();
+            const opts = { hostedBuild: isHostedBuild(), allowByok: settings.enableByok };
+            providerSel.innerHTML = ALL_PROVIDERS.filter((p) =>
+                isProviderAvailable(p, capabilitiesSync(), opts)
+            )
+                .map(
+                    (p) =>
+                        `<option value="${p.value}"${p.value === settings.defaultProvider ? ' selected' : ''}>${escape(p.label)}</option>`
+                )
+                .join('');
+            // If the selected default was a BYOK provider that just vanished,
+            // fall back to whatever's now first.
+            if (providerSel.value !== settings.defaultProvider && providerSel.value) {
+                settings.defaultProvider = providerSel.value as Provider;
+                persist();
+                void refreshApiKeyRows();
+                void modelPicker.refresh(settings.defaultProvider);
+            }
         });
     }
 
@@ -945,7 +971,8 @@ function renderProviderSection(s: AppSettings): string {
     // boot; if unresolved they read false, so an unreachable source is hidden
     // until the next render — in practice the probe finishes before first paint.
     const caps = capabilitiesSync();
-    const providerOptions = ALL_PROVIDERS.filter((p) => isProviderAvailable(p, caps))
+    const byokOpts = { hostedBuild: isHostedBuild(), allowByok: s.enableByok };
+    const providerOptions = ALL_PROVIDERS.filter((p) => isProviderAvailable(p, caps, byokOpts))
         .map(
             (p) =>
                 `<option value="${p.value}"${p.value === s.defaultProvider ? ' selected' : ''}>${escape(p.label)}</option>`
@@ -986,6 +1013,18 @@ function renderProviderSection(s: AppSettings): string {
                 <div id="s-model-slot"></div>
             </div>
         </div>
+
+        ${
+            byokOpts.hostedBuild
+                ? `<div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="s-enable-byok"${s.enableByok ? ' checked' : ''}>
+                <span>Use my own API keys</span>
+            </label>
+            <span class="form-hint">aloud's hosted models need no key. Turn this on to use your own provider keys instead.</span>
+        </div>`
+                : ''
+        }
 
         ${keyRows}
 

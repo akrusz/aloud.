@@ -40,12 +40,32 @@ describe('isProviderAvailable', () => {
         expect(mod.isProviderAvailable(get('claude_proxy'), caps({}))).toBe(false);
     });
 
-    it('on the website (hosted only), shows hosted + BYOK but not Ollama/claude_proxy', () => {
-        const web = caps({ hosted: true });
-        const visible = mod.ALL_PROVIDERS.filter((p) => mod.isProviderAvailable(p, web)).map((p) => p.value);
-        expect(visible).toContain('aloud');
-        expect(visible).toContain('anthropic');
-        expect(visible).not.toContain('ollama');
-        expect(visible).not.toContain('claude_proxy');
+    it('on a local build, BYOK shows by default', () => {
+        const byok = mod.ALL_PROVIDERS.find((p) => p.value === 'anthropic')!;
+        expect(mod.isProviderAvailable(byok, caps({}), { hostedBuild: false })).toBe(true);
+    });
+
+    it('on the hosted build, BYOK is hidden unless explicitly enabled', () => {
+        const byok = mod.ALL_PROVIDERS.find((p) => p.value === 'anthropic')!;
+        expect(mod.isProviderAvailable(byok, caps({ hosted: true }), { hostedBuild: true })).toBe(false);
+        expect(
+            mod.isProviderAvailable(byok, caps({ hosted: true }), { hostedBuild: true, allowByok: true })
+        ).toBe(true);
+    });
+
+    it('hosted website (BYOK off): shows aloud only; (BYOK on): adds the key providers', () => {
+        const caps0 = caps({ hosted: true });
+        const off = mod.ALL_PROVIDERS.filter((p) =>
+            mod.isProviderAvailable(p, caps0, { hostedBuild: true })
+        ).map((p) => p.value);
+        expect(off).toEqual(['aloud']); // Ollama/claude_proxy need local; BYOK hidden
+
+        const on = mod.ALL_PROVIDERS.filter((p) =>
+            mod.isProviderAvailable(p, caps0, { hostedBuild: true, allowByok: true })
+        ).map((p) => p.value);
+        expect(on).toContain('aloud');
+        expect(on).toContain('anthropic');
+        expect(on).not.toContain('ollama');
+        expect(on).not.toContain('claude_proxy');
     });
 });

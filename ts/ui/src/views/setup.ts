@@ -18,6 +18,7 @@ import {
     NOTING_SOUNDS,
     ALL_PROVIDERS,
     isProviderAvailable,
+    type ProviderAvailabilityOpts,
     DIRECTIVENESS_VALUES,
     loadSetup,
     saveSetup,
@@ -41,6 +42,8 @@ import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { mountModelPicker } from '../model-picker.js';
 import { sessionStore } from '../state.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
+import { isHostedBuild } from '../server-base.js';
+import { loadAppSettings } from '../app-settings.js';
 import {
     autoStart as autoStartGuide,
     closeIfActive as closeGuideIfActive,
@@ -122,6 +125,11 @@ export async function mountSetupView(
     // menu shows exactly what's reachable (also populates the is-desktop cache
     // for the env-var hints).
     await detectCapabilities();
+    // BYOK visibility: always on a local build; opt-in on the hosted build.
+    const byokOpts: ProviderAvailabilityOpts = {
+        hostedBuild: isHostedBuild(),
+        allowByok: (await loadAppSettings()).enableByok,
+    };
     // Scored voice list for the modal. Lazy-loaded; the setup form is
     // interactive while voices fetch in the background.
     let scoredVoices: ScoredVoice[] = [];
@@ -288,7 +296,7 @@ export async function mountSetupView(
     }
 
     function render(): void {
-        root.innerHTML = renderSetupHTML();
+        root.innerHTML = renderSetupHTML(byokOpts);
         wireTabBar();
         wireInfoButtons();
         wireNotingPanel();
@@ -937,7 +945,7 @@ function stripVoicePrefix(voice: string | null): string | null {
     return m ? (m[2] ?? null) : voice;
 }
 
-function renderSetupHTML(): string {
+function renderSetupHTML(byokOpts: ProviderAvailabilityOpts): string {
     const escapeHtml = escapeAttr;
 
     // Mirror Python's index.html: presets are radio inputs wrapped in
@@ -1086,7 +1094,7 @@ function renderSetupHTML(): string {
             <div class="form-group">
                 <label for="provider">Provider</label>
                 <select id="provider">
-                    ${ALL_PROVIDERS.filter((p) => isProviderAvailable(p, capabilitiesSync()))
+                    ${ALL_PROVIDERS.filter((p) => isProviderAvailable(p, capabilitiesSync(), byokOpts))
                         .map(
                             (p) =>
                                 `<option value="${p.value}">${escapeHtml(p.label)}</option>`

@@ -53,10 +53,25 @@ export const ALL_PROVIDERS: ReadonlyArray<ProviderMeta> = [
     { value: 'venice', label: 'Venice.ai (API Key)', needsKey: true },
 ];
 
-/** Whether a provider is usable given the detected capabilities. BYOK
- *  providers (no `requires`) are always offered — the user can add a key. */
-export function isProviderAvailable(meta: ProviderMeta, caps: Capabilities): boolean {
-    return meta.requires ? caps[meta.requires] : true;
+export interface ProviderAvailabilityOpts {
+    /** The hosted/website/mobile build (server-base.isHostedBuild()). */
+    hostedBuild?: boolean;
+    /** User opted into bring-your-own-key on a hosted build. */
+    allowByok?: boolean;
+}
+
+/** Whether a provider is usable in the current environment.
+ *  - `requires` providers (hosted/ollama/claude_proxy): need that capability.
+ *  - BYOK providers (no `requires`): shown by default, but hidden on a hosted
+ *    build unless the user explicitly enables BYOK (asking a public site's
+ *    visitors for their own API key feels wrong; opt-in instead). */
+export function isProviderAvailable(
+    meta: ProviderMeta,
+    caps: Capabilities,
+    opts: ProviderAvailabilityOpts = {}
+): boolean {
+    if (meta.requires) return caps[meta.requires];
+    return !opts.hostedBuild || opts.allowByok === true;
 }
 
 export function providerNeedsKey(p: Provider): boolean {

@@ -21,6 +21,10 @@ export interface AppSettings {
     // Provider defaults for new sessions
     defaultProvider: Provider;
     defaultModel: string;
+    /** On the hosted/website build, show bring-your-own-key providers (off by
+     *  default — the hosted proxy is the intended path there). No effect on a
+     *  local build, where BYOK is always shown. */
+    enableByok: boolean;
 
     // Display
     textScale: number;
@@ -49,6 +53,7 @@ export interface AppSettings {
 export const DEFAULT_APP_SETTINGS: AppSettings = {
     defaultProvider: 'ollama',
     defaultModel: '',
+    enableByok: false,
     textScale: 1.0,
     themeMode: 'auto',
     ttsEngine: 'browser',
