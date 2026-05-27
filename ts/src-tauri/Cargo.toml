@@ -23,3 +23,10 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
+# Embedded local backend (replaces Flask /api/* on desktop). The same UI
+# adapters that hit the hosted server over HTTP hit this over HTTP too, so
+# desktop and web share one code path (see dev-docs/desktop.md).
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros"] }
+tower-http = { version = "0.6", features = ["cors"] }
+which = "7"
