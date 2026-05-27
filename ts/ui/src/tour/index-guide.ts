@@ -417,7 +417,7 @@ export async function autoStart(): Promise<void> {
     if (await sharedKv.get(CLIENT_ID_KEY)) return;
     setTimeout(function () {
         startGuide();
-    }, 600);
+    }, 250);
 }
 
 export function closeIfActive(): void {

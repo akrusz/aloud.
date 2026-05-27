@@ -3622,9 +3622,17 @@ html:has(.nav-brand.has-update) .update-btn {
     color: var(--text-primary);
     font-size: 0.9rem;
     line-height: 1.55;
-    animation: tour-tooltip-in 0.2s ease;
+    /* Dedicated keyframe: the entrance animation must keep the centering
+       translate(-50%, -50%), otherwise it clobbers it and the card flashes
+       in with its top-left corner at screen-center before snapping. */
+    animation: tour-welcome-in 0.2s ease;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
     text-align: center;
+}
+
+@keyframes tour-welcome-in {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
 }
 
 .tour-welcome h3 {
