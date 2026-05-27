@@ -24,6 +24,15 @@ export interface ServerTtsEngineOptions {
      * Browser-side TTS has no equivalent (no server compute, not counted).
      */
     onSynthesize?: (chars: number) => void;
+    /**
+     * POST a JSON body ({text, voice, rate}) instead of a GET with query
+     * params, and attach a bearer token. Used to target the hosted server's
+     * authed /v1/tts (vs Flask's open GET /api/voices/preview), and to keep
+     * the meditation text out of URL query strings that intermediaries log.
+     */
+    usePost?: boolean;
+    /** Supplies the bearer token when usePost is set. */
+    authProvider?: () => Promise<string | null>;
 }
 
 export class ServerTtsEngine implements TtsEngine {
@@ -32,6 +41,8 @@ export class ServerTtsEngine implements TtsEngine {
     private readonly endpointUrl: string;
     private readonly fetchImpl: typeof fetch;
     private readonly onSynthesize: ((chars: number) => void) | undefined;
+    private readonly usePost: boolean;
+    private readonly authProvider: (() => Promise<string | null>) | undefined;
 
     private currentAudio: HTMLAudioElement | null = null;
     private currentUrl: string | null = null;
@@ -44,24 +55,44 @@ export class ServerTtsEngine implements TtsEngine {
         this.endpointUrl = options.endpointUrl ?? '/api/voices/preview';
         this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
         this.onSynthesize = options.onSynthesize;
+        this.usePost = options.usePost ?? false;
+        this.authProvider = options.authProvider;
+    }
+
+    /** Build the fetch URL + init for one synthesis request. */
+    private async buildRequest(
+        text: string,
+        options: TtsOptions | undefined,
+        signal: AbortSignal
+    ): Promise<{ url: string; init: RequestInit }> {
+        if (this.usePost) {
+            const headers: Record<string, string> = { 'content-type': 'application/json' };
+            if (this.authProvider) {
+                const token = await this.authProvider();
+                if (token) headers['authorization'] = `Bearer ${token}`;
+            }
+            const body: Record<string, unknown> = { text };
+            if (this.voiceId) body['voice'] = this.voiceId;
+            if (options?.rate !== undefined) body['rate'] = options.rate;
+            return { url: this.endpointUrl, init: { method: 'POST', headers, body: JSON.stringify(body), signal } };
+        }
+        const params = new URLSearchParams({ voice: this.voiceId, text });
+        if (this.engine) params.set('engine', this.engine);
+        if (options?.rate !== undefined) params.set('rate', String(options.rate));
+        return { url: `${this.endpointUrl}?${params.toString()}`, init: { signal } };
     }
 
     async speak(text: string, options?: TtsOptions): Promise<void> {
         if (!text.trim()) return;
         this.cancelSync();
 
-        const params = new URLSearchParams({ voice: this.voiceId, text });
-        if (this.engine) params.set('engine', this.engine);
-        if (options?.rate !== undefined) params.set('rate', String(options.rate));
-
         const abort = new AbortController();
         this.currentAbort = abort;
 
         let blob: Blob;
         try {
-            const response = await this.fetchImpl(`${this.endpointUrl}?${params.toString()}`, {
-                signal: abort.signal,
-            });
+            const { url, init } = await this.buildRequest(text, options, abort.signal);
+            const response = await this.fetchImpl(url, init);
             if (!response.ok) {
                 throw new Error(`Server TTS responded ${response.status}`);
             }

@@ -12,6 +12,7 @@ import { authRoutes } from './routes/auth.js';
 import { meRoutes } from './routes/me.js';
 import { llmRoutes } from './routes/llm.js';
 import { sttRoutes } from './routes/stt.js';
+import { ttsRoutes } from './routes/tts.js';
 import { billingRoutes } from './routes/billing.js';
 import { adminRoutes } from './routes/admin.js';
 
@@ -24,6 +25,8 @@ export function createApp(deps: Deps): Hono {
             origin: deps.config.corsOrigins.length > 0 ? deps.config.corsOrigins : '*',
             allowMethods: ['GET', 'POST', 'OPTIONS'],
             allowHeaders: ['authorization', 'content-type'],
+            // So the browser can read per-request cost off the /v1/tts response.
+            exposeHeaders: ['X-Credits-Charged', 'X-Credits-Remaining'],
         })
     );
 
@@ -43,6 +46,7 @@ export function createApp(deps: Deps): Hono {
     app.route('/v1/me', meRoutes(deps));
     app.route('/v1/llm', llmRoutes(deps));
     app.route('/v1/stt', sttRoutes(deps));
+    app.route('/v1/tts', ttsRoutes(deps));
     app.route('/v1/billing', billingRoutes(deps));
     app.route('/v1/admin', adminRoutes(deps));
 

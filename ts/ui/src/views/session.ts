@@ -40,7 +40,7 @@ import {
     invalidateSttBackendCache,
     type SttBackend,
 } from '../adapters/stt-picker.js';
-import { createTtsForVoice } from '../adapters/tts-picker.js';
+import { createTtsForVoice, createServerAloudTts } from '../adapters/tts-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
 import { loadAppSettings } from '../app-settings.js';
 import { sessionStore } from '../state.js';
@@ -200,10 +200,18 @@ export async function mountSessionView(
         setOrbHolding(false);
     };
     async function buildTts(voiceId: string | null) {
-        const { engine } = await createTtsForVoice(voiceId, {
-            // Server-side synthesis is billable compute — fold chars into usage.
-            onServerSynthesize: (chars) => session.recordTts(chars),
-        });
+        // Server-side synthesis is billable compute — fold chars into usage.
+        const ttsOpts = { onServerSynthesize: (chars: number) => session.recordTts(chars) };
+        let engine;
+        if (setup.provider === 'aloud') {
+            // Hosted pipeline: synthesize via the server (Google Cloud TTS).
+            // An `aloud:<name>` voice id selects a Google voice; anything else
+            // falls back to the server's default voice.
+            const v = voiceId?.startsWith('aloud:') ? voiceId.slice('aloud:'.length) : '';
+            engine = createServerAloudTts(v, ttsOpts);
+        } else {
+            ({ engine } = await createTtsForVoice(voiceId, ttsOpts));
+        }
         return wrapTtsWithBargeIn(engine, { onBargeIn });
     }
     // `let` so an in-session voice change can swap the engine (see the voice

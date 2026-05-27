@@ -16,6 +16,8 @@ import { allVoices, findVoice, type VoiceEntry } from '../voices.js';
 
 import { BrowserTtsEngine } from './browser-tts.js';
 import { ServerTtsEngine } from './server-tts.js';
+import { serverUrl } from '../server-base.js';
+import { ensureServerToken } from '../server-auth.js';
 
 export interface CreateTtsResult {
     engine: TtsEngine;
@@ -44,6 +46,24 @@ export interface CreateTtsOptions {
      * server compute, not counted).
      */
     onServerSynthesize?: (chars: number) => void;
+}
+
+/**
+ * Hosted TTS via the server's authed /v1/tts (Google Cloud TTS). Used when a
+ * session is on the hosted ('aloud') provider so the whole pipeline runs
+ * server-side. `voice` is a Google Cloud voice name; empty → the server's
+ * default Chirp3-HD voice. (A hosted voice picker is a follow-up; for now the
+ * default carries the experience.)
+ */
+export function createServerAloudTts(voice = '', options: CreateTtsOptions = {}): TtsEngine {
+    const opts: ConstructorParameters<typeof ServerTtsEngine>[0] = {
+        voice,
+        endpointUrl: serverUrl('/v1/tts'),
+        usePost: true,
+        authProvider: ensureServerToken,
+    };
+    if (options.onServerSynthesize) opts.onSynthesize = options.onServerSynthesize;
+    return new ServerTtsEngine(opts);
 }
 
 export async function createTtsForVoice(
