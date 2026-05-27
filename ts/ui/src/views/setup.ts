@@ -26,6 +26,8 @@ import { PRESETS, findPreset } from '../presets.js';
 import {
     buildScoredVoiceList,
     fetchServerVoices,
+    fetchHostedVoices,
+    prefixedVoiceId,
     previewVoice as runPreview,
     renderVoiceList,
     renderVoiceModalHTML,
@@ -166,16 +168,15 @@ export async function mountSetupView(
                 setTimeout(done, 600);
             });
         }
-        const server: readonly ServerVoice[] | null = await fetchServerVoices();
-        scoredVoices = buildScoredVoiceList(server, true);
+        const [server, hosted] = await Promise.all([fetchServerVoices(), fetchHostedVoices()]);
+        scoredVoices = buildScoredVoiceList(server, true, hosted);
         // Auto-select the top available voice when the user hasn't chosen one
         // — never leave the picker on a bare "Default". The list is sorted
         // best-first; skip voices that still need downloading.
         if (!stripVoicePrefix(setup.voice)) {
             const top = scoredVoices.find((v) => !v.needsDownload);
             if (top) {
-                const idPrefix = top.engine === 'browser' ? 'browser:' : 'server:';
-                setup.voice = `${idPrefix}${top.name}`;
+                setup.voice = prefixedVoiceId(top.engine, top.name);
                 persist();
             }
         }
@@ -248,8 +249,7 @@ export async function mountSetupView(
             // Select the voice. Persist with engine prefix so createTtsForVoice
             // picks the right backend.
             const entry = findVoice(name);
-            const idPrefix = entry?.engine === 'browser' ? 'browser:' : 'server:';
-            const voiceId = `${idPrefix}${name}`;
+            const voiceId = prefixedVoiceId(entry?.engine, name);
             updateVoiceSelection(listEl, name);
             if (target) {
                 target.onSelect(voiceId);
@@ -566,7 +566,7 @@ export async function mountSetupView(
 
     function voiceNameFromId(id: string | null): string {
         if (!id) return '';
-        const name = id.replace(/^(browser:|server:)/, '');
+        const name = id.replace(/^(browser:|server:|aloud:)/, '');
         const found = scoredVoices.find((v) => v.name === name);
         return found ? found.name : name;
     }
@@ -931,7 +931,7 @@ function escapeAttr(s: string): string {
  *  picker works with raw names. Strip the prefix on the way in. */
 function stripVoicePrefix(voice: string | null): string | null {
     if (!voice) return null;
-    const m = /^(server|browser):(.*)$/.exec(voice);
+    const m = /^(server|browser|aloud):(.*)$/.exec(voice);
     return m ? (m[2] ?? null) : voice;
 }
 

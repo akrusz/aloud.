@@ -57,6 +57,8 @@ import { acquireWakeLock, releaseWakeLock } from '../wakelock.js';
 import {
     buildScoredVoiceList,
     fetchServerVoices,
+    fetchHostedVoices,
+    prefixedVoiceId,
     previewVoice as runVoicePreview,
     renderVoiceList,
     renderVoiceModalHTML,
@@ -928,8 +930,8 @@ export async function mountSessionView(
     void initVoicePicker();
 
     async function initVoicePicker(): Promise<void> {
-        const server = await fetchServerVoices();
-        scoredVoices = buildScoredVoiceList(server, true);
+        const [server, hosted] = await Promise.all([fetchServerVoices(), fetchHostedVoices()]);
+        scoredVoices = buildScoredVoiceList(server, true, hosted);
         updateVoicePickerLabel();
     }
 
@@ -972,8 +974,7 @@ export async function mountSessionView(
                 return;
             }
             if (row.classList.contains('voice-row-locked')) return;
-            const idPrefix = entry?.engine === 'browser' ? 'browser:' : 'server:';
-            setup.voice = `${idPrefix}${name}`;
+            setup.voice = prefixedVoiceId(entry?.engine, name);
             updateVoiceSelection(listEl, name);
             updateVoicePickerLabel();
             // Rebuild the live engine so the next utterance uses the new
@@ -1342,7 +1343,7 @@ export async function mountSessionView(
  *  picker works with raw names. Strip the prefix on the way in. */
 function stripVoicePrefix(voice: string | null): string | null {
     if (!voice) return null;
-    const m = /^(server|browser):(.*)$/.exec(voice);
+    const m = /^(server|browser|aloud):(.*)$/.exec(voice);
     return m ? (m[2] ?? null) : voice;
 }
 

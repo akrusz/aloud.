@@ -89,6 +89,14 @@ export interface SpeakRequest {
  *  headers (X-Credits-Charged / X-Credits-Remaining) so the body stays a clean
  *  audio stream the client can hand straight to an <audio> element. */
 
+/** GET /v1/voices — public. The curated hosted voices the server can speak
+ *  (empty when TTS isn't configured). The client merges these into its voice
+ *  picker; the `name` is what it stores and sends back as the /v1/tts `voice`. */
+export interface HostedVoice {
+    name: string;
+    gender: 'female' | 'male' | 'androgynous';
+}
+
 // ---- Auth & account ---------------------------------------------------------
 
 /** POST /v1/auth/google — exchange a Google ID token for an aloud session. */

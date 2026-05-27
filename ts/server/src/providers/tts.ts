@@ -10,9 +10,6 @@
 
 const GOOGLE_TTS_URL = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 
-/** Default voice when the client doesn't specify one. Chirp3-HD = top tier. */
-export const DEFAULT_TTS_VOICE = 'en-US-Chirp3-HD-Achernar';
-
 /** languageCode is the first two hyphen segments of the voice name. */
 function languageOf(voice: string): string {
     const parts = voice.split('-');

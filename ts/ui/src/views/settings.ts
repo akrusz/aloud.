@@ -38,7 +38,9 @@ import { mountModelPicker } from '../model-picker.js';
 import {
     buildScoredVoiceList,
     fetchServerVoices,
+    fetchHostedVoices,
     invalidateServerVoicesCache,
+    prefixedVoiceId,
     previewVoice as runPreview,
     renderVoiceList,
     renderVoiceModalHTML,
@@ -524,8 +526,8 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
                 setTimeout(done, 600);
             });
         }
-        const server = await fetchServerVoices();
-        scoredVoices = buildScoredVoiceList(server, true);
+        const [server, hosted] = await Promise.all([fetchServerVoices(), fetchHostedVoices()]);
+        scoredVoices = buildScoredVoiceList(server, true, hosted);
         const btn = root.querySelector<HTMLButtonElement>('#s-voice-btn');
         if (btn) updateVoiceButtonLabel(btn);
     }
@@ -578,8 +580,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
                 return;
             }
             if (row.classList.contains('voice-row-locked')) return;
-            const idPrefix = entry?.engine === 'browser' ? 'browser:' : 'server:';
-            settings.defaultVoice = `${idPrefix}${name}`;
+            settings.defaultVoice = prefixedVoiceId(entry?.engine, name);
             persist();
             updateVoiceSelection(listEl, name);
             updateVoiceButtonLabel(voiceBtn);
@@ -1235,7 +1236,7 @@ function renderUpdatesSection(_s: AppSettings): string {
 
 function stripVoicePrefix(voice: string | null): string | null {
     if (!voice) return null;
-    const m = /^(server|browser):(.*)$/.exec(voice);
+    const m = /^(server|browser|aloud):(.*)$/.exec(voice);
     return m ? (m[2] ?? null) : voice;
 }
 

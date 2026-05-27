@@ -74,6 +74,12 @@ export async function createTtsForVoice(
         return { engine: new BrowserTtsEngine(), voice: null };
     }
 
+    if (voiceId.startsWith('aloud:')) {
+        // Hosted Google voice — synthesize through the server's /v1/tts.
+        const name = voiceId.slice('aloud:'.length);
+        return { engine: createServerAloudTts(name, options), voice: null };
+    }
+
     if (voiceId.startsWith('browser:')) {
         const name = voiceId.slice('browser:'.length);
         const engine = name

@@ -16,7 +16,8 @@ import type { Deps } from '../deps.js';
 import type { AuthVars } from '../auth/middleware.js';
 import { requireAuth } from '../auth/middleware.js';
 import { priceTtsChars } from '../pricing/meter.js';
-import { synthesizeWithGoogle, DEFAULT_TTS_VOICE } from '../providers/tts.js';
+import { synthesizeWithGoogle } from '../providers/tts.js';
+import { resolveVoiceId } from '../providers/voice-catalog.js';
 import { log } from '../logger.js';
 
 export function ttsRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
@@ -46,7 +47,8 @@ export function ttsRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
 
         let audio: Uint8Array;
         try {
-            audio = await synthesizeWithGoogle(text, body.voice ?? DEFAULT_TTS_VOICE, body.rate ?? 1, key);
+            // Resolve a curated short name ("Leda") or raw id to a Google voice.
+            audio = await synthesizeWithGoogle(text, resolveVoiceId(body.voice), body.rate ?? 1, key);
         } catch (err) {
             log.error('tts forward failed', { err: String(err) });
             return c.json(apiError('provider_error', 'TTS upstream error'), ERROR_STATUS.provider_error);

@@ -13,6 +13,8 @@ import { meRoutes } from './routes/me.js';
 import { llmRoutes } from './routes/llm.js';
 import { sttRoutes } from './routes/stt.js';
 import { ttsRoutes } from './routes/tts.js';
+import { CURATED_VOICES } from './providers/voice-catalog.js';
+import type { HostedVoice } from './contract.js';
 import { billingRoutes } from './routes/billing.js';
 import { adminRoutes } from './routes/admin.js';
 
@@ -41,6 +43,15 @@ export function createApp(deps: Deps): Hono {
             tts: Boolean(deps.config.googleTtsApiKey),
         })
     );
+
+    // Public: the curated hosted voices, or [] when TTS isn't configured. The
+    // client merges these into its voice picker (availability-driven menus).
+    app.get('/v1/voices', (c) => {
+        const voices: HostedVoice[] = deps.config.googleTtsApiKey
+            ? CURATED_VOICES.map((v) => ({ name: v.name, gender: v.gender }))
+            : [];
+        return c.json(voices);
+    });
 
     app.route('/v1/auth', authRoutes(deps));
     app.route('/v1/me', meRoutes(deps));

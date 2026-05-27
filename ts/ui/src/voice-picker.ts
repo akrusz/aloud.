@@ -20,6 +20,7 @@
 import type { TtsEngine } from '../../src/platform/index.js';
 
 import { createTtsForVoice } from './adapters/tts-picker.js';
+import { serverUrl } from './server-base.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -36,6 +37,13 @@ export interface ServerVoice {
     size_display?: string;
 }
 
+/** A curated hosted voice from the server's GET /v1/voices (mirrors the
+ *  server's HostedVoice contract by hand). */
+export interface HostedVoice {
+    name: string;
+    gender: 'female' | 'male' | 'androgynous';
+}
+
 /** Scored, sorted voice entry for the picker UI. */
 export interface ScoredVoice {
     name: string;
@@ -48,6 +56,8 @@ export interface ScoredVoice {
     needsDownload?: boolean;
     downloaded?: boolean;
     sizeDisplay?: string;
+    /** Small muted label after the name (e.g. a hosted voice's gender). */
+    note?: string;
 }
 
 export const TIER_LABELS: Record<number, string> = {
@@ -62,9 +72,17 @@ const ENGINE_LABELS: Record<string, string> = {
     piper: 'Piper',
     elevenlabs: 'ElevenLabs',
     browser: 'Browser',
+    aloud: 'aloud',
 };
 
 export const PREVIEW_PHRASE = "Welcome to aloud. I'll be your facilitator.";
+
+/** Map a scored voice's engine + name to the prefixed id stored in
+ *  SessionSetup/AppSettings: `browser:` / `aloud:` / `server:` (default). */
+export function prefixedVoiceId(engine: string | undefined, name: string): string {
+    const prefix = engine === 'browser' ? 'browser:' : engine === 'aloud' ? 'aloud:' : 'server:';
+    return `${prefix}${name}`;
+}
 
 // Known high-quality macOS base voice names (without Premium/Enhanced suffix).
 const MACOS_QUALITY_VOICES =
@@ -96,7 +114,8 @@ export function scoreVoice(name: string, engine?: string): number {
  */
 export function buildScoredVoiceList(
     serverVoices: readonly ServerVoice[] | null,
-    includeBrowserVoices: boolean
+    includeBrowserVoices: boolean,
+    hostedVoices: readonly HostedVoice[] = []
 ): ScoredVoice[] {
     const langPrefix = (navigator.language || 'en').split(/[-_]/)[0];
     const browserVoices =
@@ -109,6 +128,22 @@ export function buildScoredVoiceList(
 
     const scored: ScoredVoice[] = [];
     const seen = new Set<string>();
+
+    // Curated hosted voices (only present when the server is reachable + has a
+    // TTS key) lead the Recommended tier as "very high quality" — but they share
+    // it with great local voices (macOS Premium, Chrome cloud), which also score
+    // here, so a user with good native voices isn't pushed off the top.
+    for (const hv of hostedVoices) {
+        scored.push({
+            name: hv.name,
+            lang: 'en-US',
+            score: 3,
+            engine: 'aloud',
+            recommended: true,
+            note: hv.gender,
+        });
+        seen.add(hv.name);
+    }
 
     if (serverVoices) {
         for (const sv of serverVoices) {
@@ -253,6 +288,12 @@ function appendRow(
     const nameSpan = document.createElement('span');
     nameSpan.className = 'voice-row-name';
     nameSpan.textContent = entry.name;
+    if (entry.note) {
+        const note = document.createElement('span');
+        note.className = 'voice-row-engine';
+        note.textContent = entry.note;
+        nameSpan.appendChild(note);
+    }
     if (options.showEngine && entry.engine) {
         const badge = document.createElement('span');
         badge.className = 'voice-row-engine';
@@ -356,8 +397,14 @@ export async function previewVoice(
     stopPreview();
     try {
         // Build a prefixed id that createTtsForVoice understands. We
-        // assume server voices unless the engine is explicitly 'browser'.
-        const id = engine === 'browser' ? `browser:${voiceName}` : `server:${voiceName}`;
+        // assume server voices unless the engine is explicitly 'browser' or
+        // 'aloud' (the hosted Google voices).
+        const id =
+            engine === 'browser'
+                ? `browser:${voiceName}`
+                : engine === 'aloud'
+                  ? `aloud:${voiceName}`
+                  : `server:${voiceName}`;
         const { engine: ttsEngine } = await createTtsForVoice(id);
         activePreviewEngine = ttsEngine;
         const text =
@@ -452,4 +499,30 @@ export async function fetchServerVoices(force = false): Promise<ServerVoice[] | 
 
 export function invalidateServerVoicesCache(): void {
     serverVoicesCache = null;
+}
+
+// ---------------------------------------------------------------------------
+// /v1/voices loader (hosted server)
+// ---------------------------------------------------------------------------
+
+let hostedVoicesCache: HostedVoice[] | null = null;
+
+/**
+ * Fetch the curated hosted voices from the server. Returns [] (cached) when the
+ * server is unreachable or has no TTS key — so the picker only surfaces hosted
+ * voices that can actually speak (availability-driven menus).
+ */
+export async function fetchHostedVoices(force = false): Promise<HostedVoice[]> {
+    if (!force && hostedVoicesCache !== null) return hostedVoicesCache;
+    try {
+        const response = await fetch(serverUrl('/v1/voices'));
+        hostedVoicesCache = response.ok ? ((await response.json()) as HostedVoice[]) : [];
+    } catch {
+        hostedVoicesCache = [];
+    }
+    return hostedVoicesCache;
+}
+
+export function invalidateHostedVoicesCache(): void {
+    hostedVoicesCache = null;
 }
