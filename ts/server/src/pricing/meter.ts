@@ -83,6 +83,23 @@ export function priceLlmTurn(provider: ProviderId, model: string, usage: LlmUsag
     return toCredits(llmCostUsd(provider, model, usage));
 }
 
+/** Price `seconds` of cloud STT — FRACTIONAL credits, deliberately NOT ceiled.
+ *  A turn fires several short STT passes (speculative + final), each a real
+ *  Groq call; per-call ceil-to-a-whole-credit would over-charge a
+ *  fraction-of-a-cent leg by orders of magnitude. So STT debits proportional
+ *  fractional credits. The balance is a real number, so this composes cleanly
+ *  with the ceiled LLM debits; the UI rounds for display. */
+export function priceSttSeconds(seconds: number): CostBreakdown {
+    const providerCostUsd = Math.max(0, seconds) * STT_USD_PER_SECOND;
+    return { providerCostUsd, credits: providerCostUsd / USD_PER_CREDIT };
+}
+
+/** Price `chars` of cloud TTS — FRACTIONAL credits, same rationale as STT. */
+export function priceTtsChars(chars: number): CostBreakdown {
+    const providerCostUsd = Math.max(0, chars) * TTS_USD_PER_CHAR;
+    return { providerCostUsd, credits: providerCostUsd / USD_PER_CREDIT };
+}
+
 /** Price a whole session's accumulated usage (LLM + STT secs + TTS chars),
  *  e.g. for a final reconciliation or the live cost meter (meditation-pal-14s).
  *  LLM provider/model are passed since SessionUsage tallies tokens provider-

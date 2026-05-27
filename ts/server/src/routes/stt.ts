@@ -1,0 +1,73 @@
+/**
+ * POST /v1/stt — metered speech-to-text. Accepts raw mono Float32 PCM (body),
+ * with the sample rate in the `sample_rate` query param. Forwards to Groq
+ * Whisper, debits fractional credits by audio duration, returns the transcript.
+ *
+ * Duration is computed server-side from the byte length, so a client can't
+ * under-report seconds to underpay. Like the LLM proxy, this is stateless:
+ * audio in, text out, nothing persisted.
+ */
+
+import { Hono } from 'hono';
+import { ERROR_STATUS, apiError, type TranscribeResponse } from '../contract.js';
+import type { Deps } from '../deps.js';
+import type { AuthVars } from '../auth/middleware.js';
+import { requireAuth } from '../auth/middleware.js';
+import { priceSttSeconds } from '../pricing/meter.js';
+import { transcribeWithGroq } from '../providers/stt.js';
+import { log } from '../logger.js';
+
+export function sttRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
+    const app = new Hono<{ Variables: AuthVars }>();
+
+    app.post('/', requireAuth(deps), async (c) => {
+        const account = c.get('account');
+
+        const groqKey = deps.config.providerKeys.groq;
+        if (!groqKey) {
+            return c.json(apiError('provider_error', 'STT is not configured on this server'), ERROR_STATUS.provider_error);
+        }
+        if (!deps.rateGuard.allow(account.id)) {
+            return c.json(apiError('quota_exceeded', 'too many requests; slow down'), ERROR_STATUS.quota_exceeded);
+        }
+
+        const sampleRate = Number(c.req.query('sample_rate') ?? 16_000);
+        if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+            return c.json(apiError('bad_request', 'invalid sample_rate'), ERROR_STATUS.bad_request);
+        }
+
+        const raw = await c.req.arrayBuffer();
+        if (raw.byteLength === 0 || raw.byteLength % 4 !== 0) {
+            return c.json(apiError('bad_request', 'body must be non-empty Float32 PCM'), ERROR_STATUS.bad_request);
+        }
+        const samples = new Float32Array(raw);
+        const seconds = samples.length / sampleRate;
+
+        const balance = await deps.ledger.balance(account.id);
+        if (balance <= 0) {
+            return c.json(apiError('insufficient_credits', 'out of credits'), ERROR_STATUS.insufficient_credits);
+        }
+
+        let text: string;
+        try {
+            text = await transcribeWithGroq(samples, sampleRate, groqKey);
+        } catch (err) {
+            log.error('stt forward failed', { err: String(err) });
+            return c.json(apiError('provider_error', 'STT upstream error'), ERROR_STATUS.provider_error);
+        }
+
+        // Debit at cost (fractional), clamped to balance so a race can't overdraw.
+        const cost = priceSttSeconds(seconds);
+        const debit = Math.min(cost.credits, balance);
+        if (debit > 0) await deps.ledger.debit(account.id, debit, `stt:groq:${seconds.toFixed(1)}s`);
+
+        const response: TranscribeResponse = {
+            text,
+            creditsCharged: cost.credits,
+            creditsRemaining: await deps.ledger.balance(account.id),
+        };
+        return c.json(response);
+    });
+
+    return app;
+}

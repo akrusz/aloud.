@@ -35,8 +35,10 @@ import { ensureServerToken } from '../server-auth.js';
 
 import {
     createBestStt,
+    createServerAloudStt,
     detectSttBackend,
     invalidateSttBackendCache,
+    type SttBackend,
 } from '../adapters/stt-picker.js';
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
@@ -237,13 +239,20 @@ export async function mountSessionView(
     // Re-probe each time the user starts a session: Flask may have come up
     // (or gone down) since the last detection.
     invalidateSttBackendCache();
-    const stt: SttEngine | null = await createBestStt({
+    const vadOpts = {
         silenceBaseMs: pacingConfig.silenceBaseMs,
         silenceMaxMs: pacingConfig.silenceMaxMs,
         silenceRampRate: pacingConfig.silenceRampRate,
         minSpeechDurationMs: pacingConfig.minSpeechDurationMs,
-    });
-    const sttBackend = await detectSttBackend();
+    };
+    // On the hosted provider, route STT through the server (Groq) too, so the
+    // whole pipeline runs against @aloud/server. The hosted adapter is the
+    // server-Whisper engine pointed at /v1/stt, so it behaves identically —
+    // report it as 'server-whisper' downstream. Fall back to the best local
+    // option if hosted STT can't initialize (e.g. no mic).
+    const hostedStt = setup.provider === 'aloud' ? createServerAloudStt(vadOpts) : null;
+    const stt: SttEngine | null = hostedStt ?? (await createBestStt(vadOpts));
+    const sttBackend: SttBackend = hostedStt ? 'server-whisper' : await detectSttBackend();
 
     // The session view also injects an orb into the global nav's
     // .nav-center slot and overrides the nav links to End / History.

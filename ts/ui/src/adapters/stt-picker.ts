@@ -26,6 +26,8 @@ import {
     isWebSpeechSupported,
     type WebSpeechSttEngineOptions,
 } from './web-speech-stt.js';
+import { serverUrl } from '../server-base.js';
+import { ensureServerToken } from '../server-auth.js';
 
 /** VAD-tuning subset of PacingConfig the picker forwards to adapters. */
 type VadOpts = Partial<
@@ -65,6 +67,22 @@ async function isServerWhisperReachable(): Promise<boolean> {
  */
 export function invalidateSttBackendCache(): void {
     cachedBackend = null;
+}
+
+/**
+ * STT that routes mic audio through the hosted server's authed /v1/stt (Groq
+ * Whisper) instead of Flask. Same client-side capture/VAD as server-Whisper —
+ * only the endpoint and a bearer token differ. Used when a session is on the
+ * hosted ('aloud') provider so the whole pipeline runs against @aloud/server.
+ * Returns null when mic capture isn't available in this environment.
+ */
+export function createServerAloudStt(vadOpts: VadOpts = {}): SttEngine | null {
+    if (!ServerWhisperSttEngine.isAvailable()) return null;
+    return new ServerWhisperSttEngine({
+        ...vadOpts,
+        endpointUrl: serverUrl('/v1/stt'),
+        authProvider: ensureServerToken,
+    });
 }
 
 /** Detect which STT path the current environment supports. */

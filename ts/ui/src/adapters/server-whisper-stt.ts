@@ -41,11 +41,18 @@ export interface ServerWhisperSttEngineOptions extends Partial<VadFields> {
     maxUtteranceMs?: number;
     /** Custom fetch (tests). */
     fetchImpl?: typeof fetch;
+    /** When present, each transcription request carries `Authorization: Bearer
+     *  <token>`. Used to target the hosted server's authed /v1/stt (vs the
+     *  open Flask /api/stt/whisper). Returning null sends no auth header. */
+    authProvider?: () => Promise<string | null>;
 }
 
 export class ServerWhisperSttEngine implements SttEngine {
-    private readonly opts: Required<Omit<ServerWhisperSttEngineOptions, 'fetchImpl'>> & {
+    private readonly opts: Required<
+        Omit<ServerWhisperSttEngineOptions, 'fetchImpl' | 'authProvider'>
+    > & {
         fetchImpl: typeof fetch;
+        authProvider: (() => Promise<string | null>) | null;
     };
     private context: AudioContext | null = null;
     private stream: MediaStream | null = null;
@@ -66,6 +73,7 @@ export class ServerWhisperSttEngine implements SttEngine {
                 options.minSpeechDurationMs ?? defaultPacingConfig.minSpeechDurationMs,
             maxUtteranceMs: options.maxUtteranceMs ?? 30_000,
             fetchImpl: options.fetchImpl ?? globalThis.fetch.bind(globalThis),
+            authProvider: options.authProvider ?? null,
         };
     }
 
@@ -183,11 +191,18 @@ export class ServerWhisperSttEngine implements SttEngine {
                     ? combined
                     : downsampleLinear(combined, nativeRate, TARGET_SAMPLE_RATE);
             try {
+                const headers: Record<string, string> = {
+                    'content-type': 'application/octet-stream',
+                };
+                if (this.opts.authProvider) {
+                    const token = await this.opts.authProvider();
+                    if (token) headers['authorization'] = `Bearer ${token}`;
+                }
                 const response = await this.opts.fetchImpl(
                     `${this.opts.endpointUrl}?sample_rate=${TARGET_SAMPLE_RATE}`,
                     {
                         method: 'POST',
-                        headers: { 'content-type': 'application/octet-stream' },
+                        headers,
                         body: downsampled.buffer.slice(
                             downsampled.byteOffset,
                             downsampled.byteOffset + downsampled.byteLength

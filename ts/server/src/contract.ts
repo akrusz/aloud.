@@ -61,6 +61,34 @@ export interface CompleteChunk {
     result?: CompleteResponse;
 }
 
+// ---- POST /v1/stt -----------------------------------------------------------
+// Request body is raw 16-bit-equivalent Float32 PCM (mono), with the sample
+// rate in the `sample_rate` query param. The server computes duration from the
+// byte length (authoritative — the client can't under-report to underpay),
+// wraps it to WAV, and forwards to Groq Whisper.
+
+export interface TranscribeResponse {
+    text: string;
+    /** Fractional credits this transcription cost (priced by audio seconds). */
+    creditsCharged: number;
+    creditsRemaining: number;
+}
+
+// ---- POST /v1/tts -----------------------------------------------------------
+
+export interface SpeakRequest {
+    text: string;
+    /** Provider voice id (e.g. a Google Cloud TTS voice name). Server falls
+     *  back to a default when omitted. */
+    voice?: string;
+    /** Speaking rate multiplier (1.0 = normal). */
+    rate?: number;
+}
+
+/** Audio is returned as the raw response body (audio/mpeg); cost rides in
+ *  headers (X-Credits-Charged / X-Credits-Remaining) so the body stays a clean
+ *  audio stream the client can hand straight to an <audio> element. */
+
 // ---- Auth & account ---------------------------------------------------------
 
 /** POST /v1/auth/google — exchange a Google ID token for an aloud session. */

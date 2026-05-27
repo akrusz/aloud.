@@ -11,6 +11,7 @@ import { configuredProviders } from './config.js';
 import { authRoutes } from './routes/auth.js';
 import { meRoutes } from './routes/me.js';
 import { llmRoutes } from './routes/llm.js';
+import { sttRoutes } from './routes/stt.js';
 import { billingRoutes } from './routes/billing.js';
 import { adminRoutes } from './routes/admin.js';
 
@@ -32,12 +33,16 @@ export function createApp(deps: Deps): Hono {
             ok: true,
             providers: configuredProviders(deps.config),
             billing: Boolean(deps.config.stripeSecretKey),
+            // Which media capabilities the client can route here (vs Flask/native).
+            stt: Boolean(deps.config.providerKeys.groq),
+            tts: Boolean(deps.config.googleTtsApiKey),
         })
     );
 
     app.route('/v1/auth', authRoutes(deps));
     app.route('/v1/me', meRoutes(deps));
     app.route('/v1/llm', llmRoutes(deps));
+    app.route('/v1/stt', sttRoutes(deps));
     app.route('/v1/billing', billingRoutes(deps));
     app.route('/v1/admin', adminRoutes(deps));
 

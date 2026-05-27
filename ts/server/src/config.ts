@@ -38,6 +38,10 @@ export interface Config {
      *  still buy) and it's logged. Default is generous (~100 signups/hr). */
     freeGrantBudgetPerHour: number;
 
+    /** Google Cloud Text-to-Speech API key (separate from the Gemini LLM key).
+     *  When set, /v1/tts synthesizes via Google Cloud TTS. */
+    googleTtsApiKey?: string;
+
     /** Stripe — optional; billing routes report "not configured" without it. */
     stripeSecretKey?: string;
     stripeWebhookSecret?: string;
@@ -78,6 +82,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         freeGrantBudgetPerHour: Number(env['ALOUD_FREE_GRANT_BUDGET_PER_HOUR'] ?? 2000),
         strict,
     };
+    if (env['GOOGLE_TTS_API_KEY']) config.googleTtsApiKey = env['GOOGLE_TTS_API_KEY'];
     if (env['STRIPE_SECRET_KEY']) config.stripeSecretKey = env['STRIPE_SECRET_KEY'];
     if (env['STRIPE_WEBHOOK_SECRET']) config.stripeWebhookSecret = env['STRIPE_WEBHOOK_SECRET'];
     if (env['ALOUD_ADMIN_TOKEN']) config.adminToken = env['ALOUD_ADMIN_TOKEN'];
