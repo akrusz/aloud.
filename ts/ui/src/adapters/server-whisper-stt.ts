@@ -13,12 +13,13 @@
  * sees their words during the pause), then submits the `final` once the full
  * adaptive silence elapses — mirroring audio.js's speculative submission.
  *
- * Onset capture: the mic stream + AudioContext are opened once and kept alive
- * across turns (only `stop()` — mute / session end — tears them down). This
- * avoids paying getUserMedia's ~1s acquisition latency on every turn, which was
- * eating the first second of a barge-in. A short pre-buffer ring also retains
- * the sub-threshold ramp before speech crosses the VAD threshold, so the
- * leading edge of the first word isn't clipped (the audio.js pre-buffer).
+ * Onset capture: the mic stream, AudioContext, AND the audio callback are
+ * opened once and run continuously for the engine's lifetime (only `stop()` —
+ * mute / session end — tears them down). The callback keeps an onset pre-buffer
+ * ring filled even between turns, so when `start()` flips capture on for a
+ * barge-in, the first word — spoken before the facilitator's TTS was even
+ * interrupted — is already buffered rather than clipped. `start()` just resets
+ * the per-utterance accumulators and seeds them from that pre-buffer.
  */
 
 import type { SttEngine, SttEvent } from '../../../src/platform/stt.js';
@@ -31,10 +32,12 @@ const FRAME_SIZE = 4096;
 // silence actually submits the turn. Speculation is skipped when the submit
 // threshold is shorter than this (nothing to preview).
 const SPECULATIVE_SILENCE_MS = 500;
-// How much pre-speech audio (ms) to retain so the onset ramp — the start of the
-// first word, which sits below the VAD threshold — survives into the captured
-// utterance instead of being clipped.
-const PRE_BUFFER_MS = 250;
+// How much pre-speech audio (ms) to retain so a word's onset survives into the
+// captured utterance. Sized to also cover the gap between a user starting to
+// speak over the facilitator and barge-in detection flipping capture on — the
+// onset would otherwise be lost in that window. Prepended leading near-silence
+// is harmless to Whisper.
+const PRE_BUFFER_MS = 800;
 
 /** The subset of PacingConfig fields the VAD here cares about. */
 type VadFields = Pick<
@@ -70,6 +73,20 @@ export class ServerWhisperSttEngine implements SttEngine {
     private source: MediaStreamAudioSourceNode | null = null;
     private stopRequested = false;
 
+    // Continuous capture state — the audio callback runs across turns, so this
+    // lives on the instance (not in a start()-scoped closure).
+    private capturing = false;
+    private noiseFloor = 0.005;
+    private noiseSamples = 0;
+    private preBuffer: Float32Array[] = [];
+    private preBufferFrames = 0;
+    // Per-utterance accumulators, reset at the top of each start().
+    private chunks: Float32Array[] = [];
+    private speechStarted = false;
+    private speechStartMs = 0;
+    private lastSpeechMs = 0;
+    private utteranceDone = false;
+
     constructor(options: ServerWhisperSttEngineOptions = {}) {
         this.opts = {
             endpointUrl: options.endpointUrl ?? '/api/stt/whisper',
@@ -101,6 +118,71 @@ export class ServerWhisperSttEngine implements SttEngine {
         );
     }
 
+    /** Keep the onset pre-buffer ring filled with the most recent frame. */
+    private pushPre(frame: Float32Array): void {
+        this.preBuffer.push(frame);
+        if (this.preBuffer.length > this.preBufferFrames) this.preBuffer.shift();
+    }
+
+    /** Continuous audio callback — runs for the engine's whole lifetime. */
+    private handleAudio = (e: AudioProcessingEvent): void => {
+        if (this.stopRequested) return;
+        const data = e.inputBuffer.getChannelData(0);
+        const frame = new Float32Array(data);
+        let sum = 0;
+        for (let i = 0; i < frame.length; i++) sum += frame[i]! * frame[i]!;
+        const energy = Math.sqrt(sum / frame.length);
+        const now = performance.now();
+
+        // Between turns (including while the facilitator is speaking): keep the
+        // onset pre-buffer warm so a barge-in's first word is already captured.
+        // Don't fold this audio into the noise floor — it may be TTS echo, which
+        // would inflate the ambient estimate and desensitize the VAD.
+        if (!this.capturing) {
+            this.pushPre(frame);
+            return;
+        }
+        if (this.utteranceDone) return;
+
+        // Threshold is whichever is higher: the static floor, or 3x the running
+        // noise floor. The 3x multiplier matches the existing audio.js heuristic
+        // and gives reliable separation in normal rooms.
+        const threshold = Math.max(this.opts.energyThreshold, this.noiseFloor * 3);
+
+        if (energy > threshold) {
+            if (!this.speechStarted) {
+                this.speechStarted = true;
+                this.speechStartMs = now;
+                // Prepend the retained onset ramp, then clear it.
+                for (const f of this.preBuffer) this.chunks.push(f);
+                this.preBuffer.length = 0;
+            }
+            this.lastSpeechMs = now;
+            this.chunks.push(frame);
+        } else if (this.speechStarted) {
+            this.chunks.push(frame);
+            // Adaptive silence: each ms of speech buys silenceRampRate ms of
+            // additional patience, capped at silenceMaxMs.
+            const speechDur = this.lastSpeechMs - this.speechStartMs;
+            const needed = Math.min(
+                this.opts.silenceBaseMs + speechDur * this.opts.silenceRampRate,
+                this.opts.silenceMaxMs
+            );
+            if (now - this.lastSpeechMs >= needed) this.utteranceDone = true;
+        } else {
+            // Capturing but pre-speech — calibrate the noise floor (fast for the
+            // first 100 samples, then slow) and keep the onset pre-buffer warm.
+            const alpha = this.noiseSamples < 100 ? 0.1 : 0.01;
+            this.noiseFloor = (1 - alpha) * this.noiseFloor + alpha * energy;
+            this.noiseSamples++;
+            this.pushPre(frame);
+        }
+
+        if (this.speechStarted && now - this.speechStartMs >= this.opts.maxUtteranceMs) {
+            this.utteranceDone = true;
+        }
+    };
+
     async *start(): AsyncIterable<SttEvent> {
         this.stopRequested = false;
         // Reuse a live stream across turns; only re-acquire if it was released
@@ -109,6 +191,7 @@ export class ServerWhisperSttEngine implements SttEngine {
         try {
             if (!this.stream || !this.stream.active) {
                 this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.teardownGraph(); // any prior nodes belong to a dead stream
             }
         } catch (err) {
             yield { type: 'error', error: err };
@@ -125,6 +208,7 @@ export class ServerWhisperSttEngine implements SttEngine {
             return;
         }
         if (!this.context || this.context.state === 'closed') {
+            this.teardownGraph();
             this.context = new AC();
         }
         // Autoplay policies can leave the context suspended; resume so the
@@ -136,86 +220,32 @@ export class ServerWhisperSttEngine implements SttEngine {
                 /* best effort */
             }
         }
-        this.source = this.context.createMediaStreamSource(this.stream);
-        // ScriptProcessorNode is deprecated in favour of AudioWorklet, but
-        // it's a one-liner and still works everywhere. Migrate later.
-        this.processor = this.context.createScriptProcessor(FRAME_SIZE, 1, 1);
 
-        const chunks: Float32Array[] = [];
-        let speechStarted = false;
-        let speechStartMs = 0;
-        let lastSpeechMs = 0;
-        let utteranceDone = false;
-        // Adaptive noise floor — track ambient room sound so the speech
-        // threshold rides above background noise instead of a fixed cut.
-        let noiseFloor = 0.005;
-        let noiseSamples = 0;
+        // Wire the continuous audio graph once; it stays alive across turns so
+        // the pre-buffer keeps filling even while the facilitator speaks.
         const nativeRate = this.context.sampleRate;
-        // Rolling pre-speech buffer: the last few frames before the VAD trips,
-        // prepended to the utterance so the word's onset isn't clipped.
-        const preBuffer: Float32Array[] = [];
-        const preBufferFrames = Math.max(
-            1,
-            Math.round((PRE_BUFFER_MS / 1000) * nativeRate / FRAME_SIZE)
-        );
+        if (!this.processor) {
+            this.preBufferFrames = Math.max(
+                1,
+                Math.round((PRE_BUFFER_MS / 1000) * nativeRate / FRAME_SIZE)
+            );
+            this.source = this.context.createMediaStreamSource(this.stream);
+            // ScriptProcessorNode is deprecated in favour of AudioWorklet, but
+            // it's a one-liner and still works everywhere. Migrate later.
+            this.processor = this.context.createScriptProcessor(FRAME_SIZE, 1, 1);
+            this.processor.onaudioprocess = this.handleAudio;
+            this.source.connect(this.processor);
+            this.processor.connect(this.context.destination);
+        }
 
-        this.processor.onaudioprocess = (e) => {
-            if (utteranceDone || this.stopRequested) return;
-            const data = e.inputBuffer.getChannelData(0);
-            const frame = new Float32Array(data);
-            let sum = 0;
-            for (let i = 0; i < frame.length; i++) sum += frame[i]! * frame[i]!;
-            const energy = Math.sqrt(sum / frame.length);
-            const now = performance.now();
-
-            // Threshold is whichever is higher: the static floor, or
-            // 3x the running noise floor. The 3x multiplier matches the
-            // existing audio.js heuristic and gives reliable separation
-            // in normal rooms.
-            const threshold = Math.max(this.opts.energyThreshold, noiseFloor * 3);
-            const isSpeech = energy > threshold;
-
-            if (isSpeech) {
-                if (!speechStarted) {
-                    speechStarted = true;
-                    speechStartMs = now;
-                    // Prepend the retained onset ramp, then clear it.
-                    for (const f of preBuffer) chunks.push(f);
-                    preBuffer.length = 0;
-                }
-                lastSpeechMs = now;
-                chunks.push(frame);
-            } else if (speechStarted) {
-                chunks.push(frame);
-                // Adaptive silence: each ms of speech buys silenceRampRate
-                // ms of additional patience, capped at silenceMaxMs.
-                const speechDur = lastSpeechMs - speechStartMs;
-                const needed = Math.min(
-                    this.opts.silenceBaseMs + speechDur * this.opts.silenceRampRate,
-                    this.opts.silenceMaxMs
-                );
-                if (now - lastSpeechMs >= needed) {
-                    utteranceDone = true;
-                }
-            } else {
-                // Truly silent frame — update the noise floor. Fast
-                // adaptation for the first 100 samples (~9s at 4096-frame
-                // ScriptProcessor + 48kHz), then slow.
-                const alpha = noiseSamples < 100 ? 0.1 : 0.01;
-                noiseFloor = (1 - alpha) * noiseFloor + alpha * energy;
-                noiseSamples++;
-                // Keep the most recent pre-speech frames for onset retention.
-                preBuffer.push(frame);
-                if (preBuffer.length > preBufferFrames) preBuffer.shift();
-            }
-
-            if (speechStarted && now - speechStartMs >= this.opts.maxUtteranceMs) {
-                utteranceDone = true;
-            }
-        };
-
-        this.source.connect(this.processor);
-        this.processor.connect(this.context.destination);
+        // Begin a fresh utterance. The pre-buffer + noise floor persist (warmed
+        // between turns); only the per-utterance accumulators reset.
+        this.chunks = [];
+        this.speechStarted = false;
+        this.speechStartMs = 0;
+        this.lastSpeechMs = 0;
+        this.utteranceDone = false;
+        this.capturing = true;
 
         // Transcribe a snapshot of captured frames via the Whisper endpoint —
         // used for both speculative interim passes and the final submission.
@@ -275,39 +305,39 @@ export class ServerWhisperSttEngine implements SttEngine {
             // speculative pass re-transcribes the growing buffer.
             let lastSpecChunkCount = 0;
             let specInFlight = false;
-            while (!utteranceDone && !this.stopRequested) {
+            while (!this.utteranceDone && !this.stopRequested) {
                 await new Promise<void>((r) => setTimeout(r, 200));
-                if (utteranceDone || this.stopRequested) break;
-                if (!speechStarted) continue;
-                const silence = performance.now() - lastSpeechMs;
+                if (this.utteranceDone || this.stopRequested) break;
+                if (!this.speechStarted) continue;
+                const silence = performance.now() - this.lastSpeechMs;
                 if (
                     silence >= SPECULATIVE_SILENCE_MS &&
                     !specInFlight &&
-                    chunks.length > lastSpecChunkCount
+                    this.chunks.length > lastSpecChunkCount
                 ) {
                     specInFlight = true;
-                    lastSpecChunkCount = chunks.length;
-                    const result = await transcribeChunks(chunks.slice());
+                    lastSpecChunkCount = this.chunks.length;
+                    const result = await transcribeChunks(this.chunks.slice());
                     specInFlight = false;
                     // Drop the preview if the turn ended while it was in flight
                     // (the final pass will emit the authoritative text).
-                    if (!utteranceDone && result.ok && result.text) {
+                    if (!this.utteranceDone && result.ok && result.text) {
                         yield { type: 'partial', text: result.text };
                     }
                 }
             }
 
-            if (this.stopRequested && !utteranceDone) {
+            if (this.stopRequested && !this.utteranceDone) {
                 return; // user explicitly stopped before end-of-speech
             }
-            if (!speechStarted) return;
+            if (!this.speechStarted) return;
 
-            const speechDuration = lastSpeechMs - speechStartMs;
+            const speechDuration = this.lastSpeechMs - this.speechStartMs;
             if (speechDuration < this.opts.minSpeechDurationMs) {
                 return; // sound too short — likely a cough / mic bump
             }
 
-            const result = await transcribeChunks(chunks);
+            const result = await transcribeChunks(this.chunks);
             if (!result.ok) {
                 yield { type: 'error', error: result.error };
                 return;
@@ -318,19 +348,21 @@ export class ServerWhisperSttEngine implements SttEngine {
             // simple (revisit if a hosted cloud-STT meters speculation).
             yield { type: 'final', text: result.text, seconds: result.seconds };
         } finally {
-            // End the turn but keep the stream + context warm for the next one
-            // (and for a low-latency barge-in). Full teardown only on stop().
-            this.cleanupUtterance();
+            // End the turn but keep the stream, context, and callback alive —
+            // the pre-buffer keeps filling for a low-latency next turn / barge-in.
+            // Full teardown only on stop().
+            this.capturing = false;
         }
     }
 
     async stop(): Promise<void> {
         this.stopRequested = true;
+        this.capturing = false;
         this.releaseAll();
     }
 
-    /** Tear down the per-turn nodes; leaves the stream + context alive. */
-    private cleanupUtterance(): void {
+    /** Tear down the audio graph nodes; leaves the stream + context. */
+    private teardownGraph(): void {
         if (this.processor) {
             try {
                 this.processor.disconnect();
@@ -350,14 +382,18 @@ export class ServerWhisperSttEngine implements SttEngine {
         }
     }
 
-    /** Full teardown: per-turn nodes + the context and mic stream. */
+    /** Full teardown: graph nodes + the context and mic stream, and reset the
+     *  continuous capture state so a later start() begins clean. */
     private releaseAll(): void {
-        this.cleanupUtterance();
+        this.teardownGraph();
         if (this.context && this.context.state !== 'closed') {
             this.context.close().catch(() => {});
         }
         this.context = null;
         this.releaseStream();
+        this.preBuffer = [];
+        this.noiseFloor = 0.005;
+        this.noiseSamples = 0;
     }
 
     private releaseStream(): void {

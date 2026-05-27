@@ -32,7 +32,25 @@ export function initTauriWindowDrag(): void {
             /* drag is a nicety; ignore load failures */
         });
 
+    // When a drag happens, the native drag consumes the gesture but WebKit
+    // still synthesizes a `click` on release — which would e.g. open the About
+    // modal when you drag the window by the logo. Swallow that one click.
+    let dragged = false;
+    document.addEventListener(
+        'click',
+        (e) => {
+            if (dragged) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                dragged = false;
+            }
+        },
+        true // capture, so we run before the link/button's own handler
+    );
+
     nav.addEventListener('mousedown', (e: MouseEvent) => {
+        // Fresh interaction — clear any stale suppression so a real click works.
+        dragged = false;
         if (e.button !== 0 || !appWindow) return; // primary button only
         const startX = e.clientX;
         const startY = e.clientY;
@@ -45,6 +63,7 @@ export function initTauriWindowDrag(): void {
                 return; // still a click, not a drag
             }
             cleanup();
+            dragged = true; // suppress the click that fires on release
             // OS takes over the drag loop here; our move/up listeners won't
             // fire again, so remove them first.
             void appWindow?.startDragging();
