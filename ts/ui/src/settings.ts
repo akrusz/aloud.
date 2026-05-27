@@ -14,6 +14,7 @@ import type {
 } from '../../src/facilitation/index.js';
 import { LocalStorageKv } from './adapters/localstorage-kv.js';
 import { loadAppSettings } from './app-settings.js';
+import type { Capability, Capabilities } from './capabilities.js';
 
 export type Provider =
     | 'aloud'
@@ -29,25 +30,34 @@ export interface ProviderMeta {
     value: Provider;
     label: string;
     needsKey: boolean;
-    /** Desktop-only providers are hidden from the dropdown on mobile. */
-    desktopOnly?: boolean;
+    /** Capability this provider needs to be usable. Omitted = always available
+     *  (BYOK providers work from any browser with a key). The menu hides
+     *  providers whose capability the environment can't reach. */
+    requires?: Capability;
 }
 
 export const ALL_PROVIDERS: ReadonlyArray<ProviderMeta> = [
     // Hosted aloud server: no key, no local model — credits-metered premium
-    // LLMs. The only LLM source for the web tier (meditation-pal-vd3).
-    { value: 'aloud', label: 'aloud (hosted)', needsKey: false },
-    { value: 'ollama', label: 'Ollama (Local)', needsKey: false },
-    // claude_proxy shells out to the local `claude` CLI for Pro/Max
-    // subscription routing. Doesn't run on mobile (no subprocess); the
-    // UI hides it when /api/system-info isn't reachable.
-    { value: 'claude_proxy', label: 'Anthropic (Subscription)', needsKey: false, desktopOnly: true },
+    // LLMs. The only LLM source for the web tier (meditation-pal-vd3). Shown
+    // only when the server is reachable.
+    { value: 'aloud', label: 'aloud (hosted)', needsKey: false, requires: 'hosted' },
+    // Local Ollama — only when a daemon is actually reachable (e.g. not on the
+    // hosted website).
+    { value: 'ollama', label: 'Ollama (Local)', needsKey: false, requires: 'ollama' },
+    // claude_proxy shells out to the local `claude` CLI via Flask — desktop only.
+    { value: 'claude_proxy', label: 'Anthropic (Subscription)', needsKey: false, requires: 'flask' },
     { value: 'anthropic', label: 'Anthropic (API Key)', needsKey: true },
     { value: 'openai', label: 'OpenAI (API Key)', needsKey: true },
     { value: 'groq', label: 'Groq (API Key)', needsKey: true },
     { value: 'openrouter', label: 'OpenRouter (API Key)', needsKey: true },
     { value: 'venice', label: 'Venice.ai (API Key)', needsKey: true },
 ];
+
+/** Whether a provider is usable given the detected capabilities. BYOK
+ *  providers (no `requires`) are always offered — the user can add a key. */
+export function isProviderAvailable(meta: ProviderMeta, caps: Capabilities): boolean {
+    return meta.requires ? caps[meta.requires] : true;
+}
 
 export function providerNeedsKey(p: Provider): boolean {
     return ALL_PROVIDERS.find((x) => x.value === p)?.needsKey ?? false;

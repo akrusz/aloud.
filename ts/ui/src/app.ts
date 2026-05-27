@@ -23,7 +23,7 @@ import { mountSettingsView } from './views/settings.js';
 import type { SessionSetup } from './settings.js';
 import type { SessionState } from '../../src/facilitation/session.js';
 import { applyChromeSettings, loadAppSettings } from './app-settings.js';
-import { detectIsDesktop } from './is-desktop.js';
+import { detectCapabilities } from './capabilities.js';
 
 type View = 'setup' | 'session' | 'history' | 'settings';
 
@@ -57,11 +57,11 @@ export async function bootApp(): Promise<void> {
     const settings = await loadAppSettings();
     applyChromeSettings(settings);
 
-    // Probe the runtime environment so desktop-only controls
-    // (claude_proxy provider, Open config folder button, env-var hints)
-    // can gate themselves. Fire-and-forget — views read isDesktopSync()
-    // at render time and tolerate the initial `false` answer.
-    void detectIsDesktop();
+    // Probe the runtime environment (Flask / hosted server / Ollama) so menus
+    // and desktop-only controls can gate themselves to what's reachable.
+    // Fire-and-forget — views read the cached value at render and tolerate the
+    // initial `false`. (detectCapabilities also populates the is-desktop cache.)
+    void detectCapabilities();
 
     wireNav();
     wirePopstate();

@@ -17,6 +17,7 @@ import {
     type NotingSound,
     NOTING_SOUNDS,
     ALL_PROVIDERS,
+    isProviderAvailable,
     DIRECTIVENESS_VALUES,
     loadSetup,
     saveSetup,
@@ -39,7 +40,7 @@ import {
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { mountModelPicker } from '../model-picker.js';
 import { sessionStore } from '../state.js';
-import { detectIsDesktop, isDesktopSync } from '../is-desktop.js';
+import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
 import {
     autoStart as autoStartGuide,
     closeIfActive as closeGuideIfActive,
@@ -117,9 +118,10 @@ export async function mountSetupView(
     onBegin: (setup: SessionSetup, continueFrom: SessionState | null) => void
 ): Promise<SetupViewHandle> {
     const setup = await loadSetup();
-    // Resolve desktop-vs-mobile before the first render so claude_proxy
-    // and the env-var hints show up immediately.
-    await detectIsDesktop();
+    // Resolve environment capabilities before the first render so the provider
+    // menu shows exactly what's reachable (also populates the is-desktop cache
+    // for the env-var hints).
+    await detectCapabilities();
     // Scored voice list for the modal. Lazy-loaded; the setup form is
     // interactive while voices fetch in the background.
     let scoredVoices: ScoredVoice[] = [];
@@ -1084,7 +1086,7 @@ function renderSetupHTML(): string {
             <div class="form-group">
                 <label for="provider">Provider</label>
                 <select id="provider">
-                    ${ALL_PROVIDERS.filter((p) => isDesktopSync() || !p.desktopOnly)
+                    ${ALL_PROVIDERS.filter((p) => isProviderAvailable(p, capabilitiesSync()))
                         .map(
                             (p) =>
                                 `<option value="${p.value}">${escapeHtml(p.label)}</option>`

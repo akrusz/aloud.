@@ -31,8 +31,9 @@ import {
     loadAppSettings,
     saveAppSettings,
 } from '../app-settings.js';
-import { ALL_PROVIDERS, providerNeedsKey, type Provider } from '../settings.js';
-import { detectIsDesktop, isDesktopSync } from '../is-desktop.js';
+import { ALL_PROVIDERS, isProviderAvailable, providerNeedsKey, type Provider } from '../settings.js';
+import { isDesktopSync } from '../is-desktop.js';
+import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { mountModelPicker } from '../model-picker.js';
 import {
@@ -56,9 +57,10 @@ export interface SettingsViewHandle {
 
 export async function mountSettingsView(root: HTMLElement): Promise<SettingsViewHandle> {
     const settings = await loadAppSettings();
-    // Resolve desktop-vs-mobile before the first render so claude_proxy
-    // and the env-var hints show up immediately.
-    await detectIsDesktop();
+    // Resolve environment capabilities before the first render so the provider
+    // menu shows exactly what's reachable (also populates the is-desktop cache
+    // the env-var hints + config-folder link read).
+    await detectCapabilities();
     let scoredVoices: ScoredVoice[] = [];
 
     // Pending chrome state — text scale + theme apply only to the
@@ -938,12 +940,12 @@ function renderHTML(s: AppSettings): string {
 }
 
 function renderProviderSection(s: AppSettings): string {
-    // Hide desktop-only providers (claude_proxy) on mobile. Detection
-    // is cached at app boot — if it hasn't resolved yet, isDesktopSync
-    // returns false and we hide claude_proxy until the user re-enters
-    // the page; in practice the probe finishes before the first render.
-    const desktop = isDesktopSync();
-    const providerOptions = ALL_PROVIDERS.filter((p) => desktop || !p.desktopOnly)
+    // Show only providers the environment can reach (hosted needs the server,
+    // Ollama a local daemon, claude_proxy Flask). Capabilities are cached at app
+    // boot; if unresolved they read false, so an unreachable source is hidden
+    // until the next render — in practice the probe finishes before first paint.
+    const caps = capabilitiesSync();
+    const providerOptions = ALL_PROVIDERS.filter((p) => isProviderAvailable(p, caps))
         .map(
             (p) =>
                 `<option value="${p.value}"${p.value === s.defaultProvider ? ' selected' : ''}>${escape(p.label)}</option>`
