@@ -79,16 +79,23 @@ Endpoint progress (replacing Flask `/api/*`, now served at `/app/v1/*`):
   `fits`/`installed` annotations, `other_installed`, version + outdated against
   `MIN_OLLAMA_VERSION`). The TS settings page renders this via
   `ui/src/settings-ollama.ts` (visible only when provider = ollama).
-  `/app/v1/models` is a stub (returns `[]`) — model lists need the provider's API
-  key, which on desktop lives in localStorage rather than the backend env, so
-  the picker falls back to a free-form text input until a key-forwarding path
-  is added.
+  `/app/v1/models/<provider>` returns the provider's live model list: the UI
+  forwards the BYOK key as `x-provider-key` (loopback only) and `providers.rs`
+  queries each provider's models API (openai/anthropic/openrouter/venice/groq +
+  static claude_proxy), shaping `[{value,label}]`. Empty → the picker's
+  free-form text input.
 - ✅ `/app/v1/ollama/pull` (streamed NDJSON progress) + `/app/v1/ollama/delete` —
   `src-tauri/src/ollama.rs`. Proxies the local Ollama daemon's HTTP API; UI
-  drives per-model progress bars + Remove buttons. The
-  restart / upgrade / install-Ollama-itself flows from the Python build are
-  intentionally deferred (platform-specific shell-outs — brew, curl|sh, manual
-  on Windows — tangential to "manage the models I have").
+  drives per-model progress bars + Remove buttons.
+- ✅ `/app/v1/ollama/restart` + `/app/v1/ollama/upgrade` + `/app/v1/install/{tool}`
+  — `src-tauri/src/ollama_tools.rs`. Manage the daemon itself (vs its models):
+  restart detects how Ollama runs and brings it back; upgrade/install use brew
+  (macOS) or install.sh (Linux), 400 + download URL where there's no automatic
+  path. All stream NDJSON; the settings controls bar drives them.
+- ✅ `/app/v1/llm/anthropic/messages` — relays an Anthropic Messages request
+  upstream (the webview can't reach Anthropic — no CORS). The UI forwards the
+  BYOK key as `x-api-key`; env `ANTHROPIC_API_KEY` is the dev fallback. See
+  `src-tauri/src/llm.rs::anthropic_proxy`.
 - ✅ `/app/v1/llm/claude_proxy/complete` — spawns the local `claude` CLI via
   `tokio::process` and mirrors the Python provider's flags, prompt encoding,
   JSON parsing, and 90 s timeout. See `src-tauri/src/llm.rs`.
@@ -109,3 +116,31 @@ Endpoint progress (replacing Flask `/api/*`, now served at `/app/v1/*`):
 - `Cargo.toml`: crate name is `app` / lib `app_lib` (Tauri default; left as-is to
   avoid churn).
 - `src-tauri/target/` and `src-tauri/gen/schemas` are gitignored.
+
+## Release (CI) — meditation-pal-9vh
+
+`.github/workflows/tauri-release.yml` builds the Tauri app for macOS / Windows /
+Linux on `release: created`, **alongside** the PyInstaller `build.yml` (we run
+both for one cycle to validate Tauri before cutting Python over —
+meditation-pal-sk8). Tauri artifacts carry a `-tauri` suffix so they don't
+collide with the PyInstaller uploads on the same release.
+
+- **macOS**: signed + notarized via Tauri's bundler env (`APPLE_CERTIFICATE` =
+  the existing `MACOS_CERTIFICATE` secret, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`,
+  `APPLE_PASSWORD`, `APPLE_TEAM_ID`). Produces `aloud-X.Y.Z-macOS-tauri.dmg`.
+- **Windows**: MSI + NSIS, unsigned (parity with the current Python build).
+- **Linux**: AppImage + .deb. Needs the WebKitGTK 4.1 / GTK / appindicator /
+  rsvg stack + CMake/build-essential (whisper-rs, espeak-rs).
+- The desktop UI build bakes `VITE_ALOUD_SERVER_URL` (repo var `ALOUD_SERVER_URL`)
+  so the app reaches the hosted `/cloud/v1` service for accounts + credits;
+  local providers work without it.
+
+`scripts/release.sh` now also bumps `tauri.conf.json` + `ts/package.json` in
+lockstep with `src/__init__.py`, and lints the TS/Rust stack (typecheck +
+`cargo check` + `cargo deny`) alongside ruff. **Cutover (sk8):** delete
+`build.yml`, drop the `-tauri` suffix, make `tauri.conf.json` the version source,
+and remove the ruff/PyInstaller bits from `release.sh`.
+
+> Untested end-to-end until a real release runs the workflow — validate the
+> three signed/notarized-where-applicable artifacts launch and their embedded
+> backend serves `/app/v1/*`.

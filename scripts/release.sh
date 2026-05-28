@@ -38,6 +38,38 @@ else
     echo "  Warning: ruff not found, skipping lint check. Proceeding anyway."
 fi
 
+# TS + Rust lint (the Tauri/web stack — meditation-pal-9vh). Both the Python and
+# Tauri build paths ship this cycle, so we lint both. At the Python cutover
+# (meditation-pal-sk8) the ruff block above goes away and these become the only
+# gate. Guarded so a missing toolchain warns rather than blocks.
+if [ -f ts/package.json ]; then
+    if command -v npm >/dev/null 2>&1; then
+        if ! (cd ts && npm run --silent typecheck); then
+            echo "Error: TS typecheck failed — fix before releasing" >&2
+            exit 1
+        fi
+    else
+        echo "  Warning: npm not found, skipping TS typecheck."
+    fi
+    if command -v cargo >/dev/null 2>&1; then
+        if ! cargo check --manifest-path ts/src-tauri/Cargo.toml --quiet; then
+            echo "Error: cargo check failed — fix before releasing" >&2
+            exit 1
+        fi
+        # Supply-chain gate (advisories/bans/licenses/sources); enforced in CI.
+        if cargo deny --version >/dev/null 2>&1; then
+            if ! (cd ts/src-tauri && cargo deny check); then
+                echo "Error: cargo deny found issues — fix before releasing" >&2
+                exit 1
+            fi
+        else
+            echo "  Warning: cargo-deny not installed, skipping supply-chain check."
+        fi
+    else
+        echo "  Warning: cargo not found, skipping Rust checks."
+    fi
+fi
+
 # Read current version from src/__init__.py
 CURRENT=$(python3 -c "import re; print(re.search(r'__version__\s*=\s*\"(.+?)\"', open('src/__init__.py').read()).group(1))")
 IFS='.' read -r MAJ MIN PAT <<< "$CURRENT"
@@ -148,9 +180,23 @@ else
     esac
 fi
 
-# Bump __version__
+# Bump __version__ (Python build — source of truth this cycle)
 sed -i.bak "s/__version__ = \".*\"/__version__ = \"${VERSION}\"/" src/__init__.py
 rm -f src/__init__.py.bak
+
+# Keep the Tauri/web stack's version in lockstep so its release artifacts carry
+# the same version (meditation-pal-9vh). At the Python cutover (sk8), make
+# tauri.conf.json the source of truth and bump src/__init__.py here instead.
+if [ -f ts/src-tauri/tauri.conf.json ]; then
+    sed -i.bak "s/\"version\": \"[0-9][0-9.]*\"/\"version\": \"${VERSION}\"/" ts/src-tauri/tauri.conf.json
+    rm -f ts/src-tauri/tauri.conf.json.bak
+fi
+if [ -f ts/package.json ]; then
+    # "version" is a unique key here — dependency ranges key on package names
+    # ("^x.y.z" values), so a plain substitution hits only the top-level field.
+    sed -i.bak "s/\"version\": \"[0-9][0-9.]*\"/\"version\": \"${VERSION}\"/" ts/package.json
+    rm -f ts/package.json.bak
+fi
 
 # Update README download links
 sed -i.bak "s/aloud-[0-9][0-9.]*-/aloud-${VERSION}-/g" README.md
@@ -158,6 +204,8 @@ sed -i.bak "s|download/v[0-9][0-9.]*/|download/v${VERSION}/|g" README.md
 rm -f README.md.bak
 
 git add src/__init__.py README.md
+[ -f ts/src-tauri/tauri.conf.json ] && git add ts/src-tauri/tauri.conf.json
+[ -f ts/package.json ] && git add ts/package.json
 git diff --cached --quiet || git commit -m "v${VERSION}"
 
 # Re-release: move existing tag to this commit

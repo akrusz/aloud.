@@ -1,0 +1,152 @@
+name: Build Release (Tauri)
+
+# Sibling to build.yml (PyInstaller). Per meditation-pal-9vh we run BOTH for one
+# cycle to validate the Tauri artifacts against the proven Python ones before
+# cutting PyInstaller over (meditation-pal-sk8). Tauri artifacts carry a
+# `-tauri` suffix so they don't collide with the PyInstaller uploads on the same
+# release; drop the suffix (and delete build.yml) at cutover.
+#
+# UNTESTED until a real release runs this — see dev-docs/desktop.md. Required
+# repo config:
+#   - var  ALOUD_SERVER_URL          hosted /cloud/v1 origin baked into the
+#                                    desktop UI so credits work (else cloud off)
+#   - secrets (macOS signing + notarization; same ones build.yml already uses):
+#     MACOS_CERTIFICATE, MACOS_CERTIFICATE_PWD, MACOS_SIGN_IDENTITY,
+#     APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD
+# Windows is unsigned (parity with the current PyInstaller build).
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+env:
+  # Baked into the UI build so the desktop app can reach the hosted service
+  # (/cloud/v1) for accounts + credits. Local providers work without it.
+  VITE_ALOUD_SERVER_URL: ${{ vars.ALOUD_SERVER_URL }}
+
+jobs:
+  tauri-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: dtolnay/rust-toolchain@stable
+
+      # whisper-rs / piper-rs (espeak-rs) build C/C++ via CMake; the Xcode
+      # toolchain on the runner supplies the compiler.
+      - name: Install build prerequisites
+        run: brew install cmake
+
+      - name: Install JS dependencies
+        working-directory: ts
+        run: npm ci
+
+      - name: Build, sign & notarize (DMG)
+        working-directory: ts
+        env:
+          # Tauri's bundler imports this cert into a temp keychain and signs
+          # with it, then notarizes via the Apple ID credentials.
+          APPLE_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run tauri:build -- --bundles dmg
+
+      - name: Stage artifact
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SRC=$(find ts/src-tauri/target/release/bundle/dmg -name '*.dmg' | head -n1)
+          mkdir -p staging
+          cp "$SRC" "staging/aloud-${VERSION}-macOS-tauri.dmg"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: staging/*.dmg
+
+  tauri-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: dtolnay/rust-toolchain@stable
+
+      # CMake ships on the windows runner image; MSVC supplies the C/C++
+      # compiler for whisper-rs / espeak-rs.
+      - name: Install JS dependencies
+        working-directory: ts
+        run: npm ci
+
+      - name: Build (MSI + NSIS, unsigned)
+        working-directory: ts
+        run: npm run tauri:build -- --bundles msi,nsis
+
+      - name: Stage artifacts
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p staging
+          MSI=$(find ts/src-tauri/target/release/bundle/msi -name '*.msi' | head -n1)
+          EXE=$(find ts/src-tauri/target/release/bundle/nsis -name '*.exe' | head -n1)
+          cp "$MSI" "staging/aloud-${VERSION}-Windows-tauri.msi"
+          cp "$EXE" "staging/aloud-${VERSION}-Windows-tauri.exe"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            staging/*.msi
+            staging/*.exe
+
+  tauri-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Tauri 2 on Linux: WebKitGTK 4.1 + GTK + appindicator + rsvg + patchelf,
+      # plus CMake/build-essential for whisper-rs / espeak-rs.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            cmake build-essential \
+            libfuse2
+
+      - name: Install JS dependencies
+        working-directory: ts
+        run: npm ci
+
+      - name: Build (AppImage + .deb)
+        working-directory: ts
+        run: npm run tauri:build -- --bundles appimage,deb
+
+      - name: Stage artifacts
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p staging
+          APP=$(find ts/src-tauri/target/release/bundle/appimage -name '*.AppImage' | head -n1)
+          DEB=$(find ts/src-tauri/target/release/bundle/deb -name '*.deb' | head -n1)
+          cp "$APP" "staging/aloud-${VERSION}-Linux-tauri.AppImage"
+          cp "$DEB" "staging/aloud-${VERSION}-Linux-tauri.deb"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            staging/*.AppImage
+            staging/*.deb
