@@ -23,6 +23,7 @@ import { CURATED_VOICES } from './providers/voice-catalog.js';
 import type { HostedVoice } from './contract.js';
 import { billingRoutes } from './routes/billing.js';
 import { adminRoutes } from './routes/admin.js';
+import { appBackendRoutes } from './routes/app.js';
 
 export function createApp(deps: Deps): Hono {
     const app = new Hono();
@@ -66,6 +67,10 @@ export function createApp(deps: Deps): Hono {
     app.route('/cloud/v1/tts', ttsRoutes(deps));
     app.route('/cloud/v1/billing', billingRoutes(deps));
     app.route('/cloud/v1/admin', adminRoutes(deps));
+
+    // The app's own backend surface for the web build (the desktop shell serves
+    // these natively). Non-inference only; see routes/app.ts.
+    app.route('/app/v1', appBackendRoutes(deps));
 
     return app;
 }

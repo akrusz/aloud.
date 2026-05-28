@@ -53,6 +53,12 @@ export interface Config {
     /** When true, refuse to start unless every prod-critical secret is set.
      *  Off in dev so the server boots with an in-memory store and stubs. */
     strict: boolean;
+
+    /** Optional directory of the built UI (`ui/dist`). When set, this one
+     *  process serves the static UI alongside the API — the "full install"
+     *  self-host story. Unset in the canonical deploy, where the UI is on a
+     *  static host (e.g. GitHub Pages) and this box is API-only. */
+    uiDir?: string;
 }
 
 function list(v: string | undefined): string[] {
@@ -86,6 +92,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (env['STRIPE_SECRET_KEY']) config.stripeSecretKey = env['STRIPE_SECRET_KEY'];
     if (env['STRIPE_WEBHOOK_SECRET']) config.stripeWebhookSecret = env['STRIPE_WEBHOOK_SECRET'];
     if (env['ALOUD_ADMIN_TOKEN']) config.adminToken = env['ALOUD_ADMIN_TOKEN'];
+    if (env['ALOUD_UI_DIR']) config.uiDir = env['ALOUD_UI_DIR'];
 
     if (strict) {
         const missing: string[] = [];

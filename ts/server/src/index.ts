@@ -8,12 +8,29 @@
  */
 
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { loadConfig, configuredProviders } from './config.js';
 import { buildDeps } from './deps.js';
 import { createApp } from './app.js';
 import { assertSolvent, PACK_MARKUP } from './pricing/meter.js';
 import { CREDIT_PACKS } from './billing/stripe.js';
 import { setStrictContentCheck, log } from './logger.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** Read `index.html` from the UI dir once for the SPA fallback; null if absent
+ *  (then unmatched paths just 404 rather than crashing the boot). */
+function readIndexHtml(root: string): string | null {
+    try {
+        return readFileSync(join(root, 'index.html'), 'utf8');
+    } catch (e) {
+        log.warn('ALOUD_UI_DIR set but index.html unreadable; no SPA fallback', {
+            uiDir: root,
+            error: String(e),
+        });
+        return null;
+    }
+}
 
 function main(): void {
     // Load .env into process.env for local dev (Fly/Render inject real env, so
@@ -36,6 +53,26 @@ function main(): void {
 
     const deps = buildDeps(config);
     const app = createApp(deps);
+
+    // Optional: serve the built UI from this same process (the "full install"
+    // self-host story). Registered after the API routes so /cloud and /app win;
+    // unmatched paths fall through to static files, and anything still unmatched
+    // (client routes / refresh) falls back to index.html — but API namespaces
+    // keep their JSON 404 so clients aren't handed HTML. Kept in the entrypoint,
+    // not createApp(), so the app factory stays filesystem-free for tests. In
+    // the canonical deploy this is unset (UI on a static host).
+    if (config.uiDir) {
+        const root = config.uiDir;
+        const indexHtml = readIndexHtml(root);
+        app.use('/*', serveStatic({ root }));
+        app.notFound((c) => {
+            const path = new URL(c.req.url).pathname;
+            const isApi = ['/cloud', '/app', '/health'].some((p) => path.startsWith(p));
+            if (isApi || indexHtml === null) return c.json({ error: 'not found' }, 404);
+            return c.html(indexHtml);
+        });
+        log.info('serving static UI', { uiDir: root, spaFallback: indexHtml !== null });
+    }
 
     serve({ fetch: app.fetch, port: config.port }, (info) => {
         log.info('aloud server up', {

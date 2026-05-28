@@ -1,15 +1,19 @@
 /**
  * Runtime "is this a desktop environment" detection.
  *
- * "Desktop" = the /api backend is reachable. In dev/web that's Flask via
- * the Vite proxy; in a Tauri build it's the embedded Rust server (resolved
- * through appUrl(), which points at the injected loopback base). We probe
- * /api/system-info at boot and cache the result. Views read isDesktop() for
- * gating desktop-only features (claude_proxy provider, env-var hints, the
- * Open config folder button).
+ * "Desktop" = the app backend reports it's a local/desktop backend. We probe
+ * /app/v1/system-info at boot: the native Rust shell and the dev Flask backend
+ * are desktop (they expose claude_proxy, the Ollama proxy, config-folder shell
+ * escapes); the hosted web backend answers `desktop:false` so those features
+ * stay off there. The signal is the `desktop` field — NOT mere reachability,
+ * since the web Hono also answers /app/v1/system-info (with desktop:false). A
+ * response that omits the field (e.g. older Flask) counts as desktop, to keep
+ * the existing browser-against-Flask dev behavior. Views read isDesktop() for
+ * gating desktop-only features (claude_proxy provider, env-var hints, the Open
+ * config folder button).
  *
  * Result is monotonic: once we've decided "desktop", we stick with it
- * for the session. If Flask flaps down between probes we'd rather not
+ * for the session. If the backend flaps down between probes we'd rather not
  * yank the controls.
  */
 
@@ -41,7 +45,14 @@ export async function detectIsDesktop(): Promise<boolean> {
     inflight = (async () => {
         try {
             const resp = await fetch(appUrl('/system-info'), { method: 'GET' });
-            cached = resp.ok;
+            if (!resp.ok) {
+                cached = false;
+                return cached;
+            }
+            // Desktop unless the backend explicitly says otherwise (web Hono
+            // answers desktop:false). A missing field → desktop (legacy Flask).
+            const info = (await resp.json().catch(() => ({}))) as { desktop?: boolean };
+            cached = info.desktop !== false;
             return cached;
         } catch {
             cached = false;

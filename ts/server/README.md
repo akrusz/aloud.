@@ -25,6 +25,22 @@ This is part of the public, **AGPL-3.0** aloud repo, on purpose. See
 | `GET /cloud/v1/admin/metrics` | Operator-only (`ALOUD_ADMIN_TOKEN`; 404 when unset): ledger aggregates — provider cost, free-grant burn, signup velocity — for near-real-time spend monitoring. |
 | `GET /health` | Liveness + what's configured (no secrets). |
 
+The hosted service lives under `/cloud/v1/*`. This process also answers the
+**web build's app-backend** surface under `/app/v1/*` — the non-inference
+endpoints the desktop shell serves natively (`src-tauri/server.rs`):
+
+| Route | Purpose |
+|-------|---------|
+| `GET /app/v1/system-info` | Platform marker; `desktop:false` so the UI keeps desktop-only features off on the web. |
+| `GET /app/v1/providers` | Provider availability for the picker (Ollama is local-only → unavailable; BYOK providers report available, client-key-gated). |
+| `GET /app/v1/models/:provider` | Live model list; BYOK key forwarded as `x-provider-key` (never persisted). OpenRouter needs none; `claude_proxy` is a static alias list. |
+| `GET /app/v1/voices` | Local server voices — none on the web (hosted voices are at `/cloud/v1/voices`). |
+
+With `ALOUD_UI_DIR` set, this process also serves the built UI (`ui/dist`)
+statically — the single-box "full install" self-host story. In the canonical
+deploy it's unset: the UI is on a static host (e.g. GitHub Pages) and this box
+is API-only.
+
 ## Architecture
 
 Deliberately small and stateless. **Sessions live entirely on the client** — the

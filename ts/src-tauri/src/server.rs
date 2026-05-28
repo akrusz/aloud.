@@ -186,6 +186,9 @@ async fn system_info() -> Json<Value> {
     };
     Json(json!({
         "platform": platform,
+        // This is the local desktop backend; the UI's is-desktop probe keys off
+        // this to enable desktop-only features (the web Hono answers false).
+        "desktop": true,
         "has_homebrew": which::which("brew").is_ok(),
         "tools": {
             "claude_cli": { "installed": claude.is_some(), "path": path_str(claude) },
