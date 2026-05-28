@@ -2,19 +2,15 @@
  * Settings page — Ollama recommendation + model management UI.
  *
  * Port of `src/web/static/js/settings-ollama.js`. Pulls the per-machine
- * recommendation block from `/api/providers` (computed in
+ * recommendation block from `/app/v1/providers` (computed in
  * `src-tauri/src/providers.rs` for desktop, the Flask route for dev) and
  * renders the curated tier list with per-tier Download / Remove buttons,
  * plus a list of any models the user pulled outside the curated tiers.
  *
- * What the Python had that's intentionally not ported yet:
- *   - Restart Ollama
- *   - Upgrade Ollama
- *   - Install Ollama
- *
- * Those flows are platform-specific shell-outs (brew on macOS, curl|sh on
- * Linux, manual on Windows) and the desktop backend doesn't expose them
- * yet — a separate follow-up.
+ * A controls bar manages the daemon itself: Install when it's absent, or
+ * Restart + Upgrade when it's present. Those stream NDJSON `{status}` log
+ * lines from the desktop backend (`ollama_tools.rs`); Windows / no-Homebrew
+ * fall back to a 400 + download URL the bar opens for a manual install.
  */
 
 import { appUrl } from './app-base.js';
@@ -101,7 +97,7 @@ export function mountOllamaSettings(
         el.innerHTML = '';
     }
 
-    /** Wire each Download/Remove button rendered into `el`. */
+    /** Wire each Download/Remove button + the daemon controls bar. */
     function wireButtons(): void {
         el.querySelectorAll<HTMLButtonElement>('.ollama-pull-btn').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -113,6 +109,71 @@ export function mountOllamaSettings(
                 void removeModel(btn);
             });
         });
+        const restart = el.querySelector<HTMLButtonElement>('.ollama-restart-btn');
+        restart?.addEventListener('click', () => {
+            void runDaemonTool(restart, appUrl('/ollama/restart'), { refreshModels: false });
+        });
+        const upgrade = el.querySelector<HTMLButtonElement>('.ollama-upgrade-btn');
+        upgrade?.addEventListener('click', () => {
+            void runDaemonTool(upgrade, appUrl('/ollama/upgrade'), { refreshModels: true });
+        });
+        const install = el.querySelector<HTMLButtonElement>('.ollama-install-btn');
+        install?.addEventListener('click', () => {
+            void runDaemonTool(install, appUrl('/install/ollama'), { refreshModels: true });
+        });
+    }
+
+    /**
+     * Run a daemon lifecycle action (restart / upgrade / install) that streams
+     * NDJSON `{status}` lines. A 400 carrying a `download_url` (Windows / no
+     * Homebrew) opens that page instead. On success, re-render — and for
+     * upgrade/install, refresh the model picker since availability may change.
+     */
+    async function runDaemonTool(
+        btn: HTMLButtonElement,
+        url: string,
+        opts: { refreshModels: boolean }
+    ): Promise<void> {
+        const bar = el.querySelector<HTMLElement>('.ollama-tool-progress');
+        const statusEl = bar?.querySelector<HTMLElement>('.ollama-tool-status') ?? null;
+        const originalText = btn.textContent;
+        const controls = el.querySelectorAll<HTMLButtonElement>('.ollama-tools button');
+        controls.forEach((b) => (b.disabled = true));
+        btn.textContent = 'Working…';
+        bar?.classList.remove('hidden');
+        if (statusEl) statusEl.textContent = 'Starting…';
+
+        try {
+            const resp = await fetch(url, { method: 'POST' });
+            if (resp.status === 400) {
+                const data = (await resp.json().catch(() => ({}))) as {
+                    error?: string;
+                    download_url?: string;
+                };
+                if (data.download_url) {
+                    window.open(data.download_url, '_blank', 'noopener');
+                    if (statusEl) {
+                        statusEl.textContent =
+                            data.error ?? 'Opening the download page…';
+                    }
+                    return;
+                }
+                throw new Error(data.error ?? 'Request failed (400).');
+            }
+            if (!resp.ok || !resp.body) throw new Error(`server returned ${resp.status}`);
+            const finalMessage = await consumeStatusStream(resp.body, statusEl);
+            if (statusEl && finalMessage) statusEl.textContent = finalMessage;
+            await refresh();
+            if (opts.refreshModels && onModelsChanged) await onModelsChanged();
+        } catch (err) {
+            if (statusEl) statusEl.textContent = (err as Error).message;
+        } finally {
+            // refresh() may have re-rendered (replacing these nodes); guard.
+            if (btn.isConnected) {
+                btn.textContent = originalText ?? '';
+                controls.forEach((b) => (b.disabled = false));
+            }
+        }
     }
 
     async function pullModel(btn: HTMLButtonElement): Promise<void> {
@@ -187,16 +248,16 @@ export function mountOllamaSettings(
 // ---------------------------------------------------------------------------
 
 function renderHTML(info: OllamaInfo): string {
+    const controls = renderControls(info);
     const rec = info.recommendation;
     if (!rec || !rec.tiers || rec.tiers.length === 0) {
-        // Ollama daemon not reachable / no tiers — show the hint if any so the
-        // user knows why this section is empty.
-        return info.hint
-            ? `<p class="ollama-rec-hint">${escapeHtml(info.hint)}</p>`
-            : '';
+        // Ollama daemon not reachable / no tiers — show the controls bar (so an
+        // Install button appears when it's missing) plus the hint if any.
+        const hint = info.hint ? `<p class="ollama-rec-hint">${escapeHtml(info.hint)}</p>` : '';
+        return controls + hint;
     }
 
-    let html = '';
+    let html = controls;
 
     if (info.outdated && info.version) {
         html += `<div class="ollama-outdated-banner">
@@ -232,6 +293,22 @@ function renderHTML(info: OllamaInfo): string {
     }
 
     return html;
+}
+
+/**
+ * Daemon controls bar. Install when Ollama is absent; Restart + Upgrade when
+ * it's present. A shared, hidden progress line shows streamed status text.
+ */
+function renderControls(info: OllamaInfo): string {
+    const installed = info.installed === true || Boolean(info.version);
+    const buttons = installed
+        ? `<button type="button" class="btn btn-small ollama-restart-btn">Restart Ollama</button>
+           <button type="button" class="btn btn-small ollama-upgrade-btn">Upgrade Ollama</button>`
+        : `<button type="button" class="btn btn-small ollama-install-btn">Install Ollama</button>`;
+    return `<div class="ollama-tools">
+        ${buttons}
+        <div class="ollama-tool-progress hidden"><span class="ollama-tool-status"></span></div>
+    </div>`;
 }
 
 /**
@@ -331,6 +408,46 @@ async function consumePullStream(
             }
         }
     }
+}
+
+/**
+ * Read a daemon-tool NDJSON stream (restart / upgrade / install). Each line is
+ * `{status}`; the status text is echoed into `statusEl` as a live log. Resolves
+ * with the terminal `done` message; throws on a `status:"error"` line.
+ */
+async function consumeStatusStream(
+    body: ReadableStream<Uint8Array>,
+    statusEl: HTMLElement | null
+): Promise<string | undefined> {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalMessage: string | undefined;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf('\n')) >= 0) {
+            const line = buffer.slice(0, nl).trim();
+            buffer = buffer.slice(nl + 1);
+            if (!line) continue;
+            let msg: { status?: string; error?: string; message?: string };
+            try {
+                msg = JSON.parse(line);
+            } catch {
+                continue;
+            }
+            if (msg.status === 'error') throw new Error(msg.error ?? 'operation failed');
+            if (msg.status === 'done') {
+                finalMessage = msg.message ?? 'Done.';
+                if (statusEl) statusEl.textContent = finalMessage;
+                continue;
+            }
+            if (statusEl && msg.status) statusEl.textContent = msg.status;
+        }
+    }
+    return finalMessage;
 }
 
 // ---------------------------------------------------------------------------

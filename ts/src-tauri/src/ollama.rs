@@ -3,10 +3,9 @@
 //! API; the settings UI uses pull progress to render a per-model progress bar
 //! and delete to free disk space.
 //!
-//! Restart / upgrade / install-Ollama-itself from the Python build are
-//! deliberately not ported yet — those flows are platform-specific (brew on
-//! macOS, curl-pipe-sh on Linux, manual on Windows) and tangential to the
-//! "manage the models I have" experience. Adding them is a follow-up.
+//! Restart / upgrade / install of the Ollama daemon *itself* (as opposed to its
+//! models) live in `ollama_tools.rs` — those flows are platform-specific (brew
+//! on macOS, curl-pipe-sh on Linux, manual on Windows).
 
 use serde::Deserialize;
 use serde_json::{json, Value};

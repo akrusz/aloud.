@@ -426,3 +426,23 @@
 .ollama-outdated-message {
     font-size: 0.9rem;
 }
+
+/* Daemon controls bar: Install, or Restart + Upgrade. */
+.ollama-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.ollama-tool-progress {
+    flex-basis: 100%;
+    font-size: 0.85rem;
+    opacity: 0.85;
+    /* The streamed log line can be long (brew/curl output); don't let it push
+       the layout — clip to a single line. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

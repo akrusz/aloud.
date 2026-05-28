@@ -58,13 +58,25 @@ describe('renderTier', () => {
 });
 
 describe('renderHTML', () => {
-    it('returns empty when no recommendation tiers', () => {
-        expect(renderHTML({})).toBe('');
+    it('shows only the Install control when Ollama is absent (no tiers)', () => {
+        const html = renderHTML({});
+        expect(html).toContain('ollama-install-btn');
+        expect(html).not.toContain('ollama-tier-row');
+        // Not installed → no Restart/Upgrade controls.
+        expect(html).not.toContain('ollama-restart-btn');
     });
 
-    it('renders the hint when no tiers but Ollama is unreachable', () => {
+    it('renders the hint (plus the Install control) when Ollama is unreachable', () => {
         const html = renderHTML({ hint: 'Ollama is not installed.' });
         expect(html).toContain('Ollama is not installed.');
+        expect(html).toContain('ollama-install-btn');
+    });
+
+    it('shows Restart + Upgrade controls when Ollama is installed', () => {
+        const html = renderHTML({ installed: true, version: '0.21.0' });
+        expect(html).toContain('ollama-restart-btn');
+        expect(html).toContain('ollama-upgrade-btn');
+        expect(html).not.toContain('ollama-install-btn');
     });
 
     it('shows the detected RAM and the outdated banner', () => {

@@ -73,6 +73,9 @@ fn router(state: Shared) -> Router {
         .route("/models/{provider}", get(models))
         .route("/ollama/pull", post(ollama_pull))
         .route("/ollama/delete", post(ollama_delete))
+        .route("/ollama/restart", post(ollama_restart))
+        .route("/ollama/upgrade", post(ollama_upgrade))
+        .route("/install/{tool}", post(install_tool))
         .route("/open-config-folder", post(open_config_folder))
         .route("/open-sessions-folder", post(open_sessions_folder))
         .route("/open-voice-settings", post(open_voice_settings));
@@ -442,6 +445,64 @@ async fn ollama_delete(Json(req): Json<crate::ollama::ModelReq>) -> (StatusCode,
             Json(json!({ "error": format!("delete task failed: {e}") })),
         ),
     }
+}
+
+/// Run a blocking, progress-emitting job on a worker thread and stream its
+/// events back as NDJSON (one JSON object per line). `f` receives a `send`
+/// closure to emit `{status: ...}` events; the stream ends when `f` returns.
+/// Shared by the Ollama restart/upgrade/install handlers.
+fn ndjson_stream<F>(f: F) -> Response
+where
+    F: FnOnce(&mut dyn FnMut(Value)) + Send + 'static,
+{
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<String, std::io::Error>>(64);
+    tokio::task::spawn_blocking(move || {
+        let mut send = |v: Value| {
+            let _ = tx.blocking_send(Ok(format!("{v}\n")));
+        };
+        f(&mut send);
+    });
+    let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
+    Response::builder()
+        .header(header::CONTENT_TYPE, "application/x-ndjson")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from_stream(stream))
+        .expect("build ndjson response")
+}
+
+/// `POST /app/v1/ollama/restart` — stop and restart the local Ollama daemon,
+/// streaming progress until the version endpoint answers again.
+async fn ollama_restart() -> Response {
+    ndjson_stream(|send| crate::ollama_tools::restart_stream(send))
+}
+
+/// `POST /app/v1/ollama/upgrade` — upgrade an existing Ollama install (brew on
+/// macOS, install.sh on Linux). Returns 400 + a download URL where there's no
+/// automatic path (Windows, or macOS without Homebrew); otherwise streams.
+async fn ollama_upgrade() -> Response {
+    if let Some((error, download_url)) = crate::ollama_tools::upgrade_precheck() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": error, "download_url": download_url })),
+        )
+            .into_response();
+    }
+    ndjson_stream(|send| crate::ollama_tools::upgrade_stream(send))
+}
+
+/// `POST /app/v1/install/{tool}` — install an external tool (only `ollama` in
+/// the desktop build; Piper is compiled in). Streams progress; 400 + download
+/// URL when there's no automatic path.
+async fn install_tool(axum::extract::Path(tool): axum::extract::Path<String>) -> Response {
+    if let Err((status, error, download_url)) = crate::ollama_tools::install_precheck(&tool) {
+        let code = StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_REQUEST);
+        let mut body = json!({ "error": error });
+        if let Some(url) = download_url {
+            body["download_url"] = json!(url);
+        }
+        return (code, Json(body)).into_response();
+    }
+    ndjson_stream(move |send| crate::ollama_tools::install_stream(&tool, send))
 }
 
 // --- /app/v1/open-* shell escapes ---------------------------------------------
