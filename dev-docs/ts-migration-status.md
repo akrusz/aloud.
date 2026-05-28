@@ -4,7 +4,27 @@ Snapshot of where the TS UI sits against Python parity, updated at the
 end of each autonomous porting session. The eventual goal is full Python
 deprecation; this doc tracks how close we are and what's left.
 
-## Done this session
+## Session 2026-05-28b — Flask-removal backends (clk / bkg / 9vh) + route rename
+
+Branch: `ts-core`. Closes the backend gaps that were blocking Python deletion
+(meditation-pal-sk8). Final state: core/UI typecheck + 176 tests, server
+typecheck + 73 tests, `cargo check` — all green.
+
+| Commit | Lands |
+|---|---|
+| `a8677e7` | **Route rename** to role-versioned `/app/v1/*` (the app's own backend — Rust on desktop, Hono on web) + `/cloud/v1/*` (hosted account/billing/forwarding), replacing the inconsistent `/api` vs `/v1`. UI helpers `appUrl`/`cloudUrl` own the prefix; Vite proxy rewrites `/app/v1`→`/api` so Flask-backed dev still works. |
+| `d9b031d` | **clk:** native Anthropic BYOK proxy (`/app/v1/llm/anthropic/messages`) — was a real parity gap (UI pointed at it, no Rust handler). |
+| `944abea` | **clk:** Ollama daemon restart/upgrade/install (`ollama_tools.rs`) + a settings controls bar. |
+| `45a9591` | **clk:** live model lists via `x-provider-key` forwarding; **fixed** a `/cloud/v1/v1` double-prefix bug the rename introduced (uncaught by typecheck/server tests — added `url-base.test.ts`). |
+| `89fd698` | **bkg:** Hono serves `/app/v1/{system-info,providers,models,voices}` for the web build + optional static `ui/dist` (`ALOUD_UI_DIR`). `is-desktop` now keys off a `desktop` flag so the web build keeps desktop features off. |
+| `fa92709` | **9vh:** `tauri-release.yml` (mac/win/linux, parallel to PyInstaller; `-tauri`-suffixed artifacts) + `release.sh` version-sync & TS/Rust lint. **Untested** until a real release run. |
+
+**Now unblocked:** meditation-pal-sk8 (delete Python/Flask) — clk + bkg give the
+desktop and web targets Flask-free backends. Before deleting, run the manual
+verifications noted on each bead (desktop runtime flows; a web build against the
+hosted server; a real Tauri release).
+
+## Prior session
 
 Branch: `ts-core`. Test baseline held at 117/117 throughout; typecheck
 clean.
