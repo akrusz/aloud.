@@ -67,6 +67,8 @@ fn router(state: Shared) -> Router {
         .route("/api/llm/claude_proxy/complete", post(llm_claude_proxy_complete))
         .route("/api/providers", get(providers))
         .route("/api/models/{provider}", get(models))
+        .route("/api/ollama/pull", post(ollama_pull))
+        .route("/api/ollama/delete", post(ollama_delete))
         .route("/api/open-config-folder", post(open_config_folder))
         .route("/api/open-sessions-folder", post(open_sessions_folder))
         .route("/api/open-voice-settings", post(open_voice_settings))
@@ -394,6 +396,46 @@ async fn providers() -> Json<Value> {
 /// picker falls back to a free-form text input). See `crate::providers::models`.
 async fn models(axum::extract::Path(provider): axum::extract::Path<String>) -> Json<Value> {
     Json(crate::providers::models(&provider))
+}
+
+/// `POST /api/ollama/pull` — stream a model pull as NDJSON progress lines.
+/// Wire-compatible with the old Flask route so the settings UI is unchanged.
+async fn ollama_pull(Json(req): Json<crate::ollama::ModelReq>) -> Response {
+    if req.model.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "model is required" })))
+            .into_response();
+    }
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<String, std::io::Error>>(64);
+    tokio::task::spawn_blocking(move || {
+        let mut send = move |v: Value| {
+            let _ = tx.blocking_send(Ok(format!("{v}\n")));
+        };
+        if let Err(e) = crate::ollama::pull_stream(&req.model, &mut send) {
+            send(json!({ "status": "error", "error": e }));
+        }
+    });
+    let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
+    Response::builder()
+        .header(header::CONTENT_TYPE, "application/x-ndjson")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from_stream(stream))
+        .expect("build ndjson response")
+}
+
+/// `POST /api/ollama/delete` — remove a pulled model. Returns `{ ok: true }`
+/// on success or `{ error: "…" }` with a 502 on failure (parity with Flask).
+async fn ollama_delete(Json(req): Json<crate::ollama::ModelReq>) -> (StatusCode, Json<Value>) {
+    if req.model.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "model is required" })));
+    }
+    match tokio::task::spawn_blocking(move || crate::ollama::delete(&req.model)).await {
+        Ok(Ok(())) => (StatusCode::OK, Json(json!({ "ok": true }))),
+        Ok(Err(e)) => (StatusCode::BAD_GATEWAY, Json(json!({ "error": e }))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("delete task failed: {e}") })),
+        ),
+    }
 }
 
 // --- /api/open-* shell escapes ---------------------------------------------
