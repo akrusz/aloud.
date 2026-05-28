@@ -95,13 +95,22 @@ export async function buildProvider(setup: SessionSetup): Promise<LLMProvider> {
         }
         case 'ollama':
             return new OllamaProvider({ baseUrl: OLLAMA_PROXY_URL, ...modelOpt });
-        case 'anthropic':
-            // Browser-side Anthropic always goes through the Flask proxy
-            // (CORS, plus we don't want the key in the browser).
-            return new AnthropicProvider({ baseUrl: ANTHROPIC_PROXY_URL, ...modelOpt });
+        case 'anthropic': {
+            // Anthropic blocks browser-origin requests (no CORS), so we always
+            // go through the app backend's proxy. On desktop that proxy has no
+            // server-side key, so forward the user's BYOK key — it only travels
+            // to the local loopback server. The proxy falls back to a
+            // server-side ANTHROPIC_API_KEY in dev when no key is sent.
+            const anthropicKey = await getApiKey('anthropic');
+            return new AnthropicProvider({
+                baseUrl: ANTHROPIC_PROXY_URL,
+                ...(anthropicKey ? { apiKey: anthropicKey } : {}),
+                ...modelOpt,
+            });
+        }
         case 'claude_proxy':
-            // The `claude` CLI is a subprocess — Flask runs it on our
-            // behalf and exposes the result over /api/llm/claude_proxy.
+            // The `claude` CLI is a subprocess — the app backend runs it on our
+            // behalf and exposes the result over /app/v1/llm/claude_proxy.
             return new ClaudeProxyHttpProvider(modelOpt);
         case 'openai':
         case 'openrouter':

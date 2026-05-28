@@ -156,6 +156,64 @@ fn format_history(messages: &[Msg]) -> String {
         .join("\n\n")
 }
 
+// --- Anthropic proxy --------------------------------------------------------
+
+const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_API_VERSION: &str = "2023-06-01";
+/// Cap on the forwarded prompt+history payload (mirrors Flask's proxy).
+pub const MAX_PROXY_BYTES: usize = 1024 * 1024;
+
+/// A pass-through of Anthropic's HTTP response: its status and body survive
+/// verbatim so the client sees real error detail instead of a masked 5xx.
+pub struct ProxyResponse {
+    pub status: u16,
+    pub content_type: String,
+    pub body: Vec<u8>,
+}
+
+/// Forward a raw Anthropic Messages request body upstream, injecting the API
+/// version and the given key. Replaces Flask's `/app/v1/llm/anthropic/messages`:
+/// the webview can't call Anthropic directly (no CORS), so the embedded server
+/// relays it. Unlike Flask — which always used a server-side env key — the key
+/// here comes from the caller, so the desktop UI can forward the user's
+/// bring-your-own key (it never leaves the loopback). Synchronous (ureq); call
+/// from `spawn_blocking`.
+pub fn anthropic_proxy(body: Vec<u8>, api_key: &str) -> Result<ProxyResponse, ProxyError> {
+    use std::io::Read;
+
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        // Keep 4xx/5xx as normal responses so we can pass the upstream status
+        // and JSON error body straight back to the client.
+        .http_status_as_error(false)
+        .timeout_global(Some(Duration::from_secs(60)))
+        .build()
+        .into();
+
+    let resp = agent
+        .post(ANTHROPIC_API_URL)
+        .header("x-api-key", api_key)
+        .header("anthropic-version", ANTHROPIC_API_VERSION)
+        .header("content-type", "application/json")
+        .send(&body[..])
+        .map_err(|e| ProxyError::new(502, format!("Upstream Anthropic request failed: {e}")))?;
+
+    let status = resp.status().as_u16();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/json")
+        .to_string();
+
+    let mut buf = Vec::new();
+    resp.into_body()
+        .into_reader()
+        .read_to_end(&mut buf)
+        .map_err(|e| ProxyError::new(502, format!("reading Anthropic response: {e}")))?;
+
+    Ok(ProxyResponse { status, content_type, body: buf })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
