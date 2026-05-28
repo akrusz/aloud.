@@ -4,6 +4,32 @@ Snapshot of where the TS UI sits against Python parity, updated at the
 end of each autonomous porting session. The eventual goal is full Python
 deprecation; this doc tracks how close we are and what's left.
 
+## Session 2026-05-28c — doc reconciliation (no code change)
+
+Read-through pass to re-sync this doc with `ts-core` HEAD; the entries below had
+drifted behind the code. Baseline at the time of reconciliation: core/UI
+typecheck clean, 176 tests passing. Corrections:
+
+- **URL routing / back button is DONE** (`7e07da7`, `24d0a87`). `ui/src/app.ts`
+  has a full History-API router: `pushState`/`replaceState` per view,
+  `popstate` deep-linking, initial-load deep-link from `window.location.pathname`,
+  and an Android-hardware-back-aware leave-confirm trap for live sessions (it
+  re-arms `/session` and defers to the view's confirm overlay). This was
+  "Order of operations #1" and the "Other frontend gaps > URL routing" bullet —
+  both struck below.
+- **Noting circle UI is DONE** (`39db8c0`). `ui/src/views/noting-session.ts`
+  (579 LOC) is the turn-rotation orchestrator; `ui/src/views/setup.ts` carries
+  the participant configurator (`#participant-list`, `participantLabel`, voice
+  dropdowns). The "biggest remaining frontend port that can't actually run"
+  claim is obsolete — struck below.
+
+Still genuinely open (verified against HEAD): `sw.js` version hardcode,
+`piperAvailable: true` hardcode, settings-tour `firstRun` signal, and all the
+human-supervised backend-deprecation work. Note on the sw.js fix: `ts/package.json`
+is a `0.0.1` placeholder, so wiring the SW `VERSION` to it as-is would *regress*
+the cache key from the real `0.12.1`; the real version-sync lives in `release.sh`,
+so this fix belongs with the release tooling, not a naïve package.json read.
+
 ## Session 2026-05-28b — Flask-removal backends (clk / bkg / 9vh) + route rename
 
 Branch: `ts-core`. Closes the backend gaps that were blocking Python deletion
@@ -53,11 +79,11 @@ Things that were either in this session's brief but skipped, or near-by and wort
 
 - **`mobile-quirks.js`** (62 LOC) — handles iOS Safari AudioContext suspension + Socket.IO reconnect. Doesn't have a clean 1:1 in the TS UI: the socket-reconnect half is N/A (TS uses HTTP/fetch + streaming, not Socket.IO), and the AudioContext-resume half depends on a shared `state.audioContext` pattern that TS deliberately moved away from (per-adapter contexts in `BargeInListener` and `ServerWhisperStt`). A useful port would need a small registry pattern so adapters can opt in for visibility-driven resume — recommended as a follow-up.
 - **`audio-utils.js`** (53 LOC) — `setAudioPlaying` + `decodeAndPlay`. Superseded by the `HTMLAudioElement`-based `ServerTtsEngine` (which deliberately replaced Web Audio decode for Firefox-suspension reasons) and the streaming-tts pipeline. The `state.serverAudioPlaying` / `state.ttsSpeaking` flags don't have analogues in the TS UI; equivalent state lives inside per-adapter classes. Nothing to port.
-- **`noting.js`** (496 LOC) — round-robin noting circle orchestrator. The engine (`ts/src/facilitation/noting.ts`) is in place, but the UI orchestrator depends on substantial prerequisite work that isn't in TS yet: socket-based push for `noting_label` / `noting_audio`, a participant configurator on the setup page (currently disabled placeholder), AudioContext + sound-buffer preloading, VAD-aware mic muting during participant turns. A faithful lift would land 500+ lines of code that can't actually run. Tracked as the biggest remaining frontend port.
+- **`noting.js`** (496 LOC) — round-robin noting circle orchestrator. **DONE as of `39db8c0`** (was open when this section was written). The orchestrator is `ui/src/views/noting-session.ts` (579 LOC); the participant configurator is live in `ui/src/views/setup.ts` (`#participant-list` + per-participant voice dropdowns), no longer a disabled placeholder. See the 2026-05-28c reconciliation note at the top.
 
 ### Other frontend gaps (not in the session brief, but visible)
 
-- **URL routing / back button** — nav swaps views in place; no `history.pushState`, so the browser back button can't move between Setup / History / Settings, and refresh always lands on Setup. Affects the browser preview now; will also bite the Android hardware back button under whatever shell we land on.
+- ~~**URL routing / back button**~~ — **DONE** (`7e07da7`, `24d0a87`). Full History-API router in `ui/src/app.ts`; see the 2026-05-28c reconciliation note at the top.
 - **Settings tour auto-start signal** — see "Lift-first deviations" above. Needs a `firstRun` analogue.
 - **Piper availability signal** — see "Lift-first deviations" above.
 - **`sw.js` version source** — hardcoded; should pick from `ts/package.json` or a Vite build constant so cache busts roll over per release.
@@ -95,9 +121,9 @@ These all need human supervision per the brief's hard guardrails. Rough complexi
 
 Suggested sequence for finishing the Python deprecation (top-down dependency order):
 
-1. **URL routing in TS UI**. Cheap, unblocks deep links and the browser back button. Should land before any shell port.
-2. **Server-pushed events**. SSE end-to-end for LLM streaming first (already partly there), then check-in loop and noting events.
-3. **Noting circle UI port**. Once SSE / equivalent is in place, port `noting.js` faithfully — participant configurator on setup, turn-rotation orchestrator, sound playback infrastructure.
+1. ~~**URL routing in TS UI**~~. **DONE** (`7e07da7`, `24d0a87`) — see 2026-05-28c note.
+2. **Server-pushed events**. SSE end-to-end for LLM streaming first (already partly there), then check-in loop and noting events. **← now the top open item.**
+3. ~~**Noting circle UI port**~~. **DONE** (`39db8c0`) — orchestrator + participant configurator landed. (Note: it runs without the SSE push originally assumed as a prerequisite; if mid-session server-pushed `noting_label`/`noting_audio` are still wanted, fold that into item #2.)
 4. **Mobile-quirks register pattern**. Small AudioContext registry that `BargeInListener` and `ServerWhisperStt` opt into; visibility-driven resume + bfcache resume. Should be done before any mobile-shell spike.
 5. **Shell decision** (`meditation-pal-nn1`). Desktop is settled: Tauri 2, unconditional — **scaffolded 2026-05-27** in `ts/src-tauri/` (runs in dev against Flask via the Vite proxy; see `dev-docs/desktop.md`). Mobile is gated on one thing — whether Tauri 2 can do the iOS `playAndRecord` + concurrent-mic audio session without a tar-pit custom plugin. A 3–5 day spike answers it; pass → single Tauri shell everywhere, fail → Capacitor for mobile + Tauri for desktop. The ticket carries the full plugin/library research, the on-device Whisper/Piper findings, and the bundle-size/capability-tiering plan.
 6. **Native runtimes for Whisper + Piper + LLM**. Whisper.cpp / llama.cpp / Piper bindings in the chosen shell.

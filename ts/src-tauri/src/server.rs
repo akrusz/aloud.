@@ -97,6 +97,14 @@ fn router(state: Shared) -> Router {
 /// Bind an ephemeral loopback port, kick off model loading in the background,
 /// spawn the server on Tauri's async runtime, and return the chosen port.
 pub fn start(data_dir: PathBuf) -> u16 {
+    // Silence whisper.cpp/GGML's chatty model-load dump (n_vocab, n_audio_ctx,
+    // …). It redirects their stderr into whisper-rs's logging hook, which is a
+    // no-op here because we don't enable its `log_backend`/`tracing_backend`
+    // feature — so the lines vanish, while our own log:: lines stay. To inspect
+    // those internals when debugging, enable whisper-rs's `log_backend` feature.
+    // Must run before the whisper context loads below.
+    whisper_rs::install_logging_hooks();
+
     let state: Shared = Arc::new(AppState {
         whisper: Mutex::new(None),
         whisper_ready: AtomicBool::new(false),
