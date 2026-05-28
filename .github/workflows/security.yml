@@ -1,0 +1,48 @@
+# Dependency security gate. Runs as a CI check (like the test job in ci.yml) —
+# NOT part of the release build (build.yml) or any build script. It answers
+# "are our dependencies free of known advisories?" on every PR/push and weekly
+# (to catch advisories published against deps we already shipped).
+name: Security audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 7 * * 1" # Mondays 07:00 UTC
+
+jobs:
+  cargo-deny:
+    name: cargo-deny (Rust advisories)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: ts/src-tauri/Cargo.toml
+          # Security-focused gate. Add `licenses` here once the allow-list in
+          # deny.toml is reconciled against the full dependency tree.
+          command: check advisories bans sources
+
+  npm-audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [ts, ts/server]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Ensure a lockfile exists (ts/server has none committed) so audit can
+      # resolve the full tree; --package-lock-only avoids a full install.
+      - name: Ensure lockfile
+        working-directory: ${{ matrix.dir }}
+        run: npm install --package-lock-only
+      # Gate only on high/critical — low/moderate advisories shouldn't block a
+      # merge, but Dependabot will still open PRs for them.
+      - name: Audit
+        working-directory: ${{ matrix.dir }}
+        run: npm audit --audit-level=high
