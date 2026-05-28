@@ -36,25 +36,24 @@ describe('escapeHtml', () => {
 describe('renderTier', () => {
     it('marks the recommended tier and shows Download', () => {
         const html = renderTier(TIER_QWEN, 'qwen3.5:4b');
-        expect(html).toContain('is-recommended');
+        expect(html).toContain('ollama-tier-recommended');
         expect(html).toContain('ollama-tier-badge');
         expect(html).toContain('ollama-pull-btn');
         expect(html).not.toContain('ollama-remove-btn');
         expect(html).toContain('data-model="qwen3.5:4b"');
     });
 
-    it('shows Remove + is-installed when the tier is installed', () => {
+    it('shows Remove + "Installed" label when the tier is installed', () => {
         const html = renderTier(TIER_GEMMA_E4B, 'qwen3.5:4b');
-        expect(html).toContain('is-installed');
+        expect(html).toContain('ollama-tier-installed');
+        expect(html).toContain('>Installed<');
         expect(html).toContain('ollama-remove-btn');
         expect(html).not.toContain('ollama-pull-btn');
     });
 
-    it("adds a Needs-N-GB warning when a tier doesn't fit", () => {
-        const tooBig = { ...TIER_GEMMA_E4B, min_gb: 32, fits: false, installed: false };
-        const html = renderTier(tooBig, 'qwen3.5:4b');
-        expect(html).toContain('wont-fit');
-        expect(html).toContain('Needs 32 GB');
+    it('renders size as a single "download, in memory" line', () => {
+        const html = renderTier(TIER_GEMMA_E4B, 'qwen3.5:4b');
+        expect(html).toContain('~9.6GB download, ~10GB in memory');
     });
 });
 
@@ -81,11 +80,39 @@ describe('renderHTML', () => {
                 other_installed: [],
             },
         });
-        expect(html).toContain('Detected: 16 GB RAM');
+        expect(html).toContain('Your system has 16 GB RAM');
         expect(html).toContain('outdated and may not be able');
         expect(html).toContain('v0.18.0');
         expect(html).toContain('v0.21.0');
         // Both tiers rendered.
+        expect(html).toContain('gemma4:e4b');
+        expect(html).toContain('qwen3.5:4b');
+    });
+
+    it("hides tiers that don't fit when RAM is known", () => {
+        const tooBig = { ...TIER_GEMMA_E4B, min_gb: 32, fits: false, installed: false };
+        const html = renderHTML({
+            recommendation: {
+                ram_gb: 8,
+                recommended_model: 'qwen3.5:4b',
+                tiers: [tooBig, TIER_QWEN],
+                other_installed: [],
+            },
+        });
+        // The 32 GB tier should be skipped entirely.
+        expect(html).not.toContain('gemma4:e4b');
+        expect(html).toContain('qwen3.5:4b');
+    });
+
+    it("shows non-fitting tiers when RAM is unknown so the user can still pick", () => {
+        const tooBig = { ...TIER_GEMMA_E4B, min_gb: 32, fits: false };
+        const html = renderHTML({
+            recommendation: {
+                recommended_model: 'qwen3.5:4b',
+                tiers: [tooBig, TIER_QWEN],
+                other_installed: [],
+            },
+        });
         expect(html).toContain('gemma4:e4b');
         expect(html).toContain('qwen3.5:4b');
     });
@@ -97,9 +124,10 @@ describe('renderHTML', () => {
                 other_installed: [{ model: 'mistral:latest', size: '4.1GB' }],
             },
         });
-        expect(html).toContain('ollama-others-block');
+        expect(html).toContain('ollama-others-heading');
         expect(html).toContain('mistral:latest');
-        expect(html).toContain('4.1GB');
+        // Python's "on disk" suffix on size text.
+        expect(html).toContain('4.1GB on disk');
         // Has a Remove button targeting mistral.
         expect(html).toContain('data-model="mistral:latest"');
     });

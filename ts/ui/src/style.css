@@ -294,27 +294,20 @@
 }
 
 /* ---------- Ollama recommendation (settings page) ---------------------- */
-/* Ported from src/web/static/css/style.css's `.ollama-*` block, adapted to
-   the TS markup in settings-ollama.ts. Shown only when the selected provider
-   is Ollama. */
+/* Mirrors the Python settings-ollama layout: each tier is a single flex row
+   with the action button on the right, size + note tucked beneath the model
+   name. Only shown when the selected provider is Ollama. */
 
 .ollama-rec-section {
     margin-top: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-}
-
-.ollama-rec-heading {
-    margin: 0;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-secondary, var(--text-muted));
+    gap: 0.5rem;
 }
 
 .ollama-rec-detected {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
 }
 
@@ -323,92 +316,72 @@
     color: var(--text-muted);
 }
 
-.ollama-rec-block,
-.ollama-others-block {
+.ollama-tiers {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
-.ollama-tier {
-    padding: 0.6rem 0.8rem;
+.ollama-others-heading {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.ollama-tier-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+    flex-wrap: wrap;
 }
 
-.ollama-tier.is-recommended {
+.ollama-tier-recommended {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.ollama-tier.wont-fit {
-    opacity: 0.7;
+.ollama-tier-info {
+    flex: 1;
+    min-width: 0;
 }
 
 .ollama-tier-head {
-    display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-}
-
-.ollama-tier-label {
-    font-weight: 600;
+    line-height: 1.3;
 }
 
 .ollama-tier-badge {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--accent);
+    margin-left: 0.25rem;
 }
 
-.ollama-tier-fit-warning {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-
-.ollama-tier-model {
+.ollama-tier-size {
     font-size: 0.85rem;
     color: var(--text-muted);
-}
-
-.ollama-tier-model code {
-    background: rgba(255, 255, 255, 0.06);
-    padding: 0 0.25rem;
-    border-radius: 3px;
+    margin-top: 0.1rem;
 }
 
 .ollama-tier-note {
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
     font-style: italic;
-    margin: 0;
+    margin-top: 0.1rem;
 }
 
 .ollama-tier-actions {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    white-space: nowrap;
 }
 
-.ollama-other-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.03);
-    gap: 0.5rem;
-}
-
-.ollama-other-name {
-    font-size: 0.9rem;
-}
-
-.ollama-other-size {
-    color: var(--text-muted);
+.ollama-tier-installed {
+    font-size: 0.85rem;
+    color: var(--success, #5a9e6f);
 }
 
 .ollama-pull-progress {

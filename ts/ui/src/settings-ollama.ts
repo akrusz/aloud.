@@ -208,25 +208,25 @@ function renderHTML(info: OllamaInfo): string {
         </div>`;
     }
 
-    html += '<div class="ollama-rec-block">';
-    html += `<h4 class="ollama-rec-heading">Recommended models for this machine</h4>`;
     if (rec.ram_gb) {
-        html += `<p class="ollama-rec-detected">Detected: ${rec.ram_gb} GB RAM</p>`;
+        html += `<p class="ollama-rec-detected">Your system has ${rec.ram_gb} GB RAM.</p>`;
     }
 
+    html += '<div class="ollama-tiers">';
     for (const t of rec.tiers) {
+        // Mirror Python: when we know the machine's RAM, hide tiers that
+        // can't run on it — keeps the list short. If RAM detection failed,
+        // show everything so the user can still pick.
+        if (rec.ram_gb && !t.fits && !t.installed) continue;
         html += renderTier(t, rec.recommended_model);
     }
     html += '</div>';
 
     if (rec.other_installed && rec.other_installed.length > 0) {
-        html += '<div class="ollama-others-block">';
-        html += `<h4 class="ollama-rec-heading">Other installed models</h4>`;
+        html += '<div class="ollama-others-heading">Other installed models</div>';
+        html += '<div class="ollama-tiers">';
         for (const m of rec.other_installed) {
-            html += `<div class="ollama-other-row">
-                <div class="ollama-other-name">${escapeHtml(m.model)}<span class="ollama-other-size"> · ${escapeHtml(m.size)}</span></div>
-                <button type="button" class="btn btn-small ollama-remove-btn" data-model="${escapeAttr(m.model)}">Remove</button>
-            </div>`;
+            html += renderOtherInstalled(m);
         }
         html += '</div>';
     }
@@ -234,36 +234,55 @@ function renderHTML(info: OllamaInfo): string {
     return html;
 }
 
+/**
+ * Render one curated tier as a single condensed flex row: model + label
+ * (+ "recommended" badge) on the head line, size + note beneath, action
+ * button on the right. Matches the Python `loadOllamaModels()` layout.
+ */
 function renderTier(t: Tier, recommendedModel: string | undefined): string {
     const isRecommended = t.model === recommendedModel;
-    const cls = [
-        'ollama-tier',
-        isRecommended ? 'is-recommended' : '',
-        t.installed ? 'is-installed' : '',
-        !t.fits && !t.installed ? 'wont-fit' : '',
-    ]
-        .filter(Boolean)
-        .join(' ');
+    const rowClass = isRecommended
+        ? 'ollama-tier-row ollama-tier-recommended'
+        : 'ollama-tier-row';
 
     const badge = isRecommended
-        ? ' <span class="ollama-tier-badge">Recommended</span>'
+        ? ' <span class="ollama-tier-badge">recommended</span>'
         : '';
-    const fitsLabel = t.fits ? '' : ` <span class="ollama-tier-fit-warning">Needs ${t.min_gb} GB</span>`;
+    const sizeText = `${escapeHtml(t.download)} download, ${escapeHtml(t.ram)} in memory`;
 
-    const action = t.installed
-        ? `<button type="button" class="btn btn-small ollama-remove-btn" data-model="${escapeAttr(t.model)}">Remove</button>`
-        : `<button type="button" class="btn btn-small ollama-pull-btn" data-model="${escapeAttr(t.model)}">Download (${escapeHtml(t.download)})</button>`;
+    const actions = t.installed
+        ? `<div class="ollama-tier-actions">
+            <span class="ollama-tier-installed">Installed</span>
+            <button type="button" class="btn btn-small ollama-remove-btn" data-model="${escapeAttr(t.model)}">Remove</button>
+          </div>`
+        : `<div class="ollama-tier-actions">
+            <button type="button" class="btn btn-small ollama-pull-btn" data-model="${escapeAttr(t.model)}">Download</button>
+          </div>`;
 
-    return `<div class="${cls}">
-        <div class="ollama-tier-head">
-            <span class="ollama-tier-label">${escapeHtml(t.label)}</span>${badge}${fitsLabel}
+    return `<div class="${rowClass}">
+        <div class="ollama-tier-info">
+            <div class="ollama-tier-head"><strong>${escapeHtml(t.model)}</strong> — ${escapeHtml(t.label)}${badge}</div>
+            <div class="ollama-tier-size">${sizeText}</div>
+            ${t.note ? `<div class="ollama-tier-note">${escapeHtml(t.note)}</div>` : ''}
         </div>
-        <div class="ollama-tier-model"><code>${escapeHtml(t.model)}</code> · RAM ${escapeHtml(t.ram)}</div>
-        <p class="ollama-tier-note">${escapeHtml(t.note)}</p>
-        <div class="ollama-tier-actions">${action}</div>
+        ${actions}
         <div class="ollama-pull-progress hidden">
             <div class="ollama-pull-bar"><div class="ollama-pull-bar-fill"></div></div>
             <div class="ollama-pull-status"></div>
+        </div>
+    </div>`;
+}
+
+function renderOtherInstalled(m: OtherModel): string {
+    const sizeText = m.size ? `${escapeHtml(m.size)} on disk` : '';
+    return `<div class="ollama-tier-row">
+        <div class="ollama-tier-info">
+            <div class="ollama-tier-head"><strong>${escapeHtml(m.model)}</strong></div>
+            ${sizeText ? `<div class="ollama-tier-size">${sizeText}</div>` : ''}
+        </div>
+        <div class="ollama-tier-actions">
+            <span class="ollama-tier-installed">Installed</span>
+            <button type="button" class="btn btn-small ollama-remove-btn" data-model="${escapeAttr(m.model)}">Remove</button>
         </div>
     </div>`;
 }
