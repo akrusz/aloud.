@@ -401,10 +401,15 @@ async fn providers() -> Json<Value> {
     Json(v)
 }
 
-/// `GET /app/v1/models/{provider}` — currently a stub returning `[]` (the model
-/// picker falls back to a free-form text input). See `crate::providers::models`.
-async fn models(axum::extract::Path(provider): axum::extract::Path<String>) -> Json<Value> {
-    Json(crate::providers::models(&provider))
+/// `GET /app/v1/models/{provider}` — the provider's live model list. The UI
+/// forwards the user's BYOK key as `x-provider-key` (it never leaves loopback);
+/// OpenRouter needs none and claude_proxy is static. See `providers::models`.
+async fn models(
+    axum::extract::Path(provider): axum::extract::Path<String>,
+    headers: axum::http::HeaderMap,
+) -> Json<Value> {
+    let key = headers.get("x-provider-key").and_then(|v| v.to_str().ok());
+    Json(crate::providers::models(&provider, key))
 }
 
 /// `POST /app/v1/ollama/pull` — stream a model pull as NDJSON progress lines.

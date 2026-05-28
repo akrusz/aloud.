@@ -84,7 +84,7 @@ export function createServerAloudStt(vadOpts: VadOpts = {}): SttEngine | null {
     if (!ServerWhisperSttEngine.isAvailable()) return null;
     return new ServerWhisperSttEngine({
         ...vadOpts,
-        endpointUrl: cloudUrl('/v1/stt'),
+        endpointUrl: cloudUrl('/stt'),
         authProvider: ensureServerToken,
     });
 }

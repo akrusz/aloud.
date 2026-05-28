@@ -57,7 +57,7 @@ export async function clearServerToken(): Promise<void> {
 
 /** POST /v1/auth/dev — mint (or reuse) the local dev session. */
 export async function devSignIn(): Promise<AuthResponse> {
-    const res = await fetchImpl(cloudUrl('/v1/auth/dev'), { method: 'POST' });
+    const res = await fetchImpl(cloudUrl('/auth/dev'), { method: 'POST' });
     if (!res.ok) {
         throw new Error(
             res.status === 404

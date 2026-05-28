@@ -26,7 +26,7 @@ import { cloudUrl } from '../cloud-base.js';
 /** Providers the server is willing to forward to (mirrors contract.ts ProviderId). */
 export type ServerProviderId = 'anthropic' | 'groq' | 'openrouter' | 'google';
 
-const ENDPOINT = '/v1/llm/complete';
+const ENDPOINT = '/llm/complete';
 const DEFAULT_MAX_TOKENS = 400;
 
 export interface ServerLlmProviderOptions {

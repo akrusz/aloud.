@@ -1,16 +1,19 @@
 /**
  * Model picker — fetches available models per provider from
- * `/api/models/<provider>` (matches the Flask endpoint Python's setup
- * uses) and populates a <select>.
+ * `/app/v1/models/<provider>` and populates a <select>.
  *
- * Falls back to a free-form text input when the endpoint isn't
- * reachable (Flask not running, or running in a Capacitor/Tauri shell
- * where /api/models doesn't exist). The caller picks which UI to
- * render — this module just supplies the data + helpers.
+ * The provider's API key lives in the UI's BYOK store (localStorage), so it's
+ * forwarded as `x-provider-key`; the app backend uses it to query the
+ * provider's models endpoint (OpenRouter needs none, claude_proxy is static).
+ * Falls back to a free-form text input when the endpoint returns nothing — no
+ * key set, the backend is unreachable, or a provider with no live list. The
+ * caller picks which UI to render; this module just supplies the data.
  */
 
 import { cloudUrl } from './cloud-base.js';
 import { appUrl } from './app-base.js';
+import { getApiKey } from './api-keys.js';
+import type { Provider } from './settings.js';
 
 interface ModelOption {
     value: string;
@@ -34,7 +37,7 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
     // slash, e.g. openrouter, so the leading segment is the provider).
     if (provider === 'aloud') {
         try {
-            const resp = await fetch(cloudUrl('/v1/me/models'));
+            const resp = await fetch(cloudUrl('/me/models'));
             if (!resp.ok) return null;
             const data = (await resp.json()) as { models?: Array<{ provider: string; model: string }> };
             if (!data.models?.length) return null;
@@ -64,7 +67,12 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
     }
 
     try {
-        const resp = await fetch(appUrl(`/models/${encodeURIComponent(provider)}`));
+        // Forward the BYOK key so the backend can query the provider; it only
+        // travels to the loopback (desktop) or same-origin (web) backend.
+        const key = await getApiKey(provider as Provider);
+        const resp = await fetch(appUrl(`/models/${encodeURIComponent(provider)}`), {
+            headers: key ? { 'x-provider-key': key } : {},
+        });
         if (!resp.ok) return null;
         const data = (await resp.json()) as ModelOption[];
         if (!Array.isArray(data) || data.length === 0) return null;

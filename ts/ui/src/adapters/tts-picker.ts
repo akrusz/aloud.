@@ -58,7 +58,7 @@ export interface CreateTtsOptions {
 export function createServerAloudTts(voice = '', options: CreateTtsOptions = {}): TtsEngine {
     const opts: ConstructorParameters<typeof ServerTtsEngine>[0] = {
         voice,
-        endpointUrl: cloudUrl('/v1/tts'),
+        endpointUrl: cloudUrl('/tts'),
         usePost: true,
         authProvider: ensureServerToken,
     };

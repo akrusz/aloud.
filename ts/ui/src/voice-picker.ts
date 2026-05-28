@@ -642,7 +642,7 @@ let hostedVoicesCache: HostedVoice[] | null = null;
 export async function fetchHostedVoices(force = false): Promise<HostedVoice[]> {
     if (!force && hostedVoicesCache !== null) return hostedVoicesCache;
     try {
-        const response = await fetch(cloudUrl('/v1/voices'));
+        const response = await fetch(cloudUrl('/voices'));
         hostedVoicesCache = response.ok ? ((await response.json()) as HostedVoice[]) : [];
     } catch {
         hostedVoicesCache = [];

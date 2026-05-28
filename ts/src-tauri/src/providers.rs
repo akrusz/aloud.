@@ -100,12 +100,288 @@ pub fn providers() -> Value {
     })
 }
 
-/// `GET /app/v1/models/<provider>` body — currently a stub (returns `[]`). Model
-/// lists need the provider's API key, which on desktop lives in the UI's
-/// localStorage rather than the backend; the model picker already falls back
-/// to a free-form text input when this returns empty.
-pub fn models(_provider: &str) -> Value {
-    Value::Array(Vec::new())
+/// `GET /app/v1/models/<provider>` body — `[{value, label}]`. Fetches the live
+/// model list from the provider's API. The key lives in the UI's localStorage
+/// (BYOK), so the UI forwards it as `x-provider-key`; `api_key` is that value.
+/// OpenRouter is public (no key) and claude_proxy is a static alias list. Any
+/// failure returns `[]`, on which the model picker falls back to a free-form
+/// text input. Mirrors `provider_routes.py`'s per-provider fetchers.
+pub fn models(provider: &str, api_key: Option<&str>) -> Value {
+    let list = match provider {
+        "openai" => fetch_openai(api_key),
+        "anthropic" => fetch_anthropic(api_key),
+        "claude_proxy" => claude_proxy_models(),
+        "openrouter" => fetch_openrouter(),
+        "venice" => fetch_venice(api_key),
+        "groq" => fetch_groq(api_key),
+        _ => Vec::new(),
+    };
+    Value::Array(list)
+}
+
+/// GET a JSON body with the given headers and a short timeout. `None` on any
+/// transport/parse error — callers degrade to an empty model list.
+fn get_json(url: &str, headers: &[(&str, &str)], timeout_secs: u64) -> Option<Value> {
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(std::time::Duration::from_secs(timeout_secs)))
+        .build()
+        .into();
+    let mut req = agent.get(url);
+    for (k, v) in headers {
+        req = req.header(*k, *v);
+    }
+    let resp = req.call().ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    serde_json::from_reader(resp.into_body().into_reader()).ok()
+}
+
+/// `{value, label}` option object.
+fn opt(value: &str, label: &str) -> Value {
+    json!({ "value": value, "label": label })
+}
+
+// ---- OpenAI ----------------------------------------------------------------
+
+fn fetch_openai(api_key: Option<&str>) -> Vec<Value> {
+    let Some(key) = api_key.filter(|k| !k.is_empty()) else { return Vec::new() };
+    let body = match get_json(
+        "https://api.openai.com/v1/models",
+        &[("Authorization", &format!("Bearer {key}"))],
+        5,
+    ) {
+        Some(b) => b,
+        None => return Vec::new(),
+    };
+    let chat_prefixes = ["gpt-5", "gpt-4", "gpt-3.5", "o1", "o3", "o4", "chatgpt"];
+    let exclude = [
+        "realtime", "audio", "search", "transcription", "embedding", "moderation",
+        "tts", "whisper", "dall-e", "instruct",
+    ];
+    let mut rows: Vec<(i64, String)> = body
+        .get("data")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let id = m.get("id").and_then(Value::as_str)?;
+                    if !chat_prefixes.iter().any(|p| id.starts_with(p)) {
+                        return None;
+                    }
+                    if exclude.iter().any(|t| id.contains(t)) {
+                        return None;
+                    }
+                    let created = m.get("created").and_then(Value::as_i64).unwrap_or(0);
+                    Some((created, id.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    // Newest first.
+    rows.sort_by(|a, b| b.0.cmp(&a.0));
+    rows.iter().map(|(_, id)| opt(id, &openai_label(id))).collect()
+}
+
+/// `gpt-4.1-mini` -> `GPT-4.1 Mini`, `o3-mini` -> `o3 Mini`. Mirrors Python.
+fn openai_label(id: &str) -> String {
+    let parts: Vec<String> = id
+        .split('-')
+        .map(|p| {
+            let lower = p.to_lowercase();
+            if lower == "gpt" {
+                "GPT".to_string()
+            } else if lower == "chatgpt" {
+                "ChatGPT".to_string()
+            } else if p.chars().all(|c| c.is_ascii_alphabetic()) {
+                // Capitalize a plain alpha segment (e.g. "mini" -> "Mini").
+                let mut c = p.chars();
+                match c.next() {
+                    Some(f) => f.to_uppercase().chain(c).collect(),
+                    None => String::new(),
+                }
+            } else {
+                p.to_string()
+            }
+        })
+        .collect();
+    parts
+        .join(" ")
+        .replace("GPT ", "GPT-")
+        .replace("ChatGPT ", "ChatGPT-")
+}
+
+// ---- Anthropic --------------------------------------------------------------
+
+fn fetch_anthropic(api_key: Option<&str>) -> Vec<Value> {
+    let Some(key) = api_key.filter(|k| !k.is_empty()) else { return Vec::new() };
+    let body = match get_json(
+        "https://api.anthropic.com/v1/models",
+        &[("x-api-key", key), ("anthropic-version", "2023-06-01")],
+        5,
+    ) {
+        Some(b) => b,
+        None => return Vec::new(),
+    };
+    let mut rows: Vec<(String, String, String)> = body
+        .get("data")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let id = m.get("id").and_then(Value::as_str)?.to_string();
+                    let label = m
+                        .get("display_name")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&id)
+                        .to_string();
+                    let created =
+                        m.get("created_at").and_then(Value::as_str).unwrap_or("").to_string();
+                    Some((created, id, label))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    // Newest first (created_at is an ISO string; lexical sort works).
+    rows.sort_by(|a, b| b.0.cmp(&a.0));
+    rows.iter().map(|(_, id, label)| opt(id, label)).collect()
+}
+
+// ---- Claude subscription (static aliases) ----------------------------------
+
+fn claude_proxy_models() -> Vec<Value> {
+    vec![
+        opt("opus", "Opus (latest)"),
+        opt("sonnet", "Sonnet (latest)"),
+        opt("haiku", "Haiku (latest)"),
+        opt("claude-3-opus-20240229", "Opus 3"),
+    ]
+}
+
+// ---- OpenRouter (public) ----------------------------------------------------
+
+fn fetch_openrouter() -> Vec<Value> {
+    let body = match get_json("https://openrouter.ai/api/v1/models", &[], 8) {
+        Some(b) => b,
+        None => return Vec::new(),
+    };
+    let keep_orgs = [
+        "anthropic", "openai", "google", "meta-llama", "deepseek", "mistralai",
+        "qwen", "moonshotai",
+    ];
+    let mut rows: Vec<(i64, String, String)> = body
+        .get("data")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let id = m.get("id").and_then(Value::as_str)?;
+                    let org = id.split('/').next().unwrap_or("");
+                    if !keep_orgs.contains(&org) {
+                        return None;
+                    }
+                    if id.ends_with(":free") || id.ends_with(":extended") {
+                        return None;
+                    }
+                    let label =
+                        m.get("name").and_then(Value::as_str).unwrap_or(id).to_string();
+                    let ctx = m.get("context_length").and_then(Value::as_i64).unwrap_or(0);
+                    Some((ctx, id.to_string(), label))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    // Context length as a proxy for recency/capability; cap at 30.
+    rows.sort_by(|a, b| b.0.cmp(&a.0));
+    rows.iter().take(30).map(|(_, id, label)| opt(id, label)).collect()
+}
+
+// ---- Venice -----------------------------------------------------------------
+
+fn fetch_venice(api_key: Option<&str>) -> Vec<Value> {
+    let Some(key) = api_key.filter(|k| !k.is_empty()) else { return Vec::new() };
+    let body = match get_json(
+        "https://api.venice.ai/api/v1/models",
+        &[("Authorization", &format!("Bearer {key}"))],
+        5,
+    ) {
+        Some(b) => b,
+        None => return Vec::new(),
+    };
+    body.get("data")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let id = m.get("id").and_then(Value::as_str)?;
+                    // Venice mixes in image/code models — keep text/chat.
+                    let mtype = m.get("type").and_then(Value::as_str).unwrap_or("");
+                    if !matches!(mtype, "" | "text" | "chat") {
+                        return None;
+                    }
+                    let label = m
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or(id);
+                    Some(opt(id, label))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+// ---- Groq -------------------------------------------------------------------
+
+fn fetch_groq(api_key: Option<&str>) -> Vec<Value> {
+    let Some(key) = api_key.filter(|k| !k.is_empty()) else { return Vec::new() };
+    let body = match get_json(
+        "https://api.groq.com/openai/v1/models",
+        &[("Authorization", &format!("Bearer {key}"))],
+        5,
+    ) {
+        Some(b) => b,
+        None => return Vec::new(),
+    };
+    let exclude = ["whisper", "tts", "guard", "embed"];
+    let mut rows: Vec<(i64, String)> = body
+        .get("data")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let id = m.get("id").and_then(Value::as_str)?;
+                    if id.is_empty() || m.get("active").and_then(Value::as_bool) == Some(false) {
+                        return None;
+                    }
+                    let lower = id.to_lowercase();
+                    if exclude.iter().any(|t| lower.contains(t)) {
+                        return None;
+                    }
+                    let ctx = m.get("context_window").and_then(Value::as_i64).unwrap_or(0);
+                    Some((ctx, id.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    rows.sort_by(|a, b| b.0.cmp(&a.0));
+    rows.iter().map(|(_, id)| opt(id, &groq_label(id))).collect()
+}
+
+/// Strip the org prefix and title-case: `meta-llama/llama-3.1-70b` ->
+/// `Llama 3.1 70b`. Mirrors Python's `_groq_label`.
+fn groq_label(id: &str) -> String {
+    let tail = id.rsplit('/').next().unwrap_or(id);
+    tail.split('-')
+        .map(|w| {
+            let mut c = w.chars();
+            match c.next() {
+                Some(f) => f.to_uppercase().chain(c).collect::<String>(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 // --- API-key providers -----------------------------------------------------
