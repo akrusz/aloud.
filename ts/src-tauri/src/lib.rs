@@ -1,4 +1,5 @@
 mod llm;
+mod providers;
 mod server;
 mod tts;
 

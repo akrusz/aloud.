@@ -12,6 +12,7 @@
  */
 
 import { sharedKv } from '../state.js';
+import { apiUrl } from '../api-base.js';
 
 const TOUR_DISMISSED_KEY = 'aloud-tour-dismissed';
 const TOUR_REMIND_KEY = 'aloud-tour-remind-later';
@@ -606,7 +607,7 @@ export async function startTour(options: TourOptions): Promise<void> {
 
     // Fetch Ollama recommendation, then start
     try {
-        const r = await fetch('/api/providers');
+        const r = await fetch(apiUrl('/api/providers'));
         const data = (await r.json()) as {
             ollama?: { recommendation?: { recommended_model?: string } };
         };

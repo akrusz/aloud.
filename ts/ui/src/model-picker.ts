@@ -10,6 +10,7 @@
  */
 
 import { serverUrl } from './server-base.js';
+import { apiUrl } from './api-base.js';
 
 interface ModelOption {
     value: string;
@@ -63,7 +64,7 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
     }
 
     try {
-        const resp = await fetch(`/api/models/${encodeURIComponent(provider)}`);
+        const resp = await fetch(apiUrl(`/api/models/${encodeURIComponent(provider)}`));
         if (!resp.ok) return null;
         const data = (await resp.json()) as ModelOption[];
         if (!Array.isArray(data) || data.length === 0) return null;
@@ -77,7 +78,7 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
 async function fetchProviderStatus(): Promise<typeof providerStatusCache | null> {
     if (providerStatusCache !== null) return providerStatusCache;
     try {
-        const resp = await fetch('/api/providers');
+        const resp = await fetch(apiUrl('/api/providers'));
         if (!resp.ok) return null;
         const data = (await resp.json()) as Record<
             string,

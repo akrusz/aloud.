@@ -72,9 +72,25 @@ Endpoint progress (replacing Flask `/api/*`):
   (the `downloaded` flag is per model file). The TS button is wired in
   `views/setup.ts` and `views/settings.ts` via `downloadVoiceModel()` /
   `uninstallVoiceModel()` in `voice-picker.ts`.
-- ⬜ `/api/providers`, `/api/models`, `/api/tts-engines`.
-- ⬜ `/api/llm/claude_proxy/complete` — spawn the `claude` CLI.
-- ⬜ `/api/open-config-folder`, `/api/open-sessions-folder`, `/api/open-voice-settings`.
+- ✅ `/api/providers` + `/api/models/<provider>` — `src-tauri/src/providers.rs`.
+  Trimmed port: returns just `{available, installed?, hint?}` per provider plus
+  `ollama.models` (the set the TS UI actually consumes), so the elaborate
+  Ollama tier/RAM/GPU recommendation system from Flask is omitted. `/api/models`
+  is a stub (returns `[]`) — model lists need the provider's API key, which on
+  desktop lives in localStorage rather than the backend env, so the picker
+  falls back to a free-form text input until a key-forwarding path is added.
+- ✅ `/api/llm/claude_proxy/complete` — spawns the local `claude` CLI via
+  `tokio::process` and mirrors the Python provider's flags, prompt encoding,
+  JSON parsing, and 90 s timeout. See `src-tauri/src/llm.rs`.
+- ✅ `/api/open-config-folder`, `/api/open-sessions-folder`,
+  `/api/open-voice-settings` — cross-platform `reveal_path()` helper opens the
+  app data dir for the two folder buttons (desktop sessions live in webview
+  storage, not on disk, so the data dir is the closest meaningful target for
+  now); voice-settings opens macOS System Settings → Spoken Content on Darwin,
+  400s elsewhere.
+- ⬜ `/api/tts-engines` — listed in the bead but has no fetch site in the TS UI
+  (only mentioned in code comments as a future option), so deferred until a
+  consumer actually needs it.
 
 ## Config notes
 

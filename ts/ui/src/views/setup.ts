@@ -47,6 +47,7 @@ import { mountModelPicker } from '../model-picker.js';
 import { sessionStore } from '../state.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
 import { isHostedBuild } from '../server-base.js';
+import { apiUrl } from '../api-base.js';
 import { loadAppSettings } from '../app-settings.js';
 import {
     autoStart as autoStartGuide,
@@ -506,7 +507,7 @@ export async function mountSetupView(
 
     async function refreshProviderAvailability(): Promise<void> {
         try {
-            const resp = await fetch('/api/providers');
+            const resp = await fetch(apiUrl('/api/providers'));
             if (!resp.ok) return;
             providerStatus = (await resp.json()) as Record<string, ProviderInfo>;
         } catch {

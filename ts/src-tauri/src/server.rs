@@ -65,6 +65,8 @@ fn router(state: Shared) -> Router {
         .route("/api/tts/download-model", post(tts_download_model))
         .route("/api/tts/uninstall-model", post(tts_uninstall_model))
         .route("/api/llm/claude_proxy/complete", post(llm_claude_proxy_complete))
+        .route("/api/providers", get(providers))
+        .route("/api/models/{provider}", get(models))
         .route("/api/open-config-folder", post(open_config_folder))
         .route("/api/open-sessions-folder", post(open_sessions_folder))
         .route("/api/open-voice-settings", post(open_voice_settings))
@@ -374,6 +376,25 @@ async fn tts_uninstall_model(
 }
 
 // --- /api/llm/claude_proxy/complete ----------------------------------------
+
+// --- /api/providers + /api/models/<provider> -------------------------------
+
+/// `GET /api/providers` — claude / ollama probes + env-var checks for the
+/// API-key providers. The TS UI uses only `{available, installed?, hint?}` per
+/// provider plus `ollama.models`, so the elaborate Ollama tier/recommendation
+/// system from Flask is intentionally omitted (see `crate::providers`).
+async fn providers() -> Json<Value> {
+    let v = tokio::task::spawn_blocking(crate::providers::providers)
+        .await
+        .unwrap_or_else(|_| json!({}));
+    Json(v)
+}
+
+/// `GET /api/models/{provider}` — currently a stub returning `[]` (the model
+/// picker falls back to a free-form text input). See `crate::providers::models`.
+async fn models(axum::extract::Path(provider): axum::extract::Path<String>) -> Json<Value> {
+    Json(crate::providers::models(&provider))
+}
 
 // --- /api/open-* shell escapes ---------------------------------------------
 
