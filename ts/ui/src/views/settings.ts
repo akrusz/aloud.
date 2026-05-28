@@ -48,6 +48,7 @@ import {
     previewVoice as runPreview,
     renderVoiceList,
     renderVoiceModalHTML,
+    setModelDownloadsDisabled,
     stopPreview,
     uninstallVoiceModel,
     updateVoiceSelection,
@@ -541,9 +542,13 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         name: string,
         engine: string | undefined
     ): Promise<void> {
+        const listEl = root.querySelector<HTMLElement>('#settings-voice-modal-list');
+        const model = btn.closest<HTMLElement>('.voice-row')?.dataset['model'];
         const original = btn.textContent;
         btn.disabled = true;
         btn.textContent = '0%';
+        // Lock sibling speakers (same shared .onnx) for the duration.
+        if (listEl) setModelDownloadsDisabled(listEl, model, true, btn);
         try {
             await downloadVoiceModel(name, engine, (p) => {
                 btn.textContent = `${downloadPercent(p)}%`;
@@ -551,6 +556,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         } catch (err) {
             btn.disabled = false;
             btn.textContent = original ?? 'Download';
+            if (listEl) setModelDownloadsDisabled(listEl, model, false, btn);
             alert(`Could not download: ${(err as Error).message}`);
             return;
         }

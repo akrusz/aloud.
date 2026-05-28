@@ -36,6 +36,8 @@ export interface ServerVoice {
     needs_download?: boolean;
     downloaded?: boolean;
     size_display?: string;
+    /** Shared model-file basename; repeated across multi-speaker voices. */
+    model?: string;
 }
 
 /** A curated hosted voice from the server's GET /v1/voices (mirrors the
@@ -57,6 +59,8 @@ export interface ScoredVoice {
     needsDownload?: boolean;
     downloaded?: boolean;
     sizeDisplay?: string;
+    /** Shared model-file basename; speakers sharing it download together. */
+    model?: string;
     /** Small muted label after the name (e.g. a hosted voice's gender). */
     note?: string;
 }
@@ -170,6 +174,7 @@ export function buildScoredVoiceList(
                 entry.needsDownload = true;
                 if (sv.downloaded) entry.downloaded = true;
                 if (sv.size_display) entry.sizeDisplay = sv.size_display;
+                if (sv.model) entry.model = sv.model;
             }
             if (sv.recommended) entry.recommended = true;
             scored.push(entry);
@@ -285,6 +290,9 @@ function appendRow(
     if (entry.needsDownload && !entry.downloaded) row.classList.add('voice-row-locked');
     if (entry.name === selectedName) row.classList.add('selected');
     row.dataset['voiceName'] = entry.name;
+    // Speakers sharing one model file carry the same data-model, so a download
+    // in flight can disable all their Download buttons at once.
+    if (entry.model) row.dataset['model'] = entry.model;
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'voice-row-name';
@@ -584,6 +592,28 @@ export async function uninstallVoiceModel(
         body: JSON.stringify({ voice: voiceName, engine: engine ?? '' }),
     });
     if (!resp.ok) throw new Error(`server returned ${resp.status}`);
+}
+
+/**
+ * Disable (or re-enable) the Download buttons of every voice row sharing
+ * `model` — used while one speaker of a multi-speaker model is downloading, so
+ * the user can't kick off the same 100 MB fetch from a sibling. `exceptBtn`
+ * (the clicked button, showing live percent) is left alone.
+ */
+export function setModelDownloadsDisabled(
+    listEl: HTMLElement,
+    model: string | undefined,
+    disabled: boolean,
+    exceptBtn?: HTMLButtonElement
+): void {
+    if (!model) return;
+    const sel =
+        typeof CSS !== 'undefined' && CSS.escape
+            ? `.voice-row[data-model="${CSS.escape(model)}"] .voice-row-download`
+            : `.voice-row[data-model="${model}"] .voice-row-download`;
+    listEl.querySelectorAll<HTMLButtonElement>(sel).forEach((b) => {
+        if (b !== exceptBtn) b.disabled = disabled;
+    });
 }
 
 /**

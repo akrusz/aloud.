@@ -154,6 +154,9 @@ fn piper_voices(piper_dir: &Path) -> Vec<Value> {
                 "downloaded": downloaded,
                 "size_display": format!("{} MB", v.size_mb),
                 "needs_download": true,
+                // The shared .onnx basename. Multi-speaker voices repeat it, so
+                // the UI can group speakers that download/uninstall together.
+                "model": v.model,
             });
             if v.recommended {
                 entry["recommended"] = json!(true);

@@ -36,6 +36,7 @@ import {
     previewVoice as runPreview,
     renderVoiceList,
     renderVoiceModalHTML,
+    setModelDownloadsDisabled,
     stopPreview,
     updateVoiceSelection,
     type ScoredVoice,
@@ -259,10 +260,13 @@ export async function mountSetupView(
             if (downloadBtn) {
                 e.preventDefault();
                 const entry = findVoice(name);
+                const model = row.dataset['model'];
                 void (async () => {
                     const original = downloadBtn.textContent;
                     downloadBtn.disabled = true;
                     downloadBtn.textContent = '0%';
+                    // Lock sibling speakers (same shared .onnx) while downloading.
+                    setModelDownloadsDisabled(listEl, model, true, downloadBtn);
                     try {
                         await downloadVoiceModel(name, entry?.engine, (p) => {
                             downloadBtn.textContent = `${downloadPercent(p)}%`;
@@ -270,6 +274,7 @@ export async function mountSetupView(
                     } catch (err) {
                         downloadBtn.disabled = false;
                         downloadBtn.textContent = original ?? 'Download';
+                        setModelDownloadsDisabled(listEl, model, false, downloadBtn);
                         alert(`Could not download: ${(err as Error).message}`);
                         return;
                     }

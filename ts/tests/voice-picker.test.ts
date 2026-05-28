@@ -56,6 +56,31 @@ describe('buildScoredVoiceList with hosted voices', () => {
         const scored = buildScoredVoiceList(null, false);
         expect(scored.filter((v) => v.engine === 'aloud')).toHaveLength(0);
     });
+
+    it('carries the shared model basename through for multi-speaker voices', () => {
+        vi.stubGlobal('navigator', { language: 'en-US' });
+        const scored = buildScoredVoiceList(
+            [
+                {
+                    name: 'Libritts p3922 (F)',
+                    lang: 'en_US',
+                    engine: 'piper',
+                    needs_download: true,
+                    model: 'en_US-libritts-high',
+                },
+                {
+                    name: 'Libritts p4356 (F)',
+                    lang: 'en_US',
+                    engine: 'piper',
+                    needs_download: true,
+                    model: 'en_US-libritts-high',
+                },
+            ],
+            false
+        );
+        // Both speakers expose the same model, so the UI can group/lock them.
+        expect(scored.map((v) => v.model)).toEqual(['en_US-libritts-high', 'en_US-libritts-high']);
+    });
 });
 
 describe('downloadPercent', () => {

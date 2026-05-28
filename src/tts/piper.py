@@ -262,6 +262,9 @@ class PiperTTS:
                 "downloaded": self.is_model_downloaded(v["name"]),
                 "size_display": str(v["size_mb"]) + " MB",
                 "needs_download": True,
+                # Shared .onnx basename (== name for single-speaker voices), so
+                # the picker can group speakers that download together.
+                "model": v.get("model", v["name"]),
             }
             if v.get("recommended"):
                 entry["recommended"] = True
