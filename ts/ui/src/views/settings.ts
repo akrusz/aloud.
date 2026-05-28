@@ -35,6 +35,7 @@ import { ALL_PROVIDERS, isProviderAvailable, providerNeedsKey, type Provider } f
 import { isDesktopSync } from '../is-desktop.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
 import { isHostedBuild } from '../server-base.js';
+import { apiUrl } from '../api-base.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { mountModelPicker } from '../model-picker.js';
 import {
@@ -403,7 +404,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         if (link) {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                void fetch('/api/open-voice-settings', { method: 'POST' });
+                void fetch(apiUrl('/api/open-voice-settings'), { method: 'POST' });
             });
         }
     }
@@ -884,7 +885,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         if (openConfigBtn) {
             void (async () => {
                 try {
-                    const resp = await fetch('/api/open-config-folder', { method: 'OPTIONS' });
+                    const resp = await fetch(apiUrl('/api/open-config-folder'), { method: 'OPTIONS' });
                     // Even a 405 (POST-only) confirms the route exists.
                     if (resp.status === 200 || resp.status === 405) {
                         openConfigBtn.classList.remove('hidden');
@@ -894,7 +895,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
                 }
             })();
             openConfigBtn.addEventListener('click', () => {
-                void fetch('/api/open-config-folder', { method: 'POST' });
+                void fetch(apiUrl('/api/open-config-folder'), { method: 'POST' });
             });
         }
     }

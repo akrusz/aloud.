@@ -49,6 +49,9 @@ pub struct AppState {
     piper_dir: PathBuf,
     // LRU-of-1 cache of the last-loaded Piper model (see tts::PiperCache).
     piper: crate::tts::PiperCache,
+    // Root app-data dir — surfaced by /api/open-config-folder for "show me
+    // where my data lives" buttons in the TS UI.
+    data_dir: PathBuf,
 }
 
 type Shared = Arc<AppState>;
@@ -62,6 +65,9 @@ fn router(state: Shared) -> Router {
         .route("/api/tts/download-model", post(tts_download_model))
         .route("/api/tts/uninstall-model", post(tts_uninstall_model))
         .route("/api/llm/claude_proxy/complete", post(llm_claude_proxy_complete))
+        .route("/api/open-config-folder", post(open_config_folder))
+        .route("/api/open-sessions-folder", post(open_sessions_folder))
+        .route("/api/open-voice-settings", post(open_voice_settings))
         // The webview origin (tauri://localhost in prod, http://localhost:1420
         // in dev) differs from this server's 127.0.0.1:<port>, so every request
         // is cross-origin. Permissive CORS is safe here: loopback only.
@@ -84,6 +90,7 @@ pub fn start(data_dir: PathBuf) -> u16 {
         model_dir: data_dir.join("models"),
         piper_dir: data_dir.join("piper-models"),
         piper: Mutex::new(None),
+        data_dir,
     });
 
     // Model download + load is slow (and the download is large) — do it off the
@@ -367,6 +374,84 @@ async fn tts_uninstall_model(
 }
 
 // --- /api/llm/claude_proxy/complete ----------------------------------------
+
+// --- /api/open-* shell escapes ---------------------------------------------
+
+/// Reveal a filesystem path in the platform file browser (Finder / Explorer /
+/// xdg). Detached spawn — the user just wants the window to appear.
+fn reveal_path(path: &Path) -> std::io::Result<()> {
+    use std::process::Command;
+    let _ = std::fs::create_dir_all(path); // best-effort — the dir may not exist yet
+    #[cfg(target_os = "macos")]
+    let mut cmd = {
+        let mut c = Command::new("open");
+        c.arg(path);
+        c
+    };
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        let mut c = Command::new("explorer");
+        c.arg(path);
+        c
+    };
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+    let mut cmd = {
+        let mut c = Command::new("xdg-open");
+        c.arg(path);
+        c
+    };
+    cmd.spawn().map(|_| ())
+}
+
+/// `POST /api/open-config-folder` — reveal the app's data directory (where
+/// models and any future on-disk state live). The TS UI also pings this route
+/// with `OPTIONS` to decide whether the "Open config folder" button is
+/// available; axum returns 405 for a method-not-allowed, which the detector
+/// counts as "route exists" — so registering the POST is enough.
+async fn open_config_folder(State(state): State<Shared>) -> (StatusCode, Json<Value>) {
+    open_dir_response(&state.data_dir)
+}
+
+/// `POST /api/open-sessions-folder` — desktop sessions don't live on disk yet
+/// (the TS UI persists to webview storage), so this falls back to the same
+/// app-data dir as a "here's where your data lives" gesture.
+async fn open_sessions_folder(State(state): State<Shared>) -> (StatusCode, Json<Value>) {
+    open_dir_response(&state.data_dir)
+}
+
+fn open_dir_response(path: &Path) -> (StatusCode, Json<Value>) {
+    match reveal_path(path) {
+        Ok(_) => (StatusCode::OK, Json(json!({ "status": "ok" }))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("could not open folder: {e}") })),
+        ),
+    }
+}
+
+/// `POST /api/open-voice-settings` — open macOS System Settings to the Spoken
+/// Content pane (where Premium voices are installed). macOS-only; other OSes
+/// get a 400 so the UI can hide or fail-soft.
+async fn open_voice_settings() -> (StatusCode, Json<Value>) {
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        let res = Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.universalaccess?TextToSpeech")
+            .spawn();
+        return match res {
+            Ok(_) => (StatusCode::OK, Json(json!({ "status": "ok" }))),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("could not open settings: {e}") })),
+            ),
+        };
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        (StatusCode::BAD_REQUEST, Json(json!({ "error": "macOS only" })))
+    }
+}
 
 /// `POST /api/llm/claude_proxy/complete` — run one `claude` CLI completion for
 /// the "Anthropic (Subscription)" provider. Desktop-only by nature (needs the
