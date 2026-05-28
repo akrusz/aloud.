@@ -254,10 +254,16 @@ fn synth_piper(
     rate: Option<u32>,
 ) -> Result<Vec<u8>, String> {
     let v = find_piper(voice).ok_or_else(|| format!("unknown Piper voice '{voice}'"))?;
-    ensure_piper_model(piper_dir, v.model)?;
 
     let onnx = piper_model_path(piper_dir, v.model);
     let config = piper_dir.join(format!("{}.onnx.json", v.model));
+    // Models are downloaded explicitly via /api/tts/download-model (the picker's
+    // Download button), never on demand — a session must not stall on a 100 MB
+    // fetch mid-synthesis. Matches the Flask preview, which also required the
+    // model to be present.
+    if !onnx.exists() || !config.exists() {
+        return Err(format!("Piper voice '{voice}' not downloaded"));
+    }
 
     // Piper's native pace at length_scale 1.0 is ~220 WPM (see piper.py).
     let length_scale = rate.map(|r| 220.0 / r.max(1) as f32);
@@ -294,17 +300,113 @@ fn resolve_speaker_id(piper: &Piper, key: &str) -> Result<i64, String> {
         .ok_or_else(|| format!("speaker '{key}' not found in model"))
 }
 
-/// Download a Piper voice's `.onnx` + `.onnx.json` into `piper_dir` if absent.
-fn ensure_piper_model(piper_dir: &Path, model: &str) -> Result<(), String> {
+// --- /api/tts/download-model + /api/tts/uninstall-model --------------------
+
+/// Download a Piper voice's model files, reporting progress through
+/// `on_progress` as NDJSON-shaped values wire-compatible with Flask's
+/// `/api/tts/download-model`: a stream of `{status:"downloading", total,
+/// completed, file}` then a terminal `{status:"done"}` (or, if the shared
+/// model is already present, just `{status:"already_downloaded"}`).
+///
+/// Multi-speaker voices share one `.onnx`, so downloading any speaker brings
+/// the whole family on disk — the caller re-reads `/api/voices` afterward and
+/// every speaker for that model unlocks (its `downloaded` flag is per file).
+pub fn download_model<F: FnMut(Value)>(
+    piper_dir: &Path,
+    engine: &str,
+    voice: &str,
+    mut on_progress: F,
+) -> Result<(), String> {
+    if engine != "piper" {
+        return Err(format!("Unknown engine: {engine}"));
+    }
+    let v = find_piper(voice).ok_or_else(|| format!("unknown Piper voice '{voice}'"))?;
+    if piper_model_path(piper_dir, v.model).exists() {
+        on_progress(json!({ "status": "already_downloaded" }));
+        return Ok(());
+    }
+
     std::fs::create_dir_all(piper_dir).map_err(|e| e.to_string())?;
-    for (url, filename) in piper_hf_urls(model) {
+    let mut total_downloaded: u64 = 0;
+    for (url, filename) in piper_hf_urls(v.model) {
         let dest = piper_dir.join(&filename);
-        if !dest.exists() {
-            log::info!("downloading Piper file -> {}", dest.display());
-            crate::server::download(&url, &dest)?;
+        if dest.exists() {
+            continue;
         }
+        // Download to a .part sibling and rename on success, so an interrupted
+        // download can't masquerade as a complete model.
+        let tmp = dest.with_extension("part");
+        let res = download_file_with_progress(
+            &url,
+            &tmp,
+            &filename,
+            &mut total_downloaded,
+            &mut on_progress,
+        );
+        if let Err(e) = res {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e);
+        }
+        std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+    }
+
+    on_progress(json!({ "status": "done" }));
+    Ok(())
+}
+
+fn download_file_with_progress<F: FnMut(Value)>(
+    url: &str,
+    tmp: &Path,
+    filename: &str,
+    total_downloaded: &mut u64,
+    on_progress: &mut F,
+) -> Result<(), String> {
+    use std::io::{Read, Write};
+    let resp = ureq::get(url).call().map_err(|e| e.to_string())?;
+    let file_total: u64 = resp
+        .headers()
+        .get("content-length")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    let mut reader = resp.into_body().into_reader();
+    let mut file = std::fs::File::create(tmp).map_err(|e| e.to_string())?;
+    let mut buf = [0u8; 65536];
+    loop {
+        let n = reader.read(&mut buf).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        file.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+        *total_downloaded += n as u64;
+        on_progress(json!({
+            "status": "downloading",
+            "total": file_total,
+            "completed": *total_downloaded,
+            "file": filename,
+        }));
     }
     Ok(())
+}
+
+/// Remove a downloaded Piper voice's model files. Resolves multi-speaker
+/// display names to the shared model basename first (so uninstalling e.g.
+/// "Libritts p3922 (F)" removes `en_US-libritts-high.onnx`, freeing the whole
+/// family). Returns "removed" or "not_found".
+pub fn uninstall_model(piper_dir: &Path, engine: &str, voice: &str) -> Result<&'static str, String> {
+    if engine != "piper" {
+        return Err("uninstall not supported for this engine".to_string());
+    }
+    let v = find_piper(voice).ok_or_else(|| format!("unknown Piper voice '{voice}'"))?;
+    let mut removed = false;
+    for suffix in [".onnx", ".onnx.json"] {
+        let f = piper_dir.join(format!("{}{}", v.model, suffix));
+        if f.exists() {
+            std::fs::remove_file(&f).map_err(|e| e.to_string())?;
+            removed = true;
+        }
+    }
+    Ok(if removed { "removed" } else { "not_found" })
 }
 
 #[cfg(target_os = "macos")]
@@ -450,6 +552,7 @@ mod tests {
     fn piper_synthesizes_audio() {
         let dir = std::env::temp_dir().join("aloud-piper-test");
         let cache: PiperCache = Mutex::new(None);
+        download_model(&dir, "piper", "en_US-lessac-medium", |_| {}).expect("download");
         let wav = synth_preview(
             &dir,
             &cache,
@@ -469,8 +572,20 @@ mod tests {
     fn piper_multispeaker_resolves_speaker() {
         let dir = std::env::temp_dir().join("aloud-piper-test");
         let cache: PiperCache = Mutex::new(None);
+        // Download via one speaker; all four share the model file.
+        download_model(&dir, "piper", "Libritts p3922 (F)", |_| {}).expect("download");
         let wav = synth_preview(&dir, &cache, "Libritts p3922 (F)", Some("piper"), "Hello there.", Some(180))
             .expect("multispeaker synthesis");
         assert!(wav.len() > 10_000, "tiny WAV ({} bytes)", wav.len());
+    }
+
+    #[test]
+    fn synth_errors_when_model_absent() {
+        let dir = std::env::temp_dir().join("aloud-piper-absent-xyz");
+        let _ = std::fs::remove_dir_all(&dir);
+        let cache: PiperCache = Mutex::new(None);
+        let err = synth_preview(&dir, &cache, "en_US-lessac-medium", Some("piper"), "hi", Some(180))
+            .unwrap_err();
+        assert!(err.contains("not downloaded"), "unexpected error: {err}");
     }
 }

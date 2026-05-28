@@ -39,6 +39,8 @@ import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { mountModelPicker } from '../model-picker.js';
 import {
     buildScoredVoiceList,
+    downloadPercent,
+    downloadVoiceModel,
     fetchServerVoices,
     fetchHostedVoices,
     invalidateServerVoicesCache,
@@ -47,6 +49,7 @@ import {
     renderVoiceList,
     renderVoiceModalHTML,
     stopPreview,
+    uninstallVoiceModel,
     updateVoiceSelection,
     type ScoredVoice,
 } from '../voice-picker.js';
@@ -515,12 +518,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         btn.disabled = true;
         btn.textContent = 'Removing…';
         try {
-            const resp = await fetch('/api/tts/uninstall-model', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ voice: name, engine: engine ?? '' }),
-            });
-            if (!resp.ok) throw new Error(`server returned ${resp.status}`);
+            await uninstallVoiceModel(name, engine);
         } catch (err) {
             btn.disabled = false;
             btn.textContent = original ?? 'Uninstall';
@@ -529,6 +527,38 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         }
         // Drop the cached /api/voices response so the re-fetch sees
         // the Piper model as un-downloaded again.
+        await refreshVoiceList();
+    }
+
+    /**
+     * Download a Piper voice model, showing live percent on the button. On
+     * success the voices cache is dropped and the list re-rendered, so the
+     * voice (and any speakers sharing its model) flip to a selectable,
+     * uninstallable state.
+     */
+    async function downloadVoice(
+        btn: HTMLButtonElement,
+        name: string,
+        engine: string | undefined
+    ): Promise<void> {
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '0%';
+        try {
+            await downloadVoiceModel(name, engine, (p) => {
+                btn.textContent = `${downloadPercent(p)}%`;
+            });
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = original ?? 'Download';
+            alert(`Could not download: ${(err as Error).message}`);
+            return;
+        }
+        await refreshVoiceList();
+    }
+
+    /** Drop the cached voice list, re-fetch, and re-render the modal list. */
+    async function refreshVoiceList(): Promise<void> {
         invalidateServerVoicesCache();
         await loadVoiceCatalog();
         const listEl = root.querySelector<HTMLElement>('#settings-voice-modal-list');
@@ -597,10 +627,17 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
                 void runPreview(name, settings.defaultTtsRate, entry?.engine);
                 return;
             }
-            // Uninstall button — POST to Flask's tts uninstall endpoint
-            // and re-render the list so the voice flips back to a
-            // downloadable state (or disappears entirely if it was a
-            // multi-speaker model whose shared .onnx got removed).
+            // Download button — stream the model down (live percent on the
+            // button), then re-render so the voice unlocks.
+            const downloadBtn = target.closest<HTMLButtonElement>('.voice-row-download');
+            if (downloadBtn) {
+                e.preventDefault();
+                void downloadVoice(downloadBtn, name, entry?.engine);
+                return;
+            }
+            // Uninstall button — remove the model and re-render the list so the
+            // voice flips back to a downloadable state (or disappears entirely
+            // if it was a multi-speaker model whose shared .onnx got removed).
             const uninstallBtn = target.closest<HTMLButtonElement>('.voice-row-uninstall');
             if (uninstallBtn) {
                 e.preventDefault();

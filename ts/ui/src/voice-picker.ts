@@ -502,6 +502,102 @@ export function invalidateServerVoicesCache(): void {
     serverVoicesCache = null;
 }
 
+const DOWNLOAD_MODEL_URL = '/api/tts/download-model';
+const UNINSTALL_MODEL_URL = '/api/tts/uninstall-model';
+
+export interface DownloadProgress {
+    /** Cumulative bytes downloaded across the voice's files. */
+    completed: number;
+    /** Content-length of the file currently downloading (0 if unknown). */
+    total: number;
+    file: string;
+}
+
+/**
+ * Download a Piper voice model, streaming byte progress via `onProgress`.
+ * Resolves once the model is on disk (`done` / `already_downloaded`), rejects
+ * on an error line or transport failure. Consumes the NDJSON stream emitted by
+ * both backends (Flask and the desktop Rust server), so callers stay
+ * backend-agnostic.
+ *
+ * Multi-speaker voices share one model file — after this resolves, re-fetch
+ * `/api/voices` and every speaker for that model reports `downloaded:true`.
+ */
+export async function downloadVoiceModel(
+    voiceName: string,
+    engine: string | undefined,
+    onProgress?: (p: DownloadProgress) => void
+): Promise<void> {
+    const resp = await fetch(apiUrl(DOWNLOAD_MODEL_URL), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ voice: voiceName, engine: engine ?? '' }),
+    });
+    if (!resp.ok || !resp.body) throw new Error(`server returned ${resp.status}`);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf('\n')) >= 0) {
+            const line = buffer.slice(0, nl).trim();
+            buffer = buffer.slice(nl + 1);
+            if (!line) continue;
+            let msg: {
+                status?: string;
+                error?: string;
+                total?: number;
+                completed?: number;
+                file?: string;
+            };
+            try {
+                msg = JSON.parse(line);
+            } catch {
+                continue; // ignore a partial/garbled line
+            }
+            if (msg.status === 'error') throw new Error(msg.error || 'download failed');
+            if (msg.status === 'downloading' && onProgress) {
+                onProgress({
+                    completed: msg.completed ?? 0,
+                    total: msg.total ?? 0,
+                    file: msg.file ?? '',
+                });
+            }
+            // "done"/"already_downloaded" need no action; the loop ends when
+            // the server closes the stream.
+        }
+    }
+}
+
+/** Remove a downloaded Piper voice model. Resolves on success. */
+export async function uninstallVoiceModel(
+    voiceName: string,
+    engine: string | undefined
+): Promise<void> {
+    const resp = await fetch(apiUrl(UNINSTALL_MODEL_URL), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ voice: voiceName, engine: engine ?? '' }),
+    });
+    if (!resp.ok) throw new Error(`server returned ${resp.status}`);
+}
+
+/**
+ * Cumulative download percent (0–100). `completed` is cumulative across files
+ * while `total` is the current file's size, so once we roll onto the tiny
+ * `.onnx.json` `completed` exceeds `total`; clamping to the larger of the two
+ * keeps the bar monotonic and pinned at ~100% for that last hop.
+ */
+export function downloadPercent(p: DownloadProgress): number {
+    const denom = Math.max(p.total, p.completed);
+    if (denom <= 0) return 0;
+    return Math.min(100, Math.round((p.completed / denom) * 100));
+}
+
 // ---------------------------------------------------------------------------
 // /v1/voices loader (hosted server)
 // ---------------------------------------------------------------------------

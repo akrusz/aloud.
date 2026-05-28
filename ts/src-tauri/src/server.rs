@@ -59,6 +59,8 @@ fn router(state: Shared) -> Router {
         .route("/api/stt/whisper", post(stt_whisper))
         .route("/api/voices", get(voices))
         .route("/api/voices/preview", get(voices_preview))
+        .route("/api/tts/download-model", post(tts_download_model))
+        .route("/api/tts/uninstall-model", post(tts_uninstall_model))
         // The webview origin (tauri://localhost in prod, http://localhost:1420
         // in dev) differs from this server's 127.0.0.1:<port>, so every request
         // is cross-origin. Permissive CORS is safe here: loopback only.
@@ -133,7 +135,7 @@ fn load_whisper(state: &AppState) -> Result<(), String> {
 
 /// Stream a URL to a file, downloading to a `.part` sibling then renaming so a
 /// half-finished download can't be mistaken for a complete model.
-pub(crate) fn download(url: &str, dest: &Path) -> Result<(), String> {
+fn download(url: &str, dest: &Path) -> Result<(), String> {
     let tmp = dest.with_extension("part");
     let response = ureq::get(url).call().map_err(|e| e.to_string())?;
     let mut reader = response.into_body().into_reader();
@@ -307,6 +309,59 @@ async fn voices_preview(State(state): State<Shared>, Query(q): Query<PreviewQuer
             log::error!("voice preview task failed: {e}");
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
+    }
+}
+
+#[derive(Deserialize)]
+struct ModelReq {
+    #[serde(default)]
+    engine: String,
+    #[serde(default)]
+    voice: String,
+}
+
+/// `POST /api/tts/download-model` — stream a Piper model download as NDJSON
+/// progress lines. The download runs on a blocking thread and pushes each
+/// progress event through a channel that backs the response body, so the UI
+/// gets live progress for a 60–105 MB fetch.
+async fn tts_download_model(State(state): State<Shared>, Json(req): Json<ModelReq>) -> Response {
+    if req.engine.is_empty() || req.voice.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "engine and voice are required" })))
+            .into_response();
+    }
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<String, std::io::Error>>(64);
+    let dir = state.piper_dir.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut send = move |v: Value| {
+            // Best-effort: if the client hangs up, the receiver drops and sends
+            // fail — that's fine, we just stop reporting.
+            let _ = tx.blocking_send(Ok(format!("{v}\n")));
+        };
+        if let Err(e) = crate::tts::download_model(&dir, &req.engine, &req.voice, &mut send) {
+            send(json!({ "status": "error", "error": e }));
+        }
+    });
+
+    let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
+    Response::builder()
+        .header(header::CONTENT_TYPE, "application/x-ndjson")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from_stream(stream))
+        .expect("build ndjson response")
+}
+
+/// `POST /api/tts/uninstall-model` — delete a downloaded Piper model.
+async fn tts_uninstall_model(
+    State(state): State<Shared>,
+    Json(req): Json<ModelReq>,
+) -> (StatusCode, Json<Value>) {
+    if req.voice.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "voice is required" })));
+    }
+    match crate::tts::uninstall_model(&state.piper_dir, &req.engine, &req.voice) {
+        Ok(status) => (StatusCode::OK, Json(json!({ "status": status }))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))),
     }
 }
 

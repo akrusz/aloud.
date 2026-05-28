@@ -27,8 +27,11 @@ import type { SessionState } from '../../../src/facilitation/session.js';
 import { PRESETS, findPreset } from '../presets.js';
 import {
     buildScoredVoiceList,
+    downloadPercent,
+    downloadVoiceModel,
     fetchServerVoices,
     fetchHostedVoices,
+    invalidateServerVoicesCache,
     prefixedVoiceId,
     previewVoice as runPreview,
     renderVoiceList,
@@ -249,6 +252,33 @@ export async function mountSetupView(
             if (!row) return;
             const name = row.dataset['voiceName'];
             if (!name) return;
+            // Download button — stream the Piper model down with live percent,
+            // then re-render so the voice (and any model-sharing speakers)
+            // unlock.
+            const downloadBtn = target2.closest<HTMLButtonElement>('.voice-row-download');
+            if (downloadBtn) {
+                e.preventDefault();
+                const entry = findVoice(name);
+                void (async () => {
+                    const original = downloadBtn.textContent;
+                    downloadBtn.disabled = true;
+                    downloadBtn.textContent = '0%';
+                    try {
+                        await downloadVoiceModel(name, entry?.engine, (p) => {
+                            downloadBtn.textContent = `${downloadPercent(p)}%`;
+                        });
+                    } catch (err) {
+                        downloadBtn.disabled = false;
+                        downloadBtn.textContent = original ?? 'Download';
+                        alert(`Could not download: ${(err as Error).message}`);
+                        return;
+                    }
+                    invalidateServerVoicesCache();
+                    await loadVoiceCatalog();
+                    renderVoiceList(listEl, scoredVoices, currentName, { showEngine: true });
+                })();
+                return;
+            }
             if (target2.closest('.voice-row-preview')) {
                 if (row.classList.contains('voice-row-locked')) return;
                 const entry = findVoice(name);

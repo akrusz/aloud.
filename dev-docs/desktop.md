@@ -61,11 +61,17 @@ Endpoint progress (replacing Flask `/api/*`):
 - ✅ `/api/stt/whisper` — local Whisper via `whisper-rs` (whisper.cpp).
 - ✅ `/api/voices` + `/api/voices/preview` — Piper (ONNX via `piper-rs`:
   `ort` + espeak-ng) cross-platform, plus macOS `say` as a Darwin-only local
-  engine. See `src-tauri/src/tts.rs`. Piper voice models download on demand on
-  first synthesis (mirrors the Whisper model). Note: the TS voice picker's
-  Download button is still unwired (true on web too), so Piper voices that
-  aren't yet on disk stay locked in the picker UI — download-on-demand is what
-  makes them work once selected/streamed. Wiring that button is follow-up.
+  engine. See `src-tauri/src/tts.rs`.
+- ✅ `/api/tts/download-model` + `/api/tts/uninstall-model` — Piper models are
+  downloaded **explicitly** via the picker's Download button (streamed NDJSON
+  progress, wire-compatible with the old Flask routes), never on demand: a
+  session must not stall on a 100 MB fetch mid-synthesis, and the explicit
+  install/uninstall UX is preserved. Multi-speaker voices share one `.onnx`, so
+  downloading/uninstalling any speaker affects the whole family; the picker
+  re-reads `/api/voices` afterward and all sharing speakers flip state together
+  (the `downloaded` flag is per model file). The TS button is wired in
+  `views/setup.ts` and `views/settings.ts` via `downloadVoiceModel()` /
+  `uninstallVoiceModel()` in `voice-picker.ts`.
 - ⬜ `/api/providers`, `/api/models`, `/api/tts-engines`.
 - ⬜ `/api/llm/claude_proxy/complete` — spawn the `claude` CLI.
 - ⬜ `/api/open-config-folder`, `/api/open-sessions-folder`, `/api/open-voice-settings`.

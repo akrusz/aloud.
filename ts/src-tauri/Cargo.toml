@@ -27,7 +27,9 @@ tauri-plugin-log = "2"
 # adapters that hit the hosted server over HTTP hit this over HTTP too, so
 # desktop and web share one code path (see dev-docs/desktop.md).
 axum = "0.8"
-tokio = { version = "1", features = ["rt-multi-thread", "net", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "sync"] }
+# Adapts the mpsc receiver backing the streamed model-download response.
+tokio-stream = "0.1"
 tower-http = { version = "0.6", features = ["cors"] }
 which = "7"
 whisper-rs = "0.16.0"
