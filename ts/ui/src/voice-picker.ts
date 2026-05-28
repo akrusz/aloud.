@@ -21,6 +21,7 @@ import type { TtsEngine } from '../../src/platform/index.js';
 
 import { createTtsForVoice } from './adapters/tts-picker.js';
 import { serverUrl } from './server-base.js';
+import { apiUrl } from './api-base.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -486,7 +487,7 @@ let serverVoicesCache: ServerVoice[] | null = null;
 export async function fetchServerVoices(force = false): Promise<ServerVoice[] | null> {
     if (!force && serverVoicesCache !== null) return serverVoicesCache;
     try {
-        const response = await fetch(SERVER_VOICES_URL);
+        const response = await fetch(apiUrl(SERVER_VOICES_URL));
         if (!response.ok) return null;
         const data = (await response.json()) as ServerVoice[];
         serverVoicesCache = data;

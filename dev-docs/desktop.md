@@ -12,7 +12,10 @@ npm run tauri:build    # production .app/.dmg (macOS) — see caveat below
 ```
 
 **Build prerequisites:** the Rust toolchain (rustup), and **cmake** (`brew install
-cmake`) — `whisper-rs` compiles whisper.cpp from source. On first run the app
+cmake`) plus a C compiler — `whisper-rs` compiles whisper.cpp and `piper-rs`
+(via espeak-rs) compiles espeak-ng, both from source. `piper-rs`'s `ort`
+backend downloads the matching ONNX Runtime binary at build time, so the same
+toolchain works on macOS/Windows/Linux. On first run the app
 downloads the Whisper model (base.en GGML, ~142 MB) to
 `<app-data>/models/` (`~/Library/Application Support/app.aloud.meditation/models`
 on macOS); STT returns 503 until that finishes loading.
@@ -56,7 +59,13 @@ Endpoint progress (replacing Flask `/api/*`):
 
 - ✅ `/api/system-info` — platform + tool availability (`which`).
 - ✅ `/api/stt/whisper` — local Whisper via `whisper-rs` (whisper.cpp).
-- ⬜ `/api/voices` + `/api/voices/preview` — Piper (ONNX) / macOS `say`.
+- ✅ `/api/voices` + `/api/voices/preview` — Piper (ONNX via `piper-rs`:
+  `ort` + espeak-ng) cross-platform, plus macOS `say` as a Darwin-only local
+  engine. See `src-tauri/src/tts.rs`. Piper voice models download on demand on
+  first synthesis (mirrors the Whisper model). Note: the TS voice picker's
+  Download button is still unwired (true on web too), so Piper voices that
+  aren't yet on disk stay locked in the picker UI — download-on-demand is what
+  makes them work once selected/streamed. Wiring that button is follow-up.
 - ⬜ `/api/providers`, `/api/models`, `/api/tts-engines`.
 - ⬜ `/api/llm/claude_proxy/complete` — spawn the `claude` CLI.
 - ⬜ `/api/open-config-folder`, `/api/open-sessions-folder`, `/api/open-voice-settings`.

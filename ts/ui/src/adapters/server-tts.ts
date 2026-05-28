@@ -12,6 +12,7 @@
  */
 
 import type { TtsEngine, TtsOptions, TtsVoice } from '../../../src/platform/tts.js';
+import { apiUrl } from '../api-base.js';
 
 /**
  * The UI carries TTS rate as words-per-minute (≈160 neutral; see
@@ -64,7 +65,7 @@ export class ServerTtsEngine implements TtsEngine {
     constructor(options: ServerTtsEngineOptions) {
         this.voiceId = options.voice;
         this.engine = options.engine;
-        this.endpointUrl = options.endpointUrl ?? '/api/voices/preview';
+        this.endpointUrl = options.endpointUrl ?? apiUrl('/api/voices/preview');
         this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
         this.onSynthesize = options.onSynthesize;
         this.usePost = options.usePost ?? false;

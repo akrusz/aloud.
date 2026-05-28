@@ -32,3 +32,6 @@ tower-http = { version = "0.6", features = ["cors"] }
 which = "7"
 whisper-rs = "0.16.0"
 ureq = "3.2.1"
+# Native Piper TTS (ONNX via `ort`, espeak-ng phonemization via `espeak-rs`).
+# Cross-platform neural voices; macOS `say` is a local fallback on Darwin.
+piper-rs = "0.2"

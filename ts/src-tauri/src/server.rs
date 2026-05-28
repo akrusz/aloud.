@@ -20,7 +20,8 @@ use std::sync::{Arc, Mutex};
 use axum::{
     body::Bytes,
     extract::{DefaultBodyLimit, Query, State},
-    http::StatusCode,
+    http::{header, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -44,6 +45,10 @@ pub struct AppState {
     whisper: Mutex<Option<Arc<WhisperContext>>>,
     whisper_ready: AtomicBool,
     model_dir: PathBuf,
+    // Piper voice models (.onnx/.onnx.json) live here, downloaded on demand.
+    piper_dir: PathBuf,
+    // LRU-of-1 cache of the last-loaded Piper model (see tts::PiperCache).
+    piper: crate::tts::PiperCache,
 }
 
 type Shared = Arc<AppState>;
@@ -52,6 +57,8 @@ fn router(state: Shared) -> Router {
     Router::new()
         .route("/api/system-info", get(system_info))
         .route("/api/stt/whisper", post(stt_whisper))
+        .route("/api/voices", get(voices))
+        .route("/api/voices/preview", get(voices_preview))
         // The webview origin (tauri://localhost in prod, http://localhost:1420
         // in dev) differs from this server's 127.0.0.1:<port>, so every request
         // is cross-origin. Permissive CORS is safe here: loopback only.
@@ -67,11 +74,13 @@ fn router(state: Shared) -> Router {
 
 /// Bind an ephemeral loopback port, kick off model loading in the background,
 /// spawn the server on Tauri's async runtime, and return the chosen port.
-pub fn start(model_dir: PathBuf) -> u16 {
+pub fn start(data_dir: PathBuf) -> u16 {
     let state: Shared = Arc::new(AppState {
         whisper: Mutex::new(None),
         whisper_ready: AtomicBool::new(false),
-        model_dir,
+        model_dir: data_dir.join("models"),
+        piper_dir: data_dir.join("piper-models"),
+        piper: Mutex::new(None),
     });
 
     // Model download + load is slow (and the download is large) — do it off the
@@ -124,7 +133,7 @@ fn load_whisper(state: &AppState) -> Result<(), String> {
 
 /// Stream a URL to a file, downloading to a `.part` sibling then renaming so a
 /// half-finished download can't be mistaken for a complete model.
-fn download(url: &str, dest: &Path) -> Result<(), String> {
+pub(crate) fn download(url: &str, dest: &Path) -> Result<(), String> {
     let tmp = dest.with_extension("part");
     let response = ureq::get(url).call().map_err(|e| e.to_string())?;
     let mut reader = response.into_body().into_reader();
@@ -229,6 +238,76 @@ async fn stt_whisper(
 
 fn err(code: StatusCode, msg: &str) -> (StatusCode, Json<Value>) {
     (code, Json(json!({ "error": msg })))
+}
+
+// --- TTS: /api/voices + /api/voices/preview --------------------------------
+
+/// Fallback preview phrase when the client doesn't supply `?text=`. The UI
+/// always sends text (preview line or a session sentence), so this is rarely
+/// hit; kept short to match the old Flask default.
+const DEFAULT_PREVIEW_TEXT: &str = "Take a slow breath, and let your shoulders soften.";
+
+#[derive(Deserialize)]
+struct VoicesQuery {
+    engine: Option<String>,
+    lang: Option<String>,
+}
+
+/// `GET /api/voices` — aggregated Piper + macOS voice catalogue (or one engine
+/// when `?engine=` is set), optionally filtered by `?lang=`. Runs off the async
+/// reactor because it shells out to `say -v ?` and stats the model dir.
+async fn voices(State(state): State<Shared>, Query(q): Query<VoicesQuery>) -> Json<Value> {
+    let dir = state.piper_dir.clone();
+    let voices = tokio::task::spawn_blocking(move || {
+        crate::tts::list_voices(q.engine.as_deref(), q.lang.as_deref(), &dir)
+    })
+    .await
+    .unwrap_or_else(|_| Value::Array(Vec::new()));
+    Json(voices)
+}
+
+#[derive(Deserialize)]
+struct PreviewQuery {
+    voice: Option<String>,
+    engine: Option<String>,
+    text: Option<String>,
+    rate: Option<u32>,
+}
+
+/// `GET /api/voices/preview` — synthesize one utterance to a WAV. This is also
+/// the session TTS path the UI streams sentences through, so the model cache in
+/// AppState matters here, not just for previews.
+async fn voices_preview(State(state): State<Shared>, Query(q): Query<PreviewQuery>) -> Response {
+    let voice = match q.voice {
+        Some(v) if !v.is_empty() => v,
+        _ => return StatusCode::NOT_FOUND.into_response(),
+    };
+    let text = q.text.unwrap_or_else(|| DEFAULT_PREVIEW_TEXT.to_string());
+
+    // Synthesis (and any first-run model download) is blocking and CPU-heavy.
+    let result = tokio::task::spawn_blocking(move || {
+        crate::tts::synth_preview(
+            &state.piper_dir,
+            &state.piper,
+            &voice,
+            q.engine.as_deref(),
+            &text,
+            q.rate,
+        )
+    })
+    .await;
+
+    match result {
+        Ok(Ok(bytes)) => ([(header::CONTENT_TYPE, "audio/wav")], bytes).into_response(),
+        Ok(Err(e)) => {
+            log::warn!("voice preview failed: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+        Err(e) => {
+            log::error!("voice preview task failed: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
 
 fn transcribe(
