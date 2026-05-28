@@ -73,12 +73,21 @@ Endpoint progress (replacing Flask `/api/*`):
   `views/setup.ts` and `views/settings.ts` via `downloadVoiceModel()` /
   `uninstallVoiceModel()` in `voice-picker.ts`.
 - ✅ `/api/providers` + `/api/models/<provider>` — `src-tauri/src/providers.rs`.
-  Trimmed port: returns just `{available, installed?, hint?}` per provider plus
-  `ollama.models` (the set the TS UI actually consumes), so the elaborate
-  Ollama tier/RAM/GPU recommendation system from Flask is omitted. `/api/models`
-  is a stub (returns `[]`) — model lists need the provider's API key, which on
-  desktop lives in localStorage rather than the backend env, so the picker
-  falls back to a free-form text input until a key-forwarding path is added.
+  Includes the elaborate Ollama recommendation system (total RAM via `sysinfo`,
+  fast-GPU detection, curated tier catalog from `DEFAULT_OLLAMA_TIERS`, per-tier
+  `fits`/`installed` annotations, `other_installed`, version + outdated against
+  `MIN_OLLAMA_VERSION`). The TS settings page renders this via
+  `ui/src/settings-ollama.ts` (visible only when provider = ollama).
+  `/api/models` is a stub (returns `[]`) — model lists need the provider's API
+  key, which on desktop lives in localStorage rather than the backend env, so
+  the picker falls back to a free-form text input until a key-forwarding path
+  is added.
+- ✅ `/api/ollama/pull` (streamed NDJSON progress) + `/api/ollama/delete` —
+  `src-tauri/src/ollama.rs`. Proxies the local Ollama daemon's HTTP API; UI
+  drives per-model progress bars + Remove buttons. The
+  restart / upgrade / install-Ollama-itself flows from the Python build are
+  intentionally deferred (platform-specific shell-outs — brew, curl|sh, manual
+  on Windows — tangential to "manage the models I have").
 - ✅ `/api/llm/claude_proxy/complete` — spawns the local `claude` CLI via
   `tokio::process` and mirrors the Python provider's flags, prompt encoding,
   JSON parsing, and 90 s timeout. See `src-tauri/src/llm.rs`.

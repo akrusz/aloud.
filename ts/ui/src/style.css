@@ -292,3 +292,164 @@
 [data-shell="tauri"] .nav-start {
     padding-left: 72px;
 }
+
+/* ---------- Ollama recommendation (settings page) ---------------------- */
+/* Ported from src/web/static/css/style.css's `.ollama-*` block, adapted to
+   the TS markup in settings-ollama.ts. Shown only when the selected provider
+   is Ollama. */
+
+.ollama-rec-section {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ollama-rec-heading {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary, var(--text-muted));
+}
+
+.ollama-rec-detected {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.ollama-rec-hint {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.ollama-rec-block,
+.ollama-others-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ollama-tier {
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ollama-tier.is-recommended {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ollama-tier.wont-fit {
+    opacity: 0.7;
+}
+
+.ollama-tier-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.ollama-tier-label {
+    font-weight: 600;
+}
+
+.ollama-tier-badge {
+    font-size: 0.8rem;
+    color: var(--accent);
+}
+
+.ollama-tier-fit-warning {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.ollama-tier-model {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.ollama-tier-model code {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0 0.25rem;
+    border-radius: 3px;
+}
+
+.ollama-tier-note {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin: 0;
+}
+
+.ollama-tier-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ollama-other-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    gap: 0.5rem;
+}
+
+.ollama-other-name {
+    font-size: 0.9rem;
+}
+
+.ollama-other-size {
+    color: var(--text-muted);
+}
+
+.ollama-pull-progress {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.ollama-pull-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ollama-pull-bar-fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.ollama-pull-status {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.ollama-outdated-banner {
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--warning, #c97a00);
+    border-radius: 6px;
+    background: rgba(255, 175, 60, 0.08);
+}
+
+.ollama-outdated-message {
+    font-size: 0.9rem;
+}

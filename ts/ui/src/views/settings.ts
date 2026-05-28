@@ -38,6 +38,7 @@ import { isHostedBuild } from '../server-base.js';
 import { apiUrl } from '../api-base.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { mountModelPicker } from '../model-picker.js';
+import { mountOllamaSettings } from '../settings-ollama.js';
 import {
     buildScoredVoiceList,
     downloadPercent,
@@ -112,6 +113,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             persist();
             void refreshApiKeyRows();
             void modelPicker.refresh(settings.defaultProvider);
+            syncOllamaSection();
         });
 
         // Model picker — same /api/models/<provider> backing as the
@@ -126,6 +128,24 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
                 persist();
             }
         );
+
+        // Ollama recommendation + installed-model management. Hooked once
+        // here; we only show + refresh it when the selected provider is
+        // Ollama, so users on other providers don't see the tier card stack.
+        const recEl = root.querySelector<HTMLElement>('#s-ollama-recommendation');
+        const ollamaHandle = recEl
+            ? mountOllamaSettings(recEl, {
+                  // After a pull/remove the standard model dropdown is stale;
+                  // re-fetch so the new option shows up (or removed one disappears).
+                  onModelsChanged: () => modelPicker.refresh(settings.defaultProvider),
+              })
+            : null;
+        const syncOllamaSection = (): void => {
+            if (!ollamaHandle) return;
+            if (settings.defaultProvider === 'ollama') void ollamaHandle.refresh();
+            else ollamaHandle.hide();
+        };
+        syncOllamaSection();
 
         // Per-provider API key inputs. Each row carries the input, a
         // "Get a key ↗" link to the provider's console, and a Paste
@@ -1071,6 +1091,11 @@ function renderProviderSection(s: AppSettings): string {
         ${keyRows}
 
         <div id="s-provider-status" class="provider-hint hidden"></div>
+
+        <!-- Ollama-specific: per-machine recommendation + installed-model
+             management. Visible only when provider == "ollama"; populated by
+             settings-ollama.ts from /api/providers's ollama.recommendation. -->
+        <div id="s-ollama-recommendation" class="ollama-rec-section hidden"></div>
     </section>`;
 }
 
