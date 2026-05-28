@@ -61,6 +61,7 @@ fn router(state: Shared) -> Router {
         .route("/api/voices/preview", get(voices_preview))
         .route("/api/tts/download-model", post(tts_download_model))
         .route("/api/tts/uninstall-model", post(tts_uninstall_model))
+        .route("/api/llm/claude_proxy/complete", post(llm_claude_proxy_complete))
         // The webview origin (tauri://localhost in prod, http://localhost:1420
         // in dev) differs from this server's 127.0.0.1:<port>, so every request
         // is cross-origin. Permissive CORS is safe here: loopback only.
@@ -362,6 +363,21 @@ async fn tts_uninstall_model(
     match crate::tts::uninstall_model(&state.piper_dir, &req.engine, &req.voice) {
         Ok(status) => (StatusCode::OK, Json(json!({ "status": status }))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))),
+    }
+}
+
+// --- /api/llm/claude_proxy/complete ----------------------------------------
+
+/// `POST /api/llm/claude_proxy/complete` — run one `claude` CLI completion for
+/// the "Anthropic (Subscription)" provider. Desktop-only by nature (needs the
+/// authenticated CLI). See `crate::llm`.
+async fn llm_claude_proxy_complete(Json(req): Json<crate::llm::CompleteRequest>) -> Response {
+    match crate::llm::claude_complete(req).await {
+        Ok(body) => (StatusCode::OK, Json(body)).into_response(),
+        Err(e) => {
+            let code = StatusCode::from_u16(e.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            (code, Json(json!({ "error": e.message }))).into_response()
+        }
     }
 }
 
