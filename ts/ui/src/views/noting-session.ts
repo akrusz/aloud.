@@ -21,7 +21,7 @@ import {
 } from '../../../src/facilitation/index.js';
 import { OllamaProvider, type LLMProvider } from '../../../src/llm/index.js';
 import type { SttEngine, TtsEngine } from '../../../src/platform/index.js';
-import { buildProvider } from './session.js';
+import { buildProvider, type SessionEndDestination } from './session.js';
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import {
     createBestStt,
@@ -34,6 +34,12 @@ import type { SessionSetup, NotingParticipantConfig } from '../settings.js';
 
 export interface NotingSessionViewHandle {
     teardown(): void;
+    /**
+     * Open the standard leave-confirmation overlay for an external nav
+     * request (browser/hardware Back). On confirm, the circle ends and
+     * onEnd is called with `destination`.
+     */
+    requestLeave(destination?: SessionEndDestination): void;
 }
 
 const DEFAULT_CADENCE_MS = 4000;
@@ -43,7 +49,7 @@ const ECHO_REJECT_MS = 1500; // ignore "speech" this soon after the turn starts
 export async function mountNotingSessionView(
     root: HTMLElement,
     setup: SessionSetup,
-    onEnd: () => void
+    onEnd: (destination?: SessionEndDestination) => void
 ): Promise<NotingSessionViewHandle> {
     const participants = setup.notingParticipants ?? [];
     const session = new SessionManager({ contextStrategy: 'full' });
@@ -91,6 +97,17 @@ export async function mountNotingSessionView(
                         </svg>
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <div class="session-ended-overlay hidden" id="session-confirm">
+            <div class="session-ended-content">
+                <p id="confirm-text"></p>
+                <div class="session-ended-actions">
+                    <button id="confirm-yes" type="button" class="btn btn-primary">End Session</button>
+                    <button id="confirm-no" type="button" class="btn btn-secondary">Cancel</button>
+                </div>
+                <button id="confirm-skip-save" type="button" class="btn-link hidden">End Without Saving</button>
             </div>
         </div>`;
 
@@ -405,13 +422,64 @@ export async function mountNotingSessionView(
     });
 
     // ---- end / teardown ----
+    // End button + History link both live in the global nav (injected on
+    // mount). Both route through showEndConfirm so a stray tap can't drop a
+    // noting circle — mirrors the live-session guard in session.ts.
     const endBtn = document.getElementById('end-btn') as HTMLAnchorElement | null;
     endBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        void endSession();
+        showEndConfirm('End this session?', undefined);
+    });
+    const historyLink = navLinks?.querySelector<HTMLAnchorElement>('[data-nav="history"]');
+    historyLink?.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Stop the global app-level data-nav handler so it doesn't also fire —
+        // we want this confirm to be the only path out of a live circle.
+        e.stopImmediatePropagation();
+        showEndConfirm(
+            'Leave session to view history? This will end your current session.',
+            'history'
+        );
     });
 
-    async function endSession(): Promise<void> {
+    /**
+     * Show the leave/end confirmation overlay. On confirm, ends the circle and
+     * routes to `destination` (or back to setup). Wires fresh handlers each
+     * call so a re-open doesn't carry the previous click's destination.
+     */
+    function showEndConfirm(message: string, destination: SessionEndDestination | undefined): void {
+        const overlay = root.querySelector<HTMLElement>('#session-confirm');
+        const text = root.querySelector<HTMLElement>('#confirm-text');
+        const yes = root.querySelector<HTMLButtonElement>('#confirm-yes');
+        const no = root.querySelector<HTMLButtonElement>('#confirm-no');
+        const skip = root.querySelector<HTMLButtonElement>('#confirm-skip-save');
+        if (!overlay || !text || !yes || !no || !skip) return;
+
+        text.textContent = message;
+        skip.classList.remove('hidden');
+        overlay.classList.remove('hidden');
+
+        const cleanup = () => {
+            overlay.classList.add('hidden');
+            yes.removeEventListener('click', onYes);
+            no.removeEventListener('click', onNo);
+            skip.removeEventListener('click', onSkip);
+        };
+        const onYes = () => {
+            cleanup();
+            void endSession(destination, false);
+        };
+        const onNo = () => cleanup();
+        const onSkip = () => {
+            cleanup();
+            void endSession(destination, true);
+        };
+        yes.addEventListener('click', onYes);
+        no.addEventListener('click', onNo);
+        skip.addEventListener('click', onSkip);
+    }
+
+    async function endSession(destination?: SessionEndDestination, skipSave = false): Promise<void> {
         if (torn) return;
         torn = true;
         paused = true;
@@ -421,7 +489,7 @@ export async function mountNotingSessionView(
         if (audioCtx && audioCtx.state !== 'closed') void audioCtx.close().catch(() => {});
         const finalState = session.endSession();
         // Save if there's at least one user turn (skip empty/abandoned circles).
-        if (finalState && finalState.exchanges.some((ex) => ex.role === 'user')) {
+        if (!skipSave && finalState && finalState.exchanges.some((ex) => ex.role === 'user')) {
             finalState.notes = 'noting circle';
             try {
                 await sessionStore.save(finalState);
@@ -435,7 +503,7 @@ export async function mountNotingSessionView(
             const btn = navLinks.querySelector<HTMLElement>('[data-theme-toggle]');
             if (btn) initThemeToggle(btn);
         }
-        onEnd();
+        onEnd(destination);
     }
 
     // ---- kick off ----
@@ -452,7 +520,22 @@ export async function mountNotingSessionView(
         teardown(): void {
             void endSession();
         },
+        requestLeave(destination?: SessionEndDestination): void {
+            showEndConfirm(leaveMessage(destination), destination);
+        },
     };
+}
+
+/** Confirm-overlay copy for an external nav request. Kept in sync with the
+ *  matching helper in session.ts so the wording is identical across modes. */
+function leaveMessage(destination?: SessionEndDestination): string {
+    if (destination === 'history') {
+        return 'Leave session to view history? This will end your current session.';
+    }
+    if (destination === 'settings') {
+        return 'Leave session to view settings? This will end your current session.';
+    }
+    return 'Leave your session?';
 }
 
 function sleep(ms: number): Promise<void> {
@@ -483,7 +566,10 @@ function mountError(
             </div>
         </section>`;
     root.querySelector('#noting-back-btn')?.addEventListener('click', () => onEnd());
-    return { teardown() { /* nothing to tear down */ } };
+    return {
+        teardown() { /* nothing to tear down */ },
+        requestLeave() { /* no live circle to guard */ },
+    };
 }
 
 function escapeHtml(s: string): string {

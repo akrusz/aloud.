@@ -72,17 +72,30 @@ export function toggleTheme(): Theme {
     return next;
 }
 
-export function initTheme(): void {
-    applyTheme(resolveTheme());
-    // React to system-level changes when the user has no recent override.
-    if (window.matchMedia) {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            if (readToggle() !== null) return;
-            applyTheme(e.matches ? 'dark' : 'light');
-            const btn = document.querySelector<HTMLElement>('[data-theme-toggle]');
-            if (btn) updateThemeIcon(btn);
-        });
-    }
+/**
+ * Wire a one-time listener for OS-level color-scheme changes. Re-applies
+ * theme when macOS / GNOME / Windows flips light↔dark — including the macOS
+ * "Auto" appearance flipping at sunset — unless the user has a sticky
+ * Settings choice or a fresh (≤4h) manual toggle, in which case we leave
+ * their choice alone. Safe to call multiple times.
+ *
+ * Boot-time theme application is handled in main.ts (pre-DOM, to dodge
+ * FOUC); this only sets up the live-update path.
+ */
+let systemThemeWatcherWired = false;
+export function watchSystemTheme(onChange?: (theme: Theme) => void): void {
+    if (systemThemeWatcherWired) return;
+    systemThemeWatcherWired = true;
+    if (!window.matchMedia) return;
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        // Respect Settings ('themeMode') and any recent manual toggle (<4h).
+        if (readToggle() !== null) return;
+        const next: Theme = e.matches ? 'dark' : 'light';
+        applyTheme(next);
+        const btn = document.querySelector<HTMLElement>('[data-theme-toggle]');
+        if (btn) updateThemeIcon(btn);
+        onChange?.(next);
+    });
 }
 
 // ---------------------------------------------------------------------------

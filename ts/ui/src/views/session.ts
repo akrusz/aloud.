@@ -127,9 +127,16 @@ export async function buildProvider(setup: SessionSetup): Promise<LLMProvider> {
 export interface SessionViewHandle {
     /** Tear down the running session and release resources. */
     teardown(): void;
+    /**
+     * Open the standard end-session confirmation overlay for a navigation
+     * request that originated outside the session UI (e.g. browser/hardware
+     * Back). The view picks an appropriate message for `destination` and, on
+     * confirm, tears down and routes the user there via onEnd.
+     */
+    requestLeave(destination?: SessionEndDestination): void;
 }
 
-export type SessionEndDestination = 'setup' | 'history';
+export type SessionEndDestination = 'setup' | 'history' | 'settings';
 
 export async function mountSessionView(
     root: HTMLElement,
@@ -189,6 +196,9 @@ export async function mountSessionView(
         return {
             teardown() {
                 /* nothing to tear down */
+            },
+            requestLeave() {
+                /* no live session to guard */
             },
         };
     }
@@ -1226,7 +1236,7 @@ export async function mountSessionView(
      */
     function showEndConfirm(
         message: string,
-        destination: 'history' | undefined
+        destination: SessionEndDestination | undefined
     ): void {
         const overlay = root.querySelector<HTMLElement>('#session-confirm');
         const text = root.querySelector<HTMLElement>('#confirm-text');
@@ -1270,7 +1280,7 @@ export async function mountSessionView(
     wireEmberControls(root);
 
     async function endSession(
-        destination?: 'history',
+        destination?: SessionEndDestination,
         skipSave = false
     ): Promise<void> {
         if (torn) return;
@@ -1345,7 +1355,22 @@ export async function mountSessionView(
 
     return {
         teardown(): void { void endSession(); },
+        requestLeave(destination?: SessionEndDestination): void {
+            showEndConfirm(leaveMessage(destination), destination);
+        },
     };
+}
+
+/** Message shown in the end-session confirm for an external nav request
+ *  (browser Back). Matches the wording the in-session links use. */
+function leaveMessage(destination?: SessionEndDestination): string {
+    if (destination === 'history') {
+        return 'Leave session to view history? This will end your current session.';
+    }
+    if (destination === 'settings') {
+        return 'Leave session to view settings? This will end your current session.';
+    }
+    return 'Leave your session?';
 }
 
 /** SessionSetup.voice carries a 'server:' or 'browser:' prefix; the voice

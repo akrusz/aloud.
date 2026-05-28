@@ -1,10 +1,11 @@
 import './style.css';
 import { bootApp } from './app.js';
-import { applyTheme, initThemeToggle, resolveTheme } from './theme.js';
+import { applyTheme, initThemeToggle, resolveTheme, watchSystemTheme } from './theme.js';
 import { regenerateEmbers } from './embers.js';
 import { initAbout } from './about.js';
 import { isTauri } from './is-desktop.js';
 import { initTauriWindowDrag } from './tauri-chrome.js';
+import { initExternalLinks } from './external-links.js';
 
 // Tag the document for the Tauri desktop shell so CSS can apply app-like
 // chrome (block text selection, pad the nav clear of the macOS traffic
@@ -25,6 +26,12 @@ function setupGlobalChrome(): void {
     if (btn) initThemeToggle(btn);
     initAbout();
     initTauriWindowDrag();
+    initExternalLinks();
+    // Watch for OS-level theme flips (e.g. macOS Auto switching at sunset)
+    // so the app follows along without a refresh. The watcher itself
+    // respects Settings/sticky and recent manual toggles. Regenerate embers
+    // on flip so the palette doesn't stay stuck on the previous theme.
+    watchSystemTheme(() => regenerateEmbers());
 }
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupGlobalChrome, { once: true });

@@ -2539,6 +2539,18 @@ html:has(.nav-brand.has-update) .update-btn {
     margin-bottom: 0.25rem;
 }
 
+/* The brand logo is sometimes wrapped in an <a> (e.g. linking to aloud.rest
+   from the about modal). The wrapper shouldn't impose the default link
+   color/underline — the Knewave glyph + stroke is the brand and should
+   look identical whether it's a link or not. */
+.about-app-name a,
+.about-app-name a:visited,
+.about-app-name a:hover,
+.about-app-name a:active {
+    color: inherit;
+    text-decoration: none;
+}
+
 .about-version {
     font-size: 1.05rem;
     color: var(--text-muted);
