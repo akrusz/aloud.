@@ -7,6 +7,10 @@ license = "AGPL-3.0"
 repository = "https://github.com/akrusz/aloud"
 edition = "2021"
 rust-version = "1.77.2"
+# Not a crates.io crate — this is the Tauri shell binary. Also lets cargo-deny
+# treat us as a "private" workspace crate so our AGPL doesn't fail the
+# license check (see deny.toml [licenses].private).
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

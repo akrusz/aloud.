@@ -20,9 +20,11 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           manifest-path: ts/src-tauri/Cargo.toml
-          # Security-focused gate. Add `licenses` here once the allow-list in
-          # deny.toml is reconciled against the full dependency tree.
-          command: check advisories bans sources
+          # Full enforcement: advisories + bans + sources + licenses. The
+          # allow-list and unmaintained-advisory ignores are reconciled in
+          # deny.toml; expand them when a new dep brings in a new license or
+          # a new informational notice.
+          command: check
 
   npm-audit:
     name: npm audit
