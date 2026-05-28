@@ -21,11 +21,11 @@ import type {
     LLMProvider,
     Message,
 } from '../../../src/llm/index.js';
-import { apiUrl } from '../api-base.js';
+import { appUrl } from '../app-base.js';
 
 const DEFAULT_MODEL = 'sonnet';
 const DEFAULT_MAX_TOKENS = 400;
-const ENDPOINT = apiUrl('/api/llm/claude_proxy/complete');
+const ENDPOINT = appUrl('/llm/claude_proxy/complete');
 
 export interface ClaudeProxyHttpProviderOptions {
     model?: string;

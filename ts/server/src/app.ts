@@ -1,7 +1,13 @@
 /**
- * Hono app factory. Wires CORS, a health check, and the /v1 routes onto an
- * injected Deps. Kept free of process/network side effects so tests can drive
- * it with `app.request(...)` against an in-memory store (see tests/).
+ * Hono app factory. Wires CORS, a health check, and the /cloud/v1 routes onto
+ * an injected Deps. Kept free of process/network side effects so tests can
+ * drive it with `app.request(...)` against an in-memory store (see tests/).
+ *
+ * Route naming: this server hosts the signed-in, billed cloud service under
+ * `/cloud/v1/*` (auth, account, billing, metered LLM/STT/TTS forwarding). The
+ * app's own backend — provider/voice catalogs, system info, on-device
+ * inference — lives at `/app/v1/*` (the Rust shell on desktop; mirrored here
+ * for the web build, see bkg).
  */
 
 import { Hono } from 'hono';
@@ -27,7 +33,7 @@ export function createApp(deps: Deps): Hono {
             origin: deps.config.corsOrigins.length > 0 ? deps.config.corsOrigins : '*',
             allowMethods: ['GET', 'POST', 'OPTIONS'],
             allowHeaders: ['authorization', 'content-type'],
-            // So the browser can read per-request cost off the /v1/tts response.
+            // So the browser can read per-request cost off the /cloud/v1/tts response.
             exposeHeaders: ['X-Credits-Charged', 'X-Credits-Remaining'],
         })
     );
@@ -46,20 +52,20 @@ export function createApp(deps: Deps): Hono {
 
     // Public: the curated hosted voices, or [] when TTS isn't configured. The
     // client merges these into its voice picker (availability-driven menus).
-    app.get('/v1/voices', (c) => {
+    app.get('/cloud/v1/voices', (c) => {
         const voices: HostedVoice[] = deps.config.googleTtsApiKey
             ? CURATED_VOICES.map((v) => ({ name: v.name, gender: v.gender }))
             : [];
         return c.json(voices);
     });
 
-    app.route('/v1/auth', authRoutes(deps));
-    app.route('/v1/me', meRoutes(deps));
-    app.route('/v1/llm', llmRoutes(deps));
-    app.route('/v1/stt', sttRoutes(deps));
-    app.route('/v1/tts', ttsRoutes(deps));
-    app.route('/v1/billing', billingRoutes(deps));
-    app.route('/v1/admin', adminRoutes(deps));
+    app.route('/cloud/v1/auth', authRoutes(deps));
+    app.route('/cloud/v1/me', meRoutes(deps));
+    app.route('/cloud/v1/llm', llmRoutes(deps));
+    app.route('/cloud/v1/stt', sttRoutes(deps));
+    app.route('/cloud/v1/tts', ttsRoutes(deps));
+    app.route('/cloud/v1/billing', billingRoutes(deps));
+    app.route('/cloud/v1/admin', adminRoutes(deps));
 
     return app;
 }

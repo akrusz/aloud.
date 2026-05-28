@@ -3,7 +3,7 @@
  *
  * "Desktop" = the /api backend is reachable. In dev/web that's Flask via
  * the Vite proxy; in a Tauri build it's the embedded Rust server (resolved
- * through apiUrl(), which points at the injected loopback base). We probe
+ * through appUrl(), which points at the injected loopback base). We probe
  * /api/system-info at boot and cache the result. Views read isDesktop() for
  * gating desktop-only features (claude_proxy provider, env-var hints, the
  * Open config folder button).
@@ -13,7 +13,7 @@
  * yank the controls.
  */
 
-import { apiUrl } from './api-base.js';
+import { appUrl } from './app-base.js';
 
 /**
  * Synchronous "are we running inside the Tauri desktop shell" check.
@@ -40,7 +40,7 @@ export async function detectIsDesktop(): Promise<boolean> {
     if (inflight) return inflight;
     inflight = (async () => {
         try {
-            const resp = await fetch(apiUrl('/api/system-info'), { method: 'GET' });
+            const resp = await fetch(appUrl('/system-info'), { method: 'GET' });
             cached = resp.ok;
             return cached;
         } catch {

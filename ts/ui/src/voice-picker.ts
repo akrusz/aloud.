@@ -20,8 +20,8 @@
 import type { TtsEngine } from '../../src/platform/index.js';
 
 import { createTtsForVoice } from './adapters/tts-picker.js';
-import { serverUrl } from './server-base.js';
-import { apiUrl } from './api-base.js';
+import { cloudUrl } from './cloud-base.js';
+import { appUrl } from './app-base.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -489,13 +489,13 @@ export function renderVoiceModalHTML(cfg: VoiceModalConfig): string {
 // /api/voices loader
 // ---------------------------------------------------------------------------
 
-const SERVER_VOICES_URL = '/api/voices';
+const SERVER_VOICES_URL = '/voices';
 let serverVoicesCache: ServerVoice[] | null = null;
 
 export async function fetchServerVoices(force = false): Promise<ServerVoice[] | null> {
     if (!force && serverVoicesCache !== null) return serverVoicesCache;
     try {
-        const response = await fetch(apiUrl(SERVER_VOICES_URL));
+        const response = await fetch(appUrl(SERVER_VOICES_URL));
         if (!response.ok) return null;
         const data = (await response.json()) as ServerVoice[];
         serverVoicesCache = data;
@@ -510,8 +510,8 @@ export function invalidateServerVoicesCache(): void {
     serverVoicesCache = null;
 }
 
-const DOWNLOAD_MODEL_URL = '/api/tts/download-model';
-const UNINSTALL_MODEL_URL = '/api/tts/uninstall-model';
+const DOWNLOAD_MODEL_URL = '/tts/download-model';
+const UNINSTALL_MODEL_URL = '/tts/uninstall-model';
 
 export interface DownloadProgress {
     /** Cumulative bytes downloaded across the voice's files. */
@@ -536,7 +536,7 @@ export async function downloadVoiceModel(
     engine: string | undefined,
     onProgress?: (p: DownloadProgress) => void
 ): Promise<void> {
-    const resp = await fetch(apiUrl(DOWNLOAD_MODEL_URL), {
+    const resp = await fetch(appUrl(DOWNLOAD_MODEL_URL), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ voice: voiceName, engine: engine ?? '' }),
@@ -586,7 +586,7 @@ export async function uninstallVoiceModel(
     voiceName: string,
     engine: string | undefined
 ): Promise<void> {
-    const resp = await fetch(apiUrl(UNINSTALL_MODEL_URL), {
+    const resp = await fetch(appUrl(UNINSTALL_MODEL_URL), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ voice: voiceName, engine: engine ?? '' }),
@@ -642,7 +642,7 @@ let hostedVoicesCache: HostedVoice[] | null = null;
 export async function fetchHostedVoices(force = false): Promise<HostedVoice[]> {
     if (!force && hostedVoicesCache !== null) return hostedVoicesCache;
     try {
-        const response = await fetch(serverUrl('/v1/voices'));
+        const response = await fetch(cloudUrl('/v1/voices'));
         hostedVoicesCache = response.ok ? ((await response.json()) as HostedVoice[]) : [];
     } catch {
         hostedVoicesCache = [];

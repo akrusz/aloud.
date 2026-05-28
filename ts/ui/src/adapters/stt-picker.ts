@@ -26,10 +26,10 @@ import {
     isWebSpeechSupported,
     type WebSpeechSttEngineOptions,
 } from './web-speech-stt.js';
-import { serverUrl } from '../server-base.js';
+import { cloudUrl } from '../cloud-base.js';
 import { ensureServerToken } from '../server-auth.js';
 import { isTauri } from '../is-desktop.js';
-import { apiUrl } from '../api-base.js';
+import { appUrl } from '../app-base.js';
 
 /** VAD-tuning subset of PacingConfig the picker forwards to adapters. */
 type VadOpts = Partial<
@@ -41,10 +41,10 @@ type VadOpts = Partial<
 
 export type SttBackend = 'capacitor' | 'web-speech' | 'server-whisper' | 'none';
 
-// Resolved through apiUrl() so it targets the desktop's embedded Rust backend
+// Resolved through appUrl() so it targets the desktop's embedded Rust backend
 // (127.0.0.1:<port>) under Tauri, or the relative path (Flask via the Vite
 // proxy / same-origin) in the browser dev + web builds.
-const SERVER_WHISPER_PATH = '/api/stt/whisper';
+const SERVER_WHISPER_PATH = '/stt/whisper';
 let cachedBackend: SttBackend | null = null;
 
 async function isServerWhisperReachable(): Promise<boolean> {
@@ -54,7 +54,7 @@ async function isServerWhisperReachable(): Promise<boolean> {
         // 503 (model still loading). Either proves the STT route is wired. A 5xx
         // from Vite's proxy (ECONNREFUSED, etc.) means the backend is down —
         // fail closed so we don't pretend the mic will work.
-        const response = await fetch(apiUrl(SERVER_WHISPER_PATH), {
+        const response = await fetch(appUrl(SERVER_WHISPER_PATH), {
             method: 'POST',
             headers: { 'content-type': 'application/octet-stream' },
         });
@@ -84,7 +84,7 @@ export function createServerAloudStt(vadOpts: VadOpts = {}): SttEngine | null {
     if (!ServerWhisperSttEngine.isAvailable()) return null;
     return new ServerWhisperSttEngine({
         ...vadOpts,
-        endpointUrl: serverUrl('/v1/stt'),
+        endpointUrl: cloudUrl('/v1/stt'),
         authProvider: ensureServerToken,
     });
 }
@@ -156,7 +156,7 @@ export async function createBestStt(vadOpts: VadOpts = {}): Promise<SttEngine | 
         case 'server-whisper':
             return new ServerWhisperSttEngine({
                 ...vadOpts,
-                endpointUrl: apiUrl(SERVER_WHISPER_PATH),
+                endpointUrl: appUrl(SERVER_WHISPER_PATH),
             });
         case 'none':
             return null;

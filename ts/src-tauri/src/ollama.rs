@@ -1,5 +1,5 @@
-//! Ollama model management — `/api/ollama/pull` (streamed progress) and
-//! `/api/ollama/delete`. Both proxy directly to the local Ollama daemon's HTTP
+//! Ollama model management — `/app/v1/ollama/pull` (streamed progress) and
+//! `/app/v1/ollama/delete`. Both proxy directly to the local Ollama daemon's HTTP
 //! API; the settings UI uses pull progress to render a per-model progress bar
 //! and delete to free disk space.
 //!

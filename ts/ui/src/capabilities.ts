@@ -17,7 +17,7 @@
  */
 
 import { detectIsDesktop, isDesktopSync } from './is-desktop.js';
-import { serverUrl } from './server-base.js';
+import { cloudUrl } from './cloud-base.js';
 
 export type Capability = 'flask' | 'hosted' | 'ollama';
 
@@ -47,7 +47,7 @@ export async function detectCapabilities(): Promise<Capabilities> {
             detectIsDesktop(), // GET /api/system-info
             // /v1/* is the hosted server (proxied in dev; absolute in prod). Any
             // public /v1 route proves reachability; models is always non-empty.
-            reachable(serverUrl('/v1/me/models')),
+            reachable(cloudUrl('/v1/me/models')),
             // Ollama via the dev proxy (/ollama → :11434); 404s on the website.
             reachable('/ollama/api/tags'),
         ]);

@@ -90,7 +90,7 @@ export class ServerWhisperSttEngine implements SttEngine {
 
     constructor(options: ServerWhisperSttEngineOptions = {}) {
         this.opts = {
-            endpointUrl: options.endpointUrl ?? '/api/stt/whisper',
+            endpointUrl: options.endpointUrl ?? '/app/v1/stt/whisper',
             energyThreshold: options.energyThreshold ?? 0.015,
             silenceBaseMs: options.silenceBaseMs ?? defaultPacingConfig.silenceBaseMs,
             silenceMaxMs: options.silenceMaxMs ?? defaultPacingConfig.silenceMaxMs,

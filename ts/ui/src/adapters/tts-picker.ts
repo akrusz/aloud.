@@ -16,7 +16,7 @@ import { allVoices, findVoice, type VoiceEntry } from '../voices.js';
 
 import { BrowserTtsEngine } from './browser-tts.js';
 import { ServerTtsEngine } from './server-tts.js';
-import { serverUrl } from '../server-base.js';
+import { cloudUrl } from '../cloud-base.js';
 import { ensureServerToken } from '../server-auth.js';
 
 export interface CreateTtsResult {
@@ -58,7 +58,7 @@ export interface CreateTtsOptions {
 export function createServerAloudTts(voice = '', options: CreateTtsOptions = {}): TtsEngine {
     const opts: ConstructorParameters<typeof ServerTtsEngine>[0] = {
         voice,
-        endpointUrl: serverUrl('/v1/tts'),
+        endpointUrl: cloudUrl('/v1/tts'),
         usePost: true,
         authProvider: ensureServerToken,
     };

@@ -12,7 +12,7 @@
  */
 
 import { sharedKv } from '../state.js';
-import { apiUrl } from '../api-base.js';
+import { appUrl } from '../app-base.js';
 
 const TOUR_DISMISSED_KEY = 'aloud-tour-dismissed';
 const TOUR_REMIND_KEY = 'aloud-tour-remind-later';
@@ -426,7 +426,7 @@ function showVoiceStep(): void {
         if (tourOptions.isMac) {
             html += '<button class="tour-choice" data-action="voice" data-value="macos">';
             html += '<strong>Premium macOS voices</strong>';
-            html += '<small>Download from System Settings → Accessibility → Spoken Content. In the System Voice row, click the <b>ⓘ</b> then click Voice. <a href="#" onclick="fetch(\'/api/open-voice-settings\',{method:\'POST\'}); return false;">Open Settings</a></small>';
+            html += '<small>Download from System Settings → Accessibility → Spoken Content. In the System Voice row, click the <b>ⓘ</b> then click Voice. <a href="#" onclick="fetch(\'/app/v1/open-voice-settings\',{method:\'POST\'}); return false;">Open Settings</a></small>';
             html += '</button>';
         }
 
@@ -607,7 +607,7 @@ export async function startTour(options: TourOptions): Promise<void> {
 
     // Fetch Ollama recommendation, then start
     try {
-        const r = await fetch(apiUrl('/api/providers'));
+        const r = await fetch(appUrl('/providers'));
         const data = (await r.json()) as {
             ollama?: { recommendation?: { recommended_model?: string } };
         };

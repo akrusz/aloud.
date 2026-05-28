@@ -9,8 +9,8 @@
  * render — this module just supplies the data + helpers.
  */
 
-import { serverUrl } from './server-base.js';
-import { apiUrl } from './api-base.js';
+import { cloudUrl } from './cloud-base.js';
+import { appUrl } from './app-base.js';
 
 interface ModelOption {
     value: string;
@@ -34,7 +34,7 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
     // slash, e.g. openrouter, so the leading segment is the provider).
     if (provider === 'aloud') {
         try {
-            const resp = await fetch(serverUrl('/v1/me/models'));
+            const resp = await fetch(cloudUrl('/v1/me/models'));
             if (!resp.ok) return null;
             const data = (await resp.json()) as { models?: Array<{ provider: string; model: string }> };
             if (!data.models?.length) return null;
@@ -64,7 +64,7 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
     }
 
     try {
-        const resp = await fetch(apiUrl(`/api/models/${encodeURIComponent(provider)}`));
+        const resp = await fetch(appUrl(`/models/${encodeURIComponent(provider)}`));
         if (!resp.ok) return null;
         const data = (await resp.json()) as ModelOption[];
         if (!Array.isArray(data) || data.length === 0) return null;
@@ -78,7 +78,7 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
 async function fetchProviderStatus(): Promise<typeof providerStatusCache | null> {
     if (providerStatusCache !== null) return providerStatusCache;
     try {
-        const resp = await fetch(apiUrl('/api/providers'));
+        const resp = await fetch(appUrl('/providers'));
         if (!resp.ok) return null;
         const data = (await resp.json()) as Record<
             string,

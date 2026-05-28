@@ -11,12 +11,12 @@ function devApp() {
 }
 
 async function signInDev(app: ReturnType<typeof createApp>): Promise<AuthResponse> {
-    const res = await app.request('/v1/auth/dev', { method: 'POST' });
+    const res = await app.request('/cloud/v1/auth/dev', { method: 'POST' });
     expect(res.status).toBe(200);
     return (await res.json()) as AuthResponse;
 }
 
-describe('POST /v1/auth/dev', () => {
+describe('POST /cloud/v1/auth/dev', () => {
     it('mints a session and grants free credits on first sign-in', async () => {
         const app = devApp();
         const body = await signInDev(app);
@@ -39,7 +39,7 @@ describe('POST /v1/auth/dev', () => {
     it('the minted token authenticates against a protected route', async () => {
         const app = devApp();
         const { token } = await signInDev(app);
-        const res = await app.request('/v1/me', {
+        const res = await app.request('/cloud/v1/me', {
             headers: { authorization: `Bearer ${token}` },
         });
         expect(res.status).toBe(200);
@@ -53,7 +53,7 @@ describe('POST /v1/auth/dev', () => {
             ANTHROPIC_API_KEY: 'sk-test',
         });
         const app = createApp(buildDeps(config));
-        const res = await app.request('/v1/auth/dev', { method: 'POST' });
+        const res = await app.request('/cloud/v1/auth/dev', { method: 'POST' });
         expect(res.status).toBe(404);
     });
 });

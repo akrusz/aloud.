@@ -1,14 +1,14 @@
 //! Embedded local HTTP backend for the desktop shell.
 //!
-//! Replaces the endpoints the TS UI used to reach on Flask (`/api/*`). The UI
-//! keeps issuing `fetch('/api/...')` but, in a Tauri build, against this server
-//! via an injected base URL (see `ui/src/api-base.ts` and the
-//! `initialization_script` in `lib.rs`). Bound to an ephemeral `127.0.0.1`
-//! port so nothing is exposed off-box.
+//! Serves the app's own backend surface (`/app/v1/*`) — the endpoints the TS UI
+//! used to reach on Flask (`/api/*`). The UI keeps issuing `fetch('/app/v1/...')`
+//! but, in a Tauri build, against this server via an injected base URL (see
+//! `ui/src/app-base.ts` and the `initialization_script` in `lib.rs`). Bound to
+//! an ephemeral `127.0.0.1` port so nothing is exposed off-box.
 //!
 //! Endpoints:
-//! - `GET  /api/system-info` — platform + tool availability.
-//! - `POST /api/stt/whisper` — local Whisper STT via whisper.cpp (whisper-rs).
+//! - `GET  /app/v1/system-info` — platform + tool availability.
+//! - `POST /app/v1/stt/whisper` — local Whisper STT via whisper.cpp (whisper-rs).
 //!   Wire-compatible with the old Flask route: raw little-endian f32 mono PCM
 //!   in the body, `?sample_rate=` query, `{text,language,duration}` back, and
 //!   503 while the model is still loading (the UI already handles that).
@@ -49,7 +49,7 @@ pub struct AppState {
     piper_dir: PathBuf,
     // LRU-of-1 cache of the last-loaded Piper model (see tts::PiperCache).
     piper: crate::tts::PiperCache,
-    // Root app-data dir — surfaced by /api/open-config-folder for "show me
+    // Root app-data dir — surfaced by /app/v1/open-config-folder for "show me
     // where my data lives" buttons in the TS UI.
     data_dir: PathBuf,
 }
@@ -57,21 +57,26 @@ pub struct AppState {
 type Shared = Arc<AppState>;
 
 fn router(state: Shared) -> Router {
+    // The app's own backend surface, mounted under /app/v1 (formerly the Flask
+    // /api/* routes). The role-versioned prefix lives here in one place; the
+    // hosted, signed-in service lives at /cloud/v1 on the remote Hono server.
+    let app_v1 = Router::new()
+        .route("/system-info", get(system_info))
+        .route("/stt/whisper", post(stt_whisper))
+        .route("/voices", get(voices))
+        .route("/voices/preview", get(voices_preview))
+        .route("/tts/download-model", post(tts_download_model))
+        .route("/tts/uninstall-model", post(tts_uninstall_model))
+        .route("/llm/claude_proxy/complete", post(llm_claude_proxy_complete))
+        .route("/providers", get(providers))
+        .route("/models/{provider}", get(models))
+        .route("/ollama/pull", post(ollama_pull))
+        .route("/ollama/delete", post(ollama_delete))
+        .route("/open-config-folder", post(open_config_folder))
+        .route("/open-sessions-folder", post(open_sessions_folder))
+        .route("/open-voice-settings", post(open_voice_settings));
     Router::new()
-        .route("/api/system-info", get(system_info))
-        .route("/api/stt/whisper", post(stt_whisper))
-        .route("/api/voices", get(voices))
-        .route("/api/voices/preview", get(voices_preview))
-        .route("/api/tts/download-model", post(tts_download_model))
-        .route("/api/tts/uninstall-model", post(tts_uninstall_model))
-        .route("/api/llm/claude_proxy/complete", post(llm_claude_proxy_complete))
-        .route("/api/providers", get(providers))
-        .route("/api/models/{provider}", get(models))
-        .route("/api/ollama/pull", post(ollama_pull))
-        .route("/api/ollama/delete", post(ollama_delete))
-        .route("/api/open-config-folder", post(open_config_folder))
-        .route("/api/open-sessions-folder", post(open_sessions_folder))
-        .route("/api/open-voice-settings", post(open_voice_settings))
+        .nest("/app/v1", app_v1)
         // The webview origin (tauri://localhost in prod, http://localhost:1420
         // in dev) differs from this server's 127.0.0.1:<port>, so every request
         // is cross-origin. Permissive CORS is safe here: loopback only.
@@ -98,7 +103,7 @@ pub fn start(data_dir: PathBuf) -> u16 {
     });
 
     // Model download + load is slow (and the download is large) — do it off the
-    // server path. Until it finishes, /api/stt/whisper returns 503, which the UI
+    // server path. Until it finishes, /app/v1/stt/whisper returns 503, which the UI
     // surfaces as "model still loading".
     {
         let state = state.clone();
@@ -157,7 +162,7 @@ fn download(url: &str, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Mirror Flask's `/api/system-info` shape: platform + tool availability. The
+/// Mirror Flask's `/app/v1/system-info` shape: platform + tool availability. The
 /// UI keys desktop-only features off this (and uses a successful response as
 /// its "is desktop" signal).
 async fn system_info() -> Json<Value> {
@@ -254,7 +259,7 @@ fn err(code: StatusCode, msg: &str) -> (StatusCode, Json<Value>) {
     (code, Json(json!({ "error": msg })))
 }
 
-// --- TTS: /api/voices + /api/voices/preview --------------------------------
+// --- TTS: /app/v1/voices + /app/v1/voices/preview --------------------------------
 
 /// Fallback preview phrase when the client doesn't supply `?text=`. The UI
 /// always sends text (preview line or a session sentence), so this is rarely
@@ -267,7 +272,7 @@ struct VoicesQuery {
     lang: Option<String>,
 }
 
-/// `GET /api/voices` — aggregated Piper + macOS voice catalogue (or one engine
+/// `GET /app/v1/voices` — aggregated Piper + macOS voice catalogue (or one engine
 /// when `?engine=` is set), optionally filtered by `?lang=`. Runs off the async
 /// reactor because it shells out to `say -v ?` and stats the model dir.
 async fn voices(State(state): State<Shared>, Query(q): Query<VoicesQuery>) -> Json<Value> {
@@ -288,7 +293,7 @@ struct PreviewQuery {
     rate: Option<u32>,
 }
 
-/// `GET /api/voices/preview` — synthesize one utterance to a WAV. This is also
+/// `GET /app/v1/voices/preview` — synthesize one utterance to a WAV. This is also
 /// the session TTS path the UI streams sentences through, so the model cache in
 /// AppState matters here, not just for previews.
 async fn voices_preview(State(state): State<Shared>, Query(q): Query<PreviewQuery>) -> Response {
@@ -332,7 +337,7 @@ struct ModelReq {
     voice: String,
 }
 
-/// `POST /api/tts/download-model` — stream a Piper model download as NDJSON
+/// `POST /app/v1/tts/download-model` — stream a Piper model download as NDJSON
 /// progress lines. The download runs on a blocking thread and pushes each
 /// progress event through a channel that backs the response body, so the UI
 /// gets live progress for a 60–105 MB fetch.
@@ -363,7 +368,7 @@ async fn tts_download_model(State(state): State<Shared>, Json(req): Json<ModelRe
         .expect("build ndjson response")
 }
 
-/// `POST /api/tts/uninstall-model` — delete a downloaded Piper model.
+/// `POST /app/v1/tts/uninstall-model` — delete a downloaded Piper model.
 async fn tts_uninstall_model(
     State(state): State<Shared>,
     Json(req): Json<ModelReq>,
@@ -377,11 +382,11 @@ async fn tts_uninstall_model(
     }
 }
 
-// --- /api/llm/claude_proxy/complete ----------------------------------------
+// --- /app/v1/llm/claude_proxy/complete ----------------------------------------
 
-// --- /api/providers + /api/models/<provider> -------------------------------
+// --- /app/v1/providers + /app/v1/models/<provider> -------------------------------
 
-/// `GET /api/providers` — claude / ollama probes + env-var checks for the
+/// `GET /app/v1/providers` — claude / ollama probes + env-var checks for the
 /// API-key providers. The TS UI uses only `{available, installed?, hint?}` per
 /// provider plus `ollama.models`, so the elaborate Ollama tier/recommendation
 /// system from Flask is intentionally omitted (see `crate::providers`).
@@ -392,13 +397,13 @@ async fn providers() -> Json<Value> {
     Json(v)
 }
 
-/// `GET /api/models/{provider}` — currently a stub returning `[]` (the model
+/// `GET /app/v1/models/{provider}` — currently a stub returning `[]` (the model
 /// picker falls back to a free-form text input). See `crate::providers::models`.
 async fn models(axum::extract::Path(provider): axum::extract::Path<String>) -> Json<Value> {
     Json(crate::providers::models(&provider))
 }
 
-/// `POST /api/ollama/pull` — stream a model pull as NDJSON progress lines.
+/// `POST /app/v1/ollama/pull` — stream a model pull as NDJSON progress lines.
 /// Wire-compatible with the old Flask route so the settings UI is unchanged.
 async fn ollama_pull(Json(req): Json<crate::ollama::ModelReq>) -> Response {
     if req.model.is_empty() {
@@ -422,7 +427,7 @@ async fn ollama_pull(Json(req): Json<crate::ollama::ModelReq>) -> Response {
         .expect("build ndjson response")
 }
 
-/// `POST /api/ollama/delete` — remove a pulled model. Returns `{ ok: true }`
+/// `POST /app/v1/ollama/delete` — remove a pulled model. Returns `{ ok: true }`
 /// on success or `{ error: "…" }` with a 502 on failure (parity with Flask).
 async fn ollama_delete(Json(req): Json<crate::ollama::ModelReq>) -> (StatusCode, Json<Value>) {
     if req.model.is_empty() {
@@ -438,7 +443,7 @@ async fn ollama_delete(Json(req): Json<crate::ollama::ModelReq>) -> (StatusCode,
     }
 }
 
-// --- /api/open-* shell escapes ---------------------------------------------
+// --- /app/v1/open-* shell escapes ---------------------------------------------
 
 /// Reveal a filesystem path in the platform file browser (Finder / Explorer /
 /// xdg). Detached spawn — the user just wants the window to appear.
@@ -466,7 +471,7 @@ fn reveal_path(path: &Path) -> std::io::Result<()> {
     cmd.spawn().map(|_| ())
 }
 
-/// `POST /api/open-config-folder` — reveal the app's data directory (where
+/// `POST /app/v1/open-config-folder` — reveal the app's data directory (where
 /// models and any future on-disk state live). The TS UI also pings this route
 /// with `OPTIONS` to decide whether the "Open config folder" button is
 /// available; axum returns 405 for a method-not-allowed, which the detector
@@ -475,7 +480,7 @@ async fn open_config_folder(State(state): State<Shared>) -> (StatusCode, Json<Va
     open_dir_response(&state.data_dir)
 }
 
-/// `POST /api/open-sessions-folder` — desktop sessions don't live on disk yet
+/// `POST /app/v1/open-sessions-folder` — desktop sessions don't live on disk yet
 /// (the TS UI persists to webview storage), so this falls back to the same
 /// app-data dir as a "here's where your data lives" gesture.
 async fn open_sessions_folder(State(state): State<Shared>) -> (StatusCode, Json<Value>) {
@@ -492,7 +497,7 @@ fn open_dir_response(path: &Path) -> (StatusCode, Json<Value>) {
     }
 }
 
-/// `POST /api/open-voice-settings` — open macOS System Settings to the Spoken
+/// `POST /app/v1/open-voice-settings` — open macOS System Settings to the Spoken
 /// Content pane (where Premium voices are installed). macOS-only; other OSes
 /// get a 400 so the UI can hide or fail-soft.
 async fn open_voice_settings() -> (StatusCode, Json<Value>) {
@@ -516,7 +521,7 @@ async fn open_voice_settings() -> (StatusCode, Json<Value>) {
     }
 }
 
-/// `POST /api/llm/claude_proxy/complete` — run one `claude` CLI completion for
+/// `POST /app/v1/llm/claude_proxy/complete` — run one `claude` CLI completion for
 /// the "Anthropic (Subscription)" provider. Desktop-only by nature (needs the
 /// authenticated CLI). See `crate::llm`.
 async fn llm_claude_proxy_complete(Json(req): Json<crate::llm::CompleteRequest>) -> Response {

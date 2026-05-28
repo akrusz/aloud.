@@ -24,10 +24,18 @@ export default defineConfig({
         port: 5173,
         strictPort: false,
         proxy: {
-            // Hosted aloud server: auth + the metered LLM proxy (/v1/*).
-            '/v1': SERVER_URL,
-            // Anthropic / future cloud LLM proxy lives on the Flask backend.
-            '/api': BACKEND_URL,
+            // Hosted aloud cloud service: auth, account, billing, and the
+            // metered LLM/STT/TTS forwarding (/cloud/v1/*). The Hono server
+            // speaks /cloud/v1 directly — no rewrite needed.
+            '/cloud': SERVER_URL,
+            // The app's own backend (/app/v1/*). In dev this is still the
+            // Python/Flask backend, which serves the legacy /api/* paths, so
+            // rewrite the versioned prefix back to /api until Flask is retired
+            // (then point this at the Hono server, which serves /app/v1/*).
+            '/app': {
+                target: BACKEND_URL,
+                rewrite: (path) => path.replace(/^\/app\/v1/, '/api'),
+            },
             // Ollama is direct-to-local but we route through Vite so the
             // browser sees same-origin (no need to widen OLLAMA_ORIGINS).
             '/ollama': {

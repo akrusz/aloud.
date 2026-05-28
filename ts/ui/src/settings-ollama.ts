@@ -17,7 +17,7 @@
  * yet — a separate follow-up.
  */
 
-import { apiUrl } from './api-base.js';
+import { appUrl } from './app-base.js';
 
 interface Tier {
     model: string;
@@ -82,7 +82,7 @@ export function mountOllamaSettings(
     async function refresh(): Promise<void> {
         let info: OllamaInfo = {};
         try {
-            const resp = await fetch(apiUrl('/api/providers'));
+            const resp = await fetch(appUrl('/providers'));
             if (resp.ok) {
                 const data = (await resp.json()) as { ollama?: OllamaInfo };
                 info = data.ollama ?? {};
@@ -129,7 +129,7 @@ export function mountOllamaSettings(
         progressEl?.classList.remove('hidden');
 
         try {
-            const resp = await fetch(apiUrl('/api/ollama/pull'), {
+            const resp = await fetch(appUrl('/ollama/pull'), {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ model }),
@@ -161,7 +161,7 @@ export function mountOllamaSettings(
         btn.disabled = true;
         btn.textContent = 'Removing…';
         try {
-            const resp = await fetch(apiUrl('/api/ollama/delete'), {
+            const resp = await fetch(appUrl('/ollama/delete'), {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ model }),

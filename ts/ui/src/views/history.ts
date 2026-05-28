@@ -11,7 +11,7 @@
 
 import type { SessionState, Exchange } from '../../../src/facilitation/index.js';
 import { sessionStore } from '../state.js';
-import { apiUrl } from '../api-base.js';
+import { appUrl } from '../app-base.js';
 
 export interface HistoryViewHandle {
     show(): Promise<void>;
@@ -39,7 +39,7 @@ export async function mountHistoryView(
         folderBtn?.addEventListener('click', () => {
             // Best-effort; only meaningful when a local backend (Flask in dev,
             // the embedded Rust server in desktop) is present.
-            void fetch(apiUrl('/api/open-sessions-folder'), { method: 'POST' }).catch(() => {});
+            void fetch(appUrl('/open-sessions-folder'), { method: 'POST' }).catch(() => {});
         });
     }
 

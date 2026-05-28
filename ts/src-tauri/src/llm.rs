@@ -1,5 +1,5 @@
 //! Desktop LLM bridge — runs the local `claude` CLI for subscription routing,
-//! replacing Flask's `/api/llm/claude_proxy/complete`.
+//! replacing Flask's `/app/v1/llm/claude_proxy/complete`.
 //!
 //! The browser/webview can't shell out, so the embedded server does it: spawn
 //! `claude -p … --output-format json`, parse the result, and return the same

@@ -21,7 +21,7 @@ pub fn run() {
 
       // Start the embedded local backend and inject its base URL into the
       // webview before any page script runs, so ui/src/api-base.ts can resolve
-      // /api/* against it. The window is built here (not in tauri.conf.json)
+      // /app/v1/* against it. The window is built here (not in tauri.conf.json)
       // because an initialization_script can only be attached at build time.
       // Models (Whisper, Piper) are cached under the app data dir; the server
       // derives per-engine subdirs from it.

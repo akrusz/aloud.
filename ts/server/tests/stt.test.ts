@@ -29,7 +29,7 @@ function app() {
 }
 
 async function devToken(a: ReturnType<typeof createApp>): Promise<string> {
-    const res = await a.request('/v1/auth/dev', { method: 'POST' });
+    const res = await a.request('/cloud/v1/auth/dev', { method: 'POST' });
     return ((await res.json()) as AuthResponse).token;
 }
 
@@ -52,11 +52,11 @@ describe('encodeWav', () => {
     });
 });
 
-describe('POST /v1/stt', () => {
+describe('POST /cloud/v1/stt', () => {
     it('transcribes via Groq and debits fractional credits by duration', async () => {
         const a = app();
         const token = await devToken(a);
-        const res = await a.request('/v1/stt?sample_rate=16000', {
+        const res = await a.request('/cloud/v1/stt?sample_rate=16000', {
             method: 'POST',
             headers: { authorization: `Bearer ${token}`, 'content-type': 'application/octet-stream' },
             body: pcmBody(10),
@@ -73,14 +73,14 @@ describe('POST /v1/stt', () => {
     });
 
     it('requires auth', async () => {
-        const res = await app().request('/v1/stt', { method: 'POST', body: pcmBody(1) });
+        const res = await app().request('/cloud/v1/stt', { method: 'POST', body: pcmBody(1) });
         expect(res.status).toBe(401);
     });
 
     it('rejects a misaligned / empty body', async () => {
         const a = app();
         const token = await devToken(a);
-        const res = await a.request('/v1/stt', {
+        const res = await a.request('/cloud/v1/stt', {
             method: 'POST',
             headers: { authorization: `Bearer ${token}` },
             body: new Uint8Array([1, 2, 3]).buffer, // not a multiple of 4
@@ -92,7 +92,7 @@ describe('POST /v1/stt', () => {
         const config = loadConfig({ ALOUD_FREE_SIGNUP_CREDITS: '20' }); // no GROQ_API_KEY
         const a = createApp(buildDeps(config));
         const token = await devToken(a);
-        const res = await a.request('/v1/stt', {
+        const res = await a.request('/cloud/v1/stt', {
             method: 'POST',
             headers: { authorization: `Bearer ${token}` },
             body: pcmBody(1),

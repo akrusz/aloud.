@@ -6,7 +6,7 @@
  * spin up for it.
  */
 
-import { apiUrl } from './api-base.js';
+import { appUrl } from './app-base.js';
 
 export type VoiceSource = 'browser' | 'server';
 
@@ -23,7 +23,7 @@ export interface VoiceEntry {
     language: string;
 }
 
-const SERVER_VOICES_URL = '/api/voices';
+const SERVER_VOICES_URL = '/voices';
 const ID_PREFIX = { browser: 'browser:', server: 'server:' } as const;
 
 let cachedServerVoices: VoiceEntry[] | null = null;
@@ -47,7 +47,7 @@ export function browserVoices(): VoiceEntry[] {
 export async function serverVoices(): Promise<VoiceEntry[]> {
     if (cachedServerVoices !== null) return cachedServerVoices;
     try {
-        const response = await fetch(apiUrl(SERVER_VOICES_URL));
+        const response = await fetch(appUrl(SERVER_VOICES_URL));
         if (!response.ok) {
             cachedServerVoices = [];
             return cachedServerVoices;

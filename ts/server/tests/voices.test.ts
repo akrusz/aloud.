@@ -22,10 +22,10 @@ describe('voice catalog', () => {
     });
 });
 
-describe('GET /v1/voices', () => {
+describe('GET /cloud/v1/voices', () => {
     it('lists the curated voices when TTS is configured', async () => {
         const app = createApp(buildDeps(loadConfig({ GOOGLE_TTS_API_KEY: 'k' })));
-        const res = await app.request('/v1/voices');
+        const res = await app.request('/cloud/v1/voices');
         expect(res.status).toBe(200);
         const voices = (await res.json()) as HostedVoice[];
         expect(voices.map((v) => v.name)).toEqual(['Pulcherrima', 'Sadachbia', 'Leda']);
@@ -34,7 +34,7 @@ describe('GET /v1/voices', () => {
 
     it('is empty when TTS is not configured', async () => {
         const app = createApp(buildDeps(loadConfig({})));
-        const res = await app.request('/v1/voices');
+        const res = await app.request('/cloud/v1/voices');
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual([]);
     });

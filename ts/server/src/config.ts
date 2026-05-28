@@ -39,14 +39,14 @@ export interface Config {
     freeGrantBudgetPerHour: number;
 
     /** Google Cloud Text-to-Speech API key (separate from the Gemini LLM key).
-     *  When set, /v1/tts synthesizes via Google Cloud TTS. */
+     *  When set, /cloud/v1/tts synthesizes via Google Cloud TTS. */
     googleTtsApiKey?: string;
 
     /** Stripe — optional; billing routes report "not configured" without it. */
     stripeSecretKey?: string;
     stripeWebhookSecret?: string;
 
-    /** Bearer token for the /v1/admin/* spend-monitoring endpoints. When unset,
+    /** Bearer token for the /cloud/v1/admin/* spend-monitoring endpoints. When unset,
      *  those endpoints are disabled (404) rather than open. */
     adminToken?: string;
 

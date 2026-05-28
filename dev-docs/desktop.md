@@ -30,12 +30,13 @@ Tauri's conventional dev port and is kept separate from the plain browser
 ## Dev vs. production backend
 
 - **Dev** (`tauri:dev`): the webview loads the Vite dev server, so Vite's proxy
-  (`ui/vite.config.ts`) forwards `/api/*` to Flask (`localhost:4649`) and `/v1/*`
+  (`ui/vite.config.ts`) forwards `/app/v1/*` to Flask (`localhost:4649`, rewriting
+  the prefix back to the legacy `/api/*` until Flask is retired) and `/cloud/v1/*`
   to the hosted server. **Flask must be running** for STT/TTS/providers to work:
   `uv run python -m src.web` from the repo root. This is the current
   "runs on desktop against the existing backend" state.
 - **Production** (`tauri:build`): there is no Vite proxy. The bundled static UI
-  issues `fetch('/api/...')` against `tauri://localhost`, which has no backend.
+  issues `fetch('/app/v1/...')` against `tauri://localhost`, which has no backend.
   So a production desktop build is **not functional yet** — it needs the local
   backend described below. This is the Flask-removal work, not the scaffold.
 
@@ -49,55 +50,55 @@ users get cloud forwarding (`ts/server`) or browser-native STT/TTS, so the two
 targets split cleanly and the Rust choice doesn't force a parallel Node
 inference backend.
 
-The UI abstracts the local backend base via `ui/src/api-base.ts` (`apiUrl()`),
-mirroring `server-base.ts` (`serverUrl()`) for the hosted `/v1/*` server. In a
+The UI abstracts the local backend base via `ui/src/app-base.ts` (`appUrl()`),
+mirroring `cloud-base.ts` (`cloudUrl()`) for the hosted `/cloud/v1/*` server. In a
 Tauri build the Rust shell starts an embedded `axum` server (`src-tauri/server.rs`)
 on an ephemeral loopback port and injects `window.__ALOUD_API_BASE__` via an
-`initialization_script`; `apiUrl()` reads it (empty → relative paths in dev/web).
+`initialization_script`; `appUrl()` reads it (empty → relative paths in dev/web).
 
-Endpoint progress (replacing Flask `/api/*`):
+Endpoint progress (replacing Flask `/api/*`, now served at `/app/v1/*`):
 
-- ✅ `/api/system-info` — platform + tool availability (`which`).
-- ✅ `/api/stt/whisper` — local Whisper via `whisper-rs` (whisper.cpp).
-- ✅ `/api/voices` + `/api/voices/preview` — Piper (ONNX via `piper-rs`:
+- ✅ `/app/v1/system-info` — platform + tool availability (`which`).
+- ✅ `/app/v1/stt/whisper` — local Whisper via `whisper-rs` (whisper.cpp).
+- ✅ `/app/v1/voices` + `/app/v1/voices/preview` — Piper (ONNX via `piper-rs`:
   `ort` + espeak-ng) cross-platform, plus macOS `say` as a Darwin-only local
   engine. See `src-tauri/src/tts.rs`.
-- ✅ `/api/tts/download-model` + `/api/tts/uninstall-model` — Piper models are
+- ✅ `/app/v1/tts/download-model` + `/app/v1/tts/uninstall-model` — Piper models are
   downloaded **explicitly** via the picker's Download button (streamed NDJSON
   progress, wire-compatible with the old Flask routes), never on demand: a
   session must not stall on a 100 MB fetch mid-synthesis, and the explicit
   install/uninstall UX is preserved. Multi-speaker voices share one `.onnx`, so
   downloading/uninstalling any speaker affects the whole family; the picker
-  re-reads `/api/voices` afterward and all sharing speakers flip state together
+  re-reads `/app/v1/voices` afterward and all sharing speakers flip state together
   (the `downloaded` flag is per model file). The TS button is wired in
   `views/setup.ts` and `views/settings.ts` via `downloadVoiceModel()` /
   `uninstallVoiceModel()` in `voice-picker.ts`.
-- ✅ `/api/providers` + `/api/models/<provider>` — `src-tauri/src/providers.rs`.
+- ✅ `/app/v1/providers` + `/app/v1/models/<provider>` — `src-tauri/src/providers.rs`.
   Includes the elaborate Ollama recommendation system (total RAM via `sysinfo`,
   fast-GPU detection, curated tier catalog from `DEFAULT_OLLAMA_TIERS`, per-tier
   `fits`/`installed` annotations, `other_installed`, version + outdated against
   `MIN_OLLAMA_VERSION`). The TS settings page renders this via
   `ui/src/settings-ollama.ts` (visible only when provider = ollama).
-  `/api/models` is a stub (returns `[]`) — model lists need the provider's API
+  `/app/v1/models` is a stub (returns `[]`) — model lists need the provider's API
   key, which on desktop lives in localStorage rather than the backend env, so
   the picker falls back to a free-form text input until a key-forwarding path
   is added.
-- ✅ `/api/ollama/pull` (streamed NDJSON progress) + `/api/ollama/delete` —
+- ✅ `/app/v1/ollama/pull` (streamed NDJSON progress) + `/app/v1/ollama/delete` —
   `src-tauri/src/ollama.rs`. Proxies the local Ollama daemon's HTTP API; UI
   drives per-model progress bars + Remove buttons. The
   restart / upgrade / install-Ollama-itself flows from the Python build are
   intentionally deferred (platform-specific shell-outs — brew, curl|sh, manual
   on Windows — tangential to "manage the models I have").
-- ✅ `/api/llm/claude_proxy/complete` — spawns the local `claude` CLI via
+- ✅ `/app/v1/llm/claude_proxy/complete` — spawns the local `claude` CLI via
   `tokio::process` and mirrors the Python provider's flags, prompt encoding,
   JSON parsing, and 90 s timeout. See `src-tauri/src/llm.rs`.
-- ✅ `/api/open-config-folder`, `/api/open-sessions-folder`,
-  `/api/open-voice-settings` — cross-platform `reveal_path()` helper opens the
+- ✅ `/app/v1/open-config-folder`, `/app/v1/open-sessions-folder`,
+  `/app/v1/open-voice-settings` — cross-platform `reveal_path()` helper opens the
   app data dir for the two folder buttons (desktop sessions live in webview
   storage, not on disk, so the data dir is the closest meaningful target for
   now); voice-settings opens macOS System Settings → Spoken Content on Darwin,
   400s elsewhere.
-- ⬜ `/api/tts-engines` — listed in the bead but has no fetch site in the TS UI
+- ⬜ `/app/v1/tts-engines` — listed in the bead but has no fetch site in the TS UI
   (only mentioned in code comments as a future option), so deferred until a
   consumer actually needs it.
 

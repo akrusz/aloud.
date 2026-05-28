@@ -30,15 +30,15 @@ function app() {
 }
 
 async function devToken(a: ReturnType<typeof createApp>): Promise<string> {
-    const res = await a.request('/v1/auth/dev', { method: 'POST' });
+    const res = await a.request('/cloud/v1/auth/dev', { method: 'POST' });
     return ((await res.json()) as AuthResponse).token;
 }
 
-describe('POST /v1/tts', () => {
+describe('POST /cloud/v1/tts', () => {
     it('synthesizes MP3 via Google and reports cost in headers', async () => {
         const a = app();
         const token = await devToken(a);
-        const res = await a.request('/v1/tts', {
+        const res = await a.request('/cloud/v1/tts', {
             method: 'POST',
             headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
             body: JSON.stringify({ text: 'Breathe in.', voice: 'en-US-Chirp3-HD-Achernar', rate: 0.9 }),
@@ -68,7 +68,7 @@ describe('POST /v1/tts', () => {
         const a = app();
         const token = await devToken(a);
         // A stray WPM-ish value that slipped through as a "multiplier".
-        const res = await a.request('/v1/tts', {
+        const res = await a.request('/cloud/v1/tts', {
             method: 'POST',
             headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
             body: JSON.stringify({ text: 'hi', rate: 50 }),
@@ -79,7 +79,7 @@ describe('POST /v1/tts', () => {
     });
 
     it('requires auth', async () => {
-        const res = await app().request('/v1/tts', {
+        const res = await app().request('/cloud/v1/tts', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ text: 'hi' }),
@@ -90,7 +90,7 @@ describe('POST /v1/tts', () => {
     it('400s on empty text', async () => {
         const a = app();
         const token = await devToken(a);
-        const res = await a.request('/v1/tts', {
+        const res = await a.request('/cloud/v1/tts', {
             method: 'POST',
             headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
             body: JSON.stringify({ text: '   ' }),
@@ -102,7 +102,7 @@ describe('POST /v1/tts', () => {
         const config = loadConfig({ ALOUD_FREE_SIGNUP_CREDITS: '20' });
         const a = createApp(buildDeps(config));
         const token = await devToken(a);
-        const res = await a.request('/v1/tts', {
+        const res = await a.request('/cloud/v1/tts', {
             method: 'POST',
             headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
             body: JSON.stringify({ text: 'hi' }),

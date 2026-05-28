@@ -67,7 +67,7 @@ const DEFAULT_TIERS: &[OllamaTier] = &[
     },
 ];
 
-/// `GET /api/providers` body. Synchronous: shells out (`which`), probes
+/// `GET /app/v1/providers` body. Synchronous: shells out (`which`), probes
 /// localhost, and inspects system RAM/GPU — callers run it on a blocking thread.
 pub fn providers() -> Value {
     let has_claude = which::which("claude").is_ok();
@@ -100,7 +100,7 @@ pub fn providers() -> Value {
     })
 }
 
-/// `GET /api/models/<provider>` body — currently a stub (returns `[]`). Model
+/// `GET /app/v1/models/<provider>` body — currently a stub (returns `[]`). Model
 /// lists need the provider's API key, which on desktop lives in the UI's
 /// localStorage rather than the backend; the model picker already falls back
 /// to a free-form text input when this returns empty.

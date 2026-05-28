@@ -55,6 +55,7 @@ import { initThemeToggle } from '../theme.js';
 import { startMicMeter, type MicMeter } from '../mic-meter.js';
 import { isTauri } from '../is-desktop.js';
 import { acquireWakeLock, releaseWakeLock } from '../wakelock.js';
+import { appUrl } from '../app-base.js';
 import {
     buildScoredVoiceList,
     fetchServerVoices,
@@ -73,7 +74,7 @@ import {
 // routes through the Flask proxy in browser preview; the rest go BYOK
 // direct from the browser. Mobile (Capacitor) will need a different
 // path for Anthropic — either @capacitor/http or a hosted proxy.
-const ANTHROPIC_PROXY_URL = '/api/llm/anthropic/messages';
+const ANTHROPIC_PROXY_URL = appUrl('/llm/anthropic/messages');
 const OLLAMA_PROXY_URL = '/ollama';
 
 export async function buildProvider(setup: SessionSetup): Promise<LLMProvider> {

@@ -18,13 +18,13 @@ describe('app', () => {
         expect(JSON.stringify(body)).not.toContain('sk-test');
     });
 
-    it('GET /v1/me requires auth', async () => {
-        const res = await app().request('/v1/me');
+    it('GET /cloud/v1/me requires auth', async () => {
+        const res = await app().request('/cloud/v1/me');
         expect(res.status).toBe(401);
     });
 
-    it('GET /v1/me/models is public and publishes the markup', async () => {
-        const res = await app().request('/v1/me/models');
+    it('GET /cloud/v1/me/models is public and publishes the markup', async () => {
+        const res = await app().request('/cloud/v1/me/models');
         expect(res.status).toBe(200);
         const body = (await res.json()) as { packMarkup: number; usdPerCredit: number; models: unknown[] };
         expect(body.packMarkup).toBeGreaterThan(1);
@@ -32,8 +32,8 @@ describe('app', () => {
         expect(body.models.length).toBeGreaterThan(0);
     });
 
-    it('POST /v1/llm/complete requires auth (no billing without identity)', async () => {
-        const res = await app().request('/v1/llm/complete', {
+    it('POST /cloud/v1/llm/complete requires auth (no billing without identity)', async () => {
+        const res = await app().request('/cloud/v1/llm/complete', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ provider: 'anthropic', model: 'claude-sonnet-4-6', messages: [] }),

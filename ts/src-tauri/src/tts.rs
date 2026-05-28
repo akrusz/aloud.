@@ -1,6 +1,6 @@
 //! TTS catalog + synthesis for the desktop backend.
 //!
-//! Replaces Flask's `/api/voices` and `/api/voices/preview` with native Rust:
+//! Replaces Flask's `/app/v1/voices` and `/app/v1/voices/preview` with native Rust:
 //! Piper (neural, ONNX via `piper-rs`) cross-platform, plus macOS `say` as a
 //! zero-setup local engine on Darwin. Shapes mirror `src/tts/` (PIPER_VOICES,
 //! aggregate_voices, the preview WAV contract) so the existing TS adapters
@@ -59,7 +59,7 @@ const PIPER_VOICES: &[PiperVoice] = &[
 
 /// Caches the last-loaded Piper model (model name → loaded `Piper`), an
 /// LRU-of-1 matching Flask's `_preview_tts_cache`: streaming a session's
-/// sentences through `/api/voices/preview` must not reload the ONNX model on
+/// sentences through `/app/v1/voices/preview` must not reload the ONNX model on
 /// every call.
 pub type PiperCache = Mutex<Option<(String, Piper)>>;
 
@@ -101,9 +101,9 @@ fn piper_hf_urls(model: &str) -> Vec<(String, String)> {
     ]
 }
 
-// --- /api/voices -----------------------------------------------------------
+// --- /app/v1/voices -----------------------------------------------------------
 
-/// Build the `/api/voices` JSON array. `engine` (Some) restricts to one engine
+/// Build the `/app/v1/voices` JSON array. `engine` (Some) restricts to one engine
 /// (the Settings page does this); `lang` filters by language prefix. With no
 /// engine override the list aggregates Piper then macOS, deduped by name —
 /// matching Flask's `aggregate_voices`.
@@ -223,7 +223,7 @@ fn split_macos_voice_line(line: &str) -> Option<(String, String)> {
     None
 }
 
-// --- /api/voices/preview ---------------------------------------------------
+// --- /app/v1/voices/preview ---------------------------------------------------
 
 /// Synthesize `text` for `voice` into WAV bytes. `engine` forces a backend;
 /// when None it's inferred (`engine_for_voice`). `rate` is words-per-minute
@@ -260,7 +260,7 @@ fn synth_piper(
 
     let onnx = piper_model_path(piper_dir, v.model);
     let config = piper_dir.join(format!("{}.onnx.json", v.model));
-    // Models are downloaded explicitly via /api/tts/download-model (the picker's
+    // Models are downloaded explicitly via /app/v1/tts/download-model (the picker's
     // Download button), never on demand — a session must not stall on a 100 MB
     // fetch mid-synthesis. Matches the Flask preview, which also required the
     // model to be present.
@@ -303,16 +303,16 @@ fn resolve_speaker_id(piper: &Piper, key: &str) -> Result<i64, String> {
         .ok_or_else(|| format!("speaker '{key}' not found in model"))
 }
 
-// --- /api/tts/download-model + /api/tts/uninstall-model --------------------
+// --- /app/v1/tts/download-model + /app/v1/tts/uninstall-model --------------------
 
 /// Download a Piper voice's model files, reporting progress through
 /// `on_progress` as NDJSON-shaped values wire-compatible with Flask's
-/// `/api/tts/download-model`: a stream of `{status:"downloading", total,
+/// `/app/v1/tts/download-model`: a stream of `{status:"downloading", total,
 /// completed, file}` then a terminal `{status:"done"}` (or, if the shared
 /// model is already present, just `{status:"already_downloaded"}`).
 ///
 /// Multi-speaker voices share one `.onnx`, so downloading any speaker brings
-/// the whole family on disk — the caller re-reads `/api/voices` afterward and
+/// the whole family on disk — the caller re-reads `/app/v1/voices` afterward and
 /// every speaker for that model unlocks (its `downloaded` flag is per file).
 pub fn download_model<F: FnMut(Value)>(
     piper_dir: &Path,

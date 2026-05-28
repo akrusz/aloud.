@@ -5,7 +5,7 @@
  *
  * The client half lives today in ts/ui/src/adapters/claude-proxy-http.ts
  * (which currently points at the desktop Flask backend). The web-demo work
- * is "point that adapter at this server's /v1/llm/complete instead". When
+ * is "point that adapter at this server's /cloud/v1/llm/complete instead". When
  * the coordinated packages/ workspace move happens, this file is the natural
  * thing to lift into a shared @aloud/contract package both sides import; until
  * then it is mirrored by hand (the surface is tiny enough that that's fine).
@@ -25,7 +25,7 @@ export type ProviderId = 'anthropic' | 'groq' | 'openrouter' | 'google';
  *  see pricing/commission.ts and the meditation-pal-8sj addendum. */
 export type PurchaseChannel = 'web_stripe' | 'iap_apple' | 'iap_google';
 
-// ---- POST /v1/llm/complete --------------------------------------------------
+// ---- POST /cloud/v1/llm/complete --------------------------------------------------
 
 export interface CompleteRequest {
     provider: ProviderId;
@@ -61,7 +61,7 @@ export interface CompleteChunk {
     result?: CompleteResponse;
 }
 
-// ---- POST /v1/stt -----------------------------------------------------------
+// ---- POST /cloud/v1/stt -----------------------------------------------------------
 // Request body is raw 16-bit-equivalent Float32 PCM (mono), with the sample
 // rate in the `sample_rate` query param. The server computes duration from the
 // byte length (authoritative — the client can't under-report to underpay),
@@ -74,7 +74,7 @@ export interface TranscribeResponse {
     creditsRemaining: number;
 }
 
-// ---- POST /v1/tts -----------------------------------------------------------
+// ---- POST /cloud/v1/tts -----------------------------------------------------------
 
 export interface SpeakRequest {
     text: string;
@@ -89,9 +89,9 @@ export interface SpeakRequest {
  *  headers (X-Credits-Charged / X-Credits-Remaining) so the body stays a clean
  *  audio stream the client can hand straight to an <audio> element. */
 
-/** GET /v1/voices — public. The curated hosted voices the server can speak
+/** GET /cloud/v1/voices — public. The curated hosted voices the server can speak
  *  (empty when TTS isn't configured). The client merges these into its voice
- *  picker; the `name` is what it stores and sends back as the /v1/tts `voice`. */
+ *  picker; the `name` is what it stores and sends back as the /cloud/v1/tts `voice`. */
 export interface HostedVoice {
     name: string;
     gender: 'female' | 'male' | 'androgynous';
@@ -99,7 +99,7 @@ export interface HostedVoice {
 
 // ---- Auth & account ---------------------------------------------------------
 
-/** POST /v1/auth/google — exchange a Google ID token for an aloud session. */
+/** POST /cloud/v1/auth/google — exchange a Google ID token for an aloud session. */
 export interface GoogleAuthRequest {
     /** The ID token (JWT) from Google Sign-In on the client. */
     idToken: string;
@@ -114,7 +114,7 @@ export interface AuthResponse {
     isNewAccount: boolean;
 }
 
-/** GET /v1/me — current account + balance. */
+/** GET /cloud/v1/me — current account + balance. */
 export interface AccountView {
     id: string;
     email: string;
@@ -126,7 +126,7 @@ export interface AccountView {
 
 // ---- Billing ----------------------------------------------------------------
 
-/** POST /v1/billing/checkout — start a credit purchase. Returns a URL the
+/** POST /cloud/v1/billing/checkout — start a credit purchase. Returns a URL the
  *  client opens (web: redirect; mobile: external link, per meditation-pal-czr). */
 export interface CheckoutRequest {
     packId: string;
