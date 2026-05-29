@@ -31,6 +31,10 @@ tauri-plugin-log = "2"
 # browser/mail client instead of dead-clicking inside the webview. Wired in
 # ui/src/external-links.ts.
 tauri-plugin-opener = "2"
+# Remembers window position/size across launches (saved on exit, restored on
+# the next open). Wired in lib.rs; the window is built dynamically so we call
+# restore_state() on it after build.
+tauri-plugin-window-state = "2"
 # Embedded local backend (replaces Flask /api/* on desktop). The same UI
 # adapters that hit the hosted server over HTTP hit this over HTTP too, so
 # desktop and web share one code path (see dev-docs/desktop.md).

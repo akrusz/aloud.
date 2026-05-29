@@ -6,11 +6,15 @@ mod server;
 mod tts;
 
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_window_state::{StateFlags, WindowExt};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
+    // Persist window geometry across launches (auto-saves on exit; we restore
+    // explicitly below since the window is built at runtime, not from config).
+    .plugin(tauri_plugin_window_state::Builder::default().build())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -49,7 +53,9 @@ pub fn run() {
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true);
 
-      builder.build()?;
+      let window = builder.build()?;
+      // Apply the saved position/size/maximized state (no-op on first run).
+      let _ = window.restore_state(StateFlags::POSITION | StateFlags::SIZE | StateFlags::MAXIMIZED);
       Ok(())
     })
     .run(tauri::generate_context!())
