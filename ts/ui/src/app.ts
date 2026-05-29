@@ -81,6 +81,14 @@ function wireNav(): void {
         const view = target.dataset['nav'] as View | undefined;
         if (!view || view === 'session') return;
         e.preventDefault();
+        // During a live session, route through the session's end-confirm
+        // overlay (Cancel / End / End without saving) instead of tearing it
+        // down silently — covers the in-session History link and any
+        // bottom-nav link that's visible. Mirrors the popstate guard.
+        if (currentSession || currentNoting) {
+            (currentSession ?? currentNoting)?.requestLeave(view as 'setup' | 'history' | 'settings');
+            return;
+        }
         const root = $('app-root');
         void routeTo(root, view);
     });

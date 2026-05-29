@@ -76,6 +76,10 @@ export async function mountNotingSessionView(
                 </button>
             </div>`;
     }
+    // Flags the session chrome the same way exploration does: hides the mobile
+    // bottom-nav, reveals the session-only More-sheet items (End/History), and
+    // keeps the wakelock/footer rules active. Cleared in endSession.
+    document.body.dataset['sessionActive'] = 'true';
     if (navLinks) {
         navLinks.innerHTML = `
             <a href="#" id="end-btn" class="nav-end-link">End<span class="nav-word-session"> Session</span></a>
@@ -514,6 +518,7 @@ export async function mountNotingSessionView(
                 /* non-fatal */
             }
         }
+        delete document.body.dataset['sessionActive'];
         if (navCenter) navCenter.innerHTML = '';
         if (navLinks && savedNavLinks !== null) {
             navLinks.innerHTML = savedNavLinks;

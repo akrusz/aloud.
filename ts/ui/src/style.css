@@ -51,6 +51,12 @@
     justify-content: flex-end;
 }
 
+/* The "aloud." glyph in the mobile More sheet should use the brand face,
+   like .nav-brand / .about-app-name (the imported CSS doesn't set it). */
+.mobile-more-glyph {
+    font-family: 'Knewave', cursive;
+}
+
 /* The TS SPA mounts views into #app-root, an extra wrapper between .main
    and the view that the Flask MPA didn't have. The lifted session layout
    pins .input-area to the bottom by making .session-container flex:1 inside

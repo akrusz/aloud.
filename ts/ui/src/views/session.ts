@@ -661,6 +661,9 @@ export async function mountSessionView(
         if (muted) {
             muted = false;
             setMicButtonState();
+            // Clear the 'Muted' status — the listen loop resumes but doesn't
+            // re-announce, so without this the status line stays "Muted".
+            setStatus(silenceMode ? 'Holding space — anything you say resumes' : stt ? 'Listening…' : 'Ready');
             startMeter();
             void listenLoop();
         } else {
