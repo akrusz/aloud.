@@ -87,6 +87,10 @@ export class ServerWhisperSttEngine implements SttEngine {
     private speechStartMs = 0;
     private lastSpeechMs = 0;
     private utteranceDone = false;
+    // TEMP onset instrumentation (d35) — remove after diagnosis.
+    private dbgIdleFrames = 0;
+    private dbgCaptureOnMs = 0;
+    private dbgMaxIdleEnergy = 0;
 
     constructor(options: ServerWhisperSttEngineOptions = {}) {
         this.opts = {
@@ -141,6 +145,17 @@ export class ServerWhisperSttEngine implements SttEngine {
         // would inflate the ambient estimate and desensitize the VAD.
         if (!this.capturing) {
             this.pushPre(frame);
+            // TEMP onset instrumentation (d35): prove the callback runs while
+            // the facilitator talks, and surface the loudest idle frame — if
+            // this stays near-zero while you're speaking over the TTS, echo
+            // cancellation is eating your onset before it reaches the buffer.
+            if (energy > this.dbgMaxIdleEnergy) this.dbgMaxIdleEnergy = energy;
+            if (++this.dbgIdleFrames % 15 === 0) {
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[onset] idle ctx=${this.context?.state} preBuf=${this.preBuffer.length}/${this.preBufferFrames} energy=${energy.toFixed(4)} maxIdle=${this.dbgMaxIdleEnergy.toFixed(4)}`
+                );
+            }
             return;
         }
         if (this.utteranceDone) return;
@@ -154,6 +169,15 @@ export class ServerWhisperSttEngine implements SttEngine {
             if (!this.speechStarted) {
                 this.speechStarted = true;
                 this.speechStartMs = now;
+                // TEMP onset instrumentation (d35): how much onset we prepend,
+                // and how long after capture-on speech crossed threshold. A
+                // large sinceCaptureOn with an empty preBuf = onset spoken
+                // before capture turned on AND not buffered = lost first word.
+                const rate = this.context?.sampleRate ?? TARGET_SAMPLE_RATE;
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[onset] speechStart prepend=${this.preBuffer.length} frames (~${Math.round((this.preBuffer.length * FRAME_SIZE / rate) * 1000)}ms) sinceCaptureOn=${Math.round(now - this.dbgCaptureOnMs)}ms energy=${energy.toFixed(4)}`
+                );
                 // Prepend the retained onset ramp, then clear it.
                 for (const f of this.preBuffer) this.chunks.push(f);
                 this.preBuffer.length = 0;
@@ -273,6 +297,15 @@ export class ServerWhisperSttEngine implements SttEngine {
         this.speechStartMs = 0;
         this.lastSpeechMs = 0;
         this.utteranceDone = false;
+        // TEMP onset instrumentation (d35): how full is the onset buffer the
+        // instant capture turns on? If preBuf is ~0 here on a barge-in, the
+        // buffer wasn't filling during TTS (callback/context stalled).
+        this.dbgCaptureOnMs = performance.now();
+        // eslint-disable-next-line no-console
+        console.log(
+            `[onset] captureOn ctx=${this.context.state} preBuf=${this.preBuffer.length}/${this.preBufferFrames} (~${Math.round((this.preBuffer.length * FRAME_SIZE / nativeRate) * 1000)}ms) maxIdleEnergy=${this.dbgMaxIdleEnergy.toFixed(4)}`
+        );
+        this.dbgMaxIdleEnergy = 0;
         this.capturing = true;
 
         // Transcribe a snapshot of captured frames via the Whisper endpoint —
