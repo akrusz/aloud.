@@ -106,6 +106,14 @@ function wireMobileMore(): void {
             open();
         } else if (t.closest('[data-mobile-more-close]')) {
             close();
+        } else if (t.closest('#moreEnd')) {
+            // Session-only: route through the session's end-confirm overlay
+            // (Cancel / End / End without saving), same as the End link.
+            close();
+            (currentSession ?? currentNoting)?.requestLeave('setup');
+        } else if (t.closest('#moreHistory')) {
+            close();
+            (currentSession ?? currentNoting)?.requestLeave('history');
         } else if (t.closest('#moreAbout')) {
             close();
             document.getElementById('aboutLink')?.click();

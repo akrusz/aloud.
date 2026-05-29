@@ -297,6 +297,9 @@ export async function mountSessionView(
         navCenter.innerHTML = `
             <div class="nav-session-info">
                 <div class="orb orb-breathing orb-nav" id="orb"></div>
+                <button type="button" class="session-hamburger" id="sessionHamburger" aria-label="Session menu" aria-haspopup="true" aria-controls="mobileMoreSheet" data-mobile-more-open>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                </button>
             </div>`;
     }
     if (navLinks) {
