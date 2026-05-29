@@ -87,10 +87,13 @@ const MODELS: Record<string, ModelPricing> = {
     },
 };
 
-/** Per-second cost of cloud STT (Groq Whisper) and per-character cost of
- *  cloud TTS (ElevenLabs-class). The free/browser engines bill zero — only
- *  the server-side engines feed these. */
-export const STT_USD_PER_SECOND = 0.04 / 3600; // $0.04/hr (Groq whisper-large-v3-turbo; large-v3 is ~$0.111/hr)
+/** Per-second cost of cloud STT (Fireworks Whisper, the default backend) and
+ *  per-character cost of cloud TTS (ElevenLabs-class). The free/browser engines
+ *  bill zero — only the server-side engines feed these. If you switch the STT
+ *  backend via env (config.ts resolveSttConfig), revisit this rate:
+ *  Fireworks whisper-v3-turbo ≈ $0.054/hr, Groq ≈ $0.04/hr, OpenAI
+ *  gpt-4o-mini-transcribe ≈ $0.18/hr. */
+export const STT_USD_PER_SECOND = 0.054 / 3600; // $0.054/hr (Fireworks whisper-v3-turbo, batch)
 export const TTS_USD_PER_CHAR = 0.00003; // ~ElevenLabs flagship per-char
 
 export function pricingFor(provider: ProviderId, model: string): ModelPricing | undefined {

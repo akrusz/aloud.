@@ -46,7 +46,7 @@ export function createApp(deps: Deps): Hono {
             providers: configuredProviders(deps.config),
             billing: Boolean(deps.config.stripeSecretKey),
             // Which media capabilities the client can route here (vs Flask/native).
-            stt: Boolean(deps.config.providerKeys.groq),
+            stt: Boolean(deps.config.sttConfig),
             tts: Boolean(deps.config.googleTtsApiKey),
         })
     );

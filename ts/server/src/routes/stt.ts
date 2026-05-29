@@ -5,7 +5,9 @@
  *
  * Duration is computed server-side from the byte length, so a client can't
  * under-report seconds to underpay. Like the LLM proxy, this is stateless:
- * audio in, text out, nothing persisted.
+ * audio in, text out, nothing persisted. The Whisper backend (Fireworks by
+ * default; Groq/OpenAI/custom via env) is config-selected — see config.ts
+ * resolveSttConfig.
  */
 
 import { Hono } from 'hono';
@@ -14,7 +16,7 @@ import type { Deps } from '../deps.js';
 import type { AuthVars } from '../auth/middleware.js';
 import { requireAuth } from '../auth/middleware.js';
 import { priceSttSeconds } from '../pricing/meter.js';
-import { transcribeWithGroq } from '../providers/stt.js';
+import { transcribeWhisper } from '../providers/stt.js';
 import { log } from '../logger.js';
 
 export function sttRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
@@ -23,8 +25,8 @@ export function sttRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
     app.post('/', requireAuth(deps), async (c) => {
         const account = c.get('account');
 
-        const groqKey = deps.config.providerKeys.groq;
-        if (!groqKey) {
+        const stt = deps.config.sttConfig;
+        if (!stt) {
             return c.json(apiError('provider_error', 'STT is not configured on this server'), ERROR_STATUS.provider_error);
         }
         if (!deps.rateGuard.allow(account.id)) {
@@ -50,7 +52,7 @@ export function sttRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
 
         let text: string;
         try {
-            text = await transcribeWithGroq(samples, sampleRate, groqKey);
+            text = await transcribeWhisper(samples, sampleRate, stt);
         } catch (err) {
             log.error('stt forward failed', { err: String(err) });
             return c.json(apiError('provider_error', 'STT upstream error'), ERROR_STATUS.provider_error);
@@ -59,7 +61,7 @@ export function sttRoutes(deps: Deps): Hono<{ Variables: AuthVars }> {
         // Debit at cost (fractional), clamped to balance so a race can't overdraw.
         const cost = priceSttSeconds(seconds);
         const debit = Math.min(cost.credits, balance);
-        if (debit > 0) await deps.ledger.debit(account.id, debit, `stt:groq:${seconds.toFixed(1)}s`);
+        if (debit > 0) await deps.ledger.debit(account.id, debit, `stt:${stt.provider}:${seconds.toFixed(1)}s`);
 
         const response: TranscribeResponse = {
             text,

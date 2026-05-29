@@ -8,12 +8,60 @@
  */
 
 import type { ProviderId } from './contract.js';
+import type { SttBackend } from './providers/stt.js';
 
 export interface ProviderKeys {
     anthropic?: string;
     groq?: string;
     openrouter?: string;
     google?: string;
+}
+
+/** Default OpenAI-compatible Whisper endpoints, by provider label. The STT
+ *  backend is config-selected (see resolveSttConfig) so a provider freezing
+ *  signups is an env change, not a code change. */
+const STT_DEFAULTS: Record<string, { baseUrl: string; model: string }> = {
+    fireworks: {
+        baseUrl: 'https://audio-turbo.api.fireworks.ai/v1/audio/transcriptions',
+        model: 'whisper-v3-turbo',
+    },
+    groq: {
+        baseUrl: 'https://api.groq.com/openai/v1/audio/transcriptions',
+        model: 'whisper-large-v3-turbo',
+    },
+    openai: {
+        baseUrl: 'https://api.openai.com/v1/audio/transcriptions',
+        model: 'gpt-4o-mini-transcribe',
+    },
+};
+
+/**
+ * Resolve the STT backend from env. Precedence:
+ *   1. STT_API_KEY  — explicit/custom backend (STT_BASE_URL + STT_MODEL +
+ *      STT_PROVIDER label; defaults to Fireworks if base/model omitted).
+ *   2. FIREWORKS_API_KEY — Fireworks defaults (the recommended backend).
+ *   3. GROQ_API_KEY — Groq defaults (back-compat; signups may be frozen).
+ * Returns undefined when none is set; the /cloud/v1/stt route then reports
+ * not-configured and the client falls back to browser SpeechRecognition.
+ */
+export function resolveSttConfig(env: NodeJS.ProcessEnv): SttBackend | undefined {
+    if (env['STT_API_KEY']) {
+        const provider = env['STT_PROVIDER'] ?? 'custom';
+        const fallback = STT_DEFAULTS[provider] ?? STT_DEFAULTS['fireworks']!;
+        return {
+            provider,
+            apiKey: env['STT_API_KEY'],
+            baseUrl: env['STT_BASE_URL'] ?? fallback.baseUrl,
+            model: env['STT_MODEL'] ?? fallback.model,
+        };
+    }
+    if (env['FIREWORKS_API_KEY']) {
+        return { provider: 'fireworks', apiKey: env['FIREWORKS_API_KEY'], ...STT_DEFAULTS['fireworks']! };
+    }
+    if (env['GROQ_API_KEY']) {
+        return { provider: 'groq', apiKey: env['GROQ_API_KEY'], ...STT_DEFAULTS['groq']! };
+    }
+    return undefined;
 }
 
 export interface Config {
@@ -28,6 +76,11 @@ export interface Config {
 
     /** Provider API keys, server-held. The whole point: the client never sees these. */
     providerKeys: ProviderKeys;
+
+    /** Server-side STT backend (OpenAI-compatible Whisper). Undefined when no
+     *  STT key is configured — the /cloud/v1/stt route then reports
+     *  not-configured and the client falls back to browser SpeechRecognition. */
+    sttConfig?: SttBackend;
 
     /** Free credits granted to a new verified account. meditation-pal-2yb. */
     freeSignupCredits: number;
@@ -88,6 +141,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         freeGrantBudgetPerHour: Number(env['ALOUD_FREE_GRANT_BUDGET_PER_HOUR'] ?? 2000),
         strict,
     };
+    const sttConfig = resolveSttConfig(env);
+    if (sttConfig) config.sttConfig = sttConfig;
     if (env['GOOGLE_TTS_API_KEY']) config.googleTtsApiKey = env['GOOGLE_TTS_API_KEY'];
     if (env['STRIPE_SECRET_KEY']) config.stripeSecretKey = env['STRIPE_SECRET_KEY'];
     if (env['STRIPE_WEBHOOK_SECRET']) config.stripeWebhookSecret = env['STRIPE_WEBHOOK_SECRET'];

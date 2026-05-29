@@ -1,22 +1,23 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { loadConfig } from '../src/config.js';
+import { loadConfig, resolveSttConfig } from '../src/config.js';
 import { buildDeps } from '../src/deps.js';
 import { createApp } from '../src/app.js';
 import { encodeWav } from '../src/providers/stt.js';
 import type { AuthResponse, TranscribeResponse } from '../src/contract.js';
 
-// Stub global fetch so the route's Groq call never hits the network. Returns a
-// fixed transcript and records the request for assertions.
-let groqCalls: Array<{ url: string; hasFile: boolean }> = [];
+// Stub global fetch so the route's STT call never hits the network. Returns a
+// fixed transcript and records the request for assertions. The default backend
+// is Fireworks (config.ts resolveSttConfig), so match its host.
+let sttCalls: Array<{ url: string; hasFile: boolean }> = [];
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
-    groqCalls = [];
+    sttCalls = [];
     globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
         const u = String(url);
-        if (u.includes('groq.com')) {
+        if (u.includes('fireworks.ai') || u.includes('groq.com')) {
             const body = init?.body as FormData | undefined;
-            groqCalls.push({ url: u, hasFile: body instanceof FormData && body.has('file') });
+            sttCalls.push({ url: u, hasFile: body instanceof FormData && body.has('file') });
             return new Response(JSON.stringify({ text: '  hello world  ' }), { status: 200 });
         }
         return realFetch(url, init);
@@ -24,7 +25,7 @@ beforeEach(() => {
 });
 
 function app() {
-    const config = loadConfig({ GROQ_API_KEY: 'gsk-test', ALOUD_FREE_SIGNUP_CREDITS: '20' });
+    const config = loadConfig({ FIREWORKS_API_KEY: 'fw-test', ALOUD_FREE_SIGNUP_CREDITS: '20' });
     return createApp(buildDeps(config));
 }
 
@@ -52,8 +53,61 @@ describe('encodeWav', () => {
     });
 });
 
+describe('resolveSttConfig', () => {
+    it('defaults to Fireworks (whisper-v3-turbo) when FIREWORKS_API_KEY is set', () => {
+        const stt = resolveSttConfig({ FIREWORKS_API_KEY: 'fw-1' });
+        expect(stt).toEqual({
+            provider: 'fireworks',
+            apiKey: 'fw-1',
+            baseUrl: 'https://audio-turbo.api.fireworks.ai/v1/audio/transcriptions',
+            model: 'whisper-v3-turbo',
+        });
+    });
+
+    it('falls back to Groq for back-compat when only GROQ_API_KEY is set', () => {
+        const stt = resolveSttConfig({ GROQ_API_KEY: 'gsk-1' });
+        expect(stt?.provider).toBe('groq');
+        expect(stt?.baseUrl).toContain('groq.com');
+        expect(stt?.model).toBe('whisper-large-v3-turbo');
+    });
+
+    it('prefers Fireworks over Groq when both keys are present', () => {
+        const stt = resolveSttConfig({ FIREWORKS_API_KEY: 'fw-1', GROQ_API_KEY: 'gsk-1' });
+        expect(stt?.provider).toBe('fireworks');
+    });
+
+    it('honors an explicit STT_API_KEY override with provider defaults (openai)', () => {
+        const stt = resolveSttConfig({ STT_API_KEY: 'sk-1', STT_PROVIDER: 'openai' });
+        expect(stt).toEqual({
+            provider: 'openai',
+            apiKey: 'sk-1',
+            baseUrl: 'https://api.openai.com/v1/audio/transcriptions',
+            model: 'gpt-4o-mini-transcribe',
+        });
+    });
+
+    it('lets STT_BASE_URL / STT_MODEL fully override a custom backend', () => {
+        const stt = resolveSttConfig({
+            STT_API_KEY: 'sk-1',
+            STT_PROVIDER: 'self-hosted',
+            STT_BASE_URL: 'https://whisper.internal/v1/audio/transcriptions',
+            STT_MODEL: 'whisper-large-v3',
+        });
+        expect(stt).toEqual({
+            provider: 'self-hosted',
+            apiKey: 'sk-1',
+            baseUrl: 'https://whisper.internal/v1/audio/transcriptions',
+            model: 'whisper-large-v3',
+        });
+    });
+
+    it('returns undefined when no STT key is configured', () => {
+        expect(resolveSttConfig({})).toBeUndefined();
+    });
+});
+
 describe('POST /cloud/v1/stt', () => {
-    it('transcribes via Groq and debits fractional credits by duration', async () => {
+    it('transcribes via the configured backend and debits fractional credits by duration', async () => {
         const a = app();
         const token = await devToken(a);
         const res = await a.request('/cloud/v1/stt?sample_rate=16000', {
@@ -64,9 +118,10 @@ describe('POST /cloud/v1/stt', () => {
         expect(res.status).toBe(200);
         const body = (await res.json()) as TranscribeResponse;
         expect(body.text).toBe('hello world'); // trimmed
-        expect(groqCalls).toHaveLength(1);
-        expect(groqCalls[0]!.hasFile).toBe(true);
-        // 10s × $0.04/3600 / $0.05 per credit ≈ 0.0022 credits — fractional, tiny.
+        expect(sttCalls).toHaveLength(1);
+        expect(sttCalls[0]!.url).toContain('fireworks.ai'); // default backend
+        expect(sttCalls[0]!.hasFile).toBe(true);
+        // 10s × $0.054/3600 / $0.05 per credit ≈ 0.003 credits — fractional, tiny.
         expect(body.creditsCharged).toBeGreaterThan(0);
         expect(body.creditsCharged).toBeLessThan(0.01);
         expect(body.creditsRemaining).toBeCloseTo(20 - body.creditsCharged, 6);
@@ -88,8 +143,8 @@ describe('POST /cloud/v1/stt', () => {
         expect(res.status).toBe(400);
     });
 
-    it('reports provider_error when no Groq key is configured', async () => {
-        const config = loadConfig({ ALOUD_FREE_SIGNUP_CREDITS: '20' }); // no GROQ_API_KEY
+    it('reports provider_error when no STT key is configured', async () => {
+        const config = loadConfig({ ALOUD_FREE_SIGNUP_CREDITS: '20' }); // no STT key
         const a = createApp(buildDeps(config));
         const token = await devToken(a);
         const res = await a.request('/cloud/v1/stt', {

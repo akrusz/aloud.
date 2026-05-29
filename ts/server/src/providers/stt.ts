@@ -1,13 +1,23 @@
 /**
- * Server-side STT: transcribe raw PCM via Groq's OpenAI-compatible Whisper
- * endpoint (whisper-large-v3-turbo). The client captures + downsamples to mono
- * Float32 and POSTs the raw samples; we wrap them into a WAV container (Groq
- * wants a file upload) and forward. Stateless — audio is never persisted (the
- * privacy invariant; see logger.ts and meditation-pal-dn2).
+ * Server-side STT: transcribe raw PCM via an OpenAI-compatible Whisper
+ * endpoint. The default backend is Fireworks (whisper-v3-turbo); Groq and
+ * OpenAI speak the same multipart `audio/transcriptions` API, so the backend
+ * is config-selected (base URL + model + key) rather than hardcoded — see
+ * config.ts `resolveSttConfig`. The client captures + downsamples to mono
+ * Float32 and POSTs the raw samples; we wrap them into a WAV container (these
+ * endpoints want a file upload) and forward. Stateless — audio is never
+ * persisted (the privacy invariant; see logger.ts and meditation-pal-dn2).
  */
 
-const GROQ_TRANSCRIBE_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
-const GROQ_STT_MODEL = 'whisper-large-v3-turbo';
+/** A config-selected OpenAI-compatible Whisper backend. */
+export interface SttBackend {
+    /** Short label for logs / debit tags, e.g. 'fireworks'. */
+    provider: string;
+    apiKey: string;
+    /** Full transcription endpoint URL. */
+    baseUrl: string;
+    model: string;
+}
 
 /** Encode mono Float32 PCM in [-1, 1] as a 16-bit little-endian WAV. */
 export function encodeWav(samples: Float32Array, sampleRate: number): Uint8Array {
@@ -39,27 +49,30 @@ export function encodeWav(samples: Float32Array, sampleRate: number): Uint8Array
     return new Uint8Array(buf);
 }
 
-/** Transcribe mono Float32 PCM via Groq. Throws on an upstream error. */
-export async function transcribeWithGroq(
+/**
+ * Transcribe mono Float32 PCM via the configured OpenAI-compatible Whisper
+ * backend (Fireworks / Groq / OpenAI). Throws on an upstream error.
+ */
+export async function transcribeWhisper(
     samples: Float32Array,
     sampleRate: number,
-    apiKey: string,
+    backend: SttBackend,
     fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis)
 ): Promise<string> {
     const wav = encodeWav(samples, sampleRate);
     const form = new FormData();
     form.append('file', new Blob([wav], { type: 'audio/wav' }), 'audio.wav');
-    form.append('model', GROQ_STT_MODEL);
+    form.append('model', backend.model);
     form.append('response_format', 'json');
 
-    const res = await fetchImpl(GROQ_TRANSCRIBE_URL, {
+    const res = await fetchImpl(backend.baseUrl, {
         method: 'POST',
-        headers: { authorization: `Bearer ${apiKey}` },
+        headers: { authorization: `Bearer ${backend.apiKey}` },
         body: form,
     });
     if (!res.ok) {
         const detail = await res.text().catch(() => '');
-        throw new Error(`Groq STT ${res.status}: ${detail}`);
+        throw new Error(`STT ${backend.provider} ${res.status}: ${detail}`);
     }
     const data = (await res.json()) as { text?: string };
     return (data.text ?? '').trim();

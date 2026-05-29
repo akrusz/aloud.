@@ -146,6 +146,7 @@ Full build/signing detail: [building.md](building.md) (PyInstaller) and
 
 - **Hosted server**: `ts/server/.env` (see `.env.example`) — provider keys
   (`ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`),
+  `FIREWORKS_API_KEY` (server STT default; or the `STT_*` overrides),
   `GOOGLE_TTS_API_KEY`, `ALOUD_SESSION_SECRET`, `GOOGLE_CLIENT_IDS`, Stripe keys,
   `ALOUD_ADMIN_TOKEN`, and `ALOUD_UI_DIR` (serve `ui/dist` from the same process
   — the single-box self-host story).
