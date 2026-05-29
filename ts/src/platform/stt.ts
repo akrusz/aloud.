@@ -38,6 +38,16 @@ export interface SttEngine {
 
     /** Request early termination of an in-progress recognition. */
     stop(): Promise<void>;
+
+    /**
+     * Optional: open the mic stream + audio graph WITHOUT beginning an
+     * utterance. Engines that keep an onset pre-buffer (server-Whisper) use
+     * this to start filling it immediately — e.g. during the opening greeting —
+     * so a barge-in on the very first facilitator turn isn't clipped (otherwise
+     * the graph is created lazily on the first start() and there's no buffered
+     * onset yet). No-op / absent on engines that don't need it.
+     */
+    prime?(): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

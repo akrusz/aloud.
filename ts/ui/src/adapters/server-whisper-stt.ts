@@ -208,41 +208,35 @@ export class ServerWhisperSttEngine implements SttEngine {
         }
     };
 
-    async *start(): AsyncIterable<SttEvent> {
-        this.stopRequested = false;
-        // Reuse a live stream across turns; only re-acquire if it was released
-        // by stop() (mute / session end) or the OS dropped it. Re-acquiring is
-        // the expensive step that used to clip a barge-in's first second.
-        try {
-            if (!this.stream || !this.stream.active) {
-                // echoCancellation matters here beyond the usual reasons: this
-                // stream stays live across turns (see the class header), so it's
-                // the one filling the onset pre-buffer WHILE the facilitator's
-                // TTS is playing. Without EC, that pre-buffer captures the TTS
-                // coming out of the speakers, and a barge-in would prepend the
-                // facilitator's own words to the user's interrupting utterance
-                // before sending it to Whisper. EC cancels that speaker echo and
-                // keeps the user's (near-end) onset. Matches the barge-in
-                // detector stream (barge-in.ts) and the old audio.js capture.
-                this.stream = await navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true },
-                });
-                this.teardownGraph(); // any prior nodes belong to a dead stream
-            }
-        } catch (err) {
-            yield { type: 'error', error: err };
-            return;
+    /**
+     * Open the mic stream, AudioContext, and continuous audio graph if they
+     * aren't already up. Idempotent — reuses a live stream / context /
+     * processor across turns (re-acquiring is the expensive step that used to
+     * clip a barge-in's first second). Throws on mic-permission denial or a
+     * missing AudioContext. Shared by start() and prime().
+     */
+    private async ensureCaptureGraph(): Promise<void> {
+        if (!this.stream || !this.stream.active) {
+            // echoCancellation matters here beyond the usual reasons: this
+            // stream stays live across turns (see the class header), so it's
+            // the one filling the onset pre-buffer WHILE the facilitator's TTS
+            // is playing. Without EC, that pre-buffer captures the TTS coming
+            // out of the speakers, and a barge-in would prepend the
+            // facilitator's own words to the user's interrupting utterance
+            // before sending it to Whisper. EC cancels that speaker echo and
+            // keeps the user's (near-end) onset. Matches the barge-in detector
+            // stream (barge-in.ts) and the old audio.js capture.
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true },
+            });
+            this.teardownGraph(); // any prior nodes belong to a dead stream
         }
 
         const AC =
             (globalThis as unknown as { AudioContext?: typeof AudioContext }).AudioContext ??
             (globalThis as unknown as { webkitAudioContext?: typeof AudioContext })
                 .webkitAudioContext;
-        if (!AC) {
-            yield { type: 'error', error: new Error('AudioContext unavailable') };
-            this.releaseAll();
-            return;
-        }
+        if (!AC) throw new Error('AudioContext unavailable');
         if (!this.context || this.context.state === 'closed') {
             this.teardownGraph();
             this.context = new AC();
@@ -254,11 +248,7 @@ export class ServerWhisperSttEngine implements SttEngine {
             // stale, and a barge-in's first word is lost. Re-resume on any
             // suspend until we explicitly stop().
             this.context.addEventListener('statechange', () => {
-                if (
-                    !this.stopRequested &&
-                    this.context &&
-                    this.context.state === 'suspended'
-                ) {
+                if (!this.stopRequested && this.context && this.context.state === 'suspended') {
                     this.context.resume().catch(() => {});
                 }
             });
@@ -275,8 +265,8 @@ export class ServerWhisperSttEngine implements SttEngine {
 
         // Wire the continuous audio graph once; it stays alive across turns so
         // the pre-buffer keeps filling even while the facilitator speaks.
-        const nativeRate = this.context.sampleRate;
         if (!this.processor) {
+            const nativeRate = this.context.sampleRate;
             this.preBufferFrames = Math.max(
                 1,
                 Math.round((PRE_BUFFER_MS / 1000) * nativeRate / FRAME_SIZE)
@@ -289,6 +279,34 @@ export class ServerWhisperSttEngine implements SttEngine {
             this.source.connect(this.processor);
             this.processor.connect(this.context.destination);
         }
+    }
+
+    /**
+     * Pre-open the capture graph so the onset pre-buffer starts filling BEFORE
+     * the first start() — e.g. during the opening greeting — so a barge-in on
+     * the very first facilitator turn isn't clipped. Best-effort: if the mic
+     * isn't grantable yet, start() will retry and surface the error. Leaves
+     * capturing=false, so no utterance begins and no events are emitted.
+     */
+    async prime(): Promise<void> {
+        if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+        this.stopRequested = false;
+        try {
+            await this.ensureCaptureGraph();
+        } catch {
+            /* best-effort priming; start() will retry + report the error */
+        }
+    }
+
+    async *start(): AsyncIterable<SttEvent> {
+        this.stopRequested = false;
+        try {
+            await this.ensureCaptureGraph();
+        } catch (err) {
+            yield { type: 'error', error: err };
+            return;
+        }
+        const nativeRate = this.context!.sampleRate;
 
         // Begin a fresh utterance. The pre-buffer + noise floor persist (warmed
         // between turns); only the per-utterance accumulators reset.
@@ -303,7 +321,7 @@ export class ServerWhisperSttEngine implements SttEngine {
         this.dbgCaptureOnMs = performance.now();
         // eslint-disable-next-line no-console
         console.log(
-            `[onset] captureOn ctx=${this.context.state} preBuf=${this.preBuffer.length}/${this.preBufferFrames} (~${Math.round((this.preBuffer.length * FRAME_SIZE / nativeRate) * 1000)}ms) maxIdleEnergy=${this.dbgMaxIdleEnergy.toFixed(4)}`
+            `[onset] captureOn ctx=${this.context?.state} preBuf=${this.preBuffer.length}/${this.preBufferFrames} (~${Math.round((this.preBuffer.length * FRAME_SIZE / nativeRate) * 1000)}ms) maxIdleEnergy=${this.dbgMaxIdleEnergy.toFixed(4)}`
         );
         this.dbgMaxIdleEnergy = 0;
         this.capturing = true;

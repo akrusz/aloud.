@@ -627,6 +627,10 @@ export async function mountNotingSessionView(
         setStatus('No microphone available — noting needs a mic for your turns.');
     }
     void (async () => {
+        // Prime the STT capture graph before the opener so its onset pre-buffer
+        // fills during the opening line — otherwise a barge-in on the first
+        // turn has an empty buffer and clips the opening word(s). (d35)
+        await stt?.prime?.();
         await speakOpener();
         if (!torn) void advanceTurn();
     })();

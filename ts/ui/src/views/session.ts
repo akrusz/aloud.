@@ -834,6 +834,12 @@ export async function mountSessionView(
         busy = true;
         void (async () => {
             try {
+                // Prime the STT capture graph BEFORE the greeting so its onset
+                // pre-buffer is already filling while the facilitator talks.
+                // Without this the graph is created lazily on the first
+                // start(), so a barge-in during the opening greeting has an
+                // empty buffer and clips the first word(s). (d35)
+                await stt?.prime?.();
                 if (continueFrom && continueFrom.exchanges.length > 0) {
                     await generateContinuationOpener();
                 } else {
