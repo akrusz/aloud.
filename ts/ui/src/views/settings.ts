@@ -207,7 +207,10 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             if (!isActiveBYOK) continue;
             const status = row.querySelector<HTMLElement>('.api-key-status');
             const existing = await getApiKey(p.value);
-            if (status) status.textContent = existing ? 'Saved' : '';
+            // Show a masked confirmation (key saved (sk-a…wxyz)) rather than a
+            // bare "Saved", so the user can tell a key is stored without
+            // exposing it. Mirrors Python's masked-key indicator.
+            if (status) status.textContent = existing ? `key saved (${maskKey(existing)})` : '';
         }
     }
 
@@ -789,10 +792,28 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
 
         const checkinsEnabled = root.querySelector<HTMLInputElement>('#s-silence-checkins-enabled');
         if (checkinsEnabled) {
+            // Grey out the check-in interval stepper when check-ins are off,
+            // so it's clear the value is inert. Mirrors Python's
+            // updateCheckinSecState (.is-disabled).
+            const checkinWrap = root
+                .querySelector<HTMLInputElement>('#s-silence-sec')
+                ?.closest<HTMLElement>('.stepper');
+            const syncCheckinStepper = (): void => {
+                if (!checkinWrap) return;
+                const on = checkinsEnabled.checked;
+                checkinWrap.classList.toggle('is-disabled', !on);
+                checkinWrap
+                    .querySelectorAll<HTMLButtonElement | HTMLInputElement>('button, input')
+                    .forEach((el) => {
+                        el.disabled = !on;
+                    });
+            };
             checkinsEnabled.checked = settings.silenceCheckinsEnabled;
+            syncCheckinStepper();
             checkinsEnabled.addEventListener('change', () => {
                 settings.silenceCheckinsEnabled = checkinsEnabled.checked;
                 persist();
+                syncCheckinStepper();
             });
         }
         const silenceModeEnabled = root.querySelector<HTMLInputElement>('#s-silence-mode-enabled');
@@ -1338,6 +1359,13 @@ function escape(s: string): string {
     return s.replace(/[&<>"']/g, (c) =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c)
     );
+}
+
+/** Mask a stored API key for display: first few + … + last 4, e.g. sk-a…wxyz. */
+function maskKey(key: string): string {
+    const k = key.trim();
+    if (k.length <= 8) return '••••';
+    return `${k.slice(0, 4)}…${k.slice(-4)}`;
 }
 
 // Keep DEFAULT_APP_SETTINGS referenced so tree-shaking doesn't drop it
