@@ -39,6 +39,49 @@
             </div>
         </main>
 
+        <!-- Mobile bottom-nav — shown ≤767px (the imported CSS hides the top
+             nav-links there). Links route through the SPA router via data-nav;
+             the active class is synced in app.ts:setActiveNav. The bottom-nav
+             is hidden during an active session (body[data-session-active]);
+             mid-session mobile controls are a follow-up (floating hamburger). -->
+        <nav class="bottom-nav" aria-label="Primary">
+            <a href="#" data-nav="setup" class="bottom-nav-link">
+                <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+                <span class="bottom-nav-label">Session</span>
+            </a>
+            <a href="#" data-nav="history" class="bottom-nav-link">
+                <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 15 14"/></svg>
+                <span class="bottom-nav-label">History</span>
+            </a>
+            <a href="#" data-nav="settings" class="bottom-nav-link">
+                <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+                <span class="bottom-nav-label">Settings</span>
+            </a>
+            <button type="button" class="bottom-nav-link" id="bottomNavMore" aria-haspopup="true" aria-controls="mobileMoreSheet" data-mobile-more-open>
+                <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+                <span class="bottom-nav-label">More</span>
+            </button>
+        </nav>
+
+        <!-- Mobile "More" sheet — utility actions for phones. Fullscreen /
+             window-close / update are intentionally omitted (Tauri-native or
+             not applicable). Session-only End/History land with the in-session
+             hamburger follow-up. -->
+        <div class="mobile-more-sheet hidden" id="mobileMoreSheet" role="dialog" aria-label="More options" aria-modal="true">
+            <div class="mobile-more-backdrop" data-mobile-more-close></div>
+            <div class="mobile-more-panel">
+                <button type="button" class="mobile-more-action" id="moreAbout">
+                    <span class="mobile-more-glyph">aloud.</span>
+                    <span>About</span>
+                </button>
+                <button type="button" class="mobile-more-action" id="moreTheme">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    <span>Toggle theme</span>
+                </button>
+                <button type="button" class="mobile-more-cancel" data-mobile-more-close>Cancel</button>
+            </div>
+        </div>
+
         <!-- About modal — lifted from base.html. Update checker omitted
              (desktop-app-specific; tracked in meditation-pal-cfy). -->
         <div class="about-modal-overlay hidden" id="aboutModal">

@@ -64,6 +64,7 @@ export async function bootApp(): Promise<void> {
     void detectCapabilities();
 
     wireNav();
+    wireMobileMore();
     wirePopstate();
     const root = $('app-root');
     // Deep-link into the right view based on the URL the user landed
@@ -82,6 +83,39 @@ function wireNav(): void {
         e.preventDefault();
         const root = $('app-root');
         void routeTo(root, view);
+    });
+}
+
+/**
+ * Mobile "More" sheet (bottom-nav ⋯). Open/close + utility actions. The
+ * actions reuse the already-wired top-nav controls so there's a single
+ * source of truth: About toggles the same modal as the brand link, and
+ * Toggle theme drives the same handler (theme + icon + embers) as the
+ * top-nav theme button. Fullscreen / window-close / update are omitted
+ * (Tauri-native or not applicable); session-only End/History land with
+ * the in-session floating hamburger (separate follow-up).
+ */
+function wireMobileMore(): void {
+    const sheet = document.getElementById('mobileMoreSheet');
+    if (!sheet) return;
+    const open = (): void => sheet.classList.remove('hidden');
+    const close = (): void => sheet.classList.add('hidden');
+    document.addEventListener('click', (e) => {
+        const t = e.target as HTMLElement;
+        if (t.closest('[data-mobile-more-open]')) {
+            open();
+        } else if (t.closest('[data-mobile-more-close]')) {
+            close();
+        } else if (t.closest('#moreAbout')) {
+            close();
+            document.getElementById('aboutLink')?.click();
+        } else if (t.closest('#moreTheme')) {
+            close();
+            document.querySelector<HTMLElement>('.nav-links [data-theme-toggle]')?.click();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !sheet.classList.contains('hidden')) close();
     });
 }
 
@@ -156,8 +190,13 @@ function setActiveNav(view: View): void {
     currentView = view;
     document.querySelectorAll<HTMLElement>('[data-nav]').forEach((el) => {
         // Use `nav-active` to match the lifted CSS — Python's base.html
-        // applies the same class to mark the current page link.
-        el.classList.toggle('nav-active', el.dataset['nav'] === view);
+        // applies the same class to mark the current page link. The mobile
+        // bottom-nav uses its own `bottom-nav-active` class.
+        const active = el.dataset['nav'] === view;
+        el.classList.toggle('nav-active', active);
+        if (el.classList.contains('bottom-nav-link')) {
+            el.classList.toggle('bottom-nav-active', active);
+        }
     });
     // Nav center: every non-session view shows an idle orb (Python's
     // index.html and settings.html both put one there; history.html
