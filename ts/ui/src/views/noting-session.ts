@@ -99,7 +99,7 @@ export async function mountNotingSessionView(
         <div class="session-container">
             <div class="conversation" id="conversation"></div>
             <div class="input-area">
-                <div class="input-row">
+                <div class="input-row input-row-noting">
                     <div id="voice-status" class="voice-status">Starting…</div>
                     <span class="session-timer" id="timer">0:00</span>
                     <button id="tts-toggle" class="btn btn-tts active" title="Read notes aloud" aria-label="Toggle text-to-speech">
@@ -368,7 +368,7 @@ export async function mountNotingSessionView(
             await sleep(250);
         }
         if (torn || paused) return;
-        setStatus('Your turn — note what you notice');
+        setStatus('Your turn. Say something you notice now, 1-2 words.');
         userTurnStart = Date.now();
 
         if (!stt) {

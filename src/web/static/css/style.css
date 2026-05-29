@@ -509,7 +509,10 @@ body {
 .participant-row .sound-pick-btn,
 .participant-row .participant-voice-btn,
 .participant-row input[type="range"] {
-    background: var(--bg-primary);
+    /* Match the app's other inputs (--bg-input, a soft off-white in light
+       theme). --bg-primary is a warmer cream-yellow that reads as an
+       unappealing wash behind these fields against the tinted row. */
+    background: var(--bg-input);
 }
 
 .participant-row-header {
@@ -723,7 +726,11 @@ body {
     flex: 1;
     min-width: 0;
 }
-.participant-phrase-preview {
+.participant-phrase-preview,
+.participant-sound-preview {
+    /* Icon-only ▶ preview buttons stay compact at every width. !important so
+       the mobile .btn-small tap-target enlargement (which suits text buttons)
+       doesn't balloon these little glyph buttons out of proportion. */
     padding: 0.3rem 0.5rem !important;
     font-size: 0.875rem !important;
     line-height: 1;
