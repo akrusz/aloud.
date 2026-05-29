@@ -84,29 +84,45 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         themeMode: settings.themeMode,
     };
 
-    // Entry snapshot for Undo. Taken after loadAppSettings (settings' own
-    // loadVoiceCatalog doesn't mutate settings, unlike setup's), so it's a
-    // faithful "how things were when I arrived" baseline. API keys live in a
-    // separate store and are intentionally outside Undo's scope.
-    const baseline = JSON.stringify(settings);
+    const ELEVENLABS_KEY_STORE = 'apikey:elevenlabs';
+
+    /**
+     * Serialized view of everything Undo reverts: the AppSettings object
+     * EXCEPT ttsEngine, plus the ElevenLabs API key.
+     *
+     * ttsEngine is excluded on purpose — the "Manage TTS Engines" dropdown is a
+     * which-engine-am-I-configuring selector, not a change worth undoing, so
+     * switching it doesn't dirty the page. Entering an ElevenLabs key, though,
+     * is a real change; it lives in a separate key store, so we fold it in here
+     * explicitly. (meditation-pal-odw, dev follow-up.)
+     */
+    function undoSnapshot(): string {
+        const comparable: Partial<AppSettings> = { ...settings };
+        delete comparable.ttsEngine;
+        return JSON.stringify({
+            s: comparable,
+            elevenKey: localStorage.getItem(ELEVENLABS_KEY_STORE),
+        });
+    }
+
+    // Entry snapshot for Undo, taken after loadAppSettings (settings' own
+    // loadVoiceCatalog doesn't mutate settings, unlike setup's).
+    const baseline = undoSnapshot();
 
     function persist(): void {
         void saveAppSettings(settings);
         updateUndoState();
     }
 
-    /** Has the live settings object drifted from the entry snapshot? */
+    /** Has anything Undo reverts drifted from the entry snapshot? */
     function isUndoable(): boolean {
-        return JSON.stringify(settings) !== baseline;
+        return undoSnapshot() !== baseline;
     }
 
-    /** Reflect Undo availability on the bottom-bar button + its dirty marker. */
+    /** Reflect Undo availability on the bottom-bar button. */
     function updateUndoState(): void {
         const undoBtn = root.querySelector<HTMLButtonElement>('#s-undo');
-        const dot = root.querySelector<HTMLElement>('.btn-begin-dirty');
-        const dirty = isUndoable();
-        if (undoBtn) undoBtn.disabled = !dirty;
-        if (dot) dot.hidden = !dirty;
+        if (undoBtn) undoBtn.disabled = !isUndoable();
     }
 
     /** Are the Display controls showing an un-applied text-scale/theme change? */
@@ -530,6 +546,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
                     }
                     input.value = text;
                     localStorage.setItem('apikey:elevenlabs', text);
+                    updateUndoState();
                     if (
                         ELEVENLABS_KEY_INFO.prefix &&
                         !text.startsWith(ELEVENLABS_KEY_INFO.prefix)
@@ -555,6 +572,8 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         input.addEventListener('change', () => {
             const raw = input.value.trim();
             if (raw) localStorage.setItem('apikey:elevenlabs', raw);
+            else localStorage.removeItem('apikey:elevenlabs');
+            updateUndoState();
         });
 
         // Pre-populate placeholder if a key is already stored.
@@ -929,8 +948,15 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         undoBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             if (!isUndoable()) return;
-            const restored = JSON.parse(baseline) as AppSettings;
-            Object.assign(settings, restored);
+            const restored = JSON.parse(baseline) as {
+                s: Partial<AppSettings>;
+                elevenKey: string | null;
+            };
+            // s omits ttsEngine, so Object.assign leaves the current engine
+            // selection untouched (engine changes aren't undoable).
+            Object.assign(settings, restored.s);
+            if (restored.elevenKey === null) localStorage.removeItem(ELEVENLABS_KEY_STORE);
+            else localStorage.setItem(ELEVENLABS_KEY_STORE, restored.elevenKey);
             pendingChrome.textScale = settings.textScale;
             pendingChrome.themeMode = settings.themeMode;
             applyChromeSettings(settings);
@@ -1078,7 +1104,7 @@ function renderHTML(s: AppSettings): string {
     <div class="settings-footer">
         <div class="settings-footer-inner">
             <button id="s-undo" type="button" class="btn btn-secondary btn-begin" disabled>
-                Undo<span class="settings-word">&nbsp;Changes<span class="btn-begin-dirty" hidden>&nbsp;*</span></span>
+                Undo<span class="settings-word">&nbsp;Changes</span>
             </button>
             <span class="settings-saved hidden" id="settings-saved">Reverted</span>
             <div class="settings-footer-spacer"></div>
