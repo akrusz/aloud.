@@ -191,7 +191,18 @@ export class ServerWhisperSttEngine implements SttEngine {
         // the expensive step that used to clip a barge-in's first second.
         try {
             if (!this.stream || !this.stream.active) {
-                this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // echoCancellation matters here beyond the usual reasons: this
+                // stream stays live across turns (see the class header), so it's
+                // the one filling the onset pre-buffer WHILE the facilitator's
+                // TTS is playing. Without EC, that pre-buffer captures the TTS
+                // coming out of the speakers, and a barge-in would prepend the
+                // facilitator's own words to the user's interrupting utterance
+                // before sending it to Whisper. EC cancels that speaker echo and
+                // keeps the user's (near-end) onset. Matches the barge-in
+                // detector stream (barge-in.ts) and the old audio.js capture.
+                this.stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true },
+                });
                 this.teardownGraph(); // any prior nodes belong to a dead stream
             }
         } catch (err) {
