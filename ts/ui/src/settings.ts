@@ -181,35 +181,38 @@ const SETTINGS_KEY = 'preview:setup';
 const kv = new LocalStorageKv();
 
 export async function loadSetup(): Promise<SessionSetup> {
-    // Merge order: defaults < app-settings defaults < persisted session
-    // setup. So a fresh setup inherits the user's app-level defaults
-    // (provider, voice, rate) but a previously-tweaked per-session
-    // setup wins where they overlap.
-    const appSettings = await loadAppDefaults();
-    const base: SessionSetup = { ...defaultSetup, ...appSettings };
-    const raw = await kv.get(SETTINGS_KEY);
-    if (!raw) return base;
-    try {
-        return { ...base, ...(JSON.parse(raw) as Partial<SessionSetup>) };
-    } catch {
-        return base;
-    }
-}
-
-/**
- * Pluck the SessionSetup-shaped subset of fields out of AppSettings so
- * the setup view can inherit them. The cycle (app-settings imports
- * Provider type from here, this file imports loadAppSettings) is only
- * at the type level — type-only imports don't cause runtime cycles.
- */
-async function loadAppDefaults(): Promise<Partial<SessionSetup>> {
+    // Two different inheritance rules, on purpose:
+    //
+    //  - provider/model: the app default merely *seeds* a fresh setup; a
+    //    per-session override persisted in 'preview:setup' wins. (Trying a
+    //    different provider for one session is a reasonable thing to want.)
+    //
+    //  - voice/ttsRate: the app-level default is *canonical* and ALWAYS wins.
+    //    There is no separate per-session voice — the setup picker writes
+    //    through to app settings (see setup.ts:persistDefaultVoice). This is
+    //    the fix for meditation-pal-9hu: previously any setup interaction
+    //    persisted setup.voice, which then shadowed the Settings default
+    //    forever, so changing the default voice never took effect.
     const s = await loadAppSettings();
-    return {
+    const base: SessionSetup = {
+        ...defaultSetup,
         provider: s.defaultProvider,
         model: s.defaultModel,
-        voice: s.defaultVoice,
-        ttsRate: s.defaultTtsRate,
     };
+    const raw = await kv.get(SETTINGS_KEY);
+    let merged = base;
+    if (raw) {
+        try {
+            merged = { ...base, ...(JSON.parse(raw) as Partial<SessionSetup>) };
+        } catch {
+            merged = base;
+        }
+    }
+    // App-level voice/rate are the single source of truth — clobber any
+    // value that an older 'preview:setup' may have persisted.
+    merged.voice = s.defaultVoice;
+    merged.ttsRate = s.defaultTtsRate;
+    return merged;
 }
 
 export async function saveSetup(setup: SessionSetup): Promise<void> {

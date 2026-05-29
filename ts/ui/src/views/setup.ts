@@ -49,7 +49,7 @@ import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
 import { isHostedBuild } from '../cloud-base.js';
 import { appUrl } from '../app-base.js';
 import { alertDialog } from '../dialog.js';
-import { loadAppSettings } from '../app-settings.js';
+import { loadAppSettings, saveAppSettings } from '../app-settings.js';
 import {
     autoStart as autoStartGuide,
     closeIfActive as closeGuideIfActive,
@@ -161,6 +161,18 @@ export async function mountSetupView(
     }
 
     /**
+     * Voice + rate are app-level defaults, not per-session state (see
+     * loadSetup in settings.ts). The setup picker edits the same global
+     * default the Settings page does, so changes here propagate to every
+     * session — and to the Settings voice display. We keep the in-memory
+     * `setup` in sync for the live form, then write through to app settings.
+     */
+    async function persistDefaultVoice(voice: string | null, rate: number): Promise<void> {
+        const s = await loadAppSettings();
+        await saveAppSettings({ ...s, defaultVoice: voice, defaultTtsRate: rate });
+    }
+
+    /**
      * Pull voices from `/api/voices` (when Flask is reachable) and from
      * the browser's speechSynthesis API, score them, and store on
      * scoredVoices. Includes browser voices since the TS preview can
@@ -193,7 +205,7 @@ export async function mountSetupView(
             const top = scoredVoices.find((v) => !v.needsDownload);
             if (top) {
                 setup.voice = prefixedVoiceId(top.engine, top.name);
-                persist();
+                void persistDefaultVoice(setup.voice, setup.ttsRate);
             }
         }
         updateVoiceButtonLabel();
@@ -302,7 +314,7 @@ export async function mountSetupView(
                 target.onSelect(voiceId);
             } else {
                 setup.voice = voiceId;
-                persist();
+                void persistDefaultVoice(setup.voice, setup.ttsRate);
                 updateVoiceButtonLabel();
             }
         };
@@ -310,7 +322,7 @@ export async function mountSetupView(
             const rate = Number(speedSlider.value);
             setup.ttsRate = rate;
             speedLabel.textContent = `${rate} wpm`;
-            persist();
+            void persistDefaultVoice(setup.voice, setup.ttsRate);
             updateVoiceButtonLabel();
         };
         const closeModal = () => {
