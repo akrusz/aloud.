@@ -112,7 +112,7 @@ export async function mountHistoryView(
         // it through onBegin. Matches Python's window.continueSession().
         if (typeof sessionStorage !== 'undefined') {
             sessionStorage.setItem('continueFrom', session.sessionId);
-            const summary = session.notes ?? '';
+            const { summary } = sessionTypeAndSummary(session);
             if (summary) sessionStorage.setItem('continueFromSummary', summary);
             else sessionStorage.removeItem('continueFromSummary');
         }
@@ -168,18 +168,36 @@ function renderShellHTML(sessions: readonly SessionState[]): string {
     return `<div class="history-container">${header}${body}</div>`;
 }
 
+/**
+ * Resolve a session's meditation type and display summary, tolerating
+ * legacy data. Sessions saved before the `meditationType` field existed
+ * stored the literal `"noting circle"` in `notes` (the same slot used for
+ * the LLM summary), so infer the type from that and drop it as a summary.
+ */
+function sessionTypeAndSummary(session: SessionState): { typeLabel: string; summary: string } {
+    const rawNotes = session.notes ?? '';
+    const legacyNoting = !session.meditationType && rawNotes === 'noting circle';
+    const type = session.meditationType ?? (legacyNoting ? 'noting' : undefined);
+    return {
+        typeLabel: type === 'noting' ? 'Noting circle' : type === 'exploration' ? 'Exploration' : '',
+        summary: legacyNoting ? '' : rawNotes,
+    };
+}
+
 function renderItem(session: SessionState): string {
     const dateText = formatDate(session.startTime);
     const durationText = formatDuration(session);
     const turnCount = session.exchanges.length;
-    const summary = session.notes ?? '';
+    const { typeLabel, summary } = sessionTypeAndSummary(session);
+    const meta =
+        `${durationText} · ${turnCount} exchanges` + (typeLabel ? ` · ${typeLabel}` : '');
 
     return `
     <div class="session-item" data-session-id="${attr(session.sessionId)}" data-summary="${attr(summary)}">
         <div class="session-item-header">
             <div class="session-item-info">
                 <span class="session-date">${escape(dateText)}</span>
-                <span class="session-meta">${escape(durationText)} · ${turnCount} exchanges</span>
+                <span class="session-meta">${escape(meta)}</span>
                 ${summary ? `<span class="session-summary">${escape(summary)}</span>` : ''}
             </div>
             <span class="session-expand">&#9662;</span>

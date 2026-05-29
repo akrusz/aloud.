@@ -17,6 +17,7 @@
 import {
     SessionManager,
     generateNotingLabel,
+    generateSessionSummary,
     NOTING_STATIC_OPENER,
 } from '../../../src/facilitation/index.js';
 import { OllamaProvider, type LLMProvider } from '../../../src/llm/index.js';
@@ -490,7 +491,16 @@ export async function mountNotingSessionView(
         const finalState = session.endSession();
         // Save if there's at least one user turn (skip empty/abandoned circles).
         if (!skipSave && finalState && finalState.exchanges.some((ex) => ex.role === 'user')) {
-            finalState.notes = 'noting circle';
+            finalState.meditationType = 'noting';
+            // Generate a real history summary like exploration sessions do
+            // (never throws — returns '' on failure). The circle's exchanges
+            // are short notes ("warmth", "tension"); the summarizer distils
+            // them into a one-line recap. Falls back to the intention.
+            setStatus('Saving session…');
+            const summary = await generateSessionSummary(provider, finalState.exchanges, {
+                onUsage: (u) => session.recordLlmUsage(u),
+            });
+            finalState.notes = summary || setup.intention.trim();
             try {
                 await sessionStore.save(finalState);
             } catch {

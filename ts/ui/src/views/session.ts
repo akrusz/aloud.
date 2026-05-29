@@ -1346,6 +1346,7 @@ export async function mountSessionView(
             } catch {
                 /* fall through to fallback */
             }
+            finalState.meditationType = 'exploration';
             finalState.notes = summary || setup.intention.trim();
             try {
                 await sessionStore.save(finalState);

@@ -75,6 +75,12 @@ export interface SessionState {
     exchanges: Exchange[];
     tags: string[];
     notes: string;
+    /**
+     * Which meditation flow produced this session. Optional for backward
+     * compatibility with sessions saved before this field existed; the
+     * history view falls back to inferring it from legacy `notes`.
+     */
+    meditationType?: 'exploration' | 'noting';
     /** Compute usage tally. Always present on sessions started by this code. */
     usage: SessionUsage;
 }
