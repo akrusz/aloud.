@@ -428,6 +428,7 @@ export async function mountSetupView(
             persist();
             void modelPicker.refresh(setup.provider);
             updateProviderHint();
+            updateBeginButton();
         });
         // Model picker — fetches /api/models/<provider> (Flask-backed),
         // falls back to a free-form text input when the endpoint isn't
@@ -468,6 +469,8 @@ export async function mountSetupView(
                 onBegin(setup, queued);
             })();
         });
+        // Initial gate state (recomputed once /providers status arrives).
+        updateBeginButton();
 
         // Continuation banner — shown when the history view has queued a
         // session for continuation. Matches Python's #continue-banner.
@@ -521,27 +524,91 @@ export async function mountSetupView(
     }
 
     /**
-     * Annotate provider <option>s with ✱ / ✘. Matches Python's
-     * setup.js applyProviderAvailability — ✱ means installed but not
-     * running (Ollama not started), ✘ means not configured at all (no
-     * API key, no install). Available providers get no marker.
+     * Whether the chosen flow needs a working LLM. Exploration always does;
+     * a noting circle only does if at least one participant is an AI (or it's
+     * a solo/empty circle, which falls back to an AI-led intro). Mirrors
+     * Python's setup.js needsLLM.
+     */
+    function needsLLM(): boolean {
+        if (setup.meditationType !== 'noting') return true;
+        const ps = setup.notingParticipants ?? [];
+        if (ps.length === 0) return true;
+        return ps.some((p) => p.type === 'llm');
+    }
+
+    /**
+     * Whether the currently selected provider is usable. Unknown status
+     * (e.g. the /providers probe failed) counts as available so we never
+     * block on missing information. Mirrors Python's providerAvailable.
+     */
+    function providerAvailable(): boolean {
+        const info = providerStatus?.[setup.provider];
+        return !info || info.available;
+    }
+
+    /**
+     * Disable "Begin session" when an LLM is needed but the selected provider
+     * isn't available, so a user with (say) Ollama stopped sees a blocked
+     * button instead of a session that dies on the first turn. Mirrors
+     * Python's updateBeginButton.
+     */
+    function updateBeginButton(): void {
+        const beginBtn = root.querySelector<HTMLButtonElement>('#begin-btn');
+        if (!beginBtn) return;
+        const disabled = needsLLM() && !providerAvailable();
+        beginBtn.disabled = disabled;
+        beginBtn.classList.toggle('btn-disabled', disabled);
+    }
+
+    /**
+     * Annotate provider <option>s with ✱ / ✘, reorder available-first, float
+     * claude_proxy to the top when it's working, and auto-select the saved
+     * provider if available (else the first available one). ✱ means installed
+     * but not running (Ollama stopped), ✘ means not configured at all. Mirrors
+     * Python's setup.js applyProviderAvailability.
      */
     function applyProviderIndicators(): void {
         const providerSel = root.querySelector<HTMLSelectElement>('#provider');
         if (!providerSel || !providerStatus) return;
+        const available: HTMLOptionElement[] = [];
+        const unavailable: HTMLOptionElement[] = [];
         for (const opt of Array.from(providerSel.options)) {
             const info = providerStatus[opt.value];
             opt.textContent = (opt.textContent ?? '').replace(/ [✘✱]$/, '');
             opt.classList.remove('provider-unavailable');
             if (info && !info.available) {
                 if (info.installed) {
+                    // Installed but not running — still selectable; sorts with
+                    // the available group under a subtle marker.
                     opt.textContent += ' ✱';
+                    available.push(opt);
                 } else {
                     opt.classList.add('provider-unavailable');
                     opt.textContent += ' ✘';
+                    unavailable.push(opt);
                 }
+            } else {
+                available.push(opt);
             }
         }
+        available.sort((a, b) => (a.value === 'claude_proxy' ? -1 : b.value === 'claude_proxy' ? 1 : 0));
+        for (const opt of [...available, ...unavailable]) providerSel.appendChild(opt);
+
+        // Prefer the persisted provider when it's available, else the first
+        // available one, so a fresh user isn't stranded on an unavailable
+        // default with no nudge toward a working one.
+        const savedAvailable = available.some((o) => o.value === setup.provider);
+        const target = savedAvailable ? setup.provider : (available[0]?.value ?? setup.provider);
+        if (target !== setup.provider) {
+            // Auto-switch to an available provider; reuse the select's change
+            // handler so the model picker, hint, and begin gate all refresh.
+            providerSel.value = target;
+            providerSel.dispatchEvent(new Event('change'));
+            return;
+        }
+        if (providerSel.value !== target) providerSel.value = target;
+        updateProviderHint();
+        updateBeginButton();
     }
 
     function updateProviderHint(): void {
@@ -567,6 +634,8 @@ export async function mountSetupView(
                 setup.meditationType = tab;
                 persist();
                 applyTabSelection(tab);
+                // Switching to/from noting changes whether an LLM is needed.
+                updateBeginButton();
             });
         });
     }
@@ -787,6 +856,8 @@ export async function mountSetupView(
             });
         });
         updateAddBtn();
+        // Participant edits (type/add/remove) can flip whether an LLM is needed.
+        updateBeginButton();
     }
 
     function updateAddBtn(): void {
