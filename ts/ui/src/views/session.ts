@@ -52,6 +52,7 @@ import {
     setRainbow,
 } from '../embers.js';
 import { initThemeToggle } from '../theme.js';
+import { showErrorToast } from '../toast.js';
 import { startMicMeter, type MicMeter } from '../mic-meter.js';
 import { isTauri } from '../is-desktop.js';
 import { acquireWakeLock, releaseWakeLock } from '../wakelock.js';
@@ -521,7 +522,10 @@ export async function mountSessionView(
             pacing.onResponseEnd();
         } catch (err) {
             hideTyping();
-            setStatus(`Error: ${(err as Error).message}`);
+            // A transient toast is more visible than the small status line,
+            // and the loop resumes listening so the session isn't wedged.
+            showErrorToast(`Something went wrong: ${(err as Error).message}`);
+            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
         } finally {
             busy = false;
         }
@@ -541,6 +545,10 @@ export async function mountSessionView(
     async function listenLoop(): Promise<void> {
         if (!stt || listenLoopRunning) return;
         listenLoopRunning = true;
+        // Toast a mic error only when it first appears (the loop re-checks
+        // every 2s) so a persistent fault doesn't spam toasts; reset on a
+        // successful capture so a later recurrence surfaces again.
+        let lastMicErrorToast: string | null = null;
         try {
             while (!torn && !muted) {
                 while ((busy || voiceModalOpen) && !torn && !muted) {
@@ -585,9 +593,14 @@ export async function mountSessionView(
                 if (voiceModalOpen) continue;
 
                 if (finalText.trim()) {
+                    lastMicErrorToast = null;
                     await respondTo(finalText.trim());
                 } else if (micError) {
                     setStatus(micError);
+                    if (micError !== lastMicErrorToast) {
+                        showErrorToast(micError);
+                        lastMicErrorToast = micError;
+                    }
                     // Brief backoff so a broken mic doesn't tight-loop us.
                     await new Promise<void>((r) => setTimeout(r, 2000));
                 }
