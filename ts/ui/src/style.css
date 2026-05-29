@@ -87,6 +87,28 @@
     }
 }
 
+/* TTS settings row: the ElevenLabs key row sits between the engine selector
+   and the voice picker (you need a key before voices are useful). The row
+   wraps, and the key row is full-width — so when it's visible it pushes the
+   voice picker onto its own line below the key, and when it's hidden the
+   engine + voices stay side by side as before. (meditation-pal-679) */
+.form-row-tts {
+    flex-wrap: wrap;
+}
+.form-row-tts > .form-group-fullrow {
+    flex: 1 1 100%;
+}
+
+/* Display section's own commit button. Text scale + theme are preview-only
+   until applied (live-resizing mid-drag is disorienting), unlike the rest of
+   settings which auto-apply. Sits below the controls + preview. (odw) */
+.display-apply-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
 /* The TS SPA mounts views into #app-root, an extra wrapper between .main
    and the view that the Flask MPA didn't have. The lifted session layout
    pins .input-area to the bottom by making .session-container flex:1 inside

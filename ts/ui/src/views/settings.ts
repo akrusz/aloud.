@@ -72,19 +72,55 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
     await detectCapabilities();
     let scoredVoices: ScoredVoice[] = [];
 
-    // Pending chrome state — text scale + theme apply only to the
-    // preview pane until Save is clicked. The rest of the controls
-    // persist on change (provider/key entry, pacing knobs, etc.) to
-    // match the "auto-save settings" feel for everything that isn't
-    // visually disruptive.
+    // Every control auto-applies on change (provider, voice, language, pacing…)
+    // — there's no global Save. The one exception is Display (text scale +
+    // theme): live-resizing the whole UI while you drag the slider is
+    // disorienting, so those apply only to the preview pane until you click the
+    // Display section's own "Apply" button. The bottom-bar button is "Undo",
+    // which reverts the whole settings object to how it was when this view was
+    // opened. (meditation-pal-odw)
     const pendingChrome = {
         textScale: settings.textScale,
         themeMode: settings.themeMode,
     };
-    let chromeDirty = false;
+
+    // Entry snapshot for Undo. Taken after loadAppSettings (settings' own
+    // loadVoiceCatalog doesn't mutate settings, unlike setup's), so it's a
+    // faithful "how things were when I arrived" baseline. API keys live in a
+    // separate store and are intentionally outside Undo's scope.
+    const baseline = JSON.stringify(settings);
 
     function persist(): void {
         void saveAppSettings(settings);
+        updateUndoState();
+    }
+
+    /** Has the live settings object drifted from the entry snapshot? */
+    function isUndoable(): boolean {
+        return JSON.stringify(settings) !== baseline;
+    }
+
+    /** Reflect Undo availability on the bottom-bar button + its dirty marker. */
+    function updateUndoState(): void {
+        const undoBtn = root.querySelector<HTMLButtonElement>('#s-undo');
+        const dot = root.querySelector<HTMLElement>('.btn-begin-dirty');
+        const dirty = isUndoable();
+        if (undoBtn) undoBtn.disabled = !dirty;
+        if (dot) dot.hidden = !dirty;
+    }
+
+    /** Are the Display controls showing an un-applied text-scale/theme change? */
+    function isDisplayDirty(): boolean {
+        return (
+            pendingChrome.textScale !== settings.textScale ||
+            pendingChrome.themeMode !== settings.themeMode
+        );
+    }
+
+    /** Enable the Display "Apply" button only when there's a pending change. */
+    function updateApplyDisplayState(): void {
+        const applyBtn = root.querySelector<HTMLButtonElement>('#s-apply-display');
+        if (applyBtn) applyBtn.disabled = !isDisplayDirty();
     }
 
     async function refresh(): Promise<void> {
@@ -710,16 +746,18 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
     // ---- Display -------------------------------------------------------
 
     function wireDisplaySection(): void {
-        // Text scale + theme are preview-only until Save: dragging the
-        // slider or changing the theme select updates the preview pane
-        // and the pending state, but the rest of the page keeps the
-        // last-saved values until the user commits via the Save button.
-        // Matches Python's settings.js — see syncPreview() at :513 and
-        // the textScale handler at :39.
+        // Text scale + theme are preview-only: dragging the slider or changing
+        // the theme select updates the preview pane and the pending state, but
+        // the live page only changes when the user clicks this section's
+        // "Apply" button (#s-apply-display). Applying the size change mid-drag
+        // would yank the whole UI around, so unlike every other setting these
+        // don't auto-apply.
         const textScale = root.querySelector<HTMLInputElement>('#s-text-scale')!;
         const textScaleLabel = root.querySelector<HTMLElement>('#s-text-scale-label')!;
         const previewInner = root.querySelector<HTMLElement>('#text-scale-preview-inner');
         const previewBox = root.querySelector<HTMLElement>('#text-scale-preview');
+        const applyBtn = root.querySelector<HTMLButtonElement>('#s-apply-display');
+        const appliedEl = root.querySelector<HTMLElement>('#display-applied');
         textScale.value = String(pendingChrome.textScale);
         textScaleLabel.textContent = `${Math.round(pendingChrome.textScale * 100)}%`;
         if (previewInner) {
@@ -731,7 +769,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             if (previewInner) {
                 previewInner.style.fontSize = `${18 * pendingChrome.textScale}px`;
             }
-            markChromeDirty();
+            updateApplyDisplayState();
         });
 
         const themeSel = root.querySelector<HTMLSelectElement>('#s-theme-mode')!;
@@ -747,8 +785,25 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
                     resolvePreviewTheme(pendingChrome.themeMode)
                 );
             }
-            markChromeDirty();
+            updateApplyDisplayState();
         });
+
+        // Apply commits the pending text-scale/theme to the live document and
+        // persists. After applying, there's nothing pending (button disables)
+        // but the settings now differ from the entry snapshot, so Undo lights
+        // up via persist() → updateUndoState().
+        applyBtn?.addEventListener('click', () => {
+            settings.textScale = pendingChrome.textScale;
+            settings.themeMode = pendingChrome.themeMode;
+            applyChromeSettings(settings);
+            persist();
+            updateApplyDisplayState();
+            if (appliedEl) {
+                appliedEl.classList.remove('hidden');
+                setTimeout(() => appliedEl.classList.add('hidden'), 1200);
+            }
+        });
+        updateApplyDisplayState();
     }
 
     function resolvePreviewTheme(mode: ThemeMode): 'dark' | 'light' {
@@ -758,12 +813,6 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
         const hour = new Date().getHours();
         return hour >= 7 && hour < 19 ? 'light' : 'dark';
-    }
-
-    function markChromeDirty(): void {
-        chromeDirty = true;
-        const dot = root.querySelector<HTMLElement>('.btn-begin-dirty');
-        if (dot) dot.hidden = false;
     }
 
     // ---- Pacing --------------------------------------------------------
@@ -870,28 +919,34 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
     // ---- Footer --------------------------------------------------------
 
     function wireFooter(): void {
-        // Save commits the pending chrome state (text scale + theme)
-        // into the live document — preview-only until this point so
-        // the user can audition without yanking the page layout.
-        // Other settings already persist on change.
-        const saveBtn = root.querySelector<HTMLButtonElement>('#s-save');
-        const savedEl = root.querySelector<HTMLElement>('#settings-saved');
-        const dirtyDot = root.querySelector<HTMLElement>('.btn-begin-dirty');
-        saveBtn?.addEventListener('click', (e) => {
+        // Everything auto-applies, so the bottom button is Undo: it reverts the
+        // whole settings object to the entry snapshot. Disabled when nothing
+        // has changed. (Display changes you've Applied are part of the snapshot
+        // diff and get reverted too; un-applied preview tweaks are reset as the
+        // view re-renders.)
+        const undoBtn = root.querySelector<HTMLButtonElement>('#s-undo');
+        const revertedEl = root.querySelector<HTMLElement>('#settings-saved');
+        undoBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            if (chromeDirty) {
-                settings.textScale = pendingChrome.textScale;
-                settings.themeMode = pendingChrome.themeMode;
-                applyChromeSettings(settings);
-                chromeDirty = false;
-                if (dirtyDot) dirtyDot.hidden = true;
+            if (!isUndoable()) return;
+            const restored = JSON.parse(baseline) as AppSettings;
+            Object.assign(settings, restored);
+            pendingChrome.textScale = settings.textScale;
+            pendingChrome.themeMode = settings.themeMode;
+            applyChromeSettings(settings);
+            void saveAppSettings(settings);
+            if (revertedEl) {
+                revertedEl.classList.remove('hidden');
+                setTimeout(() => revertedEl.classList.add('hidden'), 1200);
             }
-            persist();
-            if (savedEl) {
-                savedEl.classList.remove('hidden');
-                setTimeout(() => savedEl.classList.add('hidden'), 1200);
-            }
+            // Re-render from the restored settings so every control snaps back,
+            // then refresh the Undo/Apply states (now clean).
+            void refresh().then(() => {
+                updateUndoState();
+                updateApplyDisplayState();
+            });
         });
+        updateUndoState();
 
         // "Setup guide" — relaunches the onboarding tour. Same flow as
         // Python's settings.js btn-show-tour handler: reset the dismiss
@@ -1022,10 +1077,10 @@ function renderHTML(s: AppSettings): string {
 
     <div class="settings-footer">
         <div class="settings-footer-inner">
-            <button id="s-save" type="button" class="btn btn-primary btn-begin">
-                Save<span class="settings-word">&nbsp;Settings<span class="btn-begin-dirty" hidden>&nbsp;*</span></span>
+            <button id="s-undo" type="button" class="btn btn-secondary btn-begin" disabled>
+                Undo<span class="settings-word">&nbsp;Changes<span class="btn-begin-dirty" hidden>&nbsp;*</span></span>
             </button>
-            <span class="settings-saved hidden" id="settings-saved">Saved</span>
+            <span class="settings-saved hidden" id="settings-saved">Reverted</span>
             <div class="settings-footer-spacer"></div>
             <div class="settings-footer-secondary">
                 <button type="button" class="tour-show-btn" id="btn-show-tour">Setup guide</button>
@@ -1169,22 +1224,26 @@ function renderTtsSection(s: AppSettings): string {
             <p><strong>Browser</strong> — Uses your browser's speechSynthesis. No install needed.</p>
             <p><strong>ElevenLabs</strong> — Cloud TTS with the most natural voices. Requires an API key.</p>
         </div>
-        <div class="form-row">
+        <div class="form-row form-row-tts">
             <div class="form-group form-group-half">
-                <label for="s-tts-engine">TTS Engine</label>
+                <label for="s-tts-engine">Manage TTS Engines</label>
                 <select id="s-tts-engine" name="tts_engine">${opts}</select>
                 <span class="form-hint" id="s-tts-engine-hint"></span>
+            </div>
+            <!-- ElevenLabs needs a key before voices are useful, so the key row
+                 sits between the engine and the voice picker. It's full-width
+                 (.form-row-tts wraps), so when hidden the engine + voices stay
+                 side by side; when shown it pushes voices below the key. -->
+            <div class="form-group api-key-group form-group-fullrow hidden" id="s-elevenlabs-key-row">
+                <label for="s-elevenlabs-key">ElevenLabs API Key
+                    <span class="optional api-key-status"></span>
+                </label>
+                <input type="password" id="s-elevenlabs-key" placeholder="sk_..." autocomplete="off">
             </div>
             <div class="form-group form-group-half">
                 <label>Manage Voices</label>
                 <button type="button" id="s-voice-btn" class="setup-voice-btn">Choose voice</button>
             </div>
-        </div>
-        <div class="form-group api-key-group hidden" id="s-elevenlabs-key-row">
-            <label for="s-elevenlabs-key">ElevenLabs API Key
-                <span class="optional api-key-status"></span>
-            </label>
-            <input type="password" id="s-elevenlabs-key" placeholder="sk_..." autocomplete="off">
         </div>
     </section>`;
 }
@@ -1250,6 +1309,10 @@ function renderDisplaySection(s: AppSettings): string {
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="display-apply-row">
+            <button type="button" id="s-apply-display" class="btn btn-primary" disabled>Apply display changes</button>
+            <span class="settings-saved hidden" id="display-applied">Applied</span>
         </div>
     </section>`;
 }
