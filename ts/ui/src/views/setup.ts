@@ -1186,8 +1186,8 @@ function renderSetupHTML(byokOpts: ProviderAvailabilityOpts): string {
             <div class="form-group">
                 <label>Participants</label>
                 <div id="participant-list"></div>
-                <button type="button" id="add-participant-btn" class="btn btn-secondary btn-small" disabled
-                    title="Participant management coming with the noting circle port">+ Add participant</button>
+                <button type="button" id="add-participant-btn" class="btn btn-secondary btn-small"
+                    title="Add another participant to the noting circle (up to 4)">+ Add participant</button>
             </div>
 
             <div class="noting-option-row">
