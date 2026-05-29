@@ -527,7 +527,9 @@ export async function mountSessionView(
             hideTyping();
             // A transient toast is more visible than the small status line,
             // and the loop resumes listening so the session isn't wedged.
-            showErrorToast(`Something went wrong: ${(err as Error).message}`);
+            // Hosted credit/auth failures get a clear, actionable message.
+            const msg = (err as Error).message;
+            showErrorToast(describeHostedError(msg) ?? `Something went wrong: ${msg}`);
             setStatus(stt ? 'Listening…' : 'Ready — type to continue');
         } finally {
             busy = false;
@@ -1175,8 +1177,37 @@ function stripVoicePrefix(voice: string | null): string | null {
     return m ? (m[2] ?? null) : voice;
 }
 
+/**
+ * Map an error from the hosted ('aloud') server to a clear, actionable
+ * message. On the hosted provider the whole pipeline (LLM, STT, TTS) runs
+ * against the credit-metered server, which returns structured errors
+ * ({error:{code}}, see ts/server/src/contract.ts) — but by the time they reach
+ * the client they're flattened to a status + message string, so we match on
+ * both the code names and the embedded HTTP status. Returns null when the error
+ * isn't a recognized hosted condition, so callers keep their own phrasing.
+ */
+function describeHostedError(msg: string): string | null {
+    if (/insufficient_credits|out of credits|endpoint 402/i.test(msg)) {
+        return "You're out of aloud credits — the hosted voice (aloud) provider powers the LLM, speech, and transcription, and they all need credits. Switch to a local provider like Ollama in Settings, or add credits.";
+    }
+    if (/unauthenticated|endpoint 401/i.test(msg)) {
+        return 'aloud (hosted) needs you to sign in again — check Settings.';
+    }
+    if (/email_unverified|endpoint 403/i.test(msg)) {
+        return 'Verify your email to use aloud (hosted), then try again.';
+    }
+    if (/quota_exceeded|endpoint 429/i.test(msg)) {
+        return "You've hit aloud's rate limit — wait a moment and try again.";
+    }
+    return null;
+}
+
 function describeSttError(err: unknown): string {
     const msg = err instanceof Error ? err.message : String(err);
+    // Hosted (aloud) conditions — credits / auth — get a clear, actionable line
+    // instead of a raw "Whisper endpoint 402: {json}".
+    const hosted = describeHostedError(msg);
+    if (hosted) return hosted;
     // Common cases that benefit from plain-English status text.
     if (/Whisper endpoint 5\d\d/.test(msg) || /failed to fetch/i.test(msg)) {
         return 'Speech-recognition backend unreachable — check your connection, or type to continue.';
