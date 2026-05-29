@@ -38,7 +38,7 @@ const SPECULATIVE_SILENCE_MS = 500;
 // detection flipping capture on — the onset is lost in that window otherwise.
 // Bigger = more onset captured (and more harmless leading near-silence sent to
 // Whisper); smaller = tighter. Raise this number if words still get clipped.
-const PRE_BUFFER_MS = 1400;
+const PRE_BUFFER_MS = 2000;
 
 /** The subset of PacingConfig fields the VAD here cares about. */
 type VadFields = Pick<
@@ -222,6 +222,22 @@ export class ServerWhisperSttEngine implements SttEngine {
         if (!this.context || this.context.state === 'closed') {
             this.teardownGraph();
             this.context = new AC();
+            // Keep the context running for its whole lifetime. It stays alive
+            // BETWEEN turns (while the facilitator's TTS plays) to fill the
+            // onset pre-buffer — but the OS/browser can suspend it during that
+            // idle window (backgrounding, autoplay policy, audio-focus loss).
+            // If it does, the ScriptProcessor stops firing, the pre-buffer goes
+            // stale, and a barge-in's first word is lost. Re-resume on any
+            // suspend until we explicitly stop().
+            this.context.addEventListener('statechange', () => {
+                if (
+                    !this.stopRequested &&
+                    this.context &&
+                    this.context.state === 'suspended'
+                ) {
+                    this.context.resume().catch(() => {});
+                }
+            });
         }
         // Autoplay policies can leave the context suspended; resume so the
         // ScriptProcessor actually receives audio.
