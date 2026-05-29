@@ -173,7 +173,7 @@ export async function generateNotingLabel(
               : NOTING_LABEL_REACTIVE_NONE;
 
     const messages: Message[] = [
-        { role: 'user', content: 'Your turn. Note what you notice.' },
+        { role: 'user', content: 'Your turn. Say something you notice now, 1-2 words.' },
     ];
 
     try {

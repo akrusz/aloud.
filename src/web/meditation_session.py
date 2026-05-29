@@ -339,7 +339,7 @@ class WebMeditationSession:
 
         try:
             result = await self.llm.complete(
-                messages=[Message(role="user", content="Your turn. Note what you notice.")],
+                messages=[Message(role="user", content="Your turn. Say something you notice now, 1-2 words.")],
                 system=system,
                 max_tokens=20,
             )

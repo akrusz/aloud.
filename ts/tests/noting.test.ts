@@ -30,7 +30,7 @@ describe('generateNotingLabel', () => {
         const provider = new StubProvider('warmth');
         await generateNotingLabel(provider);
         expect(provider.seenMessages).toEqual([
-            { role: 'user', content: 'Your turn. Note what you notice.' },
+            { role: 'user', content: 'Your turn. Say something you notice now, 1-2 words.' },
         ]);
     });
 
