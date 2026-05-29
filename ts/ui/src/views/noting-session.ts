@@ -93,7 +93,7 @@ export async function mountNotingSessionView(
         <div class="session-container">
             <div class="conversation" id="conversation"></div>
             <div class="input-area">
-                <div class="input-row">
+                <div class="input-row input-row-solo">
                     <div id="voice-status" class="voice-status">Starting…</div>
                     <button id="voice-btn" class="btn btn-voice active" title="Toggle microphone" aria-label="Toggle microphone">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">

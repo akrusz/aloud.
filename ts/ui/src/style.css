@@ -57,6 +57,29 @@
     font-family: 'Knewave', cursive;
 }
 
+@media (max-width: 767px) {
+    /* Noting's control row has a single mic button. The imported mobile rule
+       gives .voice-status flex:1 1 100% and wraps the row (built for
+       exploration's multi-button second row), which strands the lone mic
+       button on its own line. Keep status + mic on one row, mic to the right. */
+    .input-row.input-row-solo {
+        flex-wrap: nowrap;
+    }
+    .input-row.input-row-solo .voice-status {
+        flex: 1 1 auto;
+    }
+
+    /* The mobile top bar is a transparent floating header with
+       pointer-events:none so it doesn't block content scrolling beneath it —
+       which also means only the brand/orb (pointer-events:auto) can drag the
+       window. During a session the content sits below the header (padding-top),
+       so re-enable the whole strip as a drag region (tauri-chrome listens on
+       .nav). Non-session pages keep the click-through behavior. */
+    body[data-session-active] .nav {
+        pointer-events: auto;
+    }
+}
+
 /* The TS SPA mounts views into #app-root, an extra wrapper between .main
    and the view that the Flask MPA didn't have. The lifted session layout
    pins .input-area to the bottom by making .session-container flex:1 inside
