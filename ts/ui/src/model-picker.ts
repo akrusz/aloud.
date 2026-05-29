@@ -13,6 +13,7 @@
 import { cloudUrl } from './cloud-base.js';
 import { appUrl } from './app-base.js';
 import { getApiKey } from './api-keys.js';
+import { probeOllamaDirect } from './ollama-direct.js';
 import type { Provider } from './settings.js';
 
 interface ModelOption {
@@ -52,16 +53,17 @@ export async function fetchModels(provider: string): Promise<ModelOption[] | nul
         }
     }
 
-    // Ollama models come from /api/providers, not /api/models — same
-    // shape as the Python setup.js handling.
+    // Ollama models come from /api/providers (the app backend's aggregated,
+    // curated list) — same shape as the Python setup.js handling. When that
+    // backend isn't running (e.g. Vite dev without Flask), fall back to probing
+    // the Ollama daemon directly via the /ollama proxy, the same source
+    // capabilities.ts trusts, so local models still populate without Flask.
     if (provider === 'ollama') {
         const status = await fetchProviderStatus();
-        const ollamaInfo = status?.['ollama'];
-        if (!ollamaInfo?.models?.length) return null;
-        const opts: ModelOption[] = ollamaInfo.models.map((m: string) => ({
-            value: m,
-            label: m,
-        }));
+        const fromBackend = status?.['ollama']?.models ?? [];
+        const names = fromBackend.length ? fromBackend : (await probeOllamaDirect()).models;
+        if (!names.length) return null;
+        const opts: ModelOption[] = names.map((m: string) => ({ value: m, label: m }));
         cache.set(provider, opts);
         return opts;
     }
@@ -159,12 +161,27 @@ export function mountModelPicker(
         });
     }
 
+    /**
+     * Ollama-specific empty state. Unlike BYOK providers — where a hand-typed
+     * model name is the legitimate fallback — typing a model name when no local
+     * model is present is useless: the daemon has nothing to run. So show a
+     * pointer to the Ollama manager below instead of a dead text box.
+     */
+    function renderOllamaEmpty(): void {
+        container.innerHTML = `
+            <p class="ollama-rec-hint" id="model-ollama-empty">
+                No local models found — install Ollama and download a model below.
+            </p>`;
+    }
+
     async function refresh(provider: string): Promise<void> {
         container.innerHTML = `
             <select disabled><option>Loading models…</option></select>`;
         const models = await fetchModels(provider);
         if (models && models.length > 0) {
             renderSelect(provider, models);
+        } else if (provider === 'ollama') {
+            renderOllamaEmpty();
         } else {
             renderTextInput(provider);
         }

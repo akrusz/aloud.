@@ -14,6 +14,7 @@
  */
 
 import { appUrl } from './app-base.js';
+import { probeOllamaDirect } from './ollama-direct.js';
 import { confirmDialog, alertDialog } from './dialog.js';
 
 interface Tier {
@@ -85,8 +86,23 @@ export function mountOllamaSettings(
                 info = data.ollama ?? {};
             }
         } catch {
-            // Backend unreachable — leave the section empty; the model picker
-            // and provider hint elsewhere will surface a real error if needed.
+            // Backend unreachable — fall through to the direct probe below.
+        }
+        // If the app backend didn't report Ollama state (not running in dev, or
+        // it errored), probe the daemon directly so a running Ollama shows its
+        // real installed state instead of a misleading "Install Ollama" button.
+        // The curated tier recommendations still require the backend, so we say
+        // so rather than pretending to offer them.
+        if (!info.installed && !info.version && !info.recommendation) {
+            const direct = await probeOllamaDirect();
+            if (direct.installed) {
+                info = {
+                    installed: true,
+                    version: direct.version,
+                    models: direct.models,
+                    hint: 'Ollama is running. Start the app backend to manage models and see size recommendations.',
+                };
+            }
         }
         el.classList.remove('hidden');
         el.innerHTML = renderHTML(info);
