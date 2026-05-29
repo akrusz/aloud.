@@ -31,6 +31,12 @@ import {
 } from '../adapters/stt-picker.js';
 import { sessionStore } from '../state.js';
 import { initThemeToggle } from '../theme.js';
+import {
+    mountEmberContainer,
+    unmountEmberContainer,
+    wireEmberControls,
+} from '../embers.js';
+import { initKasinaMode } from '../kasina.js';
 import type { SessionSetup, NotingParticipantConfig } from '../settings.js';
 
 export interface NotingSessionViewHandle {
@@ -93,8 +99,17 @@ export async function mountNotingSessionView(
         <div class="session-container">
             <div class="conversation" id="conversation"></div>
             <div class="input-area">
-                <div class="input-row input-row-solo">
+                <div class="input-row">
                     <div id="voice-status" class="voice-status">Starting…</div>
+                    <span class="session-timer" id="timer">0:00</span>
+                    <button id="tts-toggle" class="btn btn-tts active" title="Read notes aloud" aria-label="Toggle text-to-speech">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path class="tts-waves" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path class="tts-waves" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                            <line class="mute-line" x1="3" y1="3" x2="21" y2="21"></line>
+                        </svg>
+                    </button>
                     <button id="voice-btn" class="btn btn-voice active" title="Toggle microphone" aria-label="Toggle microphone">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
@@ -105,8 +120,27 @@ export async function mountNotingSessionView(
                         </svg>
                     </button>
                 </div>
+                <div class="input-controls">
+                    <div class="ember-level" title="Floating ember particles">
+                        <span class="toggle-text">Embers</span>
+                        <button class="ember-btn" id="ember-minus" type="button">−</button>
+                        <div class="ember-blocks" id="ember-blocks">
+                            <span class="ember-block filled" data-level="1"></span>
+                            <span class="ember-block" data-level="2"></span>
+                            <span class="ember-block" data-level="3"></span>
+                            <span class="ember-block" data-level="4"></span>
+                        </div>
+                        <button class="ember-btn" id="ember-plus" type="button">+</button>
+                    </div>
+                    <label class="toggle-label" title="Kasina gazing mode">
+                        <input type="checkbox" id="kasina-toggle">
+                        <span class="toggle-text">Kasina</span>
+                    </label>
+                </div>
             </div>
         </div>
+
+        <div class="ember-container" id="ember-container"></div>
 
         <div class="session-ended-overlay hidden" id="session-confirm">
             <div class="session-ended-content">
@@ -122,7 +156,51 @@ export async function mountNotingSessionView(
     const conversation = root.querySelector<HTMLElement>('#conversation')!;
     const statusEl = root.querySelector<HTMLElement>('#voice-status')!;
     const micBtn = root.querySelector<HTMLButtonElement>('#voice-btn')!;
+    const ttsToggle = root.querySelector<HTMLButtonElement>('#tts-toggle')!;
+    const timerEl = root.querySelector<HTMLElement>('#timer')!;
+    const kasinaToggle = root.querySelector<HTMLInputElement>('#kasina-toggle')!;
     const orbEl = document.getElementById('orb');
+
+    // Whether notes are read aloud. Starts on (button has .active); the
+    // TTS-toggle gates speakVia so the user can silence the circle's voices
+    // without muting their own mic. Mirrors exploration's tts-toggle.
+    let ttsEnabled = true;
+
+    // Session timer — counts since mount, formatted m:ss or h:mm:ss. Same as
+    // exploration's updateTimer.
+    const sessionStartMs = Date.now();
+    function updateTimer(): void {
+        const elapsed = Math.floor((Date.now() - sessionStartMs) / 1000);
+        const h = Math.floor(elapsed / 3600);
+        const m = Math.floor((elapsed % 3600) / 60);
+        const s = elapsed % 60;
+        const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
+        timerEl.textContent = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+    }
+    updateTimer();
+    const timerInterval = setInterval(updateTimer, 1000);
+
+    // Floating embers + kasina gazing, both shared with exploration. The
+    // document-level kasina listeners (drag, outside-click) and the
+    // beforeunload guard are tied to viewCleanup so they detach on teardown.
+    const viewCleanup = new AbortController();
+    window.addEventListener(
+        'beforeunload',
+        (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        },
+        { signal: viewCleanup.signal }
+    );
+    mountEmberContainer();
+    wireEmberControls(root);
+    ttsToggle.addEventListener('click', () => {
+        ttsEnabled = !ttsEnabled;
+        ttsToggle.classList.toggle('active', ttsEnabled);
+    });
+    if (orbEl) {
+        initKasinaMode({ orb: orbEl, root, toggle: kasinaToggle, signal: viewCleanup.signal });
+    }
 
     function setStatus(text: string): void {
         statusEl.textContent = text;
@@ -325,6 +403,9 @@ export async function mountNotingSessionView(
     }
 
     async function speakVia(voiceId: string | null, text: string): Promise<void> {
+        // Honor the TTS toggle — when off, the circle runs silently (labels
+        // still appear in the transcript and turns still advance).
+        if (!ttsEnabled) return;
         try {
             const tts = await ttsFor(voiceId);
             await tts.speak(text, { rate: setup.ttsRate });
@@ -496,9 +577,21 @@ export async function mountNotingSessionView(
         torn = true;
         paused = true;
         clearWait();
+        clearInterval(timerInterval);
         void stt?.stop();
         if (provider instanceof OllamaProvider) void provider.relaxKeepAlive();
         if (audioCtx && audioCtx.state !== 'closed') void audioCtx.close().catch(() => {});
+        // Drop the ember container — embers are session-only.
+        unmountEmberContainer();
+        // Exit kasina if active so the toggle's exit branch restores the theme
+        // and returns the orb to the nav before we clear it (rather than
+        // orphaning it in <body>).
+        if (kasinaToggle.checked) {
+            kasinaToggle.checked = false;
+            kasinaToggle.dispatchEvent(new Event('change'));
+        }
+        // Remove the window/document-level listeners (kasina drag, beforeunload).
+        viewCleanup.abort();
         const finalState = session.endSession();
         // Save if there's at least one user turn (skip empty/abandoned circles).
         if (!skipSave && finalState && finalState.exchanges.some((ex) => ex.role === 'user')) {
