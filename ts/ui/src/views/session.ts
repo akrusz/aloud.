@@ -1188,7 +1188,7 @@ function stripVoicePrefix(voice: string | null): string | null {
  */
 function describeHostedError(msg: string): string | null {
     if (/insufficient_credits|out of credits|endpoint 402/i.test(msg)) {
-        return "You're out of aloud credits — the hosted voice (aloud) provider powers the LLM, speech, and transcription, and they all need credits. Switch to a local provider like Ollama in Settings, or add credits.";
+        return 'aloud (hosted) requires credits — purchase more, or choose a different provider in Settings.';
     }
     if (/unauthenticated|endpoint 401/i.test(msg)) {
         return 'aloud (hosted) needs you to sign in again — check Settings.';
