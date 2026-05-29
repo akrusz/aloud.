@@ -14,6 +14,7 @@
  */
 
 import { appUrl } from './app-base.js';
+import { confirmDialog, alertDialog } from './dialog.js';
 
 interface Tier {
     model: string;
@@ -212,9 +213,10 @@ export function mountOllamaSettings(
         const model = btn.dataset['model'];
         if (!model) return;
         if (
-            !confirm(
-                `Remove ${model}?\n\nThis will delete the model from disk. You can re-download it later.`
-            )
+            !(await confirmDialog(
+                `Remove ${model}?\n\nThis will delete the model from disk. You can re-download it later.`,
+                { okLabel: 'Remove', danger: true }
+            ))
         ) {
             return;
         }
@@ -236,7 +238,7 @@ export function mountOllamaSettings(
         } catch (err) {
             btn.disabled = false;
             btn.textContent = originalText ?? 'Remove';
-            alert(`Failed to remove model: ${(err as Error).message}`);
+            void alertDialog(`Failed to remove model: ${(err as Error).message}`);
         }
     }
 

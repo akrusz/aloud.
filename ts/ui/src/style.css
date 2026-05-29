@@ -18,6 +18,39 @@
    TS-preview-only additions
    ============================================ */
 
+/* In-app confirm/alert dialogs (ui/src/dialog.ts) — replace
+   window.confirm()/alert(), which silently no-op in the Tauri webview. */
+.app-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.45);
+}
+.app-dialog {
+    width: 100%;
+    max-width: 24rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-card, #fff);
+    color: var(--text-primary, #1a1a1a);
+    border: 1px solid var(--border, #ccc);
+    border-radius: var(--radius, 12px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+.app-dialog-message {
+    margin: 0 0 1.25rem;
+    line-height: 1.45;
+    white-space: pre-line;
+}
+.app-dialog-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
 /* The TS SPA mounts views into #app-root, an extra wrapper between .main
    and the view that the Flask MPA didn't have. The lifted session layout
    pins .input-area to the bottom by making .session-container flex:1 inside

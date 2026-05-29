@@ -48,6 +48,7 @@ import { sessionStore } from '../state.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
 import { isHostedBuild } from '../cloud-base.js';
 import { appUrl } from '../app-base.js';
+import { alertDialog } from '../dialog.js';
 import { loadAppSettings } from '../app-settings.js';
 import {
     autoStart as autoStartGuide,
@@ -276,7 +277,7 @@ export async function mountSetupView(
                         downloadBtn.disabled = false;
                         downloadBtn.textContent = original ?? 'Download';
                         setModelDownloadsDisabled(listEl, model, false, downloadBtn);
-                        alert(`Could not download: ${(err as Error).message}`);
+                        void alertDialog(`Could not download: ${(err as Error).message}`);
                         return;
                     }
                     invalidateServerVoicesCache();

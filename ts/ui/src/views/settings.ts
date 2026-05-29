@@ -58,6 +58,7 @@ import {
     type ScoredVoice,
 } from '../voice-picker.js';
 import { resetAndStart as resetSettingsTour } from '../tour/settings-tour.js';
+import { confirmDialog, alertDialog } from '../dialog.js';
 
 export interface SettingsViewHandle {
     show(): Promise<void>;
@@ -539,7 +540,8 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         name: string,
         engine: string | undefined
     ): Promise<void> {
-        if (!confirm(`Uninstall the voice "${name}"?`)) return;
+        if (!(await confirmDialog(`Uninstall the voice "${name}"?`, { okLabel: 'Uninstall', danger: true })))
+            return;
         const original = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Removing…';
@@ -548,7 +550,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         } catch (err) {
             btn.disabled = false;
             btn.textContent = original ?? 'Uninstall';
-            alert(`Could not uninstall: ${(err as Error).message}`);
+            void alertDialog(`Could not uninstall: ${(err as Error).message}`);
             return;
         }
         // Drop the cached /api/voices response so the re-fetch sees
@@ -582,7 +584,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             btn.disabled = false;
             btn.textContent = original ?? 'Download';
             if (listEl) setModelDownloadsDisabled(listEl, model, false, btn);
-            alert(`Could not download: ${(err as Error).message}`);
+            void alertDialog(`Could not download: ${(err as Error).message}`);
             return;
         }
         await refreshVoiceList();

@@ -12,6 +12,7 @@
 import type { SessionState, Exchange } from '../../../src/facilitation/index.js';
 import { sessionStore } from '../state.js';
 import { appUrl } from '../app-base.js';
+import { confirmDialog } from '../dialog.js';
 
 export interface HistoryViewHandle {
     show(): Promise<void>;
@@ -70,7 +71,8 @@ export async function mountHistoryView(
             const deleteBtn = item.querySelector<HTMLButtonElement>('.btn-delete');
             deleteBtn?.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (!confirm('Delete this session permanently?')) return;
+                if (!(await confirmDialog('Delete this session permanently?', { okLabel: 'Delete', danger: true })))
+                    return;
                 await sessionStore.delete(session.sessionId);
                 // Fade-out animation, then re-render so other rows don't
                 // jump.
