@@ -992,6 +992,12 @@ export async function mountSetupView(
                 );
             });
         }
+        const cueSoundPreview = root.querySelector<HTMLButtonElement>('#user-turn-cue-sound-preview');
+        if (cueSoundPreview) {
+            cueSoundPreview.addEventListener('click', () => {
+                previewSoundOrChime(setup.notingUserTurnCueSound ?? 'chime');
+            });
+        }
         const addBtn = root.querySelector<HTMLButtonElement>('#add-participant-btn');
         if (addBtn) {
             addBtn.addEventListener('click', () => {
@@ -1196,6 +1202,7 @@ function renderSetupHTML(byokOpts: ProviderAvailabilityOpts): string {
                     <span>Play a sound when it's your turn</span>
                 </label>
                 <button type="button" id="user-turn-cue-sound-btn" class="btn btn-secondary btn-small sound-pick-btn" data-sound="chime">Chime</button>
+                <button type="button" id="user-turn-cue-sound-preview" class="participant-sound-preview btn btn-secondary btn-small" title="Play sound">&#9654;</button>
             </div>
         </div>
 
