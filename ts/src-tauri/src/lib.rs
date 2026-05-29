@@ -16,6 +16,11 @@ pub fn run() {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
             .level(log::LevelFilter::Info)
+            // ONNX Runtime (pulled in by piper-rs) logs a wall of INFO lines
+            // ("Reserving memory in BFCArena…", "Done saving initialized
+            // tensors", …) on every Piper synth. Quiet it to warnings+ while
+            // keeping our own Info logs.
+            .level_for("ort", log::LevelFilter::Warn)
             .build(),
         )?;
       }
