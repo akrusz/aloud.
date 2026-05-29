@@ -749,12 +749,6 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             }
             markChromeDirty();
         });
-
-        // Window mode is a desktop-shell concern and stays disabled until that
-        // ships. (The frameless toggle was removed — the Tauri shell is always
-        // frameless-with-native-controls; there's nothing to toggle.)
-        const windowMode = root.querySelector<HTMLSelectElement>('#s-window-mode');
-        if (windowMode) windowMode.disabled = true;
     }
 
     function resolvePreviewTheme(mode: ThemeMode): 'dark' | 'light' {
@@ -1222,16 +1216,6 @@ function renderDisplaySection(s: AppSettings): string {
                 <div class="form-group">
                     <label for="s-theme-mode">Theme</label>
                     <select id="s-theme-mode">${themeOpts}</select>
-                </div>
-                <div class="form-group">
-                    <label for="s-window-mode">Window Mode</label>
-                    <select id="s-window-mode" disabled>
-                        <option value="remember">Remember last size</option>
-                        <option value="fullscreen">Full screen</option>
-                        <option value="maximized">Maximized</option>
-                        <option value="small">Small</option>
-                    </select>
-                    <span class="form-hint">Window options take effect on next launch</span>
                 </div>
             </div>
             <div class="display-preview">
