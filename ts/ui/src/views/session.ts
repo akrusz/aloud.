@@ -408,18 +408,12 @@ export async function mountSessionView(
         micBtn.disabled = true;
         micBtn.classList.add('disabled');
         const hint =
-            'No mic backend available. Start Flask in another terminal (uv run python -m src.web) ' +
-            'or open the preview in Chrome/Edge for Web Speech.';
+            'No microphone available — try Chrome or Edge for built-in speech ' +
+            'recognition, or check your microphone permissions. You can also type to continue.';
         micBtn.title = hint;
         setStatus('Mic unavailable');
     } else {
-        const label =
-            sttBackend === 'capacitor'
-                ? 'native STT'
-                : sttBackend === 'web-speech'
-                  ? 'Web Speech'
-                  : 'server Whisper';
-        setStatus(`Listening (${label})`);
+        setStatus('Listening…');
     }
 
     function insertDivider(text: string): void {
@@ -687,7 +681,7 @@ export async function mountSessionView(
             listenBtn.classList.add('active');
             pacing.enterSilenceMode();
             setOrbHolding(true);
-            setStatus("Holding space — say 'I'm ready' to resume");
+            setStatus('Holding space — anything you say resumes');
         }
     });
 
@@ -1396,7 +1390,7 @@ function describeSttError(err: unknown): string {
     const msg = err instanceof Error ? err.message : String(err);
     // Common cases that benefit from plain-English status text.
     if (/Whisper endpoint 5\d\d/.test(msg) || /failed to fetch/i.test(msg)) {
-        return 'Mic backend unreachable. Is Flask running? (uv run python -m src.web)';
+        return 'Speech-recognition backend unreachable — check your connection, or type to continue.';
     }
     if (/Whisper endpoint 503/.test(msg)) {
         return 'Whisper model still loading — try again in a moment.';
@@ -1440,7 +1434,7 @@ function renderSessionHTML(): string {
                     </svg>
                 </button>
                 <button id="listen-btn" class="btn btn-listen"
-                    title="Hold space — your words are saved but not sent. Say something like 'I'm ready' to resume.">
+                    title="Hold space — the facilitator stays quiet. Anything you say resumes the conversation.">
                     Just Listen
                 </button>
             </div>

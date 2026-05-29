@@ -27,6 +27,7 @@ import {
     type ThemeMode,
     type TtsEngineChoice,
     DEFAULT_APP_SETTINGS,
+    LANGUAGES,
     applyChromeSettings,
     loadAppSettings,
     saveAppSettings,
@@ -1100,18 +1101,7 @@ function renderProviderSection(s: AppSettings): string {
 }
 
 function renderLanguageSection(s: AppSettings): string {
-    const LANGS: ReadonlyArray<[string, string]> = [
-        ['en', 'English'],
-        ['es', 'Español'],
-        ['fr', 'Français'],
-        ['de', 'Deutsch'],
-        ['it', 'Italiano'],
-        ['pt', 'Português'],
-        ['ja', '日本語'],
-        ['zh', '中文'],
-        ['ko', '한국어'],
-    ];
-    const langOptions = LANGS.map(
+    const langOptions = LANGUAGES.map(
         ([v, label]) =>
             `<option value="${v}"${v === s.language ? ' selected' : ''}>${escape(label)}</option>`
     ).join('');
