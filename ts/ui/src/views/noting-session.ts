@@ -306,6 +306,10 @@ export async function mountNotingSessionView(
                 recentLabels.push(note);
                 session.addUserMessage(note, 'You');
                 appendMessage('user', note, 'You');
+                // Clear the "Your turn" prompt immediately — otherwise it
+                // lingers through the next participant's breathing delay,
+                // reading as "still my turn" after the note is already shown.
+                setStatus('');
                 scheduleNextTurn(500);
                 return;
             }
