@@ -54,7 +54,14 @@ export class BargeInListener {
             return; // no mic API — silently disabled
         }
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // echoCancellation keeps the facilitator's own TTS (coming out the
+            // speakers) from leaking into this mic and falsely tripping a
+            // barge-in — the facilitator interrupting itself. The old app set
+            // this on its capture stream; the default {audio:true} doesn't
+            // guarantee it, especially in a WebView.
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true },
+            });
         } catch {
             return; // mic access denied — silently disabled, TTS plays normally
         }
