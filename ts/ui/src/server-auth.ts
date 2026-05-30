@@ -20,7 +20,7 @@ const TOKEN_KEY = 'server:token';
 
 /** Shape mirrors the server's AuthResponse (ts/server/src/contract.ts).
  *  Hand-mirrored until the shared @aloud/contract package lands. */
-interface AuthResponse {
+export interface AuthResponse {
     token: string;
     isNewAccount: boolean;
     account: { id: string; email: string; emailVerified: boolean; creditsRemaining: number };
@@ -47,6 +47,29 @@ export function setServerAuthFetch(impl: typeof fetch): void {
     fetchImpl = impl;
 }
 
+/** The configured Google OAuth web client id, or '' when unset. Build-time
+ *  fact (Vite inlines `import.meta.env.VITE_*`), so a build is "Google sign-in
+ *  capable" iff this was set at build time. */
+export function googleClientId(): string {
+    return import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
+}
+
+/** True when the build ships real Google sign-in (vs the dev fallback). */
+export function isGoogleSignInConfigured(): boolean {
+    return googleClientId() !== '';
+}
+
+/** Thrown by ensureServerToken when a hosted (Google-configured) build has no
+ *  cached session: the user must complete interactive sign-in, which can't be
+ *  done from a mid-session LLM call. Callers catch this to surface the sign-in
+ *  UI (google-signin.ts) instead of erroring the turn. */
+export class ServerSignInRequiredError extends Error {
+    constructor() {
+        super('Sign in to continue.');
+        this.name = 'ServerSignInRequiredError';
+    }
+}
+
 export async function getServerToken(): Promise<string | null> {
     return kv().get(TOKEN_KEY);
 }
@@ -70,15 +93,43 @@ export async function devSignIn(): Promise<AuthResponse> {
     return body;
 }
 
+/** POST /cloud/v1/auth/google — exchange a Google ID token for an aloud
+ *  session. The production sign-in (meditation-pal-rfb): the server verifies
+ *  the token against Google's JWKS, creates the account on first sign-in, and
+ *  grants free credits to verified emails. The returned token is cached like
+ *  the dev one. Called from the Google Identity Services callback in
+ *  google-signin.ts. */
+export async function googleSignIn(idToken: string): Promise<AuthResponse> {
+    const res = await fetchImpl(cloudUrl('/auth/google'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+    });
+    if (!res.ok) {
+        throw new Error(
+            res.status === 401
+                ? 'Google sign-in was rejected. Please try again.'
+                : `aloud server sign-in failed (${res.status}).`
+        );
+    }
+    const body = (await res.json()) as AuthResponse;
+    await kv().set(TOKEN_KEY, body.token);
+    return body;
+}
+
 /**
- * Return a valid server token, signing in via the dev route if none is
- * cached. The session JWT is long-lived (7 days) so we don't proactively
- * refresh; an expired/invalid token surfaces as a 401 from the proxy, which
- * the caller clears and retries through here.
+ * Return a valid server token. A cached token wins. Otherwise: a Google-
+ * configured (hosted) build can't mint one non-interactively, so it throws
+ * ServerSignInRequiredError for the caller to surface the sign-in UI; a dev
+ * build (no Google client id) signs in via the local dev route so the loop
+ * runs end-to-end. The session JWT is long-lived (7 days) so we don't
+ * proactively refresh; an expired/invalid token surfaces as a 401 from the
+ * proxy, which the caller clears and retries through here.
  */
 export async function ensureServerToken(): Promise<string> {
     const existing = await getServerToken();
     if (existing) return existing;
+    if (isGoogleSignInConfigured()) throw new ServerSignInRequiredError();
     const { token } = await devSignIn();
     return token;
 }

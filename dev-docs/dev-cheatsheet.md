@@ -55,10 +55,13 @@ cd ts && npm run ui:dev          # UI on :5173
 ```
 
 The Vite proxy (`ui/vite.config.ts`) forwards:
-- `/app/v1/*` → **Flask** on :4649 (rewritten to the legacy `/api/*`), so run
-  `uv run python -m src.web` for STT/TTS/providers in the browser.
-- `/cloud/v1/*` → **Hono** on :8787 (run the server below).
+- `/app/v1/*` → **Hono** on :8787 (the app-backend surface; no Flask, no
+  rewrite — Hono speaks `/app/v1` natively). meditation-pal-5d9.
+- `/cloud/v1/*` → **Hono** on :8787 (same server; hosted accounts/credits/proxy).
 - `/ollama/*` → local Ollama daemon on :11434.
+
+So browser preview needs only the Hono server running (next section) — **no
+Flask**. Run `cd ts/server && npm run dev` and load :5173.
 
 ### Hosted server (Hono)
 
@@ -85,8 +88,8 @@ uv run python -m src.web --debug               # verbose src.* logging
 |------|-----|
 | 1420 | Vite UI under `tauri:dev` |
 | 5173 | Vite UI under `ui:dev` (browser) |
-| 4649 | Flask (legacy app-backend; the `ui:dev` `/app` proxy target) |
-| 8787 | Hono hosted server (`/cloud/v1`, and `/app/v1` on the web build) |
+| 4649 | Flask (legacy; native window only — no longer a `ui:dev` proxy target) |
+| 8787 | Hono server — both `/cloud/v1` and `/app/v1` (the `ui:dev` `/app` + `/cloud` proxy target) |
 | 11434 | Ollama daemon |
 
 ## Tests & checks
@@ -153,8 +156,9 @@ Full build/signing detail: [building.md](building.md) (PyInstaller) and
 - **UI build**: `VITE_ALOUD_SERVER_URL` — the hosted origin baked into a
   static/desktop build so `/app/v1` + `/cloud/v1` resolve off-origin (unset in
   dev; the Vite proxy handles it).
-- **Vite dev overrides**: `ALOUD_BACKEND_URL` (Flask), `ALOUD_SERVER_URL` (Hono),
-  `OLLAMA_URL`.
+- **Vite dev overrides**: `ALOUD_SERVER_URL` (Hono — both `/app` and `/cloud`
+  proxy targets), `OLLAMA_URL`. (`ALOUD_BACKEND_URL`/Flask is gone since the
+  `/app` cutover, meditation-pal-5d9.)
 - **BYOK keys** entered in the UI live in the browser's localStorage and are
   forwarded per-request (`x-provider-key` for model lists; `x-api-key` for the
   Anthropic proxy) — never persisted server-side.
@@ -192,9 +196,9 @@ the browser (localStorage) via `ts/src/platform/storage.ts`.
   (`whisper_rs::install_logging_hooks()` in `server.rs`); enable whisper-rs's
   `log_backend` feature to see those internals again.
 - **`/app/v1` path differs by build**: desktop hits the Rust loopback directly
-  (injected base); `ui:dev` proxies it to Flask. So a UI fetch that works in the
-  browser preview but not in `tauri:dev` (or vice-versa) usually means the wrong
-  backend is the one running.
+  (injected base); `ui:dev` proxies it to the Hono server on :8787. So a UI
+  fetch that works in the browser preview but not in `tauri:dev` (or vice-versa)
+  usually means the wrong backend is the one running.
 
 ## Landing site
 

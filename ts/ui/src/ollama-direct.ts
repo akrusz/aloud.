@@ -3,11 +3,12 @@
  * same path capabilities.ts uses for reachability (Vite rewrites `/ollama` →
  * http://localhost:11434).
  *
- * The app backend (Flask in dev, the Rust backend in the desktop app, Hono on
- * the web) normally aggregates Ollama state at `/app/v1/providers`, including
- * the curated RAM-tier recommendations. But when that backend isn't running —
- * e.g. `tauri dev` starts Vite on :1420 without Flask on :4649 — that endpoint
- * is unreachable and the UI would wrongly conclude Ollama isn't installed even
+ * The app backend (the Rust backend in the desktop app, Hono on the web and in
+ * browser dev) normally aggregates Ollama state at `/app/v1/providers`,
+ * including the curated RAM-tier recommendations. But when that backend isn't
+ * running — e.g. `tauri dev` starts Vite without the Hono server on :8787 —
+ * that endpoint is unreachable and the UI would wrongly conclude Ollama isn't
+ * installed even
  * though the daemon is up. These probes answer the basic "is it there + what's
  * pulled" questions directly so the model picker and settings section stay
  * honest without the backend. The curated recommendation still needs it.

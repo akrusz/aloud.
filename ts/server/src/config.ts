@@ -107,6 +107,13 @@ export interface Config {
      *  Off in dev so the server boots with an in-memory store and stubs. */
     strict: boolean;
 
+    /** Path to the durable SQLite credit-ledger file (e.g. a mounted volume:
+     *  /data/aloud.db). When set, buildDeps uses SqliteCreditsStore so balances
+     *  survive restarts; unset in dev falls back to the in-memory store.
+     *  REQUIRED in production (strict) — an in-memory ledger would silently drop
+     *  real balances on every deploy/restart. */
+    dbPath?: string;
+
     /** Optional directory of the built UI (`ui/dist`). When set, this one
      *  process serves the static UI alongside the API — the "full install"
      *  self-host story. Unset in the canonical deploy, where the UI is on a
@@ -148,11 +155,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (env['STRIPE_WEBHOOK_SECRET']) config.stripeWebhookSecret = env['STRIPE_WEBHOOK_SECRET'];
     if (env['ALOUD_ADMIN_TOKEN']) config.adminToken = env['ALOUD_ADMIN_TOKEN'];
     if (env['ALOUD_UI_DIR']) config.uiDir = env['ALOUD_UI_DIR'];
+    if (env['ALOUD_DB_PATH']) config.dbPath = env['ALOUD_DB_PATH'];
 
     if (strict) {
         const missing: string[] = [];
         if (!config.sessionSecret) missing.push('ALOUD_SESSION_SECRET');
         if (config.googleClientIds.length === 0) missing.push('GOOGLE_CLIENT_IDS');
+        if (!config.dbPath) missing.push('ALOUD_DB_PATH (durable ledger; in-memory would drop balances on restart)');
         if (Object.keys(config.providerKeys).length === 0)
             missing.push('at least one provider key (ANTHROPIC_API_KEY/GROQ_API_KEY/OPENROUTER_API_KEY)');
         if (missing.length > 0) {

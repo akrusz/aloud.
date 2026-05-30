@@ -1,0 +1,23 @@
+name: Deploy server (Fly)
+
+# Manual only — deploying spends money and the Fly app + volume + secrets must
+# already be provisioned (see dev-docs/deploy.md). No push trigger on purpose:
+# a hosted billing server should never redeploy itself from a code push without
+# a human in the loop. Wire an on:push:main trigger later if you want CD.
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Fail fast if the deploy token isn't configured rather than half-running.
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # Run from ts/ so the Docker build context includes ../src (@aloud/core);
+      # the Dockerfile + fly.toml live under server/.
+      - run: flyctl deploy --config server/fly.toml --remote-only
+        working-directory: ts
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

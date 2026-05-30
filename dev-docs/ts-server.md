@@ -61,6 +61,7 @@ load logic is `loadConfig` in `config.ts`.
 | `ALOUD_ENV` | toggle prod checks | `production` or unset |
 | `PORT` | — | default 8787 |
 | `ALOUD_CORS_ORIGINS` | browser client | comma-sep; the `ui/dist` host origin(s) |
+| `ALOUD_DB_PATH` | durable credit ledger | SQLite file path (e.g. `/data/aloud.db` on a Fly volume); **required in prod**. Unset in dev → in-memory store, lost on restart |
 | `ALOUD_SESSION_SECRET` | signing session JWTs | `openssl rand -hex 32`; required in prod |
 | `GOOGLE_CLIENT_IDS` | sign-in | comma-sep web/iOS/android client ids; required in prod |
 | `ANTHROPIC_API_KEY` / `GROQ_API_KEY` / `OPENROUTER_API_KEY` | LLM forwarding | ≥1 required in prod; server-held, never sent to client |
@@ -190,21 +191,28 @@ Needs `GOOGLE_TTS_API_KEY` in `.env`. Costs a few cents (one short clip/voice).
 
 In rough priority order. Tracked under epic `meditation-pal-bot`.
 
-1. **Persistent credit store — the blocker for real money.** `buildDeps`
-   wires `MemoryCreditsStore`: accounts, balances, and the ledger live in RAM
-   and vanish on restart. A durable `CreditsStore` impl (Postgres/SQLite) is
-   needed before charging anyone. The interface is `credits/store.ts`; swap it
-   in `deps.ts`.
-2. **Real auth** (`meditation-pal-rfb`) — production uses Google OAuth; the dev
-   sign-in 404s in strict mode, so `ensureServerToken()` needs to branch to the
-   real flow for a live deploy.
+1. ~~**Persistent credit store.**~~ **DONE** (`meditation-pal-vd3`). `buildDeps`
+   now selects `SqliteCreditsStore` (`credits/sqlite-store.ts`, built-in
+   `node:sqlite`) whenever `ALOUD_DB_PATH` is set — durable across restarts —
+   and only falls back to `MemoryCreditsStore` for zero-config dev. Production
+   (strict) requires `ALOUD_DB_PATH`. The store is proven behavior-identical to
+   the in-memory reference by a shared parity suite plus a reopen/durability
+   test (`tests/sqlite-store.test.ts`).
+2. **Real auth** (`meditation-pal-rfb`) — the server-side ID-token verification
+   is done (`auth/google.ts` + `POST /cloud/v1/auth/google`); what's missing is
+   the **UI** sign-in button (Google Identity Services) and a real OAuth client
+   id. The dev sign-in 404s in strict mode, so `ensureServerToken()` needs to
+   branch to the real flow for a live deploy.
 3. **History-prefix caching** (`meditation-pal-cet`) — the cost estimates in
    `/v1/me/estimates` assume conversation-history prompt caching that isn't
    implemented, so LLM estimates are optimistic until it lands (needs a 1h
    cache TTL — meditation's silences exceed the 5-min default).
-4. **Deploy infra** (`meditation-pal-a3u`) — pick Fly/Render, real TLS (mic
-   needs a secure context; `cert.py` self-signed is LAN-only), host `ui/dist`
-   static, point the proxy at it via CORS + `VITE_ALOUD_SERVER_URL`.
+4. **Deploy infra** (`meditation-pal-a3u`) — server side **DONE**: Dockerfile +
+   `fly.toml` + a manual deploy workflow + a full runbook in
+   [deploy.md](deploy.md). Remaining: the **UI hosting** decision (the repo's
+   GitHub Pages is taken by the marketing site — subpath vs. separate host;
+   options written up in deploy.md) and real TLS, which the chosen host
+   provides. Wiring is CORS + `VITE_ALOUD_SERVER_URL`.
 
 **Done since the first cut:** Google-direct value-tier LLM; the configurable
 build-time server base URL (`VITE_ALOUD_SERVER_URL`); server STT
@@ -214,7 +222,7 @@ adapters repointed at this server on the hosted provider (`meditation-pal-vd3`).
 ## Test/lint matrix (what "green" means here)
 
 ```bash
-cd ts        && npm run typecheck && npm test   # core 134 + ui typecheck
-cd ts/server && npm run typecheck && npm test   # server 46
+cd ts        && npm run typecheck && npm test   # core + ui (194 tests)
+cd ts/server && npm run typecheck && npm test   # server (90 tests)
 cd ts        && npm run ui:build                # vite build of ui/dist
 ```

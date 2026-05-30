@@ -9,6 +9,12 @@ interface ImportMetaEnv {
      *  e.g. https://api.aloud.example. Unset in dev — paths stay relative and
      *  the Vite proxy forwards them. */
     readonly VITE_ALOUD_SERVER_URL?: string;
+    /** Google OAuth *web* client id for the hosted sign-in (meditation-pal-rfb).
+     *  When set, the UI offers real Google sign-in (google-signin.ts); unset, it
+     *  falls back to the server's local dev sign-in. Must match one of the
+     *  server's GOOGLE_CLIENT_IDS. Safe to ship in the bundle — a client id is
+     *  public; the server verifies the resulting ID token against Google. */
+    readonly VITE_GOOGLE_CLIENT_ID?: string;
 }
 
 interface ImportMeta {

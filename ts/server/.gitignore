@@ -3,9 +3,11 @@
 .env.*
 !.env.example
 
-# Local SQLite store if a dev implementation writes one.
+# Local SQLite credit ledger (SqliteCreditsStore) + its WAL/shm sidecars.
 *.sqlite
 *.sqlite-*
+*.db
+*.db-*
 
 # Generated voice audition output (scripts/preview-voices.ts).
 voice-previews/

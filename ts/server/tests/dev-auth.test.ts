@@ -51,6 +51,7 @@ describe('POST /cloud/v1/auth/dev', () => {
             ALOUD_SESSION_SECRET: 'x'.repeat(32),
             GOOGLE_CLIENT_IDS: 'client-1',
             ANTHROPIC_API_KEY: 'sk-test',
+            ALOUD_DB_PATH: ':memory:',
         });
         const app = createApp(buildDeps(config));
         const res = await app.request('/cloud/v1/auth/dev', { method: 'POST' });
