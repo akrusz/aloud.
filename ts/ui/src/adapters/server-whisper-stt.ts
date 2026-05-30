@@ -39,6 +39,13 @@ const SPECULATIVE_SILENCE_MS = 500;
 // Bigger = more onset captured (and more harmless leading near-silence sent to
 // Whisper); smaller = tighter. Raise this number if words still get clipped.
 const PRE_BUFFER_MS = 2000;
+// Barge-in detection runs on THIS (continuous, echo-cancelled) stream rather
+// than a second getUserMedia stream — on macOS the hardware AEC attaches to
+// only one input, so a separate detector stream hears raw TTS echo and trips on
+// the facilitator's own voice. The capture stream's echo measures ~0.005 RMS,
+// real speech ~0.04+, so a 0.03 gate cleanly separates them. (d35)
+const BARGE_IN_THRESHOLD = 0.03;
+const BARGE_IN_REQUIRED_CHUNKS = 3;
 
 /** The subset of PacingConfig fields the VAD here cares about. */
 type VadFields = Pick<
@@ -87,6 +94,10 @@ export class ServerWhisperSttEngine implements SttEngine {
     private speechStartMs = 0;
     private lastSpeechMs = 0;
     private utteranceDone = false;
+    // Barge-in detection on the continuous (echo-cancelled) idle stream.
+    private bargeInHandler: (() => void) | null = null;
+    private bargeInChunks = 0;
+    private bargeInFired = false;
     // TEMP onset instrumentation (d35) — remove after diagnosis.
     private dbgIdleFrames = 0;
     private dbgCaptureOnMs = 0;
@@ -145,6 +156,22 @@ export class ServerWhisperSttEngine implements SttEngine {
         // would inflate the ambient estimate and desensitize the VAD.
         if (!this.capturing) {
             this.pushPre(frame);
+            // Barge-in: while idle (the facilitator is speaking), watch this
+            // echo-cancelled stream for the user's voice. TTS echo sits ~0.005
+            // here so it won't trip the 0.03 gate; sustained real speech does.
+            // Fires once per idle period — start() re-arms it.
+            if (this.bargeInHandler && !this.bargeInFired) {
+                if (energy > BARGE_IN_THRESHOLD) {
+                    if (++this.bargeInChunks >= BARGE_IN_REQUIRED_CHUNKS) {
+                        this.bargeInFired = true;
+                        // eslint-disable-next-line no-console
+                        console.log(`[onset] barge-in (capture stream) energy=${energy.toFixed(4)}`);
+                        this.bargeInHandler();
+                    }
+                } else {
+                    this.bargeInChunks = 0;
+                }
+            }
             // TEMP onset instrumentation (d35): prove the callback runs while
             // the facilitator talks, and surface the loudest idle frame — if
             // this stays near-zero while you're speaking over the TTS, echo
@@ -298,6 +325,17 @@ export class ServerWhisperSttEngine implements SttEngine {
         }
     }
 
+    /**
+     * Register (or clear, with null) a barge-in callback. Fired when the user's
+     * voice is detected on the continuous capture stream while idle (i.e. while
+     * the facilitator is speaking) — used to cancel TTS. Detecting here, on the
+     * one echo-cancelled stream, avoids a second mic stream that would hear raw
+     * TTS echo and trip on the facilitator itself. (d35)
+     */
+    setBargeInHandler(handler: (() => void) | null): void {
+        this.bargeInHandler = handler;
+    }
+
     async *start(): AsyncIterable<SttEvent> {
         this.stopRequested = false;
         try {
@@ -315,6 +353,10 @@ export class ServerWhisperSttEngine implements SttEngine {
         this.speechStartMs = 0;
         this.lastSpeechMs = 0;
         this.utteranceDone = false;
+        // Re-arm barge-in detection for the next idle period (after this turn
+        // ends and the facilitator speaks again).
+        this.bargeInFired = false;
+        this.bargeInChunks = 0;
         // TEMP onset instrumentation (d35): how full is the onset buffer the
         // instant capture turns on? If preBuf is ~0 here on a barge-in, the
         // buffer wasn't filling during TTS (callback/context stalled).

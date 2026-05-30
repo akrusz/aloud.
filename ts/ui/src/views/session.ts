@@ -41,6 +41,7 @@ import {
     type SttBackend,
 } from '../adapters/stt-picker.js';
 import { createTtsForVoice, createServerAloudTts } from '../adapters/tts-picker.js';
+import { ServerWhisperSttEngine } from '../adapters/server-whisper-stt.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
 import { loadAppSettings } from '../app-settings.js';
 import { sessionStore } from '../state.js';
@@ -227,6 +228,31 @@ export async function mountSessionView(
         // pick up the user's next utterance naturally.
         setOrbHolding(false);
     };
+
+    // Re-probe each time the user starts a session: Flask may have come up
+    // (or gone down) since the last detection.
+    invalidateSttBackendCache();
+    const vadOpts = {
+        silenceBaseMs: pacingConfig.silenceBaseMs,
+        silenceMaxMs: pacingConfig.silenceMaxMs,
+        silenceRampRate: pacingConfig.silenceRampRate,
+        minSpeechDurationMs: pacingConfig.minSpeechDurationMs,
+    };
+    // On the hosted provider, route STT through the server (Groq) too, so the
+    // whole pipeline runs against @aloud/server. The hosted adapter is the
+    // server-Whisper engine pointed at /v1/stt, so it behaves identically —
+    // report it as 'server-whisper' downstream. Fall back to the best local
+    // option if hosted STT can't initialize (e.g. no mic).
+    const hostedStt = setup.provider === 'aloud' ? createServerAloudStt(vadOpts) : null;
+    const stt: SttEngine | null = hostedStt ?? (await createBestStt(vadOpts));
+    const sttBackend: SttBackend = hostedStt ? 'server-whisper' : await detectSttBackend();
+
+    // server-Whisper detects barge-in on its own continuous capture stream, so
+    // we DON'T wrap TTS with the separate-stream detector there (a second mic
+    // stream doesn't get the OS echo-cancellation and trips on the
+    // facilitator's own voice — the self-barge-in bug). Other STT backends
+    // (web-speech, capacitor) have no such stream, so they keep the wrapper.
+    const engineDrivenBargeIn = sttBackend === 'server-whisper';
     async function buildTts(voiceId: string | null) {
         // Server-side synthesis is billable compute — fold chars into usage.
         const ttsOpts = { onServerSynthesize: (chars: number) => session.recordTts(chars) };
@@ -240,7 +266,7 @@ export async function mountSessionView(
         } else {
             ({ engine } = await createTtsForVoice(voiceId, ttsOpts));
         }
-        return wrapTtsWithBargeIn(engine, { onBargeIn });
+        return engineDrivenBargeIn ? engine : wrapTtsWithBargeIn(engine, { onBargeIn });
     }
     // `let` so an in-session voice change can swap the engine (see the voice
     // modal). Reassigning here is picked up by the outer `tts` wrapper.
@@ -272,23 +298,15 @@ export async function mountSessionView(
             return activeTts.listVoices();
         },
     } satisfies TtsEngine;
-    // Re-probe each time the user starts a session: Flask may have come up
-    // (or gone down) since the last detection.
-    invalidateSttBackendCache();
-    const vadOpts = {
-        silenceBaseMs: pacingConfig.silenceBaseMs,
-        silenceMaxMs: pacingConfig.silenceMaxMs,
-        silenceRampRate: pacingConfig.silenceRampRate,
-        minSpeechDurationMs: pacingConfig.minSpeechDurationMs,
-    };
-    // On the hosted provider, route STT through the server (Groq) too, so the
-    // whole pipeline runs against @aloud/server. The hosted adapter is the
-    // server-Whisper engine pointed at /v1/stt, so it behaves identically —
-    // report it as 'server-whisper' downstream. Fall back to the best local
-    // option if hosted STT can't initialize (e.g. no mic).
-    const hostedStt = setup.provider === 'aloud' ? createServerAloudStt(vadOpts) : null;
-    const stt: SttEngine | null = hostedStt ?? (await createBestStt(vadOpts));
-    const sttBackend: SttBackend = hostedStt ? 'server-whisper' : await detectSttBackend();
+    // For the server-Whisper STT path, barge-in is detected on its continuous
+    // (echo-cancelled) capture stream — see setBargeInHandler below. Wiring it
+    // up here, after the tts wrapper exists; the engine cancels the live TTS.
+    if (sttBackend === 'server-whisper' && stt instanceof ServerWhisperSttEngine) {
+        stt.setBargeInHandler(() => {
+            void tts.cancel();
+            onBargeIn();
+        });
+    }
 
     // The session view also injects an orb into the global nav's
     // .nav-center slot and overrides the nav links to End / History.
