@@ -220,10 +220,6 @@ export async function mountSessionView(
     // adapter — and calls cancel() when energy crosses the threshold for a few
     // consecutive frames.
     const onBargeIn = () => {
-        // TEMP onset instrumentation (d35): t0 marker to correlate with the
-        // STT adapter's [onset] logs — remove after diagnosis.
-        // eslint-disable-next-line no-console
-        console.log(`[onset] barge-in fired @${Math.round(performance.now())}`);
         // Visual cue: drop the holding-orb if it was up. The listen loop will
         // pick up the user's next utterance naturally.
         setOrbHolding(false);
