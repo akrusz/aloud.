@@ -12,9 +12,10 @@
  *   1  Standard — Google, known-good macOS voice list, Piper
  *   0  Other    — everything else
  *
- * A separate "Recommended" group appears above the tiers when any
- * voice carries `recommended: true` (Piper Libritts speakers, macOS
- * Premium voices in `aggregate_voices()`).
+ * A separate "Best" group appears above the tiers and is reserved for the
+ * genuinely top-quality voices: the hosted (aloud server) voices and Chrome's
+ * cloud voices. Local engines (macOS Premium, Piper) are good but sort into the
+ * Premium/Standard tiers below rather than Best.
  */
 
 import type { TtsEngine } from '../../src/platform/index.js';
@@ -53,6 +54,10 @@ export interface ScoredVoice {
     lang: string;
     score: number;
     engine: string | undefined;
+    /** Display-only engine override for the badge. Playback still routes by
+     *  `engine`; this just lets a browser-sourced macOS voice read "macOS"
+     *  instead of "Browser" (detected via the com.apple voiceURI). */
+    displayEngine?: string;
     /** Backing browser SpeechSynthesisVoice when available. */
     browserVoice?: SpeechSynthesisVoice;
     recommended?: boolean;
@@ -100,6 +105,10 @@ const MACOS_QUALITY_VOICES =
 export function scoreVoice(name: string, engine?: string): number {
     const baseName = name.replace(/\s*\(.*\)$/, '');
     if (/Premium/i.test(name)) return 3;
+    // ElevenLabs is premium cloud TTS; keep it in the Quality tier even though
+    // its voice names carry no quality keyword (it no longer rides the server
+    // "recommended" flag — see buildScoredVoiceList).
+    if (engine === 'elevenlabs') return 2;
     if (/Enhanced/i.test(name)) return 2;
     if (/Online|Natural/i.test(name)) return 2;
     if (/^Google/i.test(name)) return 1;
@@ -135,9 +144,10 @@ export function buildScoredVoiceList(
     const seen = new Set<string>();
 
     // Curated hosted voices (only present when the server is reachable + has a
-    // TTS key) lead the Recommended tier as "very high quality" — but they share
-    // it with great local voices (macOS Premium, Chrome cloud), which also score
-    // here, so a user with good native voices isn't pushed off the top.
+    // TTS key) lead the "Best" tier — the genuinely top-quality option. The
+    // Best tier is reserved for these and Chrome's cloud voices; local engines
+    // (macOS Premium, Piper) sort into Premium/Standard below, per the
+    // developer's preference (they're good, but not as good as cloud neural).
     for (const hv of hostedVoices) {
         scored.push({
             name: hv.name,
@@ -176,7 +186,9 @@ export function buildScoredVoiceList(
                 if (sv.size_display) entry.sizeDisplay = sv.size_display;
                 if (sv.model) entry.model = sv.model;
             }
-            if (sv.recommended) entry.recommended = true;
+            // NOTE: we intentionally do NOT promote server-"recommended" voices
+            // (macOS Premium, Piper Libritts) into the Best tier — they sort by
+            // score into Premium/Standard. Best is hosted + Chrome cloud only.
             scored.push(entry);
             seen.add(sv.name);
             if (browserVoice) seen.add(browserVoice.name);
@@ -195,14 +207,19 @@ export function buildScoredVoiceList(
         const remote = !v.localService;
         if (remote) score = Math.max(score, 2);
         // Chrome's cloud voices (Google/Natural/Online, all non-local) are
-        // genuinely good — surface them in the Recommended section.
+        // genuinely good — surface them in the Best section alongside hosted.
         const recommended = remote && /Google|Natural|Online/i.test(v.name);
+        // macOS system voices reach us through the browser (engine stays
+        // 'browser' so playback routes to speechSynthesis), but tag them
+        // "macOS" in the badge — Apple voiceURIs start with com.apple.
+        const isApple = (v.voiceURI || '').startsWith('com.apple');
 
         scored.push({
             name: v.name,
             lang: v.lang || '',
             score,
             engine: 'browser',
+            ...(isApple ? { displayEngine: 'macos' } : {}),
             browserVoice: v,
             ...(recommended ? { recommended: true } : {}),
         });
@@ -260,7 +277,7 @@ export function renderVoiceList(
     }
 
     if (recommended.length > 0) {
-        appendTierLabel(listEl, 'Recommended');
+        appendTierLabel(listEl, 'Best');
         for (const v of recommended) appendRow(listEl, v, selectedName, options);
     }
 
@@ -303,10 +320,11 @@ function appendRow(
         note.textContent = entry.note;
         nameSpan.appendChild(note);
     }
-    if (options.showEngine && entry.engine) {
+    if (options.showEngine && (entry.displayEngine ?? entry.engine)) {
+        const eng = entry.displayEngine ?? entry.engine!;
         const badge = document.createElement('span');
         badge.className = 'voice-row-engine';
-        badge.textContent = ENGINE_LABELS[entry.engine] ?? entry.engine;
+        badge.textContent = ENGINE_LABELS[eng] ?? eng;
         nameSpan.appendChild(badge);
     }
     row.appendChild(nameSpan);

@@ -149,3 +149,58 @@ describe('downloadVoiceModel', () => {
         await expect(downloadVoiceModel('v', 'piper')).rejects.toThrow('500');
     });
 });
+
+describe('Best tier is reserved for hosted + Chrome cloud (not macOS/Piper)', () => {
+    it('does not promote server-recommended macOS Premium / Piper into Best', () => {
+        vi.stubGlobal('navigator', { language: 'en-US' });
+        const scored = buildScoredVoiceList(
+            [
+                { name: 'Ava (Premium)', lang: 'en-US', engine: 'macos', recommended: true },
+                { name: 'Libritts p3922 (F)', lang: 'en-US', engine: 'piper', recommended: true },
+            ],
+            false
+        );
+        const ava = scored.find((v) => v.name === 'Ava (Premium)')!;
+        expect(ava.score).toBe(3); // Premium tier…
+        expect(ava.recommended).toBeFalsy(); // …but NOT Best
+        const piper = scored.find((v) => v.name.startsWith('Libritts'))!;
+        expect(piper.recommended).toBeFalsy();
+    });
+
+    it('keeps ElevenLabs in the Quality tier (score 2) without a quality keyword', () => {
+        vi.stubGlobal('navigator', { language: 'en-US' });
+        const scored = buildScoredVoiceList(
+            [{ name: 'Rachel', lang: 'en-US', engine: 'elevenlabs' }],
+            false
+        );
+        expect(scored.find((v) => v.name === 'Rachel')!.score).toBe(2);
+    });
+
+    it('tags Apple browser voices as macOS (display only) and floats Chrome cloud into Best', () => {
+        vi.stubGlobal('navigator', { language: 'en-US' });
+        vi.stubGlobal('speechSynthesis', {
+            getVoices: () => [
+                {
+                    name: 'Samantha',
+                    lang: 'en-US',
+                    localService: true,
+                    voiceURI: 'com.apple.voice.compact.en-US.Samantha',
+                },
+                {
+                    name: 'Google US English',
+                    lang: 'en-US',
+                    localService: false,
+                    voiceURI: 'Google US English',
+                },
+            ],
+        });
+        const scored = buildScoredVoiceList(null, true);
+        const sam = scored.find((v) => v.name === 'Samantha')!;
+        expect(sam.engine).toBe('browser'); // playback still routes to speechSynthesis
+        expect(sam.displayEngine).toBe('macos'); // …but the badge reads macOS
+        expect(sam.recommended).toBeFalsy(); // local → not Best
+        const goog = scored.find((v) => v.name === 'Google US English')!;
+        expect(goog.recommended).toBe(true); // Chrome cloud → Best
+        expect(goog.displayEngine).toBeUndefined();
+    });
+});
