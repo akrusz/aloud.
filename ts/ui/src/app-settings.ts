@@ -16,6 +16,10 @@ import type { Provider } from './settings.js';
 
 export type ThemeMode = 'auto' | 'dark' | 'light';
 export type TtsEngineChoice = 'macos' | 'piper' | 'browser' | 'elevenlabs';
+/** Speech-to-text source. 'auto' keeps the smart cascade (Whisper on the
+ *  desktop, browser speech in a web browser); the rest are explicit picks so
+ *  the user controls where audio goes and knows when it costs credits. */
+export type SttEngineChoice = 'auto' | 'whisper' | 'web-speech' | 'aloud';
 
 export interface AppSettings {
     // Provider defaults for new sessions
@@ -38,6 +42,8 @@ export interface AppSettings {
     // Speech recognition
     language: string;
     whisperModel: 'tiny' | 'base' | 'small' | 'medium' | 'large';
+    /** Where speech-to-text runs. See SttEngineChoice. */
+    sttEngine: SttEngineChoice;
 
     // Pacing — used by both the session view's PacingController and
     // the STT adapter's client-side VAD. Mirrors the Python config's
@@ -61,6 +67,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     defaultTtsRate: 160,
     language: 'en',
     whisperModel: 'small',
+    sttEngine: 'auto',
     silenceBaseMs: 3000,
     silenceMaxMs: 5000,
     responseDelayMs: 2000,

@@ -26,12 +26,14 @@ import {
     type AppSettings,
     type ThemeMode,
     type TtsEngineChoice,
+    type SttEngineChoice,
     DEFAULT_APP_SETTINGS,
     LANGUAGES,
     applyChromeSettings,
     loadAppSettings,
     saveAppSettings,
 } from '../app-settings.js';
+import { sttEngineOptions } from '../adapters/stt-picker.js';
 import { ALL_PROVIDERS, isProviderAvailable, providerNeedsKey, type Provider } from '../settings.js';
 import { isDesktopSync } from '../is-desktop.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
@@ -425,6 +427,18 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
 
     // ---- Language & STT ------------------------------------------------
 
+    function updateSttHint(): void {
+        const hintEl = root.querySelector<HTMLElement>('#s-stt-engine-hint');
+        if (!hintEl) return;
+        const hints: Record<SttEngineChoice, string> = {
+            auto: "Picks the best available — Whisper in the desktop app, your browser's speech recognition on the web.",
+            whisper: 'Transcribed on this device. Free and private.',
+            'web-speech': "Uses your browser's built-in speech recognition. Free.",
+            aloud: "Audio is transcribed by aloud's server and spends credits.",
+        };
+        hintEl.textContent = hints[settings.sttEngine];
+    }
+
     function wireLanguageSection(): void {
         const langSel = root.querySelector<HTMLSelectElement>('#s-language')!;
         langSel.value = settings.language;
@@ -432,6 +446,24 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             settings.language = langSel.value;
             persist();
         });
+
+        const sttSel = root.querySelector<HTMLSelectElement>('#s-stt-engine');
+        if (sttSel) {
+            // If the stored choice isn't offered in this mode (e.g. 'whisper'
+            // carried into web mode), the select shows nothing selected — treat
+            // that as 'auto' so the value stays coherent.
+            sttSel.value = settings.sttEngine;
+            if (sttSel.selectedIndex < 0) {
+                settings.sttEngine = 'auto';
+                sttSel.value = 'auto';
+            }
+            updateSttHint();
+            sttSel.addEventListener('change', () => {
+                settings.sttEngine = sttSel.value as SttEngineChoice;
+                persist();
+                updateSttHint();
+            });
+        }
 
         const whisperSel = root.querySelector<HTMLSelectElement>('#s-whisper-model')!;
         whisperSel.value = settings.whisperModel;
@@ -1227,10 +1259,26 @@ function renderLanguageSection(s: AppSettings): string {
         ([v, label]) =>
             `<option value="${v}"${v === s.language ? ' selected' : ''}>${escape(label)}</option>`
     ).join('');
+    // Mode-aware STT sources: Whisper is local-only, browser speech appears when
+    // the API exists, the hosted option is always offered (and labeled as
+    // credit-using). isWebSpeechSupported() is evaluated inside sttEngineOptions.
+    const sttOptions = sttEngineOptions(isWebMode())
+        .map(
+            ({ value, label }) =>
+                `<option value="${value}"${value === s.sttEngine ? ' selected' : ''}>${escape(label)}</option>`
+        )
+        .join('');
 
     return `
     <section class="settings-section">
         <h2>Language &amp; Speech Recognition</h2>
+        <div class="form-row">
+            <div class="form-group form-group-half">
+                <label for="s-stt-engine">Speech Recognition</label>
+                <select id="s-stt-engine" name="stt_engine">${sttOptions}</select>
+                <span class="form-hint" id="s-stt-engine-hint"></span>
+            </div>
+        </div>
         <div class="form-row">
             <div class="form-group form-group-half">
                 <label for="s-language">Language</label>

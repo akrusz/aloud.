@@ -30,6 +30,7 @@ import { cloudUrl } from '../cloud-base.js';
 import { ensureServerToken } from '../server-auth.js';
 import { isTauri } from '../is-desktop.js';
 import { appUrl } from '../app-base.js';
+import type { SttEngineChoice } from '../app-settings.js';
 
 /** VAD-tuning subset of PacingConfig the picker forwards to adapters. */
 type VadOpts = Partial<
@@ -143,16 +144,8 @@ export async function createBestStt(vadOpts: VadOpts = {}): Promise<SttEngine | 
     switch (backend) {
         case 'capacitor':
             return new CapacitorSttEngine();
-        case 'web-speech': {
-            // Honor the pause-before-submission settings here too (Chrome
-            // otherwise submits the instant it detects a pause). Mirror the
-            // server-Whisper adaptive ramp: base + speech×ramp, capped at max.
-            const opts: WebSpeechSttEngineOptions = {};
-            if (vadOpts.silenceBaseMs !== undefined) opts.submitDelayMs = vadOpts.silenceBaseMs;
-            if (vadOpts.silenceMaxMs !== undefined) opts.submitMaxDelayMs = vadOpts.silenceMaxMs;
-            if (vadOpts.silenceRampRate !== undefined) opts.submitRampRate = vadOpts.silenceRampRate;
-            return new WebSpeechSttEngine(opts);
-        }
+        case 'web-speech':
+            return new WebSpeechSttEngine(webSpeechOpts(vadOpts));
         case 'server-whisper':
             return new ServerWhisperSttEngine({
                 ...vadOpts,
@@ -161,4 +154,70 @@ export async function createBestStt(vadOpts: VadOpts = {}): Promise<SttEngine | 
         case 'none':
             return null;
     }
+}
+
+/** Map the VAD pause settings onto Web Speech's submit-delay options (Chrome
+ *  otherwise submits the instant it detects a pause). Mirrors the
+ *  server-Whisper adaptive ramp: base + speech×ramp, capped at max. */
+function webSpeechOpts(vadOpts: VadOpts): WebSpeechSttEngineOptions {
+    const opts: WebSpeechSttEngineOptions = {};
+    if (vadOpts.silenceBaseMs !== undefined) opts.submitDelayMs = vadOpts.silenceBaseMs;
+    if (vadOpts.silenceMaxMs !== undefined) opts.submitMaxDelayMs = vadOpts.silenceMaxMs;
+    if (vadOpts.silenceRampRate !== undefined) opts.submitRampRate = vadOpts.silenceRampRate;
+    return opts;
+}
+
+/**
+ * Build the STT engine for an explicit user choice (Settings → Speech
+ * Recognition). Returns null when that source isn't usable here — Whisper
+ * picked but no local backend, or web-speech in a browser without the API — so
+ * the caller shows the honest mic-unavailable state. 'auto' defers to
+ * createBestStt (the environment cascade).
+ */
+export async function createSttForChoice(
+    choice: SttEngineChoice,
+    vadOpts: VadOpts = {}
+): Promise<SttEngine | null> {
+    switch (choice) {
+        case 'aloud':
+            return createServerAloudStt(vadOpts);
+        case 'web-speech':
+            return isWebSpeechSupported() ? new WebSpeechSttEngine(webSpeechOpts(vadOpts)) : null;
+        case 'whisper':
+            return (await isServerWhisperReachable())
+                ? new ServerWhisperSttEngine({ ...vadOpts, endpointUrl: appUrl(SERVER_WHISPER_PATH) })
+                : null;
+        case 'auto':
+            return createBestStt(vadOpts);
+    }
+}
+
+/** The SttBackend label for a choice — drives the barge-in wrapper decision
+ *  downstream (continuous-capture backends self-detect and skip the wrapper). */
+export async function sttBackendForChoice(choice: SttEngineChoice): Promise<SttBackend> {
+    switch (choice) {
+        case 'aloud':
+        case 'whisper':
+            return 'server-whisper';
+        case 'web-speech':
+            return 'web-speech';
+        case 'auto':
+            return detectSttBackend();
+    }
+}
+
+/**
+ * Which explicit STT choices to offer in Settings for the current mode.
+ * 'auto' and the credit-using hosted option are always available; Whisper is
+ * local-only (no on-device backend on the web); browser speech appears only
+ * when the browser exposes the API.
+ */
+export function sttEngineOptions(webMode: boolean): Array<{ value: SttEngineChoice; label: string }> {
+    const out: Array<{ value: SttEngineChoice; label: string }> = [
+        { value: 'auto', label: 'Automatic (best available)' },
+    ];
+    if (!webMode) out.push({ value: 'whisper', label: 'Whisper — on this device' });
+    if (isWebSpeechSupported()) out.push({ value: 'web-speech', label: 'Browser speech recognition' });
+    out.push({ value: 'aloud', label: 'aloud server — uses credits' });
+    return out;
 }

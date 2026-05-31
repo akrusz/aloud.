@@ -36,6 +36,8 @@ import { ensureServerToken } from '../server-auth.js';
 import {
     createBestStt,
     createServerAloudStt,
+    createSttForChoice,
+    sttBackendForChoice,
     detectSttBackend,
     invalidateSttBackendCache,
     type SttBackend,
@@ -239,9 +241,20 @@ export async function mountSessionView(
     // server-Whisper engine pointed at /v1/stt, so it behaves identically —
     // report it as 'server-whisper' downstream. Fall back to the best local
     // option if hosted STT can't initialize (e.g. no mic).
-    const hostedStt = setup.provider === 'aloud' ? createServerAloudStt(vadOpts) : null;
-    const stt: SttEngine | null = hostedStt ?? (await createBestStt(vadOpts));
-    const sttBackend: SttBackend = hostedStt ? 'server-whisper' : await detectSttBackend();
+    // The Settings STT choice is authoritative when set explicitly. 'auto'
+    // keeps the smart cascade: on the hosted provider, route STT through the
+    // server (Groq) too so the whole pipeline runs against @aloud/server;
+    // otherwise pick the best local option.
+    let stt: SttEngine | null;
+    let sttBackend: SttBackend;
+    if (appSettings.sttEngine === 'auto') {
+        const hostedStt = setup.provider === 'aloud' ? createServerAloudStt(vadOpts) : null;
+        stt = hostedStt ?? (await createBestStt(vadOpts));
+        sttBackend = hostedStt ? 'server-whisper' : await detectSttBackend();
+    } else {
+        stt = await createSttForChoice(appSettings.sttEngine, vadOpts);
+        sttBackend = await sttBackendForChoice(appSettings.sttEngine);
+    }
 
     // server-Whisper detects barge-in on its own continuous capture stream, so
     // we DON'T wrap TTS with the separate-stream detector there (a second mic

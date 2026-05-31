@@ -661,7 +661,13 @@ export async function mountSetupView(
     function updateProviderHint(): void {
         const hintEl = root.querySelector<HTMLElement>('#provider-hint');
         if (!hintEl) return;
-        const info = providerStatus?.[setup.provider];
+        // A running Ollama (direct probe) has no "unavailable" hint to show even
+        // when the app backend reported it absent — same override as the ✘/Begin
+        // gate, so the "Ollama runs on your own machine" box doesn't linger.
+        const info =
+            setup.provider === 'ollama' && capabilitiesSync().ollama
+                ? { available: true }
+                : providerStatus?.[setup.provider];
         if (info && !info.available && info.hint) {
             hintEl.innerHTML = info.hint;
             hintEl.classList.remove('hidden');
