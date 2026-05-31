@@ -17,7 +17,7 @@ import { allVoices, findVoice, type VoiceEntry } from '../voices.js';
 import { BrowserTtsEngine } from './browser-tts.js';
 import { ServerTtsEngine } from './server-tts.js';
 import { cloudUrl } from '../cloud-base.js';
-import { ensureServerToken } from '../server-auth.js';
+import { ensureServerToken, clearServerToken } from '../server-auth.js';
 
 export interface CreateTtsResult {
     engine: TtsEngine;
@@ -61,6 +61,9 @@ export function createServerAloudTts(voice = '', options: CreateTtsOptions = {})
         endpointUrl: cloudUrl('/tts'),
         usePost: true,
         authProvider: ensureServerToken,
+        // Drop a rejected token and re-sign-in once (mirrors the LLM proxy), so
+        // a stale session doesn't break hosted TTS for the whole page lifetime.
+        onAuthError: clearServerToken,
     };
     if (options.onServerSynthesize) opts.onSynthesize = options.onServerSynthesize;
     return new ServerTtsEngine(opts);

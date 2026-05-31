@@ -46,6 +46,14 @@ export interface ServerTtsEngineOptions {
     usePost?: boolean;
     /** Supplies the bearer token when usePost is set. */
     authProvider?: () => Promise<string | null>;
+    /**
+     * Called once on a 401 to invalidate a stale token before a single retry
+     * (the next authProvider() then re-signs-in). Without this, a cached token
+     * that the server no longer accepts — expired, or minted under a previous
+     * session secret — fails every hosted synthesis even though the LLM path
+     * self-heals. Wire to clearServerToken for the hosted engine.
+     */
+    onAuthError?: () => Promise<void>;
 }
 
 export class ServerTtsEngine implements TtsEngine {
@@ -56,6 +64,7 @@ export class ServerTtsEngine implements TtsEngine {
     private readonly onSynthesize: ((chars: number) => void) | undefined;
     private readonly usePost: boolean;
     private readonly authProvider: (() => Promise<string | null>) | undefined;
+    private readonly onAuthError: (() => Promise<void>) | undefined;
 
     private currentAudio: HTMLAudioElement | null = null;
     private currentUrl: string | null = null;
@@ -70,6 +79,7 @@ export class ServerTtsEngine implements TtsEngine {
         this.onSynthesize = options.onSynthesize;
         this.usePost = options.usePost ?? false;
         this.authProvider = options.authProvider;
+        this.onAuthError = options.onAuthError;
     }
 
     /** Build the fetch URL + init for one synthesis request. */
@@ -104,8 +114,16 @@ export class ServerTtsEngine implements TtsEngine {
 
         let blob: Blob;
         try {
-            const { url, init } = await this.buildRequest(text, options, abort.signal);
-            const response = await this.fetchImpl(url, init);
+            let { url, init } = await this.buildRequest(text, options, abort.signal);
+            let response = await this.fetchImpl(url, init);
+            // Self-heal a stale token: clear it and re-sign-in once on a 401,
+            // matching the LLM proxy. Otherwise hosted preview/playback fails
+            // whenever the cached token is expired or server-secret-rotated.
+            if (response.status === 401 && this.usePost && this.authProvider && this.onAuthError) {
+                await this.onAuthError();
+                ({ url, init } = await this.buildRequest(text, options, abort.signal));
+                response = await this.fetchImpl(url, init);
+            }
             if (!response.ok) {
                 throw new Error(`Server TTS responded ${response.status}`);
             }

@@ -85,3 +85,55 @@ describe('ServerTtsEngine (hosted POST mode)', () => {
         expect(seenUrl).toContain('voice=Samantha');
     });
 });
+
+describe('ServerTtsEngine hosted 401 self-heal', () => {
+    it('clears a stale token and retries once with a fresh one', async () => {
+        const tokens = ['stale-token', 'fresh-token'];
+        const seen: Array<string | undefined> = [];
+        let calls = 0;
+        const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+            calls++;
+            const auth = (init?.headers as Record<string, string> | undefined)?.['authorization'];
+            seen.push(auth);
+            if (calls === 1) {
+                return new Response(JSON.stringify({ code: 'unauthenticated' }), { status: 401 });
+            }
+            return new Response(new Blob([new Uint8Array([1])], { type: 'audio/mpeg' }), {
+                status: 200,
+            });
+        }) as unknown as typeof fetch;
+
+        const onAuthError = vi.fn(async () => {
+            tokens.shift(); // drop the stale token so the next authProvider() returns the fresh one
+        });
+        const engine = new ServerTtsEngine({
+            voice: 'Leda',
+            endpointUrl: '/cloud/v1/tts',
+            usePost: true,
+            authProvider: async () => tokens[0] ?? null,
+            onAuthError,
+            fetchImpl,
+        });
+
+        await engine.speak('Settle in.');
+
+        expect(calls).toBe(2);
+        expect(onAuthError).toHaveBeenCalledTimes(1);
+        expect(seen[0]).toBe('Bearer stale-token');
+        expect(seen[1]).toBe('Bearer fresh-token');
+    });
+
+    it('surfaces a 401 that persists after the retry', async () => {
+        const fetchImpl = (async () =>
+            new Response('', { status: 401 })) as unknown as typeof fetch;
+        const engine = new ServerTtsEngine({
+            voice: 'Leda',
+            endpointUrl: '/cloud/v1/tts',
+            usePost: true,
+            authProvider: async () => 'tok',
+            onAuthError: async () => {},
+            fetchImpl,
+        });
+        await expect(engine.speak('Hi.')).rejects.toThrow('401');
+    });
+});

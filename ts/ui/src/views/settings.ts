@@ -438,6 +438,13 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         hintEl.textContent = hints[resolveSttChoice(settings.sttEngine, isWebMode())];
     }
 
+    /** The Whisper model size only matters for the on-device Whisper backend —
+     *  hide it for browser/hosted STT. */
+    function updateWhisperVisibility(): void {
+        const group = root.querySelector<HTMLElement>('#s-whisper-model-group');
+        if (group) group.hidden = resolveSttChoice(settings.sttEngine, isWebMode()) !== 'whisper';
+    }
+
     function wireLanguageSection(): void {
         const langSel = root.querySelector<HTMLSelectElement>('#s-language')!;
         langSel.value = settings.language;
@@ -452,10 +459,12 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             // resolveSttChoice handles a null or stale-for-this-mode value.
             sttSel.value = resolveSttChoice(settings.sttEngine, isWebMode());
             updateSttHint();
+            updateWhisperVisibility();
             sttSel.addEventListener('change', () => {
                 settings.sttEngine = sttSel.value as SttEngineChoice;
                 persist();
                 updateSttHint();
+                updateWhisperVisibility();
             });
         }
 
@@ -1270,16 +1279,18 @@ function renderLanguageSection(s: AppSettings): string {
         <h2>Language &amp; Speech Recognition</h2>
         <div class="form-row form-row-thirds">
             <div class="form-group form-group-third">
-                <label for="s-stt-engine">Speech Recognition</label>
-                <select id="s-stt-engine" name="stt_engine">${sttOptions}</select>
-                <span class="form-hint" id="s-stt-engine-hint"></span>
-            </div>
-            <div class="form-group form-group-third">
                 <label for="s-language">Language</label>
                 <select id="s-language" name="language">${langOptions}</select>
                 <span class="form-hint">Affects speech recognition and voice previews</span>
             </div>
             <div class="form-group form-group-third">
+                <label for="s-stt-engine">Speech Recognition</label>
+                <select id="s-stt-engine" name="stt_engine">${sttOptions}</select>
+                <span class="form-hint" id="s-stt-engine-hint"></span>
+            </div>
+            <div class="form-group form-group-third" id="s-whisper-model-group"${
+                sttSelected === 'whisper' ? '' : ' hidden'
+            }>
                 <label for="s-whisper-model">Whisper Model</label>
                 <select id="s-whisper-model" name="whisper_model">
                     <option value="tiny">Tiny (fastest)</option>
