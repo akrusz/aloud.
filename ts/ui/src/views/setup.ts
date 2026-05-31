@@ -572,6 +572,9 @@ export async function mountSetupView(
         // An API provider with no stored key can't run — treat as unavailable
         // so Begin is blocked and the ✘ is consistent with the gate.
         if (providerNeedsKey(setup.provider) && keyPresent[setup.provider] === false) return false;
+        // Ollama: a running local daemon (direct probe) is usable even when the
+        // app backend can't see it (browser dev preview against Hono).
+        if (setup.provider === 'ollama' && capabilitiesSync().ollama) return true;
         const info = providerStatus?.[setup.provider];
         return !info || info.available;
     }
@@ -603,7 +606,13 @@ export async function mountSetupView(
         const available: HTMLOptionElement[] = [];
         const unavailable: HTMLOptionElement[] = [];
         for (const opt of Array.from(providerSel.options)) {
-            const info = providerStatus?.[opt.value];
+            let info = providerStatus?.[opt.value];
+            // Ollama: trust the direct /ollama probe (capabilities) over the app
+            // backend's report. A browser dev preview talks to Hono, which
+            // hardcodes ollama-unavailable; but a local daemon reached via the
+            // /ollama proxy is genuinely usable, so don't ✘ a running Ollama.
+            // (Web mode hides Ollama upstream, so this only bites in local mode.)
+            if (opt.value === 'ollama' && capabilitiesSync().ollama) info = { available: true };
             opt.textContent = (opt.textContent ?? '').replace(/ [✘✱]$/, '');
             opt.classList.remove('provider-unavailable');
             const needsKeyMissing =

@@ -6,6 +6,32 @@ import { initAbout } from './about.js';
 import { isTauri } from './is-desktop.js';
 import { initTauriWindowDrag } from './tauri-chrome.js';
 import { initExternalLinks } from './external-links.js';
+import { initAppMode } from './app-mode.js';
+
+// Capture a dev `?mode=` override (app-mode.ts) NOW, before bootApp's router
+// strips the query string off the initial URL.
+initAppMode();
+
+// Dev only: clear any service worker controlling this origin. The dev server
+// now shares port 4649 with the retired Flask app, whose service worker may
+// still be registered in the browser from a past session — it would shadow
+// Vite with stale cached assets (the classic "unstyled page until a hard
+// reload"). Unregister it + drop its caches, then reload once (loop-guarded)
+// so the page is served fresh. No-op once nothing is registered.
+if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+    void navigator.serviceWorker.getRegistrations().then(async (regs) => {
+        if (regs.length === 0) return;
+        await Promise.all(regs.map((r) => r.unregister()));
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        if (!sessionStorage.getItem('dev:sw-cleared')) {
+            sessionStorage.setItem('dev:sw-cleared', '1');
+            location.reload();
+        }
+    });
+}
 
 // Tag the document for the Tauri desktop shell so CSS can apply app-like
 // chrome (block text selection, pad the nav clear of the macOS traffic

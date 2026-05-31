@@ -49,6 +49,16 @@ function readOverride(): AppMode | null {
     return null;
 }
 
+/**
+ * Capture a `?mode=` override into sessionStorage at boot. MUST run before the
+ * SPA router normalizes the URL (it replaceState()s the query string away on
+ * the initial deep-link), otherwise readOverride() would never see the param.
+ * Call once, early, from main.ts.
+ */
+export function initAppMode(): void {
+    readOverride();
+}
+
 /** The active mode: a dev override if set, else the build default. */
 export function appMode(): AppMode {
     return readOverride() ?? (isHostedBuild() ? 'web' : 'local');
