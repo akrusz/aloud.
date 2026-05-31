@@ -87,16 +87,53 @@
     }
 }
 
-/* TTS settings row: the ElevenLabs key row sits between the engine selector
-   and the voice picker (you need a key before voices are useful). The row
-   wraps, and the key row is full-width — so when it's visible it pushes the
-   voice picker onto its own line below the key, and when it's hidden the
-   engine + voices stay side by side as before. (meditation-pal-679) */
+/* TTS settings row layout. The row wraps and the ElevenLabs key row is
+   full-width, but where the key lands relative to the voice picker depends on
+   width — the two half-width inputs don't sequence cleanly the same way at both
+   widths, so we reorder with flex `order` rather than DOM order:
+     • Wide: engine + voices share the top row; the full-width key drops below
+       them (engine 1, voices 2, key 3). When the key is hidden, engine + voices
+       stay side by side as before.
+     • Narrow (stacked): the key sits between engine and voices, since you need
+       a key before the voice picker is useful (engine 1, key 2, voices 3).
+   (meditation-pal-679) */
 .form-row-tts {
     flex-wrap: wrap;
 }
 .form-row-tts > .form-group-fullrow {
     flex: 1 1 100%;
+}
+.form-row-tts > #s-tts-engine-group {
+    order: 1;
+}
+.form-row-tts > #s-voice-group {
+    order: 2;
+}
+.form-row-tts > #s-elevenlabs-key-row {
+    order: 3;
+}
+@media (max-width: 767px) {
+    /* Stacked: engine, key, voices. */
+    .form-row-tts > #s-elevenlabs-key-row {
+        order: 2;
+    }
+    .form-row-tts > #s-voice-group {
+        order: 3;
+    }
+}
+
+/* Whisper model column: when STT isn't Whisper the field is hidden, but at
+   widths where all three columns sit on one row we keep its empty slot so
+   Language/Recognition stay a third each (stretching them to halves as you
+   switch STT is jarring). Once the row stacks, drop the slot so there's no
+   dead vertical space. Paired with updateWhisperVisibility() in settings.ts. */
+.form-row-thirds > .form-group.whisper-slot-hidden {
+    visibility: hidden;
+}
+@media (max-width: 767px) {
+    .form-row-thirds > .form-group.whisper-slot-hidden {
+        display: none;
+    }
 }
 
 /* Display section's own commit button. Text scale + theme are preview-only

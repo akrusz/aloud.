@@ -37,9 +37,9 @@ const M = 1_000_000;
 
 /** Keyed by `${provider}:${model}`. */
 const MODELS: Record<string, ModelPricing> = {
-    'anthropic:claude-opus-4-7': {
+    'anthropic:claude-opus-4-8': {
         provider: 'anthropic',
-        model: 'claude-opus-4-7',
+        model: 'claude-opus-4-8',
         input: 5 / M,
         output: 25 / M,
         cacheRead: 0.5 / M,

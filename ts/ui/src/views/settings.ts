@@ -442,9 +442,14 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
      *  hide it for browser/hosted STT. */
     function updateWhisperVisibility(): void {
         const group = root.querySelector<HTMLElement>('#s-whisper-model-group');
-        // Use the .hidden class (display:none !important from the imported
-        // stylesheet) — the [hidden] attribute loses to .form-group's display:flex.
-        group?.classList.toggle('hidden', resolveSttChoice(settings.sttEngine, isWebMode()) !== 'whisper');
+        // `.whisper-slot-hidden` (style.css) keeps the column's slot at wide
+        // widths so Language/Recognition stay at a third each instead of
+        // stretching to halves as you toggle STT; it collapses to display:none
+        // once the row stacks, so narrow widths show no dead space.
+        group?.classList.toggle(
+            'whisper-slot-hidden',
+            resolveSttChoice(settings.sttEngine, isWebMode()) !== 'whisper'
+        );
     }
 
     function wireLanguageSection(): void {
@@ -1291,7 +1296,7 @@ function renderLanguageSection(s: AppSettings): string {
                 <span class="form-hint" id="s-stt-engine-hint"></span>
             </div>
             <div class="form-group form-group-third${
-                sttSelected === 'whisper' ? '' : ' hidden'
+                sttSelected === 'whisper' ? '' : ' whisper-slot-hidden'
             }" id="s-whisper-model-group">
                 <label for="s-whisper-model">Whisper Model</label>
                 <select id="s-whisper-model" name="whisper_model">
@@ -1330,22 +1335,25 @@ function renderTtsSection(s: AppSettings): string {
             <p><strong>ElevenLabs</strong> — Cloud TTS with the most natural voices. Requires an API key.</p>
         </div>
         <div class="form-row form-row-tts">
-            <div class="form-group form-group-half">
+            <div class="form-group form-group-half" id="s-tts-engine-group">
                 <label for="s-tts-engine">Manage TTS Engines</label>
                 <select id="s-tts-engine" name="tts_engine">${opts}</select>
                 <span class="form-hint" id="s-tts-engine-hint"></span>
             </div>
-            <!-- ElevenLabs needs a key before voices are useful, so the key row
-                 sits between the engine and the voice picker. It's full-width
-                 (.form-row-tts wraps), so when hidden the engine + voices stay
-                 side by side; when shown it pushes voices below the key. -->
+            <!-- The ElevenLabs key row is full-width (.form-row-tts wraps). A CSS
+                 "order" rule places it differently per width (see style.css): wide —
+                 engine + voices share the top row and the key drops full-width
+                 below; narrow (stacked) — the key sits between engine and voices,
+                 since you need a key before the voice picker is useful. The two
+                 half-width inputs don't sequence cleanly the same way at both
+                 widths, hence the order swap. -->
             <div class="form-group api-key-group form-group-fullrow hidden" id="s-elevenlabs-key-row">
                 <label for="s-elevenlabs-key">ElevenLabs API Key
                     <span class="optional api-key-status"></span>
                 </label>
                 <input type="password" id="s-elevenlabs-key" placeholder="sk_..." autocomplete="off">
             </div>
-            <div class="form-group form-group-half">
+            <div class="form-group form-group-half" id="s-voice-group">
                 <label>Manage Voices</label>
                 <button type="button" id="s-voice-btn" class="setup-voice-btn">Choose voice</button>
             </div>
@@ -1381,6 +1389,10 @@ function renderDisplaySection(s: AppSettings): string {
                     <label for="s-theme-mode">Theme</label>
                     <select id="s-theme-mode">${themeOpts}</select>
                 </div>
+                <div class="display-apply-row">
+                    <button type="button" id="s-apply-display" class="btn btn-primary" disabled>Apply display changes</button>
+                    <span class="settings-saved hidden" id="display-applied">Applied</span>
+                </div>
             </div>
             <div class="display-preview">
                 <div class="text-scale-preview" id="text-scale-preview">
@@ -1414,10 +1426,6 @@ function renderDisplaySection(s: AppSettings): string {
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="display-apply-row">
-            <button type="button" id="s-apply-display" class="btn btn-primary" disabled>Apply display changes</button>
-            <span class="settings-saved hidden" id="display-applied">Applied</span>
         </div>
     </section>`;
 }

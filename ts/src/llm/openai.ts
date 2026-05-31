@@ -264,6 +264,11 @@ function preconfigured(defaults: {
 export const OpenRouterProvider = preconfigured({
     baseUrl: 'https://openrouter.ai/api/v1',
     defaultModel: 'deepseek/deepseek-v3.2',
+    // aloud never wants chain-of-thought: a spoken meditation turn gains nothing
+    // from reasoning tokens, which only add latency and cost. Several routable
+    // models (deepseek-v3.2 included) reason by default; OpenRouter normalizes
+    // `reasoning.enabled` across vendors and ignores it for models that can't.
+    extraBody: { reasoning: { enabled: false } },
 });
 
 /** Venice — privacy-focused open-weights inference. */
@@ -286,4 +291,9 @@ export const GroqProvider = preconfigured({
 export const GoogleProvider = preconfigured({
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     defaultModel: 'gemini-2.5-flash-lite',
+    // Disable Gemini "thinking". 2.5 Flash reasons by default (Flash-Lite does
+    // not, but be explicit so a model swap can't silently turn it on) — we want
+    // fast, direct facilitation, not a thinking budget. Gemini's OpenAI-compat
+    // endpoint maps reasoning_effort:"none" to thinking off.
+    extraBody: { reasoning_effort: 'none' },
 });

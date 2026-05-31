@@ -17,10 +17,10 @@ describe('estimateModels', () => {
         // Compare on provider-cost USD, not rounded credits — at this denomination
         // the per-hour credit counts round to small integers and lose ratio precision.
         const usd = (model: string) => models.find((m) => m.model === model)!.costUsdPerHour;
-        expect(usd('claude-opus-4-7')).toBeGreaterThan(usd('claude-sonnet-4-6'));
+        expect(usd('claude-opus-4-8')).toBeGreaterThan(usd('claude-sonnet-4-6'));
         expect(usd('claude-sonnet-4-6')).toBeGreaterThan(usd('claude-haiku-4-5-20251001'));
         // ~5x on this cache-heavy workload.
-        expect(usd('claude-opus-4-7') / usd('claude-haiku-4-5-20251001')).toBeGreaterThan(3);
+        expect(usd('claude-opus-4-8') / usd('claude-haiku-4-5-20251001')).toBeGreaterThan(3);
     });
 
     it('a NO-CACHE model (Groq) can beat a cached cheap model (Haiku) on cost: '
@@ -38,7 +38,7 @@ describe('estimateStt', () => {
         const stt = estimateStt();
         expect(stt.creditsPerHour).toBeGreaterThan(0);
         // VAD-segmented speech makes STT cheap relative to a premium model hour.
-        const opus = estimateModels().find((m) => m.model === 'claude-opus-4-7')!;
+        const opus = estimateModels().find((m) => m.model === 'claude-opus-4-8')!;
         expect(stt.costUsdPerHour).toBeLessThan(opus.costUsdPerHour);
     });
 });

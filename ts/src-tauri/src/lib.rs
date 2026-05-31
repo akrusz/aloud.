@@ -5,8 +5,36 @@ mod providers;
 mod server;
 mod tts;
 
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
-use tauri_plugin_window_state::{StateFlags, WindowExt};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
+
+const GEOMETRY_FLAGS: StateFlags = StateFlags::POSITION
+  .union(StateFlags::SIZE)
+  .union(StateFlags::MAXIMIZED);
+
+// Throttle geometry writes so a resize/move drag (events fire per frame) doesn't
+// hammer the disk. The final position lands either on the next event past the
+// window or on the plugin's clean-close save.
+static LAST_GEOMETRY_SAVE: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// Persist the window's current bounds, at most every 500ms. The window-state
+/// plugin already saves on a clean close (red button / Cmd+Q), but an ungraceful
+/// kill (Ctrl+C in dev) never fires that path — so we also save as geometry
+/// changes, keeping the last-known bounds on disk however the process dies.
+fn save_geometry_throttled(app: &tauri::AppHandle) {
+  {
+    let now = Instant::now();
+    let mut last = LAST_GEOMETRY_SAVE.lock().unwrap();
+    if matches!(*last, Some(prev) if now.duration_since(prev) < Duration::from_millis(500)) {
+      return;
+    }
+    *last = Some(now);
+  }
+  let _ = app.save_window_state(GEOMETRY_FLAGS);
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,6 +43,11 @@ pub fn run() {
     // Persist window geometry across launches (auto-saves on exit; we restore
     // explicitly below since the window is built at runtime, not from config).
     .plugin(tauri_plugin_window_state::Builder::default().build())
+    .on_window_event(|window, event| {
+      if matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_)) {
+        save_geometry_throttled(window.app_handle());
+      }
+    })
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -55,7 +88,7 @@ pub fn run() {
 
       let window = builder.build()?;
       // Apply the saved position/size/maximized state (no-op on first run).
-      let _ = window.restore_state(StateFlags::POSITION | StateFlags::SIZE | StateFlags::MAXIMIZED);
+      let _ = window.restore_state(GEOMETRY_FLAGS);
       Ok(())
     })
     .run(tauri::generate_context!())
