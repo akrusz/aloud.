@@ -98,6 +98,11 @@ export function prefixedVoiceId(engine: string | undefined, name: string): strin
 const MACOS_QUALITY_VOICES =
     /^(Ava|Allison|Samantha|Susan|Tom|Zoe|Karen|Daniel|Moira|Fiona|Tessa|Lee|Majed|Luciana|Joana|Mónica)$/i;
 
+/** True on macOS/iOS, where local speechSynthesis voices are Apple's. */
+function isMac(): boolean {
+    return typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
+}
+
 // ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
@@ -202,17 +207,19 @@ export function buildScoredVoiceList(
         if (vLang !== 'en' && vLang !== langPrefix) continue;
 
         let score = scoreVoice(v.name);
-        // Non-local browser voices (Google etc.) bump up — they're usually
-        // the better option than local-but-low-quality fallbacks.
+        // Non-local browser voices (Chrome/Edge cloud) are the genuinely good
+        // ones — bump their score and float them into the Best tier alongside
+        // the hosted voices (developer preference: cloud-neural over local).
         const remote = !v.localService;
         if (remote) score = Math.max(score, 2);
-        // Chrome's cloud voices (Google/Natural/Online, all non-local) are
-        // genuinely good — surface them in the Best section alongside hosted.
-        const recommended = remote && /Google|Natural|Online/i.test(v.name);
+        const recommended = remote;
         // macOS system voices reach us through the browser (engine stays
-        // 'browser' so playback routes to speechSynthesis), but tag them
-        // "macOS" in the badge — Apple voiceURIs start with com.apple.
-        const isApple = (v.voiceURI || '').startsWith('com.apple');
+        // 'browser' so playback routes to speechSynthesis), but tag them "macOS"
+        // in the badge. Safari exposes a com.apple voiceURI; Chrome on macOS
+        // uses a plain-name voiceURI, so the reliable signal is "on a Mac, a
+        // local voice is an Apple voice" (the only local TTS engine there).
+        const isApple =
+            (v.voiceURI || '').startsWith('com.apple') || (isMac() && (v.localService ?? false));
 
         scored.push({
             name: v.name,

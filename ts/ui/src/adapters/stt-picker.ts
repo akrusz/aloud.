@@ -187,37 +187,44 @@ export async function createSttForChoice(
             return (await isServerWhisperReachable())
                 ? new ServerWhisperSttEngine({ ...vadOpts, endpointUrl: appUrl(SERVER_WHISPER_PATH) })
                 : null;
-        case 'auto':
-            return createBestStt(vadOpts);
     }
 }
 
 /** The SttBackend label for a choice — drives the barge-in wrapper decision
  *  downstream (continuous-capture backends self-detect and skip the wrapper). */
-export async function sttBackendForChoice(choice: SttEngineChoice): Promise<SttBackend> {
+export function sttBackendForChoice(choice: SttEngineChoice): SttBackend {
     switch (choice) {
         case 'aloud':
         case 'whisper':
             return 'server-whisper';
         case 'web-speech':
             return 'web-speech';
-        case 'auto':
-            return detectSttBackend();
     }
 }
 
 /**
- * Which explicit STT choices to offer in Settings for the current mode.
- * 'auto' and the credit-using hosted option are always available; Whisper is
- * local-only (no on-device backend on the web); browser speech appears only
- * when the browser exposes the API.
+ * Which STT choices to offer for the current mode, in flow-default order:
+ * Whisper (local-only — no on-device backend on the web), then browser speech
+ * (only when the browser exposes the API), then the hosted option (always, and
+ * the only one that costs credits). The first entry is the mode's default.
  */
 export function sttEngineOptions(webMode: boolean): Array<{ value: SttEngineChoice; label: string }> {
-    const out: Array<{ value: SttEngineChoice; label: string }> = [
-        { value: 'auto', label: 'Automatic (best available)' },
-    ];
+    const out: Array<{ value: SttEngineChoice; label: string }> = [];
     if (!webMode) out.push({ value: 'whisper', label: 'Whisper — on this device' });
     if (isWebSpeechSupported()) out.push({ value: 'web-speech', label: 'Browser speech recognition' });
     out.push({ value: 'aloud', label: 'aloud server — uses credits' });
     return out;
+}
+
+/** The mode's default STT source: the first available option in flow order. */
+export function defaultSttChoice(webMode: boolean): SttEngineChoice {
+    return sttEngineOptions(webMode)[0]!.value;
+}
+
+/** Resolve the effective STT choice: the stored pick if it's offered in this
+ *  mode, otherwise the mode's flow default. Handles null (never chosen) and a
+ *  stale pick carried across a mode change. */
+export function resolveSttChoice(stored: SttEngineChoice | null, webMode: boolean): SttEngineChoice {
+    const offered = sttEngineOptions(webMode).map((o) => o.value);
+    return stored && offered.includes(stored) ? stored : defaultSttChoice(webMode);
 }

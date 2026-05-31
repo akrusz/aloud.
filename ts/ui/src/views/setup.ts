@@ -46,12 +46,13 @@ import {
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { mountModelPicker } from '../model-picker.js';
 import { hasApiKey } from '../api-keys.js';
+import { sttEngineOptions, resolveSttChoice } from '../adapters/stt-picker.js';
 import { sessionStore } from '../state.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
 import { isWebMode } from '../app-mode.js';
 import { appUrl } from '../app-base.js';
 import { alertDialog } from '../dialog.js';
-import { loadAppSettings, saveAppSettings } from '../app-settings.js';
+import { loadAppSettings, saveAppSettings, type SttEngineChoice } from '../app-settings.js';
 import {
     autoStart as autoStartGuide,
     closeIfActive as closeGuideIfActive,
@@ -133,11 +134,16 @@ export async function mountSetupView(
     // menu shows exactly what's reachable (also populates the is-desktop cache
     // for the env-var hints).
     await detectCapabilities();
+    const appSettings = await loadAppSettings();
     // BYOK visibility: always in local mode; opt-in in web mode.
     const byokOpts: ProviderAvailabilityOpts = {
         webMode: isWebMode(),
-        allowByok: (await loadAppSettings()).enableByok,
+        allowByok: appSettings.enableByok,
     };
+    // Speech-recognition source, shown alongside provider/model so it's visible
+    // (and changeable) before starting a session. Edits the app-level default,
+    // same as the Voice control. The select itself is built in renderSetupHTML.
+    const sttSetupSelected = resolveSttChoice(appSettings.sttEngine, isWebMode());
     // Scored voice list for the modal. Lazy-loaded; the setup form is
     // interactive while voices fetch in the background.
     let scoredVoices: ScoredVoice[] = [];
@@ -347,7 +353,7 @@ export async function mountSetupView(
     }
 
     function render(): void {
-        root.innerHTML = renderSetupHTML(byokOpts);
+        root.innerHTML = renderSetupHTML(byokOpts, sttSetupSelected);
         wireTabBar();
         wireInfoButtons();
         wireNotingPanel();
@@ -458,6 +464,15 @@ export async function mountSetupView(
                 persist();
             }
         );
+
+        // Speech-recognition source — app-level (like the default voice), so
+        // saving it here mirrors Settings. The visible options are already
+        // mode-aware (rendered above); persist the explicit pick.
+        const sttSel = root.querySelector<HTMLSelectElement>('#setup-stt-engine');
+        sttSel?.addEventListener('change', async () => {
+            const s = await loadAppSettings();
+            await saveAppSettings({ ...s, sttEngine: sttSel.value as SttEngineChoice });
+        });
 
         // Provider availability — fetch /api/providers, annotate the
         // provider <option>s with ✱ (installed but not running) or
@@ -1111,8 +1126,17 @@ function stripVoicePrefix(voice: string | null): string | null {
     return m ? (m[2] ?? null) : voice;
 }
 
-function renderSetupHTML(byokOpts: ProviderAvailabilityOpts): string {
+function renderSetupHTML(
+    byokOpts: ProviderAvailabilityOpts,
+    sttSelected: SttEngineChoice
+): string {
     const escapeHtml = escapeAttr;
+    const sttSetupOptions = sttEngineOptions(isWebMode())
+        .map(
+            ({ value, label }) =>
+                `<option value="${value}"${value === sttSelected ? ' selected' : ''}>${escapeHtml(label)}</option>`
+        )
+        .join('');
 
     // Mirror Python's index.html: presets are radio inputs wrapped in
     // labels styled as cards. The radio is visually hidden by the CSS
@@ -1259,7 +1283,7 @@ function renderSetupHTML(byokOpts: ProviderAvailabilityOpts): string {
             </div>
         </div>
 
-        <div class="form-row">
+        <div class="form-row form-row-thirds">
             <div class="form-group">
                 <label for="provider">Provider</label>
                 <select id="provider">
@@ -1274,6 +1298,10 @@ function renderSetupHTML(byokOpts: ProviderAvailabilityOpts): string {
             <div class="form-group">
                 <label for="model-select">Model</label>
                 <div id="model-picker-slot"></div>
+            </div>
+            <div class="form-group">
+                <label for="setup-stt-engine">Speech Recognition</label>
+                <select id="setup-stt-engine">${sttSetupOptions}</select>
             </div>
         </div>
 

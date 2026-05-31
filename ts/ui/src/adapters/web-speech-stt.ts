@@ -51,6 +51,9 @@ interface SpeechRecognitionCtor {
 }
 
 function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
+    // Guard for non-browser contexts (Node tests, SSR) — no window means no
+    // Web Speech, not a ReferenceError.
+    if (typeof window === 'undefined') return null;
     const w = window as unknown as {
         SpeechRecognition?: SpeechRecognitionCtor;
         webkitSpeechRecognition?: SpeechRecognitionCtor;

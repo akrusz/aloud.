@@ -33,7 +33,7 @@ import {
     loadAppSettings,
     saveAppSettings,
 } from '../app-settings.js';
-import { sttEngineOptions } from '../adapters/stt-picker.js';
+import { sttEngineOptions, resolveSttChoice } from '../adapters/stt-picker.js';
 import { ALL_PROVIDERS, isProviderAvailable, providerNeedsKey, type Provider } from '../settings.js';
 import { isDesktopSync } from '../is-desktop.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
@@ -431,12 +431,11 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         const hintEl = root.querySelector<HTMLElement>('#s-stt-engine-hint');
         if (!hintEl) return;
         const hints: Record<SttEngineChoice, string> = {
-            auto: "Picks the best available — Whisper in the desktop app, your browser's speech recognition on the web.",
             whisper: 'Transcribed on this device. Free and private.',
             'web-speech': "Uses your browser's built-in speech recognition. Free.",
             aloud: "Audio is transcribed by aloud's server and spends credits.",
         };
-        hintEl.textContent = hints[settings.sttEngine];
+        hintEl.textContent = hints[resolveSttChoice(settings.sttEngine, isWebMode())];
     }
 
     function wireLanguageSection(): void {
@@ -449,14 +448,9 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
 
         const sttSel = root.querySelector<HTMLSelectElement>('#s-stt-engine');
         if (sttSel) {
-            // If the stored choice isn't offered in this mode (e.g. 'whisper'
-            // carried into web mode), the select shows nothing selected — treat
-            // that as 'auto' so the value stays coherent.
-            sttSel.value = settings.sttEngine;
-            if (sttSel.selectedIndex < 0) {
-                settings.sttEngine = 'auto';
-                sttSel.value = 'auto';
-            }
+            // Show the resolved choice (stored pick or the mode's flow default);
+            // resolveSttChoice handles a null or stale-for-this-mode value.
+            sttSel.value = resolveSttChoice(settings.sttEngine, isWebMode());
             updateSttHint();
             sttSel.addEventListener('change', () => {
                 settings.sttEngine = sttSel.value as SttEngineChoice;
@@ -1261,31 +1255,31 @@ function renderLanguageSection(s: AppSettings): string {
     ).join('');
     // Mode-aware STT sources: Whisper is local-only, browser speech appears when
     // the API exists, the hosted option is always offered (and labeled as
-    // credit-using). isWebSpeechSupported() is evaluated inside sttEngineOptions.
+    // credit-using). The selected value is the resolved choice (stored pick or
+    // the mode's flow default) — there's no "automatic" entry.
+    const sttSelected = resolveSttChoice(s.sttEngine, isWebMode());
     const sttOptions = sttEngineOptions(isWebMode())
         .map(
             ({ value, label }) =>
-                `<option value="${value}"${value === s.sttEngine ? ' selected' : ''}>${escape(label)}</option>`
+                `<option value="${value}"${value === sttSelected ? ' selected' : ''}>${escape(label)}</option>`
         )
         .join('');
 
     return `
     <section class="settings-section">
         <h2>Language &amp; Speech Recognition</h2>
-        <div class="form-row">
-            <div class="form-group form-group-half">
+        <div class="form-row form-row-thirds">
+            <div class="form-group form-group-third">
                 <label for="s-stt-engine">Speech Recognition</label>
                 <select id="s-stt-engine" name="stt_engine">${sttOptions}</select>
                 <span class="form-hint" id="s-stt-engine-hint"></span>
             </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group form-group-half">
+            <div class="form-group form-group-third">
                 <label for="s-language">Language</label>
                 <select id="s-language" name="language">${langOptions}</select>
                 <span class="form-hint">Affects speech recognition and voice previews</span>
             </div>
-            <div class="form-group form-group-half">
+            <div class="form-group form-group-third">
                 <label for="s-whisper-model">Whisper Model</label>
                 <select id="s-whisper-model" name="whisper_model">
                     <option value="tiny">Tiny (fastest)</option>
@@ -1294,7 +1288,7 @@ function renderLanguageSection(s: AppSettings): string {
                     <option value="medium">Medium</option>
                     <option value="large">Large (most accurate)</option>
                 </select>
-                <span class="form-hint">Larger = more accurate but slower. Persists for next launch.</span>
+                <span class="form-hint">Larger = more accurate but slower.</span>
             </div>
         </div>
     </section>`;

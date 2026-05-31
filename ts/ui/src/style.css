@@ -343,6 +343,11 @@
     flex: 1;
     min-width: 180px;
 }
+/* Three-up rows (e.g. Speech Recognition / Language / Whisper model) — let the
+   columns get a bit narrower before wrapping so all three sit on one line. */
+.form-row-thirds > .form-group {
+    min-width: 140px;
+}
 
 /* ============================================
    Tauri desktop shell chrome ([data-shell="tauri"] on <html>)

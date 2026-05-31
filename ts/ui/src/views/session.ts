@@ -34,14 +34,13 @@ import { ServerLlmProvider, type ServerProviderId } from '../adapters/server-llm
 import { ensureServerToken } from '../server-auth.js';
 
 import {
-    createBestStt,
-    createServerAloudStt,
     createSttForChoice,
     sttBackendForChoice,
-    detectSttBackend,
+    resolveSttChoice,
     invalidateSttBackendCache,
     type SttBackend,
 } from '../adapters/stt-picker.js';
+import { isWebMode } from '../app-mode.js';
 import { createTtsForVoice, createServerAloudTts } from '../adapters/tts-picker.js';
 import { ServerWhisperSttEngine } from '../adapters/server-whisper-stt.js';
 import { type SessionSetup, dirStepToBackend } from '../settings.js';
@@ -241,20 +240,13 @@ export async function mountSessionView(
     // server-Whisper engine pointed at /v1/stt, so it behaves identically —
     // report it as 'server-whisper' downstream. Fall back to the best local
     // option if hosted STT can't initialize (e.g. no mic).
-    // The Settings STT choice is authoritative when set explicitly. 'auto'
-    // keeps the smart cascade: on the hosted provider, route STT through the
-    // server (Groq) too so the whole pipeline runs against @aloud/server;
-    // otherwise pick the best local option.
-    let stt: SttEngine | null;
-    let sttBackend: SttBackend;
-    if (appSettings.sttEngine === 'auto') {
-        const hostedStt = setup.provider === 'aloud' ? createServerAloudStt(vadOpts) : null;
-        stt = hostedStt ?? (await createBestStt(vadOpts));
-        sttBackend = hostedStt ? 'server-whisper' : await detectSttBackend();
-    } else {
-        stt = await createSttForChoice(appSettings.sttEngine, vadOpts);
-        sttBackend = await sttBackendForChoice(appSettings.sttEngine);
-    }
+    // The STT source is an explicit, mode-resolved choice (Settings / setup) —
+    // Whisper locally, browser speech, or the hosted server (credits). No
+    // hidden automatic; resolveSttChoice falls back to the mode's flow default
+    // when nothing's been chosen.
+    const sttChoice = resolveSttChoice(appSettings.sttEngine, isWebMode());
+    const stt: SttEngine | null = await createSttForChoice(sttChoice, vadOpts);
+    const sttBackend: SttBackend = sttBackendForChoice(sttChoice);
 
     // server-Whisper detects barge-in on its own continuous capture stream, so
     // we DON'T wrap TTS with the separate-stream detector there (a second mic
