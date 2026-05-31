@@ -442,7 +442,9 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
      *  hide it for browser/hosted STT. */
     function updateWhisperVisibility(): void {
         const group = root.querySelector<HTMLElement>('#s-whisper-model-group');
-        if (group) group.hidden = resolveSttChoice(settings.sttEngine, isWebMode()) !== 'whisper';
+        // Use the .hidden class (display:none !important from the imported
+        // stylesheet) — the [hidden] attribute loses to .form-group's display:flex.
+        group?.classList.toggle('hidden', resolveSttChoice(settings.sttEngine, isWebMode()) !== 'whisper');
     }
 
     function wireLanguageSection(): void {
@@ -1288,9 +1290,9 @@ function renderLanguageSection(s: AppSettings): string {
                 <select id="s-stt-engine" name="stt_engine">${sttOptions}</select>
                 <span class="form-hint" id="s-stt-engine-hint"></span>
             </div>
-            <div class="form-group form-group-third" id="s-whisper-model-group"${
+            <div class="form-group form-group-third${
                 sttSelected === 'whisper' ? '' : ' hidden'
-            }>
+            }" id="s-whisper-model-group">
                 <label for="s-whisper-model">Whisper Model</label>
                 <select id="s-whisper-model" name="whisper_model">
                     <option value="tiny">Tiny (fastest)</option>
