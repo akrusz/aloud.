@@ -1,197 +1,226 @@
 # Development Cheatsheet
 
-Quick reference for running, debugging, and releasing aloud.
+Quick reference for the current structure and how to run, test, and release
+aloud. The codebase is mid-migration from Python/Flask to a TypeScript + Rust
+stack; both ship this cycle, so both are covered. See
+[ts-migration-status.md](ts-migration-status.md) for where the port stands.
+
+## Structure
+
+Two stacks live side by side:
+
+| Path | Stack | Role |
+|------|-------|------|
+| `src/`, `tests/` | **Python / Flask** (legacy) | The original app + dev-preview backend. Still ships via PyInstaller this cycle; being removed (meditation-pal-sk8). |
+| `ts/src/` | TS — `@aloud/core` | Shared engine: pacing, prompts, session, noting, LLM providers, platform adapters. |
+| `ts/ui/` | TS — Vite, vanilla ES modules | The web UI (`ui/src/`, builds to `ui/dist/`). No framework, no build step beyond Vite. |
+| `ts/server/` | TS — Hono | The **hosted cloud service**: Google auth, credit ledger, metered LLM/STT/TTS forwarding, billing. |
+| `ts/src-tauri/` | Rust — Tauri 2 | The **desktop shell**: an embedded `axum` backend (native Whisper/Piper/Ollama/claude-CLI) + the webview that loads `ui/`. |
+
+### Two backend namespaces
+
+The UI talks to two backends, named by role (see `ui/src/app-base.ts` /
+`cloud-base.ts`):
+
+- **`/app/v1/*`** — the app's *own* backend (provider/voice/model catalogs,
+  system-info, and on desktop: STT, TTS, Ollama, claude-proxy, shell escapes).
+  Served by the **Rust shell** on desktop, by **Hono** on web.
+- **`/cloud/v1/*`** — the **hosted** signed-in, billed service (auth, account,
+  billing, metered forwarding). Always the **Hono** server.
+
+On desktop the Rust shell injects `window.__ALOUD_API_BASE__` (its loopback
+port) so `/app/v1` resolves locally; `/cloud/v1` points at the hosted server
+(baked in at build time via `VITE_ALOUD_SERVER_URL`).
 
 ## Running
 
+All `npm` commands run from `ts/`. Use `uv` for Python.
+
+### Desktop app (Tauri) — the primary dev target
+
 ```bash
-# Web server (default — native window via pywebview)
-uv run python -m src.web
+cd ts && npm run tauri:dev
+```
 
-# Web server in browser (no pywebview window)
-uv run python -m src.web --browser
+Starts Vite (UI on **:4649**) + compiles and runs the Rust shell. The shell's
+embedded backend serves `/app/v1/*` on a loopback port — **no Flask needed**.
+For hosted features (accounts/credits/hosted voices) also start the Hono
+server (below); without it, `/cloud/v1/*` calls fail with `ECONNREFUSED` and the
+UI degrades to "hosted unavailable" (expected, harmless).
 
-# Custom host/port
+### Web UI in a browser (Vite)
+
+```bash
+cd ts && npm run ui:dev          # UI on :4649
+```
+
+The Vite proxy (`ui/vite.config.ts`) forwards:
+- `/app/v1/*` → **Hono** on :8787 (the app-backend surface; no Flask, no
+  rewrite — Hono speaks `/app/v1` natively). meditation-pal-5d9.
+- `/cloud/v1/*` → **Hono** on :8787 (same server; hosted accounts/credits/proxy).
+- `/ollama/*` → local Ollama daemon on :11434.
+
+So browser preview needs only the Hono server running (next section) — **no
+Flask**. Run `cd ts/server && npm run dev` and load :4649.
+
+**Local vs web mode (dev override).** The app runs in `local` mode (all
+providers: Ollama + every BYOK API) or `web` mode (the hosted demo: Ollama
+hidden, BYOK off behind a settings checkbox). The build default keys off
+`isHostedBuild()` (whether `VITE_ALOUD_SERVER_URL` was baked in). In **dev** you
+can force either with a URL param — no rebuild, no settings change — so you can
+keep both open in two tabs:
+- `:4649/?mode=web` — force web mode
+- `:4649/?mode=local` — force local mode
+- `:4649/?mode=auto` — clear the override (back to the build default)
+
+The override is **dev-only**: `vite build` hard-disables it (`app-mode.ts`),
+so a deployed visitor can't force local mode to unlock Ollama/BYOK.
+
+### Hosted server (Hono)
+
+```bash
+cd ts/server && npm run dev      # :8787, watch mode
+```
+
+Boots with in-memory stores + stubs in dev (no secrets required). Config comes
+from `ts/server/.env` — copy `ts/server/.env.example` and fill what you need.
+Deeper operational notes: [ts-server.md](ts-server.md).
+
+### Legacy Python / Flask
+
+```bash
+uv run python -m src.web                       # native window (pywebview), :4649
+uv run python -m src.web --browser             # system browser, no native window
 uv run python -m src.web --host 0.0.0.0 --port 8080
-
-# Debug logging (verbose output from src.* loggers)
-uv run python -m src.web --debug
-
-# CLI mode (headless, mic + system TTS)
-uv run python -m src
+uv run python -m src.web --debug               # verbose src.* logging
 ```
 
-## Debug & Testing Flags
+### Ports at a glance
 
-These flags simulate different user states without touching your real config or data.
+| Port | Who |
+|------|-----|
+| 4649 | Vite UI — both `tauri:dev` and `ui:dev` (reuses the retired Flask port) |
+| 8787 | Hono server — both `/cloud/v1` and `/app/v1` (the `ui:dev` `/app` + `/cloud` proxy target) |
+| 11434 | Ollama daemon |
 
-```bash
-# Simulate a brand-new install (first-run welcome UI, clears localStorage)
-uv run python -m src.web --fresh
+(Legacy Flask, if you still run it, is also :4649 — but it's native-window only
+now and no longer a dev proxy target, so it won't collide with `ui:dev` unless
+you run both at once.)
 
-# Hide Premium/Enhanced voices (triggers voice quality prompt)
-uv run python -m src.web --hide-premium
-
-# Return zero voices from /api/voices (triggers no-voices UI)
-uv run python -m src.web --no-voices
-
-# Piper hidden from engine list & recommendations
-uv run python -m src.web --reset-piper
-
-# All LLM providers appear unavailable (test cold-start provider setup)
-uv run python -m src.web --no-providers
-
-# Ollama appears not installed (test Ollama install/pull flow)
-uv run python -m src.web --no-ollama
-
-# Combine flags — full fresh-install experience without premium voices
-uv run python -m src.web --fresh --hide-premium
-
-# Full fresh-install with no voices at all
-uv run python -m src.web --fresh --no-voices
-
-# True cold-start: fresh install, no providers, no premium, no Piper
-uv run python -m src.web --fresh --no-providers --hide-premium --reset-piper
-
-# Test Ollama install flow with everything else available
-uv run python -m src.web --fresh --no-ollama
-
-# All flags work with --browser too
-uv run python -m src.web --browser --fresh --hide-premium
-```
-
-| Flag | What it does |
-|------|-------------|
-| `--fresh` | Shows first-run settings UI, clears localStorage (voice prefs, embers, quality prompt) |
-| `--hide-premium` | Filters out Premium/Enhanced voices from `/api/voices` so only basic voices appear |
-| `--no-voices` | `/api/voices` returns `[]` — tests the empty-voices state |
-| `--reset-piper` | Piper hidden from engine dropdown, voice quality modal, and hints |
-| `--no-providers` | All LLM providers return `available: false` — tests zero-provider setup UI |
-| `--no-ollama` | Ollama appears not installed/running — tests Ollama install flow |
-| `--debug` | Sets log level to DEBUG for all `src.*` loggers |
-| `--browser` | Opens in system browser instead of pywebview native window |
-
-## Session Management (CLI)
+## Tests & checks
 
 ```bash
-# List saved sessions
-uv run python -m src --list-sessions
+# TS core + UI (vitest) and typecheck
+cd ts && npm test
+cd ts && npm run typecheck            # tsc over src/ + ui/
 
-# View a session transcript
-uv run python -m src --view-session SESSION_ID
-```
+# Hosted server
+cd ts/server && npm test
+cd ts/server && npx tsc --noEmit -p tsconfig.json
 
-## Tests
+# Rust shell
+cargo check --manifest-path ts/src-tauri/Cargo.toml
+cargo test  --manifest-path ts/src-tauri/Cargo.toml     # network round-trips are #[ignore]
+(cd ts/src-tauri && cargo deny check)                   # supply-chain gate (CI enforces)
 
-```bash
-# All tests
+# Legacy Python
 uv run pytest tests/ -v
-
-# Single file
-uv run pytest tests/test_pacing.py -v
-
-# Single test
 uv run pytest tests/test_pacing.py::TestStateTransitions::test_initial_state_is_idle -v
 ```
 
-## Releasing
+## Building & releasing
 
 ```bash
-# Bump patch (0.9.19 → 0.9.20) — default
-scripts/release.sh
-
-# Bump minor (0.9.19 → 0.10.0)
-scripts/release.sh minor
-
-# Bump major (0.9.19 → 1.0.0)
-scripts/release.sh major
-
-# Explicit version
-scripts/release.sh 1.2.3
-
-# Re-release current version (moves tag, recreates GitHub release)
-scripts/release.sh same
+cd ts && npm run tauri:build          # signed/notarized desktop bundle (DMG / MSI+NSIS / AppImage+deb)
 ```
 
-The release script: offers to run the pre-release doc/copy check (`dev-docs/pre-release-checklist.md`, via the headless `claude` CLI), then bumps `src/__init__.py`, updates README download links, commits, tags, pushes, and creates a GitHub release (which triggers the build workflow). The macOS job in CI signs + notarizes automatically if the signing secrets are configured (see *Building* below); without them it produces an unsigned DMG.
-
-**Prerequisites**: clean working directory, `gh` CLI authenticated.
-
-## Environment Variables
-
-| Variable | Purpose |
-|----------|---------|
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `OPENROUTER_API_KEY` | OpenRouter API key |
-| `VENICE_API_KEY` | Venice API key |
-| `ELEVENLABS_API_KEY` | ElevenLabs TTS API key |
-| `ALOUD_SECRET_KEY` | Flask session secret |
-| `ALOUD_AUTO_OPEN` | Set to `1` to auto-open browser on startup |
-
-## Config
-
-User config: `~/.config/aloud/config.yaml` (macOS/Linux) — created on first save in settings.
-
-Default config with all options: `config/default.yaml`
-
-Supports `${ENV_VAR}` substitution for API keys in YAML.
-
-## Building
-
-See [building.md](building.md) for desktop builds (PyInstaller → DMG/EXE/AppImage).
+Release (bumps version, lints both stacks, tags, pushes, creates the GitHub
+release that triggers CI):
 
 ```bash
-# macOS DMG (requires create-dmg, pyinstaller)
-scripts/build-dmg.sh
-
-# Skip notarization (fast dev rebuild — DMG still signed, just not Apple-stamped)
-SKIP_NOTARIZE=1 scripts/build-dmg.sh
+scripts/release.sh                    # patch (default)
+scripts/release.sh minor|major|1.2.3
+scripts/release.sh same               # re-release current version (moves tag)
 ```
 
-### macOS signing + notarization (local)
+It bumps `src/__init__.py` **and** `ts/src-tauri/tauri.conf.json` +
+`ts/package.json` in lockstep, lints TS (`typecheck`) + Rust (`cargo check` +
+`cargo deny`) alongside ruff, and offers the pre-release doc check
+([pre-release-checklist.md](pre-release-checklist.md)). **Prerequisites:** clean
+tree, `gh` authenticated.
 
-The build script auto-detects a Developer ID cert in your keychain and the `notary` notarytool profile. One-time setup:
+**CI** runs two workflows on `release: created`, in parallel for one validation
+cycle:
+- `build.yml` — the legacy PyInstaller DMG/EXE/AppImage.
+- `tauri-release.yml` — the Tauri bundles (artifacts carry a `-tauri` suffix so
+  they don't collide). macOS signs + notarizes via the existing `APPLE_*` /
+  `MACOS_*` secrets; the desktop UI build bakes `VITE_ALOUD_SERVER_URL` from the
+  repo var `ALOUD_SERVER_URL`.
 
-```bash
-# 1. Developer ID Application cert installed in login keychain
-#    (verify with: security find-identity -v -p codesigning | grep 'Developer ID')
+Full build/signing detail: [building.md](building.md) (PyInstaller) and
+[desktop.md](desktop.md) (Tauri — endpoint list, prereqs, release + cutover).
 
-# 2. Store notarytool credentials under the profile name "notary":
-xcrun notarytool store-credentials "notary" \
-  --apple-id YOUR_APPLE_ID_EMAIL \
-  --team-id  YOUR_TEAM_ID \
-  --password YOUR_APP_SPECIFIC_PASSWORD
-```
+## Config & environment
 
-Overrides via env vars: `CODESIGN_IDENTITY` (full cert name), `NOTARYTOOL_PROFILE` (defaults to `notary`), `SKIP_NOTARIZE=1`.
+- **Hosted server**: `ts/server/.env` (see `.env.example`) — provider keys
+  (`ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`),
+  `FIREWORKS_API_KEY` (server STT default; or the `STT_*` overrides),
+  `GOOGLE_TTS_API_KEY`, `ALOUD_SESSION_SECRET`, `GOOGLE_CLIENT_IDS`, Stripe keys,
+  `ALOUD_ADMIN_TOKEN`, and `ALOUD_UI_DIR` (serve `ui/dist` from the same process
+  — the single-box self-host story).
+- **UI build**: `VITE_ALOUD_SERVER_URL` — the hosted origin baked into a
+  static/desktop build so `/app/v1` + `/cloud/v1` resolve off-origin (unset in
+  dev; the Vite proxy handles it).
+- **Vite dev overrides**: `ALOUD_SERVER_URL` (Hono — both `/app` and `/cloud`
+  proxy targets), `OLLAMA_URL`. (`ALOUD_BACKEND_URL`/Flask is gone since the
+  `/app` cutover, meditation-pal-5d9.)
+- **BYOK keys** entered in the UI live in the browser's localStorage and are
+  forwarded per-request (`x-provider-key` for model lists; `x-api-key` for the
+  Anthropic proxy) — never persisted server-side.
+- **Legacy Python**: `~/.config/aloud/config.yaml` (created on first settings
+  save); defaults + all options in `config/default.yaml` (supports `${ENV_VAR}`).
 
-If neither a Developer ID cert nor the `notary` profile exists, the script falls back to an `aloud Dev` self-signed cert (or ad-hoc) and skips notarization — fine for local testing.
+## Legacy Flask debug flags
 
-### macOS signing + notarization (CI)
+Still valid for `uv run python -m src.web` (the browser dev-preview backend):
 
-`.github/workflows/build.yml` does the same dance from GitHub Secrets:
+| Flag | What it does |
+|------|-------------|
+| `--fresh` | First-run settings UI; clears localStorage (voice prefs, embers, quality prompt) |
+| `--hide-premium` | Drops Premium/Enhanced voices from the voice list |
+| `--no-voices` | Voices endpoint returns `[]` — tests the empty-voices state |
+| `--reset-piper` | Hides Piper from the engine dropdown, quality modal, and hints |
+| `--no-providers` | All LLM providers report unavailable — tests zero-provider setup |
+| `--no-ollama` | Ollama appears not installed — tests the install flow |
+| `--debug` | DEBUG level for all `src.*` loggers |
+| `--browser` | System browser instead of the pywebview window |
 
-| Secret | Purpose |
-|---|---|
-| `MACOS_CERTIFICATE` | base64 of the Developer ID `.p12` |
-| `MACOS_CERTIFICATE_PWD` | password set when exporting the `.p12` |
-| `MACOS_KEYCHAIN_PWD` | any random string — unlocks the temp keychain on the runner |
-| `MACOS_SIGN_IDENTITY` | e.g. `Developer ID Application: Name (TEAMID)` |
-| `APPLE_ID` | Apple ID email |
-| `APPLE_TEAM_ID` | 10-char Team ID |
-| `APPLE_APP_PASSWORD` | app-specific password from appleid.apple.com |
+Combine freely, e.g. `uv run python -m src.web --browser --fresh --hide-premium`.
 
-With those configured, `scripts/release.sh patch` produces a fully signed + notarized DMG with no manual steps.
+## Sessions
+
+Legacy Flask saves sessions as `<id>.json`/`.txt` under `session.save_directory`
+(default `sessions/`), viewable at `/history`. The TS UI stores session state in
+the browser (localStorage) via `ts/src/platform/storage.ts`.
+
+## Dev gotchas
+
+- **`/cloud/v1/*` `ECONNREFUSED` in `tauri:dev`** → the Hono server isn't
+  running. Start `cd ts/server && npm run dev`, or ignore it for local-only work.
+- **whisper.cpp's `whisper_model_load:` dump** is silenced
+  (`whisper_rs::install_logging_hooks()` in `server.rs`); enable whisper-rs's
+  `log_backend` feature to see those internals again.
+- **`/app/v1` path differs by build**: desktop hits the Rust loopback directly
+  (injected base); `ui:dev` proxies it to the Hono server on :8787. So a UI
+  fetch that works in the browser preview but not in `tauri:dev` (or vice-versa)
+  usually means the wrong backend is the one running.
 
 ## Landing site
 
-Static site at `docs/` (hand-written, no build step). The folder is named `docs/` because GitHub Pages serves from `/docs` on main; internal developer documentation lives in `dev-docs/`. The download buttons fetch `releases/latest` from the GitHub API at page load, so the site doesn't need redeploying after each release.
+Static site in `docs/` (hand-written, served by GitHub Pages from `/docs` on
+main; download buttons hit the GitHub `releases/latest` API at load, so no
+redeploy per release).
 
 ```bash
-# Local preview
-python3 -m http.server -d docs 8000
-# then open http://localhost:8000
+python3 -m http.server -d docs 8000   # http://localhost:8000
 ```
-
-Deployment: Porkbun's GitHub-pulled static hosting pointed at the `docs/` folder, or GitHub Pages from `/docs` on main.

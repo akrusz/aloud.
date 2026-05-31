@@ -73,7 +73,7 @@ class TestListVoices:
 
         assert len(voices) > 0
         # Check dict keys on every voice
-        required_keys = {"name", "lang", "downloaded", "size_display", "needs_download"}
+        required_keys = {"name", "lang", "downloaded", "size_display", "needs_download", "model"}
         optional_keys = {"recommended"}
         for v in voices:
             assert required_keys <= set(v.keys())

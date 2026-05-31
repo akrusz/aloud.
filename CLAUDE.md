@@ -4,16 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-aloud is a voice-based meditation facilitator. Users speak into a microphone, speech is transcribed via Whisper, an LLM generates facilitation responses, and TTS speaks them back. It has two interfaces: a web UI (Flask + SocketIO, primary) and a headless CLI.
+aloud is a voice-based meditation facilitator. Users speak into a microphone, speech is transcribed via Whisper, an LLM generates facilitation responses, and TTS speaks them back. The interface is a web UI (Flask + SocketIO).
 
 ## Commands
 
 ```bash
-# Run the web server (port 4649)
+# Run the web server (port 4649) — `python -m src` is an alias for this
 uv run python -m src.web
-
-# Run CLI mode (headless, uses mic + system TTS)
-uv run python -m src
 
 # Run tests
 uv run pytest tests/ -v
@@ -30,11 +27,9 @@ uv pip install -r requirements.txt
 
 ## Architecture
 
-### Dual entry points
-- **Web**: `src/web/__main__.py` → `run_web()` in `src/web/app.py` — Flask + SocketIO server
-- **CLI**: `src/__main__.py` → `main()` in `src/main.py` — headless audio loop
+### Entry point
 
-Both share the same backend modules for facilitation, LLM, STT, and TTS.
+The web server is the sole entry point: `src/web/__main__.py` → `run_web()` in `src/web/app.py` (Flask + SocketIO). `python -m src` (`src/__main__.py`) just delegates here. (A headless CLI existed previously and has been removed.)
 
 ### Backend modules (`src/`)
 
@@ -76,6 +71,8 @@ Vanilla JS with ES modules (`<script type="module">`), no build tools.
 - `socketHandlers.js` — all `socket.on()` handlers
 - `ui.js` — message display, typing indicator, timer, embers, error toasts
 
+A style guide exists in dev-docs/style.md
+
 ### Key patterns
 
 - **Protocol-based providers**: LLM and TTS use duck-typed protocols. Add new providers by implementing the interface and registering in the factory function.
@@ -116,4 +113,4 @@ This project uses **Beads** (`.beads/`). Use `bd create`, `bd list`, `bd update`
 
 ## Interacting with the developer
 
-Feel free to be creative or playful when talking with the developer, and to take occasional breaks to write for fun. recess.md is another space you can use for this.
+Feel free to be creative or playful when talking with the developer, and to take occasional breaks to write for fun. recess.md is another space you can use for this when running on his machine.

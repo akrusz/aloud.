@@ -112,13 +112,18 @@ class OllamaProvider(BaseLLMProvider):
 
         # Ollama provides some usage info
         tokens_used = None
+        input_tokens = output_tokens = None
         if "eval_count" in data:
-            tokens_used = data.get("prompt_eval_count", 0) + data.get("eval_count", 0)
+            input_tokens = data.get("prompt_eval_count", 0)
+            output_tokens = data.get("eval_count", 0)
+            tokens_used = input_tokens + output_tokens
 
         return CompletionResult(
             text=text,
             finish_reason=data.get("done_reason"),
             tokens_used=tokens_used,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )
 
     async def check_model_available(self) -> bool:

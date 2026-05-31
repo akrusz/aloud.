@@ -69,6 +69,8 @@ def speak_to_audio(app: Flask, web_session, text: str, voice: str | None = None)
                 "TTS voice '%s' failed, falling back to '%s'", target_voice, original_voice)
             tts.set_voice(original_voice)
             result = tts.speak_to_bytes(text)
+        if result is not None and getattr(web_session, "session", None):
+            web_session.session.record_tts(len(text))
         return result
     except Exception:
         import logging

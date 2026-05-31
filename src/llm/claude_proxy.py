@@ -95,6 +95,8 @@ class ClaudeProxyProvider(BaseLLMProvider):
         finish_reason = data.get("stop_reason")
 
         tokens_used = None
+        input_tokens = output_tokens = None
+        cache_read = cache_create = None
         usage = data.get("usage") or {}
         if usage:
             input_tokens = usage.get("input_tokens", 0)
@@ -113,6 +115,10 @@ class ClaudeProxyProvider(BaseLLMProvider):
             text=text,
             finish_reason=finish_reason,
             tokens_used=tokens_used,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cache_read_tokens=cache_read,
+            cache_creation_tokens=cache_create,
         )
 
 

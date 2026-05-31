@@ -97,6 +97,13 @@ def register_audio_handlers(socketio: SocketIO, app: Flask) -> None:
                 finally:
                     app.whisper_lock.release()
 
+                # Tally STT compute on the session (best-effort; this runs in
+                # a background task, but float += under the GIL is fine for a
+                # usage metric).
+                ws = app.web_sessions.get(session_id)
+                if ws is not None and getattr(ws, "session", None):
+                    ws.session.record_stt(duration)
+
                 # Emit to whatever socket is currently mapped to this session
                 # (may have changed due to reconnection during transcription).
                 target_sid = app.session_to_sid.get(session_id)

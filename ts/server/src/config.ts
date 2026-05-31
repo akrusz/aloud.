@@ -1,0 +1,185 @@
+/**
+ * Server config from environment. Secrets NEVER live in the repo — this
+ * reads them from the process environment (a .env loaded by the host, or
+ * Fly/Render secrets). See .env.example for the full list.
+ *
+ * The whole config is logged at boot with secret values redacted (see
+ * logger.ts) so operators can confirm what's set without leaking keys.
+ */
+
+import type { ProviderId } from './contract.js';
+import type { SttBackend } from './providers/stt.js';
+
+export interface ProviderKeys {
+    anthropic?: string;
+    groq?: string;
+    openrouter?: string;
+    google?: string;
+}
+
+/** Default OpenAI-compatible Whisper endpoints, by provider label. The STT
+ *  backend is config-selected (see resolveSttConfig) so a provider freezing
+ *  signups is an env change, not a code change. */
+const STT_DEFAULTS: Record<string, { baseUrl: string; model: string }> = {
+    fireworks: {
+        baseUrl: 'https://audio-turbo.api.fireworks.ai/v1/audio/transcriptions',
+        model: 'whisper-v3-turbo',
+    },
+    groq: {
+        baseUrl: 'https://api.groq.com/openai/v1/audio/transcriptions',
+        model: 'whisper-large-v3-turbo',
+    },
+    openai: {
+        baseUrl: 'https://api.openai.com/v1/audio/transcriptions',
+        model: 'gpt-4o-mini-transcribe',
+    },
+};
+
+/**
+ * Resolve the STT backend from env. Precedence:
+ *   1. STT_API_KEY  — explicit/custom backend (STT_BASE_URL + STT_MODEL +
+ *      STT_PROVIDER label; defaults to Fireworks if base/model omitted).
+ *   2. FIREWORKS_API_KEY — Fireworks defaults (the recommended backend).
+ *   3. GROQ_API_KEY — Groq defaults (back-compat; signups may be frozen).
+ * Returns undefined when none is set; the /cloud/v1/stt route then reports
+ * not-configured and the client falls back to browser SpeechRecognition.
+ */
+export function resolveSttConfig(env: NodeJS.ProcessEnv): SttBackend | undefined {
+    if (env['STT_API_KEY']) {
+        const provider = env['STT_PROVIDER'] ?? 'custom';
+        const fallback = STT_DEFAULTS[provider] ?? STT_DEFAULTS['fireworks']!;
+        return {
+            provider,
+            apiKey: env['STT_API_KEY'],
+            baseUrl: env['STT_BASE_URL'] ?? fallback.baseUrl,
+            model: env['STT_MODEL'] ?? fallback.model,
+        };
+    }
+    if (env['FIREWORKS_API_KEY']) {
+        return { provider: 'fireworks', apiKey: env['FIREWORKS_API_KEY'], ...STT_DEFAULTS['fireworks']! };
+    }
+    if (env['GROQ_API_KEY']) {
+        return { provider: 'groq', apiKey: env['GROQ_API_KEY'], ...STT_DEFAULTS['groq']! };
+    }
+    return undefined;
+}
+
+export interface Config {
+    port: number;
+    /** Allowed CORS origins for the browser client (the static ui/dist host). */
+    corsOrigins: string[];
+
+    /** Secret used to sign our own session JWTs. Required. */
+    sessionSecret: string;
+    /** Google OAuth client id(s) accepted as the `aud` of incoming ID tokens. */
+    googleClientIds: string[];
+
+    /** Provider API keys, server-held. The whole point: the client never sees these. */
+    providerKeys: ProviderKeys;
+
+    /** Server-side STT backend (OpenAI-compatible Whisper). Undefined when no
+     *  STT key is configured — the /cloud/v1/stt route then reports
+     *  not-configured and the client falls back to browser SpeechRecognition. */
+    sttConfig?: SttBackend;
+
+    /** Free credits granted to a new verified account. meditation-pal-2yb. */
+    freeSignupCredits: number;
+
+    /** Emergency brake: max free credits granted across ALL signups per rolling
+     *  hour. A mass-signup attack can't drain more than this; legit bursts stay
+     *  well under it. When tripped, new signups get 0 free credits (they can
+     *  still buy) and it's logged. Default is generous (~100 signups/hr). */
+    freeGrantBudgetPerHour: number;
+
+    /** Google Cloud Text-to-Speech API key (separate from the Gemini LLM key).
+     *  When set, /cloud/v1/tts synthesizes via Google Cloud TTS. */
+    googleTtsApiKey?: string;
+
+    /** Stripe — optional; billing routes report "not configured" without it. */
+    stripeSecretKey?: string;
+    stripeWebhookSecret?: string;
+
+    /** Bearer token for the /cloud/v1/admin/* spend-monitoring endpoints. When unset,
+     *  those endpoints are disabled (404) rather than open. */
+    adminToken?: string;
+
+    /** When true, refuse to start unless every prod-critical secret is set.
+     *  Off in dev so the server boots with an in-memory store and stubs. */
+    strict: boolean;
+
+    /** Path to the durable SQLite credit-ledger file (e.g. a mounted volume:
+     *  /data/aloud.db). When set, buildDeps uses SqliteCreditsStore so balances
+     *  survive restarts; unset in dev falls back to the in-memory store.
+     *  REQUIRED in production (strict) — an in-memory ledger would silently drop
+     *  real balances on every deploy/restart. */
+    dbPath?: string;
+
+    /** Optional directory of the built UI (`ui/dist`). When set, this one
+     *  process serves the static UI alongside the API — the "full install"
+     *  self-host story. Unset in the canonical deploy, where the UI is on a
+     *  static host (e.g. GitHub Pages) and this box is API-only. */
+    uiDir?: string;
+}
+
+function list(v: string | undefined): string[] {
+    return (v ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+    const strict = env['ALOUD_ENV'] === 'production';
+
+    const providerKeys: ProviderKeys = {};
+    if (env['ANTHROPIC_API_KEY']) providerKeys.anthropic = env['ANTHROPIC_API_KEY'];
+    if (env['GROQ_API_KEY']) providerKeys.groq = env['GROQ_API_KEY'];
+    if (env['OPENROUTER_API_KEY']) providerKeys.openrouter = env['OPENROUTER_API_KEY'];
+    // Gemini direct (AI Studio key) — value tier without the OpenRouter fee.
+    if (env['GEMINI_API_KEY']) providerKeys.google = env['GEMINI_API_KEY'];
+
+    const config: Config = {
+        port: Number(env['PORT'] ?? 8787),
+        corsOrigins: list(env['ALOUD_CORS_ORIGINS']) || [],
+        sessionSecret: env['ALOUD_SESSION_SECRET'] ?? (strict ? '' : 'dev-insecure-secret'),
+        googleClientIds: list(env['GOOGLE_CLIENT_IDS']),
+        providerKeys,
+        freeSignupCredits: Number(env['ALOUD_FREE_SIGNUP_CREDITS'] ?? 20),
+        freeGrantBudgetPerHour: Number(env['ALOUD_FREE_GRANT_BUDGET_PER_HOUR'] ?? 2000),
+        strict,
+    };
+    const sttConfig = resolveSttConfig(env);
+    if (sttConfig) config.sttConfig = sttConfig;
+    if (env['GOOGLE_TTS_API_KEY']) config.googleTtsApiKey = env['GOOGLE_TTS_API_KEY'];
+    if (env['STRIPE_SECRET_KEY']) config.stripeSecretKey = env['STRIPE_SECRET_KEY'];
+    if (env['STRIPE_WEBHOOK_SECRET']) config.stripeWebhookSecret = env['STRIPE_WEBHOOK_SECRET'];
+    if (env['ALOUD_ADMIN_TOKEN']) config.adminToken = env['ALOUD_ADMIN_TOKEN'];
+    if (env['ALOUD_UI_DIR']) config.uiDir = env['ALOUD_UI_DIR'];
+    if (env['ALOUD_DB_PATH']) config.dbPath = env['ALOUD_DB_PATH'];
+
+    if (strict) {
+        const missing: string[] = [];
+        if (!config.sessionSecret) missing.push('ALOUD_SESSION_SECRET');
+        if (config.googleClientIds.length === 0) missing.push('GOOGLE_CLIENT_IDS');
+        if (!config.dbPath) missing.push('ALOUD_DB_PATH (durable ledger; in-memory would drop balances on restart)');
+        if (Object.keys(config.providerKeys).length === 0)
+            missing.push('at least one provider key (ANTHROPIC_API_KEY/GROQ_API_KEY/OPENROUTER_API_KEY)');
+        if (missing.length > 0) {
+            throw new Error(
+                `Refusing to start in production: missing required config: ${missing.join(', ')}`
+            );
+        }
+    }
+
+    return config;
+}
+
+/** Which providers this server can actually forward to right now (have a key). */
+export function configuredProviders(config: Config): ProviderId[] {
+    const out: ProviderId[] = [];
+    if (config.providerKeys.anthropic) out.push('anthropic');
+    if (config.providerKeys.groq) out.push('groq');
+    if (config.providerKeys.openrouter) out.push('openrouter');
+    if (config.providerKeys.google) out.push('google');
+    return out;
+}

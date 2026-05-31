@@ -108,11 +108,16 @@ class OpenAIProvider(BaseLLMProvider):
         text = choice.message.content or ""
 
         tokens_used = None
+        input_tokens = output_tokens = None
         if response.usage:
+            input_tokens = response.usage.prompt_tokens
+            output_tokens = response.usage.completion_tokens
             tokens_used = response.usage.total_tokens
 
         return CompletionResult(
             text=text,
             finish_reason=choice.finish_reason,
             tokens_used=tokens_used,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )

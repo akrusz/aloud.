@@ -509,7 +509,10 @@ body {
 .participant-row .sound-pick-btn,
 .participant-row .participant-voice-btn,
 .participant-row input[type="range"] {
-    background: var(--bg-primary);
+    /* Match the app's other inputs (--bg-input, a soft off-white in light
+       theme). --bg-primary is a warmer cream-yellow that reads as an
+       unappealing wash behind these fields against the tinted row. */
+    background: var(--bg-input);
 }
 
 .participant-row-header {
@@ -723,7 +726,11 @@ body {
     flex: 1;
     min-width: 0;
 }
-.participant-phrase-preview {
+.participant-phrase-preview,
+.participant-sound-preview {
+    /* Icon-only ▶ preview buttons stay compact at every width. !important so
+       the mobile .btn-small tap-target enlargement (which suits text buttons)
+       doesn't balloon these little glyph buttons out of proportion. */
     padding: 0.3rem 0.5rem !important;
     font-size: 0.875rem !important;
     line-height: 1;
@@ -2092,16 +2099,19 @@ body:has(.session-container) {
     animation: breathe 10s ease-in-out infinite;
 }
 
+/* Breathing pulse — animate ONLY transform + opacity (both composited
+   without repainting). The orb's static box-shadow (.orb / .orb-nav) supplies
+   the glow; opacity dims/brightens the whole orb including that shadow, so the
+   glow still appears to breathe. Animating box-shadow here forced Firefox's
+   compositor to re-rasterize the blur every frame, pegging the GPU process. */
 @keyframes breathe {
     0%, 100% {
         transform: scale(0.92);
         opacity: 0.5;
-        box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(231, 31, 117, 0.06);
     }
     50% {
         transform: scale(1.08);
         opacity: 0.85;
-        box-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(231, 31, 117, 0.18);
     }
 }
 
@@ -2109,12 +2119,10 @@ body:has(.session-container) {
     0%, 100% {
         transform: scale(0.92);
         opacity: 0.5;
-        box-shadow: 0 0 8px var(--accent-glow), 0 0 16px rgba(231, 31, 117, 0.06);
     }
     50% {
         transform: scale(1.08);
         opacity: 0.85;
-        box-shadow: 0 0 16px var(--accent-glow), 0 0 32px rgba(231, 31, 117, 0.15);
     }
 }
 
@@ -2153,7 +2161,9 @@ body::before {
     margin: auto;
     width: 140px;
     height: 140px;
-    z-index: 50;
+    /* Above the sticky nav (z-index: 100) so the centered gaze object — and
+       its FLIP transition / drag near the top — floats over the bar. */
+    z-index: 150;
     cursor: grab;
     background: radial-gradient(circle at 45% 45% in oklab, #fff4c0 0%, #f8f288 18%, #f5d820 38%, #ffb805 49%, #ed7326 65%, #e71f75 71%, #870a3e 76%);
     box-shadow:
@@ -2164,20 +2174,15 @@ body::before {
     opacity: 1;
 }
 
+/* Gaze-mode pulse — transform only (the large static .orb-kasina box-shadow
+   supplies the glow). Animating that 200px+ blur every frame was the single
+   most expensive thing on screen for the compositor. */
 @keyframes kasinaPulse {
     0%, 100% {
         transform: scale(0.98);
-        box-shadow:
-            0 0 60px rgba(245, 165, 47, 0.30),
-            0 0 120px rgba(231, 31, 117, 0.32),
-            0 0 200px rgba(231, 31, 117, 0.16);
     }
     50% {
         transform: scale(1.02);
-        box-shadow:
-            0 0 70px rgba(245, 165, 47, 0.38),
-            0 0 140px rgba(231, 31, 117, 0.40),
-            0 0 240px rgba(231, 31, 117, 0.22);
     }
 }
 
@@ -2218,7 +2223,13 @@ body::before {
         #e8a0d8 calc(86% + var(--rainbow-shift)),
         #f7a8c4 calc(100% + var(--rainbow-shift))
     ) !important;
-    animation: kasinaPulse 8s ease-in-out infinite, rainbowRotate 3s linear infinite, rainbowFlow 6s linear infinite !important;
+    /* rainbowRotate (hue-rotate) is a GPU-composited filter pass — keep it for
+       the color cycling. rainbowFlow animated --rainbow-shift, scrolling the
+       gradient stops, which repaints the gradient every frame and pegged the
+       GPU process on Firefox/WebRender; dropped so the easter egg can stay up
+       indefinitely without freezing. The gradient now holds still and the hue
+       rotation carries the rainbow. */
+    animation: kasinaPulse 8s ease-in-out infinite, rainbowRotate 3s linear infinite !important;
     box-shadow:
         0 0 60px rgba(200, 160, 220, 0.35),
         0 0 120px rgba(168, 230, 207, 0.2),
@@ -2299,6 +2310,9 @@ body::before {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     overflow: hidden;
+    /* Lift rows off the page with the card surface (lighter than the page bg
+       in dark, a warm tint in light) so the list reads as distinct cards. */
+    background: var(--bg-card);
 }
 
 .session-item-header {
@@ -2311,7 +2325,8 @@ body::before {
 }
 
 .session-item-header:hover {
-    background: var(--bg-card);
+    /* One step lighter than the row's base card bg for a subtle hover lift. */
+    background: var(--bg-input);
 }
 
 .session-item-info {
@@ -2492,6 +2507,11 @@ html:has(.nav-brand.has-update) .update-btn {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
+    /* Never taller than the viewport (minus room for the top bar); the body
+       scrolls when content — e.g. the source-checkout commit list — is long. */
+    max-height: calc(100dvh - 6rem);
+    display: flex;
+    flex-direction: column;
 }
 
 .about-modal-header {
@@ -2511,6 +2531,8 @@ html:has(.nav-brand.has-update) .update-btn {
 .about-modal-body {
     padding: 1.5rem 1rem;
     text-align: center;
+    /* Scrolls within the height-capped modal (header stays pinned). */
+    overflow-y: auto;
 }
 
 .about-app-name {
@@ -2522,6 +2544,18 @@ html:has(.nav-brand.has-update) .update-btn {
     paint-order: stroke fill;
     letter-spacing: 0.05em;
     margin-bottom: 0.25rem;
+}
+
+/* The brand logo is sometimes wrapped in an <a> (e.g. linking to aloud.rest
+   from the about modal). The wrapper shouldn't impose the default link
+   color/underline — the Knewave glyph + stroke is the brand and should
+   look identical whether it's a link or not. */
+.about-app-name a,
+.about-app-name a:visited,
+.about-app-name a:hover,
+.about-app-name a:active {
+    color: inherit;
+    text-decoration: none;
 }
 
 .about-version {
@@ -2980,6 +3014,15 @@ html:has(.nav-brand.has-update) .update-btn {
 }
 .preview-btn {
     pointer-events: none;
+    /* Override .btn's `font-size: 0.875rem` so the buttons scale with
+       the preview pane's font-size (set via the slider) instead of
+       sticking to the document root's text-scale. Same em-based
+       sizing the other preview elements use. */
+    font-size: 0.875em;
+    /* Padding in em so the button box scales too — otherwise the
+       button stays the same physical size while the inner glyphs
+       grow/shrink, which looks awkward. */
+    padding: 0.6em 1.2em;
 }
 
 /* The preview box carries its own data-theme (set by settings.js), so the
@@ -3598,9 +3641,17 @@ html:has(.nav-brand.has-update) .update-btn {
     color: var(--text-primary);
     font-size: 0.9rem;
     line-height: 1.55;
-    animation: tour-tooltip-in 0.2s ease;
+    /* Dedicated keyframe: the entrance animation must keep the centering
+       translate(-50%, -50%), otherwise it clobbers it and the card flashes
+       in with its top-left corner at screen-center before snapping. */
+    animation: tour-welcome-in 0.2s ease;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
     text-align: center;
+}
+
+@keyframes tour-welcome-in {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
 }
 
 .tour-welcome h3 {

@@ -28,8 +28,7 @@ This will:
 
 Once in the shell, you can run:
 ```bash
-python -m src.web    # Start web interface
-python -m src        # Start CLI mode
+python -m src.web    # Start web interface (python -m src is an alias)
 ```
 
 ### Run directly
@@ -48,7 +47,6 @@ nix build
 
 The built package will be in `./result/bin/`:
 - `aloud-web` - Start the web interface
-- `aloud-cli` - Start CLI mode
 
 ## Using with direnv
 

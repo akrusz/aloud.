@@ -1,0 +1,229 @@
+/**
+ * Typed setup state + persistence.
+ *
+ * Maps the existing setup-form shape onto the PromptBuilder's
+ * config shape. The slider is 0-4 for UX; we map to 0/3/5/7/10 for
+ * the PromptBuilder so it lines up with the Python implementation's
+ * DIRECTIVENESS_ADDITIONS keys.
+ */
+
+import type {
+    Focus,
+    Quality,
+    Verbosity,
+} from '../../src/facilitation/index.js';
+import { LocalStorageKv } from './adapters/localstorage-kv.js';
+import { loadAppSettings } from './app-settings.js';
+import type { Capability, Capabilities } from './capabilities.js';
+
+export type Provider =
+    | 'aloud'
+    | 'ollama'
+    | 'claude_proxy'
+    | 'anthropic'
+    | 'openai'
+    | 'openrouter'
+    | 'venice'
+    | 'groq';
+
+export interface ProviderMeta {
+    value: Provider;
+    label: string;
+    needsKey: boolean;
+    /** Capability this provider needs to be usable. Omitted = always available
+     *  (BYOK providers work from any browser with a key). The menu hides
+     *  providers whose capability the environment can't reach. */
+    requires?: Capability;
+}
+
+export const ALL_PROVIDERS: ReadonlyArray<ProviderMeta> = [
+    // Hosted aloud server: no key, no local model — credits-metered premium
+    // LLMs. The only LLM source for the web tier (meditation-pal-vd3). Shown
+    // only when the server is reachable.
+    { value: 'aloud', label: 'aloud (hosted)', needsKey: false, requires: 'hosted' },
+    // Local Ollama — only when a daemon is actually reachable (e.g. not on the
+    // hosted website).
+    { value: 'ollama', label: 'Ollama (Local)', needsKey: false, requires: 'ollama' },
+    // claude_proxy shells out to the local `claude` CLI via Flask — desktop only.
+    { value: 'claude_proxy', label: 'Anthropic (Subscription)', needsKey: false, requires: 'flask' },
+    { value: 'anthropic', label: 'Anthropic (API Key)', needsKey: true },
+    { value: 'openai', label: 'OpenAI (API Key)', needsKey: true },
+    { value: 'groq', label: 'Groq (API Key)', needsKey: true },
+    { value: 'openrouter', label: 'OpenRouter (API Key)', needsKey: true },
+    { value: 'venice', label: 'Venice.ai (API Key)', needsKey: true },
+];
+
+export interface ProviderAvailabilityOpts {
+    /** Web mode — the hosted demo (app-mode.isWebMode()): Ollama + local
+     *  providers off, BYOK off unless opted in. Build default keys off
+     *  isHostedBuild, but a dev override can force it (see app-mode.ts). */
+    webMode?: boolean;
+    /** User opted into bring-your-own-key in web mode. */
+    allowByok?: boolean;
+}
+
+/** Whether a provider is usable in the current environment.
+ *  - Local-only capabilities (Ollama, the desktop claude_proxy) are hidden in
+ *    web mode regardless of what a local probe found — the hosted demo is
+ *    server-only, and a forced-web dev session shouldn't surface a stray local
+ *    daemon.
+ *  - Other `requires` providers (the hosted service) need that capability.
+ *  - BYOK providers (no `requires`): shown by default, but hidden in web mode
+ *    unless the user explicitly enables BYOK (asking a public site's visitors
+ *    for their own API key feels wrong; opt-in instead). */
+export function isProviderAvailable(
+    meta: ProviderMeta,
+    caps: Capabilities,
+    opts: ProviderAvailabilityOpts = {}
+): boolean {
+    if (meta.requires) {
+        if (opts.webMode && (meta.requires === 'ollama' || meta.requires === 'flask')) return false;
+        return caps[meta.requires];
+    }
+    return !opts.webMode || opts.allowByok === true;
+}
+
+export function providerNeedsKey(p: Provider): boolean {
+    return ALL_PROVIDERS.find((x) => x.value === p)?.needsKey ?? false;
+}
+
+export interface SessionSetup {
+    /** Which top-level meditation mode the user is in. */
+    meditationType: 'exploration' | 'noting';
+    intention: string;
+    preset: string | null;
+    focuses: Focus[];
+    qualities: Quality[];
+    /** UI slider value 0-4. Map via DIRECTIVENESS_VALUES below. */
+    dirStep: number;
+    verbosity: Verbosity;
+    customInstructions: string;
+    provider: Provider;
+    model: string;
+    /**
+     * Voice ID from voices.ts. null = use the browser's default voice.
+     * Format: 'browser:<voiceURI>' or 'server:<engine-voice-name>'.
+     */
+    voice: string | null;
+    /** TTS rate in words-per-minute. Browser TTS normalizes; server TTS passes through. */
+    ttsRate: number;
+    /**
+     * Noting circle participants (noting mode only). Empty = solo noting (just
+     * you + an opener). Each LLM participant takes a turn after you, generating
+     * a 1–2 word label in its own voice.
+     */
+    notingParticipants: NotingParticipantConfig[];
+    /** Play a sound when it becomes the user's turn in the noting circle. */
+    notingUserTurnCue: boolean;
+    /** Which cue sound to play; null = the built-in synth chime. */
+    notingUserTurnCueSound: NotingSound | null;
+}
+
+export type NotingReactive = 'none' | 'low' | 'high';
+export type NotingTiming = 'adaptive' | 'fixed';
+
+/** Sound effects bundled in ui/public/audio (and src/web/static/audio). */
+export const NOTING_SOUNDS = ['bell', 'bottle', 'card', 'crow', 'plop', 'poof', 'rattle'] as const;
+export type NotingSound = (typeof NOTING_SOUNDS)[number];
+
+/**
+ * One configured noting-circle participant. Mirrors the Flask participant
+ * model: an AI that notes a generated label, a fixed phrase spoken aloud, or a
+ * sound effect. Timing is adaptive (matches the user's cadence) or a fixed
+ * number of seconds before the participant takes its turn.
+ */
+export type NotingParticipantConfig =
+    | {
+          type: 'llm';
+          /** Voice id ('browser:<name>' | 'server:<name>'). */
+          voice: string | null;
+          /** How much this participant reacts to what others have noted. */
+          reactive: NotingReactive;
+          timing: NotingTiming;
+          /** Seconds before this turn, when timing === 'fixed'. */
+          fixedDelaySec: number;
+      }
+    | {
+          type: 'fixed';
+          voice: string | null;
+          /** The phrase this participant always says. */
+          phrase: string;
+          timing: NotingTiming;
+          fixedDelaySec: number;
+      }
+    | {
+          type: 'sound';
+          /** A bundled effect, or 'chime' for the built-in synth chime. */
+          sound: NotingSound | 'chime';
+          timing: NotingTiming;
+          fixedDelaySec: number;
+      };
+
+export const DIRECTIVENESS_VALUES: readonly number[] = [0, 3, 5, 7, 10];
+
+export function dirStepToBackend(step: number): number {
+    const v = DIRECTIVENESS_VALUES[Math.max(0, Math.min(step, DIRECTIVENESS_VALUES.length - 1))];
+    return v ?? 3;
+}
+
+export const defaultSetup: SessionSetup = {
+    meditationType: 'exploration',
+    intention: '',
+    preset: 'pleasant_play',
+    focuses: ['body_sensations', 'emotions'],
+    qualities: ['playful', 'feeling_good'],
+    dirStep: 1,
+    verbosity: 'medium',
+    customInstructions: '',
+    provider: 'ollama',
+    model: '',
+    voice: null,
+    ttsRate: 160,
+    // Default circle: one AI participant at the settings default voice, middle
+    // reactivity, adaptive timing. (voice: null = inherit the resolved default.)
+    notingParticipants: [{ type: 'llm', voice: null, reactive: 'low', timing: 'adaptive', fixedDelaySec: 4 }],
+    notingUserTurnCue: false,
+    notingUserTurnCueSound: null,
+};
+
+const SETTINGS_KEY = 'preview:setup';
+const kv = new LocalStorageKv();
+
+export async function loadSetup(): Promise<SessionSetup> {
+    // Two different inheritance rules, on purpose:
+    //
+    //  - provider/model: the app default merely *seeds* a fresh setup; a
+    //    per-session override persisted in 'preview:setup' wins. (Trying a
+    //    different provider for one session is a reasonable thing to want.)
+    //
+    //  - voice/ttsRate: the app-level default is *canonical* and ALWAYS wins.
+    //    There is no separate per-session voice — the setup picker writes
+    //    through to app settings (see setup.ts:persistDefaultVoice). This is
+    //    the fix for meditation-pal-9hu: previously any setup interaction
+    //    persisted setup.voice, which then shadowed the Settings default
+    //    forever, so changing the default voice never took effect.
+    const s = await loadAppSettings();
+    const base: SessionSetup = {
+        ...defaultSetup,
+        provider: s.defaultProvider,
+        model: s.defaultModel,
+    };
+    const raw = await kv.get(SETTINGS_KEY);
+    let merged = base;
+    if (raw) {
+        try {
+            merged = { ...base, ...(JSON.parse(raw) as Partial<SessionSetup>) };
+        } catch {
+            merged = base;
+        }
+    }
+    // App-level voice/rate are the single source of truth — clobber any
+    // value that an older 'preview:setup' may have persisted.
+    merged.voice = s.defaultVoice;
+    merged.ttsRate = s.defaultTtsRate;
+    return merged;
+}
+
+export async function saveSetup(setup: SessionSetup): Promise<void> {
+    await kv.set(SETTINGS_KEY, JSON.stringify(setup));
+}

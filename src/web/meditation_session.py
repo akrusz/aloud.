@@ -188,6 +188,7 @@ class WebMeditationSession:
         messages = self.session.get_context_messages()
         llm_messages = [Message(role=m["role"], content=m["content"]) for m in messages]
 
+        result = None
         try:
             result = await self.llm.complete(
                 messages=llm_messages,
@@ -211,8 +212,25 @@ class WebMeditationSession:
         # Keep the [HOLD] prefix in conversation history so the LLM
         # knows it was in silence mode when interpreting later messages
         # like "come back" (which otherwise reads as a meditation cue).
-        self.session.add_assistant_message(response if hold_signal == "hold" else clean_response)
+        self.session.add_assistant_message(
+            response if hold_signal == "hold" else clean_response,
+            tokens_in=result.input_tokens if result else None,
+            tokens_out=result.output_tokens if result else None,
+            cache_read=result.cache_read_tokens if result else None,
+            cache_creation=result.cache_creation_tokens if result else None,
+        )
         return clean_response, hold_signal
+
+    def _record_offtranscript(self, result) -> None:
+        """Fold an off-transcript completion (summary, resume-intent, noting
+        label) into the session usage tally — these don't add an exchange,
+        so they'd otherwise go uncounted."""
+        self.session.record_llm_usage(
+            result.input_tokens,
+            result.output_tokens,
+            result.cache_read_tokens,
+            result.cache_creation_tokens,
+        )
 
     async def classify_resume_intent(self, text: str) -> bool:
         """Classify whether a silence-mode utterance signals resume intent.
@@ -227,6 +245,7 @@ class WebMeditationSession:
                 system=RESUME_INTENT_SYSTEM_PROMPT,
                 max_tokens=10,
             )
+            self._record_offtranscript(result)
             return _strip_think_tags(result.text).upper().startswith("YES")
         except Exception:
             return False
@@ -286,6 +305,7 @@ class WebMeditationSession:
                 "the summary, nothing else."
             ),
         )
+        self._record_offtranscript(result)
         return _strip_think_tags(result.text)
 
     async def generate_noting_label(
@@ -319,10 +339,11 @@ class WebMeditationSession:
 
         try:
             result = await self.llm.complete(
-                messages=[Message(role="user", content="Your turn. Note what you notice.")],
+                messages=[Message(role="user", content="Your turn. Say something you notice now, 1-2 words.")],
                 system=system,
                 max_tokens=20,
             )
+            self._record_offtranscript(result)
             label = _strip_think_tags(result.text).strip().rstrip(".").lower()
             return label or "breathing"
         except Exception as e:

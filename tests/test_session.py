@@ -168,3 +168,62 @@ class TestSerialization:
 
     def test_to_dict_no_session(self, session_manager):
         assert session_manager.to_dict() is None
+
+
+class TestUsageTracking:
+    def test_user_exchange_has_no_token_fields(self, session_manager):
+        session_manager.start_session()
+        session_manager.add_user_message("hello")
+        d = session_manager.to_dict()["exchanges"][0]
+        assert "tokens_in" not in d and "tokens_out" not in d
+
+    def test_static_assistant_message_has_no_token_fields(self, session_manager):
+        session_manager.start_session()
+        session_manager.add_assistant_message("welcome back")  # no LLM call
+        d = session_manager.to_dict()["exchanges"][0]
+        assert "tokens_in" not in d
+        assert session_manager.state.usage.llm_calls == 0
+
+    def test_assistant_message_records_per_turn_and_session_usage(self, session_manager):
+        session_manager.start_session()
+        session_manager.add_assistant_message(
+            "what do you notice?", tokens_in=1200, tokens_out=18, cache_read=900
+        )
+        ex = session_manager.to_dict()["exchanges"][0]
+        assert ex["tokens_in"] == 1200
+        assert ex["tokens_out"] == 18
+        assert ex["cache_read"] == 900
+        assert "cache_creation" not in ex  # falsy values omitted
+
+        usage = session_manager.state.usage
+        assert usage.llm_calls == 1
+        assert usage.llm_tokens_in == 1200
+        assert usage.llm_tokens_out == 18
+        assert usage.llm_cache_read == 900
+
+    def test_offtranscript_usage_counts_without_adding_exchange(self, session_manager):
+        session_manager.start_session()
+        session_manager.add_assistant_message("on-transcript", tokens_in=100, tokens_out=10)
+        session_manager.record_llm_usage(1300, 7)  # e.g. a summary call
+        assert len(session_manager.state.exchanges) == 1
+        usage = session_manager.state.usage
+        assert usage.llm_calls == 2
+        assert usage.llm_tokens_in == 1400
+        assert usage.llm_tokens_out == 17
+
+    def test_stt_and_tts_accumulate(self, session_manager):
+        session_manager.start_session()
+        session_manager.record_stt(4.2)
+        session_manager.record_stt(1.3)
+        session_manager.record_tts(20)
+        session_manager.record_tts(15)
+        usage = session_manager.to_dict()["usage"]
+        assert usage["stt_seconds"] == 5.5
+        assert usage["tts_chars"] == 35
+
+    def test_record_methods_safe_without_active_session(self, session_manager):
+        # No active session — should be no-ops, not raise.
+        session_manager.record_stt(3.0)
+        session_manager.record_tts(10)
+        session_manager.record_llm_usage(100, 10)
+        assert session_manager.state is None
