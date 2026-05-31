@@ -20,7 +20,10 @@ export default defineConfig({
         fs: {
             allow: [resolve(__dirname, '../..')],
         },
-        port: 5173,
+        // aloud's dev port. Reuses 4649 (the retired Flask port) now that the
+        // browser preview no longer depends on Python — one memorable port for
+        // "the app" in dev, matching `tauri dev` (tauri.conf.json devUrl).
+        port: 4649,
         strictPort: false,
         proxy: {
             // Hosted aloud cloud service: auth, account, billing, and the

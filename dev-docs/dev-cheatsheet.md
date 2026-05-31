@@ -42,7 +42,7 @@ All `npm` commands run from `ts/`. Use `uv` for Python.
 cd ts && npm run tauri:dev
 ```
 
-Starts Vite (UI on **:1420**) + compiles and runs the Rust shell. The shell's
+Starts Vite (UI on **:4649**) + compiles and runs the Rust shell. The shell's
 embedded backend serves `/app/v1/*` on a loopback port — **no Flask needed**.
 For hosted features (accounts/credits/hosted voices) also start the Hono
 server (below); without it, `/cloud/v1/*` calls fail with `ECONNREFUSED` and the
@@ -51,7 +51,7 @@ UI degrades to "hosted unavailable" (expected, harmless).
 ### Web UI in a browser (Vite)
 
 ```bash
-cd ts && npm run ui:dev          # UI on :5173
+cd ts && npm run ui:dev          # UI on :4649
 ```
 
 The Vite proxy (`ui/vite.config.ts`) forwards:
@@ -61,7 +61,20 @@ The Vite proxy (`ui/vite.config.ts`) forwards:
 - `/ollama/*` → local Ollama daemon on :11434.
 
 So browser preview needs only the Hono server running (next section) — **no
-Flask**. Run `cd ts/server && npm run dev` and load :5173.
+Flask**. Run `cd ts/server && npm run dev` and load :4649.
+
+**Local vs web mode (dev override).** The app runs in `local` mode (all
+providers: Ollama + every BYOK API) or `web` mode (the hosted demo: Ollama
+hidden, BYOK off behind a settings checkbox). The build default keys off
+`isHostedBuild()` (whether `VITE_ALOUD_SERVER_URL` was baked in). In **dev** you
+can force either with a URL param — no rebuild, no settings change — so you can
+keep both open in two tabs:
+- `:4649/?mode=web` — force web mode
+- `:4649/?mode=local` — force local mode
+- `:4649/?mode=auto` — clear the override (back to the build default)
+
+The override is **dev-only**: `vite build` hard-disables it (`app-mode.ts`),
+so a deployed visitor can't force local mode to unlock Ollama/BYOK.
 
 ### Hosted server (Hono)
 
@@ -86,11 +99,13 @@ uv run python -m src.web --debug               # verbose src.* logging
 
 | Port | Who |
 |------|-----|
-| 1420 | Vite UI under `tauri:dev` |
-| 5173 | Vite UI under `ui:dev` (browser) |
-| 4649 | Flask (legacy; native window only — no longer a `ui:dev` proxy target) |
+| 4649 | Vite UI — both `tauri:dev` and `ui:dev` (reuses the retired Flask port) |
 | 8787 | Hono server — both `/cloud/v1` and `/app/v1` (the `ui:dev` `/app` + `/cloud` proxy target) |
 | 11434 | Ollama daemon |
+
+(Legacy Flask, if you still run it, is also :4649 — but it's native-window only
+now and no longer a dev proxy target, so it won't collide with `ui:dev` unless
+you run both at once.)
 
 ## Tests & checks
 

@@ -431,7 +431,7 @@ export async function mountSessionView(
         micBtn.classList.add('disabled');
         const hint =
             'No microphone available — try Chrome or Edge for built-in speech ' +
-            'recognition, or check your microphone permissions. You can also type to continue.';
+            'recognition, or check your microphone permissions.';
         micBtn.title = hint;
         setStatus('Mic unavailable');
     } else {
@@ -538,7 +538,7 @@ export async function mountSessionView(
                 setStatus('Holding space — anything you say resumes');
                 setOrbHolding(true);
             } else {
-                setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+                setStatus(stt ? 'Listening…' : 'Mic unavailable');
             }
             pacing.onResponseEnd();
         } catch (err) {
@@ -548,7 +548,7 @@ export async function mountSessionView(
             // Hosted credit/auth failures get a clear, actionable message.
             const msg = (err as Error).message;
             showErrorToast(describeHostedError(msg) ?? `Something went wrong: ${msg}`);
-            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+            setStatus(stt ? 'Listening…' : 'Mic unavailable');
         } finally {
             busy = false;
         }
@@ -904,7 +904,7 @@ export async function mountSessionView(
                 /* non-fatal */
             }
             pacing.onResponseEnd();
-            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+            setStatus(stt ? 'Listening…' : 'Mic unavailable');
         } catch (err) {
             console.warn('LLM opener failed, using static fallback', err);
             hideTyping();
@@ -917,7 +917,7 @@ export async function mountSessionView(
                 /* non-fatal */
             }
             pacing.onResponseEnd();
-            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+            setStatus(stt ? 'Listening…' : 'Mic unavailable');
         }
     }
 
@@ -956,7 +956,7 @@ export async function mountSessionView(
                 /* non-fatal */
             }
             pacing.onResponseEnd();
-            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+            setStatus(stt ? 'Listening…' : 'Mic unavailable');
         } catch (err) {
             console.warn('Continuation opener failed', err);
             hideTyping();
@@ -970,7 +970,7 @@ export async function mountSessionView(
                 /* non-fatal */
             }
             pacing.onResponseEnd();
-            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+            setStatus(stt ? 'Listening…' : 'Mic unavailable');
         }
     }
 
@@ -1015,7 +1015,7 @@ export async function mountSessionView(
                 /* non-fatal */
             }
             pacing.onResponseEnd();
-            setStatus(stt ? 'Listening…' : 'Ready — type to continue');
+            setStatus(stt ? 'Listening…' : 'Mic unavailable');
         } finally {
             busy = false;
         }
@@ -1234,7 +1234,7 @@ function describeSttError(err: unknown): string {
     if (hosted) return hosted;
     // Common cases that benefit from plain-English status text.
     if (/Whisper endpoint 5\d\d/.test(msg) || /failed to fetch/i.test(msg)) {
-        return 'Speech-recognition backend unreachable — check your connection, or type to continue.';
+        return 'Speech-recognition backend unreachable — check your connection.';
     }
     if (/Whisper endpoint 503/.test(msg)) {
         return 'Whisper model still loading — try again in a moment.';

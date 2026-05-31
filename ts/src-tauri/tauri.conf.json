@@ -5,8 +5,8 @@
   "identifier": "app.aloud.meditation",
   "build": {
     "frontendDist": "../ui/dist",
-    "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "npm run ui:dev -- --port 1420 --strictPort",
+    "devUrl": "http://localhost:4649",
+    "beforeDevCommand": "npm run ui:dev -- --port 4649 --strictPort",
     "beforeBuildCommand": "npm run ui:build"
   },
   "app": {

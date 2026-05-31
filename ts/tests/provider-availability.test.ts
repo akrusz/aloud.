@@ -40,28 +40,38 @@ describe('isProviderAvailable', () => {
         expect(mod.isProviderAvailable(get('claude_proxy'), caps({}))).toBe(false);
     });
 
-    it('on a local build, BYOK shows by default', () => {
+    it('in local mode, BYOK shows by default', () => {
         const byok = mod.ALL_PROVIDERS.find((p) => p.value === 'anthropic')!;
-        expect(mod.isProviderAvailable(byok, caps({}), { hostedBuild: false })).toBe(true);
+        expect(mod.isProviderAvailable(byok, caps({}), { webMode: false })).toBe(true);
     });
 
-    it('on the hosted build, BYOK is hidden unless explicitly enabled', () => {
+    it('in web mode, BYOK is hidden unless explicitly enabled', () => {
         const byok = mod.ALL_PROVIDERS.find((p) => p.value === 'anthropic')!;
-        expect(mod.isProviderAvailable(byok, caps({ hosted: true }), { hostedBuild: true })).toBe(false);
+        expect(mod.isProviderAvailable(byok, caps({ hosted: true }), { webMode: true })).toBe(false);
         expect(
-            mod.isProviderAvailable(byok, caps({ hosted: true }), { hostedBuild: true, allowByok: true })
+            mod.isProviderAvailable(byok, caps({ hosted: true }), { webMode: true, allowByok: true })
         ).toBe(true);
     });
 
-    it('hosted website (BYOK off): shows aloud only; (BYOK on): adds the key providers', () => {
+    it('web mode hides local providers even when a local daemon IS reachable', () => {
+        // A forced-web dev session (or the hosted site) must not surface a stray
+        // local Ollama / Flask the capability probe happened to find.
+        const localUp = caps({ hosted: true, ollama: true, flask: true });
+        expect(mod.isProviderAvailable(mod.ALL_PROVIDERS.find((p) => p.value === 'ollama')!, localUp, { webMode: true })).toBe(false);
+        expect(mod.isProviderAvailable(mod.ALL_PROVIDERS.find((p) => p.value === 'claude_proxy')!, localUp, { webMode: true })).toBe(false);
+        // ...but local mode still shows them.
+        expect(mod.isProviderAvailable(mod.ALL_PROVIDERS.find((p) => p.value === 'ollama')!, localUp, { webMode: false })).toBe(true);
+    });
+
+    it('web mode (BYOK off): shows aloud only; (BYOK on): adds the key providers', () => {
         const caps0 = caps({ hosted: true });
         const off = mod.ALL_PROVIDERS.filter((p) =>
-            mod.isProviderAvailable(p, caps0, { hostedBuild: true })
+            mod.isProviderAvailable(p, caps0, { webMode: true })
         ).map((p) => p.value);
         expect(off).toEqual(['aloud']); // Ollama/claude_proxy need local; BYOK hidden
 
         const on = mod.ALL_PROVIDERS.filter((p) =>
-            mod.isProviderAvailable(p, caps0, { hostedBuild: true, allowByok: true })
+            mod.isProviderAvailable(p, caps0, { webMode: true, allowByok: true })
         ).map((p) => p.value);
         expect(on).toContain('aloud');
         expect(on).toContain('anthropic');

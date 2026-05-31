@@ -5,6 +5,11 @@
  * `import.meta.env.VITE_*` with literals at build time.
  */
 interface ImportMetaEnv {
+    /** Vite's build-mode flags. DEV is true under `vite dev`, false in any
+     *  `vite build` output — we use it to hard-disable dev-only affordances
+     *  (the `?mode=` override in app-mode.ts) in deployed builds. */
+    readonly DEV: boolean;
+    readonly PROD: boolean;
     /** Absolute origin of the hosted aloud server for a deployed static build,
      *  e.g. https://api.aloud.example. Unset in dev — paths stay relative and
      *  the Vite proxy forwards them. */

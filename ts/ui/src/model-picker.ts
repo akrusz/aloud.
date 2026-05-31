@@ -5,16 +5,23 @@
  * The provider's API key lives in the UI's BYOK store (localStorage), so it's
  * forwarded as `x-provider-key`; the app backend uses it to query the
  * provider's models endpoint (OpenRouter needs none, claude_proxy is static).
- * Falls back to a free-form text input when the endpoint returns nothing — no
- * key set, the backend is unreachable, or a provider with no live list. The
- * caller picks which UI to render; this module just supplies the data.
+ * When the endpoint returns nothing — no key set, the backend is unreachable,
+ * or a provider with no live list — we render NO selector (just a reason), not
+ * a free-text box: a model picker should only appear when we can list the
+ * provider's currently-accessible models.
  */
 
 import { cloudUrl } from './cloud-base.js';
 import { appUrl } from './app-base.js';
-import { getApiKey } from './api-keys.js';
+import { getApiKey, hasApiKey } from './api-keys.js';
 import { probeOllamaDirect } from './ollama-direct.js';
 import type { Provider } from './settings.js';
+
+/** Providers that authenticate with a user-supplied key (BYOK). The hosted
+ *  service ('aloud'), local Ollama, and the subscription claude_proxy don't. */
+function providerNeedsKey(provider: string): boolean {
+    return !['aloud', 'ollama', 'claude_proxy'].includes(provider);
+}
 
 interface ModelOption {
     value: string;
@@ -149,16 +156,18 @@ export function mountModelPicker(
         });
     }
 
-    function renderTextInput(provider: string): void {
-        container.innerHTML = `
-            <input type="text" id="model-input" data-provider="${attr(provider)}"
-                placeholder="${attr(modelPlaceholder(provider))}"
-                value="${attr(currentValue)}">`;
-        const input = container.querySelector<HTMLInputElement>('#model-input')!;
-        input.addEventListener('change', () => {
-            currentValue = input.value.trim();
-            onChange(currentValue);
-        });
+    /**
+     * No model list could be fetched. Per product direction, we do NOT fall
+     * back to a free-text box — a model selector only appears when we can list
+     * the provider's currently-accessible models. Show why instead (missing key
+     * vs. unreachable), so the user knows what to fix.
+     */
+    async function renderUnavailable(provider: string): Promise<void> {
+        const reason =
+            providerNeedsKey(provider) && !(await hasApiKey(provider as Provider))
+                ? `Add a ${provider} API key to load its models.`
+                : `Couldn't load ${provider} models — check the key or your connection.`;
+        container.innerHTML = `<p class="model-unavailable" id="model-none">${escape(reason)}</p>`;
     }
 
     /**
@@ -183,7 +192,7 @@ export function mountModelPicker(
         } else if (provider === 'ollama') {
             renderOllamaEmpty();
         } else {
-            renderTextInput(provider);
+            await renderUnavailable(provider);
         }
     }
 
@@ -192,29 +201,6 @@ export function mountModelPicker(
         refresh,
         getValue: () => currentValue,
     };
-}
-
-function modelPlaceholder(provider: string): string {
-    switch (provider) {
-        case 'aloud':
-            return 'anthropic/claude-sonnet-4-6';
-        case 'ollama':
-            return 'qwen3.5:4b';
-        case 'anthropic':
-            return 'claude-sonnet-4-6';
-        case 'openai':
-            return 'gpt-5.4-mini';
-        case 'openrouter':
-            return 'deepseek/deepseek-v3.2';
-        case 'venice':
-            return 'llama-3.3-70b';
-        case 'groq':
-            return 'llama-3.3-70b-versatile';
-        case 'claude_proxy':
-            return 'sonnet | haiku | opus';
-        default:
-            return 'model name';
-    }
 }
 
 function attr(s: string): string {

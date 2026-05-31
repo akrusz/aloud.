@@ -18,6 +18,7 @@ import {
     NOTING_SOUNDS,
     ALL_PROVIDERS,
     isProviderAvailable,
+    providerNeedsKey,
     type ProviderAvailabilityOpts,
     DIRECTIVENESS_VALUES,
     loadSetup,
@@ -44,9 +45,10 @@ import {
 } from '../voice-picker.js';
 import { createTtsForVoice } from '../adapters/tts-picker.js';
 import { mountModelPicker } from '../model-picker.js';
+import { hasApiKey } from '../api-keys.js';
 import { sessionStore } from '../state.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
-import { isHostedBuild } from '../cloud-base.js';
+import { isWebMode } from '../app-mode.js';
 import { appUrl } from '../app-base.js';
 import { alertDialog } from '../dialog.js';
 import { loadAppSettings, saveAppSettings } from '../app-settings.js';
@@ -131,9 +133,9 @@ export async function mountSetupView(
     // menu shows exactly what's reachable (also populates the is-desktop cache
     // for the env-var hints).
     await detectCapabilities();
-    // BYOK visibility: always on a local build; opt-in on the hosted build.
+    // BYOK visibility: always in local mode; opt-in in web mode.
     const byokOpts: ProviderAvailabilityOpts = {
-        hostedBuild: isHostedBuild(),
+        webMode: isWebMode(),
         allowByok: (await loadAppSettings()).enableByok,
     };
     // Scored voice list for the modal. Lazy-loaded; the setup form is
@@ -520,17 +522,29 @@ export async function mountSetupView(
         hint?: string;
     }
     let providerStatus: Record<string, ProviderInfo> | null = null;
+    // Whether a BYOK provider has a key stored. A keyless API provider is
+    // marked ✘ (unavailable) — you can't run it without a key. Populated from
+    // the localStorage BYOK store on each availability refresh.
+    let keyPresent: Record<string, boolean> = {};
+
+    async function refreshKeyPresence(): Promise<void> {
+        const entries = await Promise.all(
+            ALL_PROVIDERS.filter((p) => p.needsKey).map(
+                async (p) => [p.value, await hasApiKey(p.value)] as const
+            )
+        );
+        keyPresent = Object.fromEntries(entries);
+    }
 
     async function refreshProviderAvailability(): Promise<void> {
+        await refreshKeyPresence();
         try {
             const resp = await fetch(appUrl('/providers'));
-            if (!resp.ok) return;
-            providerStatus = (await resp.json()) as Record<string, ProviderInfo>;
+            if (resp.ok) providerStatus = (await resp.json()) as Record<string, ProviderInfo>;
         } catch {
-            // Flask not reachable — leave indicators clean. The session
-            // view will surface a real error if the provider call fails
-            // later.
-            return;
+            // Backend not reachable — leave provider status unknown; the
+            // key-presence ✘ marks below still apply, and the session view
+            // surfaces a real error if a provider call fails later.
         }
         applyProviderIndicators();
         updateProviderHint();
@@ -555,6 +569,9 @@ export async function mountSetupView(
      * block on missing information. Mirrors Python's providerAvailable.
      */
     function providerAvailable(): boolean {
+        // An API provider with no stored key can't run — treat as unavailable
+        // so Begin is blocked and the ✘ is consistent with the gate.
+        if (providerNeedsKey(setup.provider) && keyPresent[setup.provider] === false) return false;
         const info = providerStatus?.[setup.provider];
         return !info || info.available;
     }
@@ -582,14 +599,22 @@ export async function mountSetupView(
      */
     function applyProviderIndicators(): void {
         const providerSel = root.querySelector<HTMLSelectElement>('#provider');
-        if (!providerSel || !providerStatus) return;
+        if (!providerSel) return;
         const available: HTMLOptionElement[] = [];
         const unavailable: HTMLOptionElement[] = [];
         for (const opt of Array.from(providerSel.options)) {
-            const info = providerStatus[opt.value];
+            const info = providerStatus?.[opt.value];
             opt.textContent = (opt.textContent ?? '').replace(/ [✘✱]$/, '');
             opt.classList.remove('provider-unavailable');
-            if (info && !info.available) {
+            const needsKeyMissing =
+                providerNeedsKey(opt.value as Provider) && keyPresent[opt.value] === false;
+            if (needsKeyMissing) {
+                // API provider with no key stored — not runnable until a key is
+                // added (in Settings). Mark ✘ and sort to the unavailable group.
+                opt.classList.add('provider-unavailable');
+                opt.textContent += ' ✘';
+                unavailable.push(opt);
+            } else if (info && !info.available) {
                 if (info.installed) {
                     // Installed but not running — still selectable; sorts with
                     // the available group under a subtle marker.

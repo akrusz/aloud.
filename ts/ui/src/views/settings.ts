@@ -35,7 +35,7 @@ import {
 import { ALL_PROVIDERS, isProviderAvailable, providerNeedsKey, type Provider } from '../settings.js';
 import { isDesktopSync } from '../is-desktop.js';
 import { detectCapabilities, capabilitiesSync } from '../capabilities.js';
-import { isHostedBuild } from '../cloud-base.js';
+import { isWebMode } from '../app-mode.js';
 import { appUrl } from '../app-base.js';
 import { getApiKey, hasApiKey, setApiKey } from '../api-keys.js';
 import { mountModelPicker } from '../model-picker.js';
@@ -224,7 +224,7 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         byokToggle?.addEventListener('change', () => {
             settings.enableByok = byokToggle.checked;
             persist();
-            const opts = { hostedBuild: isHostedBuild(), allowByok: settings.enableByok };
+            const opts = { webMode: isWebMode(), allowByok: settings.enableByok };
             providerSel.innerHTML = ALL_PROVIDERS.filter((p) =>
                 isProviderAvailable(p, capabilitiesSync(), opts)
             )
@@ -264,6 +264,8 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
             // bare "Saved", so the user can tell a key is stored without
             // exposing it. Mirrors Python's masked-key indicator.
             if (status) status.textContent = existing ? `key saved (${maskKey(existing)})` : '';
+            const removeBtn = row.querySelector<HTMLButtonElement>('.api-key-remove-btn');
+            if (removeBtn) removeBtn.hidden = !existing;
         }
     }
 
@@ -375,6 +377,28 @@ export async function mountSettingsView(root: HTMLElement): Promise<SettingsView
         } else {
             showManualPasteHint(input, /Mac/.test(navigator.platform || '') ? '⌘V' : 'Ctrl+V');
         }
+
+        // Remove button — deletes the stored key. Necessary because clearing
+        // the field alone doesn't delete (the change handler below only saves
+        // non-empty values). Hidden when no key is stored; refreshApiKeyRows()
+        // and the initial probe below keep its visibility honest.
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-small btn-secondary api-key-remove-btn';
+        remove.textContent = 'Remove';
+        remove.title = 'Delete this stored key';
+        remove.hidden = true;
+        remove.addEventListener('click', async () => {
+            await setApiKey(provider, ''); // empty → backend.delete()
+            input.value = '';
+            status.textContent = 'Removed';
+            status.classList.remove('is-warn', 'is-ok');
+            await refreshApiKeyRows();
+        });
+        actions.appendChild(remove);
+        void getApiKey(provider).then((k) => {
+            remove.hidden = !k;
+        });
 
         row.appendChild(actions);
         row.appendChild(status);
@@ -1132,7 +1156,7 @@ function renderProviderSection(s: AppSettings): string {
     // boot; if unresolved they read false, so an unreachable source is hidden
     // until the next render — in practice the probe finishes before first paint.
     const caps = capabilitiesSync();
-    const byokOpts = { hostedBuild: isHostedBuild(), allowByok: s.enableByok };
+    const byokOpts = { webMode: isWebMode(), allowByok: s.enableByok };
     const providerOptions = ALL_PROVIDERS.filter((p) => isProviderAvailable(p, caps, byokOpts))
         .map(
             (p) =>
@@ -1176,7 +1200,7 @@ function renderProviderSection(s: AppSettings): string {
         </div>
 
         ${
-            byokOpts.hostedBuild
+            byokOpts.webMode
                 ? `<div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" id="s-enable-byok"${s.enableByok ? ' checked' : ''}>

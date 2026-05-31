@@ -54,24 +54,33 @@ export const ALL_PROVIDERS: ReadonlyArray<ProviderMeta> = [
 ];
 
 export interface ProviderAvailabilityOpts {
-    /** The hosted/website/mobile build (server-base.isHostedBuild()). */
-    hostedBuild?: boolean;
-    /** User opted into bring-your-own-key on a hosted build. */
+    /** Web mode — the hosted demo (app-mode.isWebMode()): Ollama + local
+     *  providers off, BYOK off unless opted in. Build default keys off
+     *  isHostedBuild, but a dev override can force it (see app-mode.ts). */
+    webMode?: boolean;
+    /** User opted into bring-your-own-key in web mode. */
     allowByok?: boolean;
 }
 
 /** Whether a provider is usable in the current environment.
- *  - `requires` providers (hosted/ollama/claude_proxy): need that capability.
- *  - BYOK providers (no `requires`): shown by default, but hidden on a hosted
- *    build unless the user explicitly enables BYOK (asking a public site's
- *    visitors for their own API key feels wrong; opt-in instead). */
+ *  - Local-only capabilities (Ollama, the desktop claude_proxy) are hidden in
+ *    web mode regardless of what a local probe found — the hosted demo is
+ *    server-only, and a forced-web dev session shouldn't surface a stray local
+ *    daemon.
+ *  - Other `requires` providers (the hosted service) need that capability.
+ *  - BYOK providers (no `requires`): shown by default, but hidden in web mode
+ *    unless the user explicitly enables BYOK (asking a public site's visitors
+ *    for their own API key feels wrong; opt-in instead). */
 export function isProviderAvailable(
     meta: ProviderMeta,
     caps: Capabilities,
     opts: ProviderAvailabilityOpts = {}
 ): boolean {
-    if (meta.requires) return caps[meta.requires];
-    return !opts.hostedBuild || opts.allowByok === true;
+    if (meta.requires) {
+        if (opts.webMode && (meta.requires === 'ollama' || meta.requires === 'flask')) return false;
+        return caps[meta.requires];
+    }
+    return !opts.webMode || opts.allowByok === true;
 }
 
 export function providerNeedsKey(p: Provider): boolean {
